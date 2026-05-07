@@ -304,7 +304,8 @@ export default function ProgramCreateScreen() {
                     return;
                 }
                 for (const s of ex.targetSets) {
-                    if (!s.targetReps.trim()) {
+                    // Daha güvenli bir kontrol:
+                    if (!s.targetReps || s.targetReps.toString().trim() === "") {
                         Alert.alert("Hata", `"${ex.name}" egzersizinin eksik tekrar hedefleri var.`);
                         return;
                     }
@@ -610,76 +611,76 @@ export default function ProgramCreateScreen() {
                                             else workingCount++;
                                             const label = isWarmup ? `W${warmupCount}` : `${workingCount}`;
                                             return (
-                                        <View key={setIndex} style={styles.setRow}>
-                                            <TouchableOpacity
-                                                onLongPress={() => {}}
-                                                style={{ justifyContent: "center", marginRight: 2 }}
-                                            >
-                                                <TouchableOpacity
-                                                    onPress={() => reorderSet(exercise.id, setIndex, "up")}
-                                                    disabled={setIndex === 0}
-                                                    hitSlop={{ top: 4, bottom: 2, left: 4, right: 4 }}
-                                                >
-                                                    <Ionicons name="chevron-up" size={14} color={setIndex === 0 ? colors.border : colors.textSecondary} />
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    onPress={() => reorderSet(exercise.id, setIndex, "down")}
-                                                    disabled={setIndex === exercise.targetSets.length - 1}
-                                                    hitSlop={{ top: 2, bottom: 4, left: 4, right: 4 }}
-                                                >
-                                                    <Ionicons name="chevron-down" size={14} color={setIndex === exercise.targetSets.length - 1 ? colors.border : colors.textSecondary} />
-                                                </TouchableOpacity>
-                                            </TouchableOpacity>
-                                            <Text style={[styles.setLabel, isWarmup && { color: colors.textMuted, fontStyle: "italic" as const }]}>
-                                                {label}
-                                            </Text>
+                                                <View key={setIndex} style={styles.setRow}>
+                                                    <TouchableOpacity
+                                                        onLongPress={() => { }}
+                                                        style={{ justifyContent: "center", marginRight: 2 }}
+                                                    >
+                                                        <TouchableOpacity
+                                                            onPress={() => reorderSet(exercise.id, setIndex, "up")}
+                                                            disabled={setIndex === 0}
+                                                            hitSlop={{ top: 4, bottom: 2, left: 4, right: 4 }}
+                                                        >
+                                                            <Ionicons name="chevron-up" size={14} color={setIndex === 0 ? colors.border : colors.textSecondary} />
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            onPress={() => reorderSet(exercise.id, setIndex, "down")}
+                                                            disabled={setIndex === exercise.targetSets.length - 1}
+                                                            hitSlop={{ top: 2, bottom: 4, left: 4, right: 4 }}
+                                                        >
+                                                            <Ionicons name="chevron-down" size={14} color={setIndex === exercise.targetSets.length - 1 ? colors.border : colors.textSecondary} />
+                                                        </TouchableOpacity>
+                                                    </TouchableOpacity>
+                                                    <Text style={[styles.setLabel, isWarmup && { color: colors.textMuted, fontStyle: "italic" as const }]}>
+                                                        {label}
+                                                    </Text>
 
-                                            <View style={styles.setInputGroup}>
-                                                <View style={styles.setCol}>
-                                                    <Text style={styles.setColLabel}>Tekrar</Text>
-                                                    <TextInput
-                                                        style={styles.setInput}
-                                                        placeholder="8-12"
-                                                        placeholderTextColor={colors.textSecondary}
-                                                        keyboardType="number-pad"
-                                                        value={set.targetReps}
-                                                        onChangeText={(t) => updateSet(exercise.id, setIndex, { targetReps: t })}
-                                                    />
+                                                    <View style={styles.setInputGroup}>
+                                                        <View style={styles.setCol}>
+                                                            <Text style={styles.setColLabel}>Tekrar</Text>
+                                                            <TextInput
+                                                                style={styles.setInput}
+                                                                placeholder="8-12"
+                                                                placeholderTextColor={colors.textSecondary}
+                                                                keyboardType="number-pad"
+                                                                value={set.targetReps}
+                                                                onChangeText={(t) => updateSet(exercise.id, setIndex, { targetReps: t })}
+                                                            />
+                                                        </View>
+                                                        {showRPE && (
+                                                            <View style={styles.setCol}>
+                                                                <Text style={styles.setColLabel}>RPE</Text>
+                                                                <TextInput
+                                                                    style={styles.setInput}
+                                                                    placeholder="8"
+                                                                    placeholderTextColor={colors.textSecondary}
+                                                                    keyboardType="numeric"
+                                                                    value={set.targetRPE || ""}
+                                                                    onChangeText={(t) => updateSet(exercise.id, setIndex, { targetRPE: t })}
+                                                                />
+                                                            </View>
+                                                        )}
+                                                        {showRIR && (
+                                                            <View style={styles.setCol}>
+                                                                <Text style={styles.setColLabel}>RIR</Text>
+                                                                <TextInput
+                                                                    style={styles.setInput}
+                                                                    placeholder="2"
+                                                                    placeholderTextColor={colors.textSecondary}
+                                                                    value={set.targetRIR || ""}
+                                                                    onChangeText={(t) => updateSet(exercise.id, setIndex, { targetRIR: t })}
+                                                                />
+                                                            </View>
+                                                        )}
+                                                    </View>
+
+                                                    <TouchableOpacity
+                                                        onPress={() => removeSet(exercise.id, setIndex)}
+                                                        style={styles.removeSetBtn}
+                                                    >
+                                                        <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
+                                                    </TouchableOpacity>
                                                 </View>
-                                                {showRPE && (
-                                                    <View style={styles.setCol}>
-                                                        <Text style={styles.setColLabel}>RPE</Text>
-                                                        <TextInput
-                                                            style={styles.setInput}
-                                                            placeholder="8"
-                                                            placeholderTextColor={colors.textSecondary}
-                                                            keyboardType="numeric"
-                                                            value={set.targetRPE || ""}
-                                                            onChangeText={(t) => updateSet(exercise.id, setIndex, { targetRPE: t })}
-                                                        />
-                                                    </View>
-                                                )}
-                                                {showRIR && (
-                                                    <View style={styles.setCol}>
-                                                        <Text style={styles.setColLabel}>RIR</Text>
-                                                        <TextInput
-                                                            style={styles.setInput}
-                                                            placeholder="2"
-                                                            placeholderTextColor={colors.textSecondary}
-                                                            value={set.targetRIR || ""}
-                                                            onChangeText={(t) => updateSet(exercise.id, setIndex, { targetRIR: t })}
-                                                        />
-                                                    </View>
-                                                )}
-                                            </View>
-
-                                            <TouchableOpacity
-                                                onPress={() => removeSet(exercise.id, setIndex)}
-                                                style={styles.removeSetBtn}
-                                            >
-                                                <Ionicons name="close-circle" size={20} color={colors.textSecondary} />
-                                            </TouchableOpacity>
-                                        </View>
                                             );
                                         });
                                     })()}
