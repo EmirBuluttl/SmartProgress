@@ -2,7 +2,7 @@
 // Program Create Screen — Cycle Builder
 // Frekans seçimi + çok günlü program oluşturma
 // ─────────────────────────────────────────────
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
     View,
     Text,
@@ -27,10 +27,26 @@ import {
     fontWeight,
 } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
+import PrivacyModal from "../components/PrivacyModal";
 
 // ─── Helpers ─────────────────────────────────
 
 const FREQUENCY_OPTIONS = [2, 3, 4, 5, 6, 7];
+
+/** Safely convert any value to a trimmed string (handles number, null, undefined). */
+function safeString(value: unknown): string {
+    if (value == null) return "";
+    return String(value).trim();
+}
+
+/** Cross-platform alert that falls back to window.alert on web. */
+function showAlert(title: string, message: string): void {
+    if (Platform.OS === "web") {
+        window.alert(`${title}\n\n${message}`);
+    } else {
+        Alert.alert(title, message);
+    }
+}
 
 function makeDay(index: number): ProgramDay {
     return { label: `Gün ${index + 1}`, exercises: [] };
@@ -87,6 +103,7 @@ export default function ProgramCreateScreen() {
     const [isSaving, setIsSaving] = useState(false);
     const [showRPE, setShowRPE] = useState(false);
     const [showRIR, setShowRIR] = useState(false);
+    const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
 
     // Pre-populate fields in edit mode
     useEffect(() => {
@@ -140,7 +157,7 @@ export default function ProgramCreateScreen() {
 
     const removeDay = (index: number) => {
         if (days.length === 1) {
-            Alert.alert("Hata", "En az bir gün olmalıdır.");
+            showAlert("Hata", "En az bir gün olmalıdır.");
             return;
         }
         setDays((prev) => {
@@ -281,55 +298,45 @@ export default function ProgramCreateScreen() {
 
     // ─── Validation & Save ────────────────────
 
-    const handleSave = () => {
-
-        console.log("1. handleSave tetiklendi");
-
-        if (!name.trim()) {
-            Alert.alert("Hata", "Lütfen programa bir isim verin.");
+    const handleSave = useCallback(() => {
+        if (safeString(name) === "") {
+            showAlert("Hata", "Lütfen programa bir isim verin.");
             return;
         }
+
         const hasExercises = days.some((d) => d.exercises.length > 0);
-
-        console.log("2. Egzersiz kontrolü:", hasExercises);
-
         if (!hasExercises) {
-            Alert.alert("Hata", "En az bir güne egzersiz ekleyin.");
+            showAlert("Hata", "En az bir güne egzersiz ekleyin.");
             return;
         }
+
         for (const day of days) {
             if (day.isRestDay) continue;
 
             for (const ex of day.exercises) {
-                if (!ex.name.trim()) {
-                    Alert.alert("Hata", `${day.label}: Tüm egzersizlerin ismi olmalı.`);
+                if (safeString(ex.name) === "") {
+                    showAlert("Hata", `${day.label}: Tüm egzersizlerin ismi olmalı.`);
                     return;
                 }
                 if (ex.targetSets.length === 0) {
-                    Alert.alert("Hata", `"${ex.name}" için en az bir set ekleyin.`);
+                    showAlert("Hata", `"${ex.name}" için en az bir set ekleyin.`);
                     return;
                 }
                 for (const s of ex.targetSets) {
-                    // Daha güvenli bir kontrol:
-                    if (!s.targetReps || s.targetReps.toString().trim() === "") {
-                        Alert.alert("Hata", `"${ex.name}" egzersizinin eksik tekrar hedefleri var.`);
+                    if (safeString(s.targetReps) === "") {
+                        showAlert("Hata", `"${ex.name}" egzersizinin eksik tekrar hedefleri var.`);
                         return;
                     }
                 }
             }
         }
-        Alert.alert(
-            "Gizlilik Ayarı",
-            "Bu programı herkese açık mı yoksa özel mi kaydetmek istersiniz?",
-            [
-                { text: "Özel", onPress: () => doSave(true) },
-                { text: "Herkese Açık", onPress: () => doSave(true) },
-                { text: "İptal", style: "cancel" },
-            ]
-        );
-    };
 
-    const doSave = async (isPublic: boolean) => {
+        // Validasyon geçti — gizlilik seçim modalını aç
+        setPrivacyModalVisible(true);
+    }, [name, days]);
+
+    const doSave = useCallback(async (isPublic: boolean) => {
+        setPrivacyModalVisible(false);
         try {
             setIsSaving(true);
             const programData = {
@@ -339,12 +346,12 @@ export default function ProgramCreateScreen() {
                     isRestDay: !!d.isRestDay,
                     exercises: d.isRestDay ? [] : d.exercises.map((ex) => ({
                         id: ex.id,
-                        name: ex.name,
+                        name: safeString(ex.name),
                         targetSets: ex.targetSets.map((s) => ({
-                            targetReps: s.targetReps,
-                            targetWeight: s.targetWeight || undefined,
-                            targetRPE: s.targetRPE || undefined,
-                            targetRIR: s.targetRIR || undefined,
+                            targetReps: safeString(s.targetReps),
+                            targetWeight: safeString(s.targetWeight) || undefined,
+                            targetRPE: safeString(s.targetRPE) || undefined,
+                            targetRIR: safeString(s.targetRIR) || undefined,
                             isWarmup: !!s.isWarmup,
                         })),
                     })),
@@ -353,16 +360,16 @@ export default function ProgramCreateScreen() {
 
             if (isEditMode && editProgramId) {
                 await programApi.update(editProgramId, {
-                    name: name.trim(),
-                    description: description.trim(),
+                    name: safeString(name),
+                    description: safeString(description),
                     isPublic,
                     frequency,
                     data: programData,
                 });
             } else {
                 await programApi.create({
-                    name: name.trim(),
-                    description: description.trim(),
+                    name: safeString(name),
+                    description: safeString(description),
                     isPublic,
                     frequency,
                     data: programData,
@@ -371,11 +378,11 @@ export default function ProgramCreateScreen() {
             navigation.goBack();
         } catch (error) {
             const apiError = parseApiError(error);
-            Alert.alert("Kaydetme Hatası", apiError.message);
+            showAlert("Kaydetme Hatası", apiError.message);
         } finally {
             setIsSaving(false);
         }
-    };
+    }, [days, frequency, name, description, isEditMode, editProgramId, navigation]);
 
     const activeDay = days[activeDayIdx];
 
@@ -721,6 +728,14 @@ export default function ProgramCreateScreen() {
 
                 <View style={{ height: 80 }} />
             </ScrollView>
+
+            {/* ── Privacy Modal (cross-platform) ── */}
+            <PrivacyModal
+                visible={privacyModalVisible}
+                onSelectPrivate={() => doSave(false)}
+                onSelectPublic={() => doSave(true)}
+                onCancel={() => setPrivacyModalVisible(false)}
+            />
         </KeyboardAvoidingView>
     );
 }
