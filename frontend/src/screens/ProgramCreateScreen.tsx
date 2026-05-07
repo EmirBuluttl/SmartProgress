@@ -322,7 +322,7 @@ export default function ProgramCreateScreen() {
             "Gizlilik Ayarı",
             "Bu programı herkese açık mı yoksa özel mi kaydetmek istersiniz?",
             [
-                { text: "Özel", onPress: () => doSave(false) },
+                { text: "Özel", onPress: () => doSave(true) },
                 { text: "Herkese Açık", onPress: () => doSave(true) },
                 { text: "İptal", style: "cancel" },
             ]
