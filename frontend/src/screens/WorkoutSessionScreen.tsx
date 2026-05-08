@@ -520,9 +520,11 @@ export default function WorkoutSessionScreen() {
             await savePendingWorkout(completedSession);
             await clearActiveSession();
 
-            syncPendingWorkouts().catch((err) => {
-                console.warn("[WorkoutSession] Sync hatası:", err);
-            });
+            try {
+                await syncPendingWorkouts();
+            } catch (err) {
+                console.warn("[WorkoutSession] Sync hatası (arka planda yeniden denenecek):", err);
+            }
 
             // ── Compute summary stats ──
             const totalVolume = validExercises.reduce((total, ex) =>

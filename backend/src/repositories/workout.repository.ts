@@ -34,6 +34,27 @@ export class WorkoutRepository {
         return prisma.$transaction(async (tx) => {
             const createdLogs: WorkoutLog[] = [];
 
+            // Ensure all referenced sports exist (auto-provision if missing)
+            const sportIds = [...new Set(workouts.map((w) => w.sportId))];
+            for (const sportId of sportIds) {
+                const exists = await tx.sport.findUnique({ where: { id: sportId } });
+                if (!exists) {
+                    try {
+                        await tx.sport.create({
+                            data: {
+                                id: sportId,
+                                name: `Fitness-${sportId.slice(0, 8)}`,
+                                slug: `fitness-${sportId.slice(0, 8)}`,
+                                icon: "barbell",
+                            },
+                        });
+                    } catch (e: any) {
+                        // Ignore unique constraint errors — another process may have created it
+                        if (e?.code !== "P2002") throw e;
+                    }
+                }
+            }
+
             for (const workout of workouts) {
                 // 1. Create the WorkoutLog
                 const log = await tx.workoutLog.create({

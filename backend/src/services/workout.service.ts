@@ -15,6 +15,9 @@ const workoutSetSchema = z.object({
     reps: z.number().int().min(0),
     weight: z.number().nonnegative(),
     unit: z.enum(["kg", "lbs"]).default("kg"),
+    rpe: z.union([z.number(), z.string()]).optional(),
+    rir: z.union([z.number(), z.string()]).optional(),
+    isWarmup: z.boolean().optional(),
 });
 
 const workoutExerciseSchema = z.object({
@@ -28,6 +31,7 @@ const workoutDataSchema = z.object({
         .min(1, "At least one exercise is required")
         .optional(),
     totalDuration: z.number().int().nonnegative().optional(),
+    totalVolume: z.number().nonnegative().optional(),
     caloriesBurned: z.number().nonnegative().optional(),
     // Running-specific fields
     distance: z.number().nonnegative().optional(),

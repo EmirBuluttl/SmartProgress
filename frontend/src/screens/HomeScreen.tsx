@@ -29,6 +29,7 @@ import AccentButton from "../components/AccentButton";
 import StatBadge from "../components/StatBadge";
 import SectionHeader from "../components/SectionHeader";
 import ActiveWorkoutBanner from "../components/ActiveWorkoutBanner";
+import { syncPendingWorkouts } from "../services/syncService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -51,6 +52,13 @@ export default function HomeScreen() {
 
     const loadDashboard = async () => {
         try {
+            // Sync any pending workouts first so they appear in the list
+            try {
+                await syncPendingWorkouts();
+            } catch (syncErr) {
+                console.warn("[HomeScreen] Pending sync hatası:", syncErr);
+            }
+
             const [userRes, workoutRes, progRes] = await Promise.all([
                 authApi.getProfile(),
                 workoutApi.list({ limit: 20 }),

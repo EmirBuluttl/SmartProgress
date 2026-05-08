@@ -29,11 +29,14 @@ export function errorHandler(
 
     // Unknown / programmer errors
     console.error("💥 Unexpected error:", err);
+    // Log Prisma-specific details for database errors
+    if ((err as any).code) console.error("💥 Prisma error code:", (err as any).code);
+    if ((err as any).meta) console.error("💥 Prisma error meta:", JSON.stringify((err as any).meta));
 
+    const isDev = env.NODE_ENV !== "production";
     res.status(500).json({
-        error:
-            env.NODE_ENV === "production"
-                ? "Internal server error"
-                : err.message || "Internal server error",
+        error: isDev ? err.message || "Internal server error" : "Internal server error",
+        ...(isDev && (err as any).code ? { prismaCode: (err as any).code } : {}),
+        ...(isDev && (err as any).meta ? { prismaMeta: (err as any).meta } : {}),
     });
 }

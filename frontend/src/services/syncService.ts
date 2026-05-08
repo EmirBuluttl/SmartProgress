@@ -81,6 +81,32 @@ async function savePendingWorkouts(workouts: PendingWorkout[]): Promise<void> {
 }
 
 /**
+ * Clear all pending workouts (for debugging / stuck queue recovery).
+ */
+export async function clearAllPendingWorkouts(): Promise<void> {
+    await AsyncStorage.removeItem(STORAGE_KEYS.PENDING_WORKOUTS);
+    console.log("[SyncService] Tüm bekleyen antrenmanlar temizlendi");
+}
+
+/**
+ * Reset failed workouts back to "pending" so they can be retried.
+ */
+export async function resetFailedWorkouts(): Promise<number> {
+    const pending = await getPendingWorkouts();
+    let resetCount = 0;
+    const updated = pending.map((w) => {
+        if (w.syncStatus === "failed") {
+            resetCount++;
+            return { ...w, syncStatus: "pending" as const, failCount: 0 };
+        }
+        return w;
+    });
+    await savePendingWorkouts(updated);
+    console.log("[SyncService]", resetCount, "başarısız antrenman sıfırlandı");
+    return resetCount;
+}
+
+/**
  * Add a completed workout session to the pending queue.
  */
 export async function savePendingWorkout(session: WorkoutSession): Promise<PendingWorkout> {
@@ -154,10 +180,18 @@ export async function syncPendingWorkouts(): Promise<number> {
         return 0;
     }
 
+    const MAX_FAIL_COUNT = 5;
+
     const pending = await getPendingWorkouts();
     const toSync = pending.filter(
-        (w) => w.syncStatus === "pending" || w.syncStatus === "failed",
+        (w) => (w.syncStatus === "pending" || w.syncStatus === "failed") && w.failCount < MAX_FAIL_COUNT,
     );
+
+    // Log permanently failed workouts
+    const permanentlyFailed = pending.filter((w) => w.failCount >= MAX_FAIL_COUNT);
+    if (permanentlyFailed.length > 0) {
+        console.warn(`[SyncService] ${permanentlyFailed.length} antrenman ${MAX_FAIL_COUNT} denemeden sonra başarısız oldu, atlanıyor`);
+    }
 
     if (toSync.length === 0) {
         console.log("[SyncService] Senkron edilecek antrenman yok");
@@ -179,8 +213,12 @@ export async function syncPendingWorkouts(): Promise<number> {
             await removeSyncedWorkout(workout.id);
             syncedCount++;
             console.log("[SyncService] ✅ Senkron edildi:", workout.id);
-        } catch (error) {
-            console.error("[SyncService] ❌ Senkron hatası:", workout.id, error);
+        } catch (error: any) {
+            const respData = error?.response?.data;
+            const status = error?.response?.status;
+            console.error("[SyncService] ❌ Senkron hatası:", workout.id, "Status:", status);
+            console.error("[SyncService] ❌ Backend yanıtı:", JSON.stringify(respData, null, 2));
+            console.error("[SyncService] ❌ Hata mesajı:", error?.message);
             await updatePendingStatus(workout.id, "failed");
         }
     }

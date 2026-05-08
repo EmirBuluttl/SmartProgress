@@ -14,7 +14,9 @@ export class WorkoutController {
             const userId = req.user!.userId;
 
             // Validate input
+            console.log("[WorkoutController] Sync request body:", JSON.stringify(req.body, null, 2));
             const input = workoutService.validateSyncInput(req.body);
+            console.log("[WorkoutController] Validation passed, syncing", input.workouts.length, "workout(s)");
 
             // Sync workouts (transactional with outbox)
             const createdLogs = await workoutService.syncWorkouts(userId, input);
@@ -24,7 +26,11 @@ export class WorkoutController {
                 count: createdLogs.length,
                 workouts: createdLogs,
             });
-        } catch (error) {
+        } catch (error: any) {
+            console.error("[WorkoutController] Sync error:", error?.message || error);
+            console.error("[WorkoutController] Sync error stack:", error?.stack);
+            if (error?.code) console.error("[WorkoutController] Prisma error code:", error.code);
+            if (error?.meta) console.error("[WorkoutController] Prisma meta:", JSON.stringify(error.meta));
             next(error);
         }
     }

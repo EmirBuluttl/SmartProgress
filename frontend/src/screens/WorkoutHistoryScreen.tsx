@@ -18,6 +18,7 @@ import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flat
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { workoutApi } from "../services/api";
+import { syncPendingWorkouts } from "../services/syncService";
 import GymCard from "../components/GymCard";
 
 const FAVORITES_KEY = "workout_favorites";
@@ -41,6 +42,13 @@ export default function WorkoutHistoryScreen() {
 
     const loadData = async () => {
         try {
+            // Sync any pending workouts first
+            try {
+                await syncPendingWorkouts();
+            } catch (syncErr) {
+                console.warn("[WorkoutHistory] Pending sync hatası:", syncErr);
+            }
+
             const res = await workoutApi.list({ limit: 100 });
             const fetched: WorkoutItem[] = res.data.workouts || [];
 
