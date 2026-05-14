@@ -2,37 +2,23 @@ name: SmartProgress Deployment
 
 on:
   push:
-    branches: [ main ] # Sadece main branch'e push yapınca çalışır
+    branches: [ main ] # Kendi ana branch adını yaz
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Deploy to EC2 via SSH
+      - name: Deploy to EC2
         uses: appleboy/ssh-action@master
         with:
-          host: ${{ secrets.AWS_HOST }}
-          username: ${{ secrets.AWS_USERNAME }}
+          host: ${{ secrets.REMOTE_HOST }}
+          username: ${{ secrets.REMOTE_USER }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            mkdir -p ~/smartprogress
             cd ~/smartprogress
-            
-            if [ ! -d ".git" ]; then
-              git clone https://github.com/${{ github.repository }}.git .
-            else
-              git pull origin main
-            fi
-            
-            # .env dosyasını oluştur (API_URL'i de buraya ekleyelim)
-            echo "DATABASE_URL=${{ secrets.DATABASE_URL }}" > .env
-            echo "API_URL=http://3.79.148.219:3000/api/v1" >> .env
-            
-            # Eski konteynırları durdur (RAM tasarrufu için)
-            sudo docker compose down
-            
-            # Yeni sürümü tiresiz 'docker compose' ile inşa et
-            sudo docker compose up -d --build
+            git pull origin main
+            sudo docker compose up -d --build backend frontend
+            sudo docker system prune -f # Diski temiz tutmak için
