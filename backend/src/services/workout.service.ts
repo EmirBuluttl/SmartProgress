@@ -45,6 +45,8 @@ const workoutDataSchema = z.object({
         .optional(),
     totalDuration: coerceInt.optional(),
     totalVolume: coerceNumber.optional(),
+    programId: z.string().uuid().optional(),
+    dayIndex: z.number().int().nonnegative().optional(),
     caloriesBurned: z.number().nonnegative().optional(),
     // Running-specific fields
     distance: z.number().nonnegative().optional(),

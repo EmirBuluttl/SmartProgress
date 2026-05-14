@@ -49,6 +49,7 @@ export default function HomeScreen() {
     const [loading, setLoading] = useState(true);
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const [bannerRefresh, setBannerRefresh] = useState(0);
+    const hasLoadedDashboard = React.useRef(false);
 
     const loadDashboard = async () => {
         try {
@@ -92,6 +93,7 @@ export default function HomeScreen() {
         } catch (error) {
             console.error("[HomeScreen] Failed to load dashboard data:", error);
         } finally {
+            hasLoadedDashboard.current = true;
             setLoading(false);
         }
     };
@@ -103,7 +105,9 @@ export default function HomeScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            setLoading(true);
+            if (!hasLoadedDashboard.current) {
+                setLoading(true);
+            }
             loadDashboard();
             loadFavorite();
         }, [])

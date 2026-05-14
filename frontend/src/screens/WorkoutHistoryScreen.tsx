@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────
 // WorkoutHistoryScreen — Full Workout Log
-// Star/favorite, drag-to-reorder, clear history
+// Star/favorite, clear history
 // ─────────────────────────────────────────────
 import React, { useState, useCallback } from "react";
 import {
@@ -8,17 +8,17 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    Alert,
+    FlatList,
     ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import DraggableFlatList, { RenderItemParams } from "react-native-draggable-flatlist";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { workoutApi } from "../services/api";
+import { parseApiError, workoutApi } from "../services/api";
 import { syncPendingWorkouts, getPendingWorkoutCount, resetFailedWorkouts, clearAllPendingWorkouts } from "../services/syncService";
+import { confirmDialog, showAlert } from "../utils/confirm";
 import GymCard from "../components/GymCard";
 
 const FAVORITES_KEY = "workout_favorites";
@@ -83,43 +83,27 @@ export default function WorkoutHistoryScreen() {
         setSyncing(true);
         try {
             await resetFailedWorkouts();
-            const result = await syncPendingWorkouts();
-            if (result.synced > 0) {
-                Alert.alert("Başarılı", `${result.synced} antrenman başarıyla senkronize edildi.`);
-                await loadData();
-            } else if (result.failed > 0) {
-                Alert.alert(
-                    "Senkronizasyon Hatası",
-                    `Antrenmanlar sunucuya gönderilemedi.\n\nHata: ${result.errors.join(", ")}`,
-                );
-            } else {
-                Alert.alert("Bilgi", "Bekleyen antrenman yok.");
-            }
+            await syncPendingWorkouts();
         } catch (err) {
-            Alert.alert("Hata", "Senkronizasyon sırasında bir hata oluştu.");
+            console.error("[WorkoutHistory] Retry sync error:", err);
         } finally {
+            const info = await getPendingWorkoutCount();
+            setPendingInfo(info);
+            await loadData();
             setSyncing(false);
-            await loadPendingInfo();
         }
     };
 
-    const handleClearPending = () => {
-        Alert.alert(
+    const handleClearPending = async () => {
+        const confirmed = await confirmDialog(
             "Bekleyen Antrenmanları Temizle",
-            "Sunucuya gönderilemeyen tüm yerel antrenman kayıtları silinecek. Bu işlem geri alınamaz.",
-            [
-                { text: "İptal", style: "cancel" },
-                {
-                    text: "Temizle",
-                    style: "destructive",
-                    onPress: async () => {
-                        await clearAllPendingWorkouts();
-                        await loadPendingInfo();
-                        Alert.alert("Temizlendi", "Bekleyen antrenman kayıtları silindi.");
-                    },
-                },
-            ],
+            "Sunucuya gönderilememiş tüm antrenman verileri silinecek. Bu işlem geri alınamaz."
         );
+        if (confirmed) {
+            await clearAllPendingWorkouts();
+            const info = await getPendingWorkoutCount();
+            setPendingInfo(info);
+        }
     };
 
     useFocusEffect(useCallback(() => { loadData(); }, []));
@@ -132,113 +116,84 @@ export default function WorkoutHistoryScreen() {
         await AsyncStorage.setItem(FAVORITES_KEY, JSON.stringify([...newFavs]));
     };
 
-    const handleDelete = (id: string) => {
-        Alert.alert(
+    const handleDelete = async (id: string) => {
+        const confirmed = await confirmDialog(
             "Antrenmanı Sil",
-            "Bu antrenmanı silmek istediğinize emin misiniz?",
-            [
-                { text: "İptal", style: "cancel" },
-                {
-                    text: "Sil",
-                    style: "destructive",
-                    onPress: async () => {
-                        try {
-                            await workoutApi.delete(id);
-                            // Refresh list
-                            await loadData();
-                        } catch (err) {
-                            Alert.alert("Hata", "Silme işlemi başarısız.");
-                        }
-                    },
-                },
-            ]
+            "Bu antrenmanı silmek istediğinize emin misiniz?"
         );
+        if (confirmed) {
+            try {
+                await workoutApi.delete(id);
+                setWorkouts((prev) => prev.filter((w) => w.id !== id));
+                await loadData();
+            } catch (err: any) {
+                const apiError = parseApiError(err);
+                showAlert("Hata", apiError.message || "Silme islemi basarisiz.");
+            }
+        }
     };
 
-    const handleDragEnd = async ({ data }: { data: WorkoutItem[] }) => {
-        setWorkouts(data);
-        await AsyncStorage.setItem(ORDER_KEY, JSON.stringify(data.map((w) => w.id)));
-    };
-
-    const handleClearOrder = () => {
-        Alert.alert(
+    const handleClearOrder = async () => {
+        const confirmed = await confirmDialog(
             "Sıralamayı Sıfırla",
-            "Liste sıralaması sıfırlanacak. Antrenman kayıtları silinmeyecek.",
-            [
-                { text: "İptal", style: "cancel" },
-                {
-                    text: "Sıfırla",
-                    style: "destructive",
-                    onPress: async () => {
-                        await AsyncStorage.removeItem(ORDER_KEY);
-                        await loadData();
-                    },
-                },
-            ]
+            "Liste sıralaması sıfırlanacak. Antrenman kayıtları silinmeyecek."
         );
+        if (confirmed) {
+            await AsyncStorage.removeItem(ORDER_KEY);
+            await loadData();
+        }
     };
 
-    const renderItem = ({ item, drag, isActive }: RenderItemParams<WorkoutItem>) => {
+    const renderItem = ({ item }: { item: WorkoutItem }) => {
         const isFav = favorites.has(item.id);
         const exerciseCount = item.data?.exercises?.length || 0;
         const duration = item.data?.totalDuration || item.data?.duration || 0;
         const durationMin = Math.floor(duration / 60);
 
         return (
-            <GymCard
-                style={[
-                    styles.card,
-                    isActive && { opacity: 0.9, borderColor: colors.accent },
-                ]}
-            >
-                {/* Drag Handle */}
-                <TouchableOpacity onLongPress={drag} style={styles.dragHandle} activeOpacity={0.7}>
-                    <Ionicons name="reorder-three-outline" size={22} color={colors.textMuted} />
-                </TouchableOpacity>
-
-                {/* Content */}
-                <TouchableOpacity
-                    style={styles.cardContent}
-                    onPress={() => (navigation as any).navigate("WorkoutDetail", { workout: item })}
-                    activeOpacity={0.7}
-                >
-                    <View style={styles.cardHeader}>
+            <GymCard style={styles.card}>
+                <View style={styles.cardRow}>
+                    <TouchableOpacity
+                        style={styles.cardContent}
+                        onPress={() => (navigation as any).navigate("WorkoutDetail", { workout: item })}
+                        activeOpacity={0.7}
+                    >
                         <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
-                        <View style={{ flexDirection: 'row', gap: 4 }}>
-                            <TouchableOpacity onPress={() => toggleFavorite(item.id)} style={styles.iconBtn}>
-                                <Ionicons
-                                    name={isFav ? "star" : "star-outline"}
-                                    size={20}
-                                    color={isFav ? colors.accent : colors.textMuted}
-                                />
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.iconBtn}>
-                                <Ionicons name="trash-outline" size={20} color={colors.error} />
-                            </TouchableOpacity>
+                        <Text style={styles.dateText}>
+                            {new Date(item.logDate).toLocaleDateString("tr-TR", {
+                                day: "numeric", month: "short", year: "numeric"
+                            })}
+                        </Text>
+                        <View style={styles.metaRow}>
+                            {exerciseCount > 0 && (
+                                <View style={styles.chip}>
+                                    <Text style={styles.chipText}>{exerciseCount} egzersiz</Text>
+                                </View>
+                            )}
+                            {durationMin > 0 && (
+                                <View style={styles.chip}>
+                                    <Text style={styles.chipText}>{durationMin}dk</Text>
+                                </View>
+                            )}
                         </View>
+                    </TouchableOpacity>
+
+                    <View style={styles.actionColumn}>
+                        <TouchableOpacity onPress={() => toggleFavorite(item.id)} style={styles.iconBtn}>
+                            <Ionicons
+                                name={isFav ? "star" : "star-outline"}
+                                size={20}
+                                color={isFav ? colors.accent : colors.textMuted}
+                            />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => handleDelete(item.id)} style={styles.iconBtn}>
+                            <Ionicons name="trash-outline" size={20} color={colors.error} />
+                        </TouchableOpacity>
                     </View>
-                    <Text style={styles.dateText}>
-                        📅 {new Date(item.logDate).toLocaleDateString("tr-TR", {
-                            day: "numeric", month: "short", year: "numeric"
-                        })}
-                    </Text>
-                    <View style={styles.metaRow}>
-                        {exerciseCount > 0 && (
-                            <View style={styles.chip}>
-                                <Text style={styles.chipText}>{exerciseCount} egzersiz</Text>
-                            </View>
-                        )}
-                        {durationMin > 0 && (
-                            <View style={styles.chip}>
-                                <Text style={styles.chipText}>⏱ {durationMin}dk</Text>
-                            </View>
-                        )}
-                    </View>
-                </TouchableOpacity>
+                </View>
             </GymCard>
         );
     };
-
     if (loading) {
         return (
             <View style={[styles.root, { justifyContent: "center", alignItems: "center" }]}>
@@ -299,12 +254,13 @@ export default function WorkoutHistoryScreen() {
                     <Text style={styles.emptyText}>Henüz antrenman kaydınız yok.</Text>
                 </View>
             ) : workouts.length > 0 ? (
-                <DraggableFlatList
+                <FlatList
+                    style={styles.listContainer}
                     data={workouts}
                     keyExtractor={(item) => item.id}
                     renderItem={renderItem}
-                    onDragEnd={handleDragEnd}
                     contentContainerStyle={styles.list}
+                    showsVerticalScrollIndicator={true}
                 />
             ) : null}
         </View>
@@ -341,9 +297,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         padding: spacing.lg,
         paddingBottom: 100,
     },
+    listContainer: {
+        flex: 1,
+    },
     card: {
-        flexDirection: "row",
-        alignItems: "center",
         marginBottom: spacing.md,
     },
     dragHandle: {
@@ -353,11 +310,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     cardContent: {
         flex: 1,
     },
-    cardHeader: {
+    cardRow: {
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        marginBottom: spacing.xs,
+        gap: spacing.sm,
     },
     title: {
         fontSize: fontSize.lg,
@@ -366,9 +323,15 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
     },
     iconBtn: {
-        padding: 16, // 56px touch target area
+        minWidth: 44,
+        minHeight: 44,
         justifyContent: "center",
         alignItems: "center",
+    },
+    actionColumn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
     },
     dateText: {
         fontSize: fontSize.sm,
@@ -432,3 +395,5 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
     },
 });
+
+

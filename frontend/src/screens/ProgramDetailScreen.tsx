@@ -19,7 +19,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { programApi, workoutApi } from "../services/api";
+import { parseApiError, programApi, workoutApi } from "../services/api";
+import { confirmDialog, showAlert } from "../utils/confirm";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -93,28 +94,22 @@ export default function ProgramDetailScreen() {
         fetchProgram();
     };
 
-    const handleDelete = () => {
-        Alert.alert(
+    const handleDelete = async () => {
+        const confirmed = await confirmDialog(
             "Programı Sil",
-            `"${program?.name}" programını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`,
-            [
-                { text: "İptal", style: "cancel" },
-                {
-                    text: "Sil",
-                    style: "destructive",
-                    onPress: async () => {
-                        setDeleting(true);
-                        try {
-                            await programApi.deleteProgram(programId);
-                            navigation.goBack();
-                        } catch (err: any) {
-                            Alert.alert("Hata", err?.message || "Silme başarısız.");
-                            setDeleting(false);
-                        }
-                    },
-                },
-            ],
+            `"${program?.name}" programını silmek istediğinize emin misiniz? Bu işlem geri alınamaz.`
         );
+        if (confirmed) {
+            setDeleting(true);
+            try {
+                await programApi.deleteProgram(programId);
+                navigation.goBack();
+            } catch (err: any) {
+                const apiError = parseApiError(err);
+                showAlert("Hata", apiError.message || "Silme islemi basarisiz.");
+                setDeleting(false);
+            }
+        }
     };
 
     const handleStartWorkout = () => {
@@ -491,3 +486,4 @@ const createStyles = (colors: any) => StyleSheet.create({
     emptyState: { alignItems: "center", paddingTop: spacing.xxxl, gap: spacing.md },
     emptyText: { fontSize: fontSize.sm, color: colors.textMuted, textAlign: "center" },
 });
+

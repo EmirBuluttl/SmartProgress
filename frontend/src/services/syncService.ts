@@ -51,6 +51,8 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
             })).filter((ex) => ex.sets.length > 0),
             totalDuration: session.totalDuration,
             totalVolume: Math.round(totalVolume),
+            programId: session.programId,
+            dayIndex: session.dayIndex,
         },
         logDate: session.completedAt || new Date().toISOString(),
     };

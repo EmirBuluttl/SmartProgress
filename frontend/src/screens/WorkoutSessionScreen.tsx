@@ -76,6 +76,7 @@ function createSession(): WorkoutSession {
  * Normalize any incoming programData shape into a ProgramData or null.
  * Supported shapes:
  * - { frequency, days: [...] }
+ * - { days: [...] }
  * - { data: { frequency, days: [...] }, ... }
  * - { exercises: [...] }
  */
@@ -89,10 +90,11 @@ function normalizeProgramData(raw: any): ProgramData | null {
         data = data.data;
     }
 
-    // Cycle-based structure
-    if (typeof data.frequency === "number" && Array.isArray(data.days)) {
+    // Cycle-based structure. Older saved programs may only have { days }
+    // while frequency lives on the Program row, so keep this tolerant.
+    if (Array.isArray(data.days)) {
         return {
-            frequency: data.frequency,
+            frequency: typeof data.frequency === "number" ? data.frequency : data.days.length,
             days: data.days,
         };
     }
@@ -200,56 +202,17 @@ export default function WorkoutSessionScreen() {
         (async () => {
             console.log("[WorkoutSession] route params:", JSON.stringify(route.params, null, 2));
 
-            const saved = await restoreActiveSession();
             const params = route.params;
             const hasProgramParams = !!(params?.programId || params?.programData);
 
-            // Stale session cleanup: if the saved session is completed or has
-            // a completedAt timestamp, it was already finished — clear it.
-            if (saved && (saved.status === "completed" || saved.completedAt)) {
-                console.log("[WorkoutSession] Clearing stale completed session:", saved.id);
+            // ────────────────────────────────────────
+            // CASE 1: Coming from a program → ALWAYS start fresh
+            // Clear any stale session and load program data
+            // ────────────────────────────────────────
+            if (hasProgramParams) {
+                console.log("[WorkoutSession] Program params detected, clearing any old session");
                 await clearActiveSession();
-                // Fall through to load new program data
-            }
-            // Session guard: if there IS a saved session AND new program params,
-            // warn the user instead of silently overwriting.
-            else if (saved && saved.status === "active" && hasProgramParams) {
-                // Check if the saved session has any exercises with data
-                const hasData = saved.exercises.some((ex) =>
-                    ex.sets.some((s) => s.weight > 0 || s.reps > 0)
-                );
 
-                if (hasData) {
-                    Alert.alert(
-                        "Aktif Antrenman",
-                        "Hali hazırda devam eden bir antrenmanınız var. Lütfen önce onu bitirin veya iptal edin.",
-                        [
-                            {
-                                text: "Mevcut Antrenmana Dön",
-                                onPress: () => {
-                                    setSession(saved);
-                                    const start = new Date(saved.startedAt).getTime();
-                                    setElapsed(Math.floor((Date.now() - start) / 1000));
-                                    setRestored(true);
-                                },
-                            },
-                            { text: "Geri Git", style: "cancel", onPress: () => navigation.goBack() },
-                        ],
-                    );
-                    return;
-                } else {
-                    // Saved session has no meaningful data — discard it
-                    console.log("[WorkoutSession] Discarding empty saved session:", saved.id);
-                    await clearActiveSession();
-                }
-            }
-
-            // Eğer programdan gelmiyorsak ve aktif bir oturum varsa, onu devam ettir.
-            if (saved && saved.status === "active" && !hasProgramParams) {
-                setSession(saved);
-                const start = new Date(saved.startedAt).getTime();
-                setElapsed(Math.floor((Date.now() - start) / 1000));
-            } else {
                 const programId = params?.programId;
                 const hasProgramDataParam = !!params?.programData;
                 let programData = params?.programData as any;
@@ -257,26 +220,14 @@ export default function WorkoutSessionScreen() {
                 const dayIndex = params?.dayIndex ?? 0;
 
                 if (!programId && !programData) {
-                    Alert.alert(
-                        "Program Gerekli",
-                        "Bu ekran sadece bir antrenman programı üzerinden açılabilir.",
-                    );
                     navigation.goBack();
                     return;
                 }
 
-                console.log(
-                    "[WorkoutSession] raw programData from params:",
-                    JSON.stringify(programData, null, 2),
-                );
-
                 // Only hit backend when no programData was provided at all but we have an ID.
                 if (programId && !hasProgramDataParam) {
                     try {
-                        console.log(
-                            "[WorkoutSession] Fetching program by ID from backend:",
-                            programId,
-                        );
+                        console.log("[WorkoutSession] Fetching program by ID from backend:", programId);
                         const res = await programApi.getById(programId);
                         const fetched = res.data;
                         if (fetched) {
@@ -284,21 +235,7 @@ export default function WorkoutSessionScreen() {
                             programName = fetched.name;
                         }
                     } catch (err: any) {
-                        if (err?.response?.status === 404) {
-                            console.warn(
-                                "[WorkoutSession] Program not found on server (404). It may have been deleted or is inaccessible.",
-                                { programId },
-                            );
-                        } else {
-                            console.error(
-                                "[WorkoutSession] Failed to load program by ID:",
-                                err,
-                            );
-                        }
-                        Alert.alert(
-                            "Hata",
-                            "Program yüklenirken bir sorun oluştu veya program silinmiş.",
-                        );
+                        console.error("[WorkoutSession] Failed to load program:", err);
                         navigation.goBack();
                         return;
                     }
@@ -311,11 +248,7 @@ export default function WorkoutSessionScreen() {
                 const normalized = normalizeProgramData(programData);
 
                 if (!normalized) {
-                    console.warn("[WorkoutSession] Program verisi normalize edilemedi. Şablon bozuk olabilir.");
-                    Alert.alert(
-                        "Program Hatası",
-                        "Bu programın şablonu bozuk görünüyor. Lütfen programı düzenleyip tekrar deneyin.",
-                    );
+                    console.warn("[WorkoutSession] Program data could not be normalized");
                     navigation.goBack();
                     return;
                 }
@@ -367,19 +300,28 @@ export default function WorkoutSessionScreen() {
                         dayIndex,
                     }));
                 } else {
-                    console.warn("[WorkoutSession] Program verisi normalize edildi ama egzersiz listesi boş.", {
-                        isCycle,
-                        daysLength: isCycle ? days?.length : undefined,
-                        hasExercises: !isCycle && !!(normalized as any).exercises,
-                    });
-                    Alert.alert(
-                        "Boş Program Günü",
-                        "Bu program gününde tanımlı egzersiz bulunmuyor. Lütfen programı düzenleyin.",
-                    );
+                    console.warn("[WorkoutSession] No exercises found for this day");
                     navigation.goBack();
                     return;
                 }
             }
+            // ────────────────────────────────────────
+            // CASE 2: No program params → try to restore saved session
+            // ────────────────────────────────────────
+            else {
+                const saved = await restoreActiveSession();
+                if (saved && saved.status === "active" && !saved.completedAt) {
+                    setSession(saved);
+                    const start = new Date(saved.startedAt).getTime();
+                    setElapsed(Math.floor((Date.now() - start) / 1000));
+                } else {
+                    // No valid session to restore and no program params
+                    await clearActiveSession();
+                    navigation.goBack();
+                    return;
+                }
+            }
+
             setRestored(true);
         })();
         // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -388,6 +330,7 @@ export default function WorkoutSessionScreen() {
     // ─── Timer ───────────────────────────────
     useEffect(() => {
         intervalRef.current = setInterval(() => {
+            if (finishingRef.current) return; // don't tick after finish
             setElapsed((prev) => prev + 1);
         }, 1000);
         return () => {
@@ -397,9 +340,10 @@ export default function WorkoutSessionScreen() {
 
     // ─── Debounced Auto-Save ─────────────────
     useEffect(() => {
-        if (!restored) return;
+        if (!restored || finishingRef.current) return;
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(() => {
+            if (finishingRef.current) return;
             saveActiveSession({ ...session, totalDuration: elapsed });
         }, AUTOSAVE_DEBOUNCE_MS);
         return () => {
@@ -532,6 +476,10 @@ export default function WorkoutSessionScreen() {
         setFinishing(true);
         finishingRef.current = true;
 
+        // Stop the timer and any pending auto-save immediately
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
         try {
             const completedSession: WorkoutSession = {
                 ...session,
@@ -579,7 +527,7 @@ export default function WorkoutSessionScreen() {
 
             // ── Advance cycle day if linked to a program ──
             const programId = route.params?.programId;
-            const programData = route.params?.programData as any;
+            const programData = normalizeProgramData(route.params?.programData as any) as any;
             const dayIndex = route.params?.dayIndex ?? 0;
             const isCycle = programData && Array.isArray(programData.days) && programData.days.length > 0;
 

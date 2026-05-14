@@ -127,6 +127,8 @@ export interface SyncWorkoutPayload {
         }[];
         totalDuration?: number;
         totalVolume?: number;
+        programId?: string;
+        dayIndex?: number;
     };
     logDate: string; // ISO 8601
 }
