@@ -149,6 +149,9 @@ export const programApi = {
     listPublic: (params?: { limit?: number; offset?: number }) =>
         api.get("/programs/public", { params }),
 
+    listCommunity: (params?: { limit?: number; offset?: number }) =>
+        api.get("/programs/community", { params }),
+
     toggleVisibility: (id: string) =>
         api.patch(`/programs/${id}/visibility`),
 
@@ -158,6 +161,12 @@ export const programApi = {
     /** Advance currentDayIndex by 1 (for cycle-based programs) */
     advanceDay: (id: string) =>
         api.patch(`/programs/${id}/advance-day`),
+
+    star: (id: string) => api.post(`/programs/${id}/star`),
+
+    unstar: (id: string) => api.delete(`/programs/${id}/star`),
+
+    copyToLibrary: (id: string) => api.post(`/programs/${id}/copy`),
 
     /** Delete a program by ID */
     deleteProgram: (id: string) => api.delete(`/programs/${id}`),

@@ -4,6 +4,31 @@
 import { Prisma, Program } from "@prisma/client";
 import prisma from "../config/prisma";
 
+const socialInclude = (userId?: string) => ({
+    user: {
+        select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            nickname: true,
+            avatarUrl: true,
+        },
+    },
+    _count: {
+        select: {
+            programStars: true,
+        },
+    },
+    ...(userId
+        ? {
+            programStars: {
+                where: { userId },
+                select: { id: true },
+            },
+        }
+        : {}),
+});
+
 export class ProgramRepository {
     /**
      * Create a new program.
@@ -18,6 +43,13 @@ export class ProgramRepository {
     async findById(id: string): Promise<Program | null> {
         return prisma.program.findUnique({
             where: { id },
+        });
+    }
+
+    async findByIdWithSocial(id: string, userId?: string) {
+        return prisma.program.findUnique({
+            where: { id },
+            include: socialInclude(userId),
         });
     }
 
@@ -37,20 +69,15 @@ export class ProgramRepository {
     async findPublicPrograms(
         limit = 20,
         offset = 0,
-    ): Promise<Program[]> {
+        userId?: string,
+    ) {
         return prisma.program.findMany({
             where: { isPublic: true },
-            include: {
-                user: {
-                    select: {
-                        id: true,
-                        firstName: true,
-                        lastName: true,
-                        avatarUrl: true,
-                    },
-                },
-            },
-            orderBy: { createdAt: "desc" },
+            include: socialInclude(userId),
+            orderBy: [
+                { programStars: { _count: "desc" } },
+                { createdAt: "desc" },
+            ],
             take: limit,
             skip: offset,
         });
@@ -59,10 +86,28 @@ export class ProgramRepository {
     /**
      * Get programs by user ID.
      */
-    async findByUserId(userId: string): Promise<Program[]> {
+    async findByUserId(userId: string) {
         return prisma.program.findMany({
             where: { userId },
+            include: socialInclude(userId),
             orderBy: { createdAt: "desc" },
+        });
+    }
+
+    async starProgram(userId: string, programId: string) {
+        return prisma.programStar.upsert({
+            where: { userId_programId: { userId, programId } },
+            update: {},
+            create: {
+                user: { connect: { id: userId } },
+                program: { connect: { id: programId } },
+            },
+        });
+    }
+
+    async unstarProgram(userId: string, programId: string) {
+        return prisma.programStar.deleteMany({
+            where: { userId, programId },
         });
     }
 

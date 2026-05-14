@@ -32,6 +32,7 @@ model User {
 
   workoutLogs WorkoutLog[]
   programs    Program[]
+  programStars ProgramStar[]
 
   @@map("users")
 }
@@ -69,6 +70,7 @@ model Program {
   description     String?
   data            Json?    @db.JsonB
   isPublic        Boolean  @default(false) @map("is_public")
+  sourceProgramId String?  @map("source_program_id") @db.Uuid
   // ── Cycle-Based Fields ─────────────────────
   frequency       Int      @default(7) @map("frequency")          // sessions per week
   currentDayIndex Int      @default(0) @map("current_day_index")  // which day is next
@@ -76,10 +78,27 @@ model Program {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programStars ProgramStar[]
 
   @@index([userId])
   @@index([isPublic])
+  @@index([sourceProgramId])
   @@map("programs")
+}
+
+model ProgramStar {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  programId String   @map("program_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  program Program @relation(fields: [programId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programId])
+  @@index([programId])
+  @@index([userId])
+  @@map("program_stars")
 }
 
 // ─────────────────────────────────────────────

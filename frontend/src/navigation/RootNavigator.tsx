@@ -19,6 +19,7 @@ import WorkoutSummaryScreen from "../screens/WorkoutSummaryScreen";
 import ProgramDetailScreen from "../screens/ProgramDetailScreen";
 import ProfileEditScreen from "../screens/ProfileEditScreen";
 import RecordsScreen from "../screens/RecordsScreen";
+import CommunityProgramsScreen from "../screens/CommunityProgramsScreen";
 
 // ─── Types ───────────────────────────────────
 
@@ -60,6 +61,7 @@ export type RootStackParamList = {
     } | undefined;
     WorkoutHistory: undefined;
     ProgramList: undefined;
+    CommunityPrograms: undefined;
     WorkoutDetail: { workout: any };
     ProgramDetail: { programId: string };
     ProfileEdit: undefined;
@@ -115,6 +117,11 @@ function AppNavigator() {
                 options={{ animation: "slide_from_right" }}
             />
             <AppStack.Screen
+                name="CommunityPrograms"
+                component={CommunityProgramsScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
                 name="WorkoutDetail"
                 component={WorkoutDetailScreen}
                 options={{ animation: "slide_from_right" }}
@@ -154,4 +161,3 @@ export default function RootNavigator() {
 
     return isAuthenticated ? <AppNavigator /> : <AuthStack />;
 }
-

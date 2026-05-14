@@ -43,6 +43,15 @@ interface ProgramData {
     frequency: number;
     currentDayIndex: number;
     isPublic: boolean;
+    isMine?: boolean;
+    isStarredByMe?: boolean;
+    starCount?: number;
+    sourceProgramId?: string | null;
+    user?: {
+        firstName?: string;
+        lastName?: string;
+        nickname?: string | null;
+    };
     data: {
         days: ProgramDay[];
     } | null;
@@ -59,6 +68,7 @@ export default function ProgramDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [socialBusy, setSocialBusy] = useState(false);
     const [workoutCount, setWorkoutCount] = useState(0);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
@@ -108,8 +118,21 @@ export default function ProgramDetailScreen() {
         }
     };
 
-    const handleStartWorkout = () => {
+    const handleStartWorkout = async () => {
         if (!program?.data?.days) return;
+        if (program.isPublic && program.isMine === false) {
+            const copied = await copyProgramToLibrary();
+            if (!copied?.data?.days) return;
+            navigation.replace("ProgramDetail", { programId: copied.id });
+            navigation.navigate("WorkoutSession", {
+                programId: copied.id,
+                programName: copied.name,
+                dayIndex: copied.currentDayIndex,
+                programData: copied.data as any,
+            });
+            return;
+        }
+
         const dayIndex = program.currentDayIndex;
         const currentDay = program.data.days[dayIndex];
 
@@ -150,10 +173,42 @@ export default function ProgramDetailScreen() {
 
     const handleDayTap = (dayIndex: number) => {
         if (!program) return;
+        if (program.isMine === false) return;
         navigation.navigate("ProgramCreate", {
             editProgramId: program.id,
             editProgramData: program,
         });
+    };
+
+    const toggleStar = async () => {
+        if (!program || socialBusy) return;
+        setSocialBusy(true);
+        try {
+            const res = program.isStarredByMe
+                ? await programApi.unstar(program.id)
+                : await programApi.star(program.id);
+            setProgram(res.data as ProgramData);
+        } catch (err) {
+            const apiError = parseApiError(err);
+            showAlert("Hata", apiError.message || "Yıldız işlemi başarısız.");
+        } finally {
+            setSocialBusy(false);
+        }
+    };
+
+    const copyProgramToLibrary = async (): Promise<ProgramData | null> => {
+        if (!program || socialBusy) return null;
+        setSocialBusy(true);
+        try {
+            const res = await programApi.copyToLibrary(program.id);
+            return res.data as ProgramData;
+        } catch (err) {
+            const apiError = parseApiError(err);
+            showAlert("Hata", apiError.message || "Program kitaplığa eklenemedi.");
+            return null;
+        } finally {
+            setSocialBusy(false);
+        }
     };
 
     if (loading) {
@@ -168,6 +223,10 @@ export default function ProgramDetailScreen() {
 
     const days = program.data?.days || [];
     const currentDayIndex = program.currentDayIndex;
+    const isOwner = program.isMine !== false;
+    const ownerName =
+        program.user?.nickname ||
+        [program.user?.firstName, program.user?.lastName].filter(Boolean).join(" ");
 
     return (
         <View style={s.container}>
@@ -185,26 +244,30 @@ export default function ProgramDetailScreen() {
                 </Text>
 
                 <View style={s.headerActions}>
-                    <TouchableOpacity
-                        onPress={handleEdit}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={s.headerIconBtn}
-                    >
-                        <Ionicons name="create-outline" size={20} color={colors.accent} />
-                    </TouchableOpacity>
+                    {isOwner && (
+                        <>
+                            <TouchableOpacity
+                                onPress={handleEdit}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                style={s.headerIconBtn}
+                            >
+                                <Ionicons name="create-outline" size={20} color={colors.accent} />
+                            </TouchableOpacity>
 
-                    <Pressable
-                        onPress={handleDelete}
-                        disabled={deleting}
-                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                        style={s.headerIconBtn}
-                    >
-                        <Ionicons
-                            name="trash-outline"
-                            size={20}
-                            color={deleting ? colors.textMuted : colors.error}
-                        />
-                    </Pressable>
+                            <Pressable
+                                onPress={handleDelete}
+                                disabled={deleting}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                style={s.headerIconBtn}
+                            >
+                                <Ionicons
+                                    name="trash-outline"
+                                    size={20}
+                                    color={deleting ? colors.textMuted : colors.error}
+                                />
+                            </Pressable>
+                        </>
+                    )}
 
                     <TouchableOpacity
                         onPress={handleStartWorkout}
@@ -266,6 +329,26 @@ export default function ProgramDetailScreen() {
                                 {program.isPublic ? "Herkese açık" : "Özel"}
                             </Text>
                         </View>
+                        {program.isPublic && ownerName ? (
+                            <View style={s.metaItem}>
+                                <Ionicons name="person-outline" size={16} color={colors.accent} />
+                                <Text style={s.metaText}>{ownerName}</Text>
+                            </View>
+                        ) : null}
+                        {program.isPublic && (
+                            <TouchableOpacity
+                                style={s.starAction}
+                                onPress={toggleStar}
+                                disabled={socialBusy}
+                            >
+                                <Ionicons
+                                    name={program.isStarredByMe ? "star" : "star-outline"}
+                                    size={16}
+                                    color={colors.accent}
+                                />
+                                <Text style={s.starActionText}>{program.starCount || 0}</Text>
+                            </TouchableOpacity>
+                        )}
                         <View style={s.metaItem}>
                             <Ionicons name="barbell-outline" size={16} color={colors.accent} />
                             <Text style={s.metaText}>
@@ -273,6 +356,19 @@ export default function ProgramDetailScreen() {
                             </Text>
                         </View>
                     </View>
+                    {program.isPublic && !isOwner && (
+                        <TouchableOpacity
+                            style={s.copyBtn}
+                            onPress={async () => {
+                                const copied = await copyProgramToLibrary();
+                                if (copied) navigation.replace("ProgramDetail", { programId: copied.id });
+                            }}
+                            disabled={socialBusy}
+                        >
+                            <Ionicons name="library-outline" size={16} color={colors.background} />
+                            <Text style={s.copyBtnText}>Kitaplığıma Ekle</Text>
+                        </TouchableOpacity>
+                    )}
                 </View>
 
                 {/* ─── Current Day Highlight ─── */}
@@ -414,6 +510,37 @@ const createStyles = (colors: any) => StyleSheet.create({
     metaRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
     metaItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
     metaText: { fontSize: fontSize.xs, color: colors.textMuted },
+    starAction: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+    },
+    starActionText: {
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        color: colors.accent,
+    },
+    copyBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        backgroundColor: colors.accent,
+        borderRadius: borderRadius.md,
+        paddingVertical: spacing.sm,
+        marginTop: spacing.md,
+    },
+    copyBtnText: {
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        color: colors.background,
+    },
 
     // Current day banner
     currentDayBanner: {

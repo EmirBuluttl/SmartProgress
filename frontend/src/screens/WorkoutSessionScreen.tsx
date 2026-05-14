@@ -441,12 +441,12 @@ export default function WorkoutSessionScreen() {
         }));
     }, [updateSession]);
 
-    const addSetToExercise = useCallback((exerciseId: string) => {
+    const addSetToExercise = useCallback((exerciseId: string, isWarmup = false) => {
         updateSession((prev) => ({
             ...prev,
             exercises: prev.exercises.map((e) =>
                 e.id === exerciseId
-                    ? { ...e, sets: [...e.sets, { id: uid(), weight: 0, reps: 0, unit: "kg" as const, completed: false }] }
+                    ? { ...e, sets: [...e.sets, { id: uid(), weight: 0, reps: 0, unit: "kg" as const, completed: false, isWarmup }] }
                     : e
             ),
         }));
@@ -884,15 +884,22 @@ export default function WorkoutSessionScreen() {
                         });
                     })()}
 
-                    {exercise.isCustom && (
+                    <View style={styles.addSetRow}>
                         <TouchableOpacity
                             style={styles.addSetBtn}
-                            onPress={() => addSetToExercise(exercise.id)}
+                            onPress={() => addSetToExercise(exercise.id, false)}
                         >
                             <Ionicons name="add-circle-outline" size={16} color={colors.accent} />
                             <Text style={styles.addSetText}>Set Ekle</Text>
                         </TouchableOpacity>
-                    )}
+                        <TouchableOpacity
+                            style={styles.addSetBtn}
+                            onPress={() => addSetToExercise(exercise.id, true)}
+                        >
+                            <Ionicons name="flame-outline" size={16} color={colors.textMuted} />
+                            <Text style={[styles.addSetText, { color: colors.textMuted }]}>Isınma</Text>
+                        </TouchableOpacity>
+                    </View>
 
                 </View>
             </ScaleDecorator>
@@ -1111,12 +1118,21 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
 
     // Add Set
+    addSetRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+    },
     addSetBtn: {
+        flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         paddingVertical: spacing.sm,
-        marginTop: spacing.xs,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.surfaceElevated,
     },
     addSetText: {
         fontSize: fontSize.sm,

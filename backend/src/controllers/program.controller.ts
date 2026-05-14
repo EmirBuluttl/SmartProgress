@@ -87,7 +87,7 @@ export class ProgramController {
             const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
             const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
 
-            const programs = await programService.getPublicPrograms(limit, offset);
+            const programs = await programService.getPublicPrograms(limit, offset, req.user?.userId);
             res.status(200).json({
                 count: programs.length,
                 programs,
@@ -116,6 +116,26 @@ export class ProgramController {
                     }
                     : null,
             });
+            res.status(200).json({
+                count: programs.length,
+                programs,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * GET /community
+     * Authenticated community feed with star state.
+     */
+    async listCommunity(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
+            const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+
+            const programs = await programService.getPublicPrograms(limit, offset, userId);
             res.status(200).json({
                 count: programs.length,
                 programs,
@@ -206,6 +226,39 @@ export class ProgramController {
 
             await programService.deleteProgram(userId, programId);
             res.status(200).json({ message: "Program deleted" });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async star(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const programId = req.params.id as string;
+            const program = await programService.starProgram(userId, programId);
+            res.status(200).json(program);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async unstar(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const programId = req.params.id as string;
+            const program = await programService.unstarProgram(userId, programId);
+            res.status(200).json(program);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async copy(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const programId = req.params.id as string;
+            const program = await programService.copyPublicProgramToLibrary(userId, programId);
+            res.status(201).json(program);
         } catch (error) {
             next(error);
         }

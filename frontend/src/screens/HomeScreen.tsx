@@ -38,6 +38,7 @@ const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
 
 type HomeNav = NativeStackNavigationProp<RootStackParamList>;
 const FAVORITES_KEY = "program_favorite_id";
+const ACTIVE_PROGRAM_KEY = "active_program_id";
 let savedHomeScrollY = 0;
 
 export default function HomeScreen() {
@@ -48,6 +49,7 @@ export default function HomeScreen() {
 
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [programs, setPrograms] = useState<any[]>([]);
+    const [communityPrograms, setCommunityPrograms] = useState<any[]>([]);
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 0 });
     const [loading, setLoading] = useState(true);
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
@@ -97,6 +99,14 @@ export default function HomeScreen() {
                 currentStreak: streak,
                 totalPRs: 0,
             });
+
+            try {
+                const communityRes = await programApi.listCommunity({ limit: 3 });
+                setCommunityPrograms(communityRes.data.programs || []);
+            } catch (communityErr) {
+                console.warn("[HomeScreen] Community programs could not be loaded:", communityErr);
+                setCommunityPrograms([]);
+            }
         } catch (error) {
             console.error("[HomeScreen] Failed to load dashboard data:", error);
         } finally {
@@ -106,8 +116,14 @@ export default function HomeScreen() {
     };
 
     const loadFavorite = async () => {
-        const fav = await AsyncStorage.getItem(FAVORITES_KEY);
-        setFavoriteId(fav);
+        const active = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
+        const legacyFav = await AsyncStorage.getItem(FAVORITES_KEY);
+        const next = active || legacyFav;
+        setFavoriteId(next);
+        if (next && !active) {
+            await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, next);
+            await AsyncStorage.removeItem(FAVORITES_KEY);
+        }
     };
 
     useFocusEffect(
@@ -161,8 +177,9 @@ export default function HomeScreen() {
     const toggleFavoriteProgram = async (id: string) => {
         const next = favoriteId === id ? null : id;
         setFavoriteId(next);
-        if (next) await AsyncStorage.setItem(FAVORITES_KEY, next);
-        else await AsyncStorage.removeItem(FAVORITES_KEY);
+        if (next) await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, next);
+        else await AsyncStorage.removeItem(ACTIVE_PROGRAM_KEY);
+        await AsyncStorage.removeItem(FAVORITES_KEY);
     };
 
     // ─── Cycle-aware next workout ───────────────
@@ -244,7 +261,7 @@ export default function HomeScreen() {
                             <Text style={styles.todayBadgeText}>⚡ SIRADAKI ANTRENMAN</Text>
                         </View>
                         <TouchableOpacity onPress={() => toggleFavoriteProgram(favoriteProgram.id)}>
-                            <Ionicons name="star" size={20} color={colors.accent} />
+                            <Ionicons name="bookmark" size={20} color={colors.accent} />
                         </TouchableOpacity>
                     </View>
 
@@ -307,15 +324,15 @@ export default function HomeScreen() {
                 </GymCard>
             )}
 
-            {/* ─── Favori Program (Non-Cycle) ─── */}
+            {/* ─── Aktif Program (Non-Cycle) ─── */}
             {favoriteProgram && !isCurrentProgramCycle && (
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
                         <View style={styles.todayBadge}>
-                            <Text style={styles.todayBadgeText}>⭐ FAVORİ PROGRAMIN</Text>
+                            <Text style={styles.todayBadgeText}>AKTİF PROGRAMIN</Text>
                         </View>
                         <TouchableOpacity onPress={() => toggleFavoriteProgram(favoriteProgram.id)}>
-                            <Ionicons name="star" size={20} color={colors.accent} />
+                            <Ionicons name="bookmark" size={20} color={colors.accent} />
                         </TouchableOpacity>
                     </View>
                     <Text style={styles.todayProgName}>{favoriteProgram.name}</Text>
@@ -325,7 +342,7 @@ export default function HomeScreen() {
                         </Text>
                     ) : null}
                     <AccentButton
-                        title="⚡ Favori Programını Başlat"
+                        title="Aktif Programı Başlat"
                         onPress={() =>
                             navigation.navigate("WorkoutSession", {
                                 programId: favoriteProgram.id,
@@ -342,7 +359,7 @@ export default function HomeScreen() {
             {!favoriteProgram && programs.length > 0 && (
                 <GymCard style={styles.todayCard}>
                     <Text style={styles.todayHint}>
-                        ⭐ Bir programı uzun basarak favorilere ekle; buraya "Sıradaki Antrenman" olarak sabitlensin.
+                        Bir programı uzun basarak aktif takibe al; buraya "Sıradaki Antrenman" olarak sabitlensin.
                     </Text>
                 </GymCard>
             )}
@@ -423,7 +440,7 @@ export default function HomeScreen() {
                                     <Text style={styles.programName}>{prog.name}</Text>
                                     <View style={styles.programBadgeRow}>
                                         {favoriteId === prog.id && (
-                                            <Ionicons name="star" size={16} color={colors.accent} style={{ marginRight: spacing.xs }} />
+                                            <Ionicons name="bookmark" size={16} color={colors.accent} style={{ marginRight: spacing.xs }} />
                                         )}
                                         {isCycle && (
                                             <View style={styles.cycleBadge}>
@@ -448,6 +465,51 @@ export default function HomeScreen() {
                 })
             ) : (
                 <Text style={styles.emptyStateText}>Henüz bir program oluşturmadınız.</Text>
+            )}
+
+            <SectionHeader
+                title="Topluluk Programları"
+                actionLabel="Keşfet"
+                onAction={() => navigation.navigate("CommunityPrograms")}
+            />
+            {communityPrograms.length > 0 ? (
+                communityPrograms.map((prog) => {
+                    const owner =
+                        prog.user?.nickname ||
+                        [prog.user?.firstName, prog.user?.lastName].filter(Boolean).join(" ") ||
+                        "Topluluk";
+                    const dayCount = Array.isArray(prog.data?.days)
+                        ? prog.data.days.length
+                        : Array.isArray(prog.data?.exercises)
+                            ? prog.data.exercises.length
+                            : 0;
+
+                    return (
+                        <TouchableOpacity
+                            key={prog.id}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate("ProgramDetail", { programId: prog.id })}
+                        >
+                            <GymCard style={styles.communityCard} elevated>
+                                <View style={styles.programHeader}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.programName} numberOfLines={1}>{prog.name}</Text>
+                                        <Text style={styles.communityOwner} numberOfLines={1}>{owner}</Text>
+                                    </View>
+                                    <View style={styles.communityStar}>
+                                        <Ionicons name="star" size={15} color={colors.accent} />
+                                        <Text style={styles.communityStarText}>{prog.starCount || 0}</Text>
+                                    </View>
+                                </View>
+                                <Text style={styles.programDesc} numberOfLines={2}>
+                                    {prog.description || `${dayCount} günlük public program`}
+                                </Text>
+                            </GymCard>
+                        </TouchableOpacity>
+                    );
+                })
+            ) : (
+                <Text style={styles.emptyStateText}>Toplulukta henüz public program yok.</Text>
             )}
 
             <View style={{ height: spacing.xxxl }} />
@@ -654,6 +716,28 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: borderRadius.sm,
     },
     publicBadgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.accent },
+    communityCard: { marginBottom: spacing.md },
+    communityOwner: {
+        fontSize: fontSize.xs,
+        color: colors.textMuted,
+        marginTop: 2,
+    },
+    communityStar: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        backgroundColor: colors.surfaceElevated,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+    },
+    communityStarText: {
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        color: colors.accent,
+    },
     programDesc: {
         fontSize: fontSize.sm, color: colors.textSecondary,
         marginBottom: spacing.xs, lineHeight: 20,

@@ -12,6 +12,7 @@ import {
     ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
@@ -21,6 +22,8 @@ import GymCard from "../components/GymCard";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+const ACTIVE_PROGRAM_KEY = "active_program_id";
+const LEGACY_FAVORITES_KEY = "program_favorite_id";
 
 export default function ProgramListScreen() {
     const navigation = useNavigation<Nav>();
@@ -28,10 +31,13 @@ export default function ProgramListScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [programs, setPrograms] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
+    const [activeId, setActiveId] = React.useState<string | null>(null);
 
     const load = async () => {
         try {
             const res = await programApi.listMine();
+            const active = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
+            const legacy = await AsyncStorage.getItem(LEGACY_FAVORITES_KEY);
             const list = res.data.programs || [];
             console.log(
                 "[ProgramList] Loaded programs from listMine:",
@@ -46,11 +52,20 @@ export default function ProgramListScreen() {
                 ),
             );
             setPrograms(list);
+            setActiveId(active || legacy);
         } catch (err) {
             console.error("[ProgramList] Load error:", err);
         } finally {
             setLoading(false);
         }
+    };
+
+    const toggleActiveProgram = async (id: string) => {
+        const next = activeId === id ? null : id;
+        setActiveId(next);
+        if (next) await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, next);
+        else await AsyncStorage.removeItem(ACTIVE_PROGRAM_KEY);
+        await AsyncStorage.removeItem(LEGACY_FAVORITES_KEY);
     };
 
     useFocusEffect(useCallback(() => { load(); }, []));
@@ -101,11 +116,21 @@ export default function ProgramListScreen() {
                                 <Text style={styles.progName} numberOfLines={1}>
                                     {item.name}
                                 </Text>
-                                {item.isPublic && (
-                                    <View style={styles.publicBadge}>
-                                        <Text style={styles.publicText}>PUBLIC</Text>
-                                    </View>
-                                )}
+                                <View style={styles.badgeRow}>
+                                    {activeId === item.id && (
+                                        <Ionicons name="bookmark" size={16} color={colors.accent} />
+                                    )}
+                                    {item.sourceProgramId && (
+                                        <View style={styles.libraryBadge}>
+                                            <Text style={styles.libraryText}>KITAPLIK</Text>
+                                        </View>
+                                    )}
+                                    {item.isPublic && (
+                                        <View style={styles.publicBadge}>
+                                            <Text style={styles.publicText}>PUBLIC</Text>
+                                        </View>
+                                    )}
+                                </View>
                             </View>
                             {item.description ? (
                                 <Text style={styles.progDesc} numberOfLines={2}>
@@ -117,25 +142,40 @@ export default function ProgramListScreen() {
                                     {item.data.exercises.length} egzersiz
                                 </Text>
                             )}
-                            <TouchableOpacity
-                                style={styles.startBtn}
-                                onPress={() => {
-                                    console.log(
-                                        "[ProgramList] Starting program:",
-                                        item.id,
-                                        "hasData=",
-                                        !!item.data,
-                                    );
-                                    navigation.navigate("WorkoutSession", {
-                                        programId: item.id,
-                                        programName: item.name,
-                                        programData: item.data,
-                                    });
-                                }}
-                            >
-                                <Ionicons name="play" size={16} color={colors.background} />
-                                <Text style={styles.startBtnText}>Antrenmanı Başlat</Text>
-                            </TouchableOpacity>
+                            <View style={styles.actionRow}>
+                                <TouchableOpacity
+                                    style={[styles.followBtn, activeId === item.id && styles.followBtnActive]}
+                                    onPress={() => toggleActiveProgram(item.id)}
+                                >
+                                    <Ionicons
+                                        name={activeId === item.id ? "bookmark" : "bookmark-outline"}
+                                        size={16}
+                                        color={activeId === item.id ? colors.background : colors.accent}
+                                    />
+                                    <Text style={[styles.followBtnText, activeId === item.id && styles.followBtnTextActive]}>
+                                        {activeId === item.id ? "Takipte" : "Takibe Al"}
+                                    </Text>
+                                </TouchableOpacity>
+                                <TouchableOpacity
+                                    style={styles.startBtn}
+                                    onPress={() => {
+                                        console.log(
+                                            "[ProgramList] Starting program:",
+                                            item.id,
+                                            "hasData=",
+                                            !!item.data,
+                                        );
+                                        navigation.navigate("WorkoutSession", {
+                                            programId: item.id,
+                                            programName: item.name,
+                                            programData: item.data,
+                                        });
+                                    }}
+                                >
+                                    <Ionicons name="play" size={16} color={colors.background} />
+                                    <Text style={styles.startBtnText}>Başlat</Text>
+                                </TouchableOpacity>
+                            </View>
                         </GymCard>
                     )}
                 />
@@ -189,6 +229,23 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.text,
         flex: 1,
     },
+    badgeRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        marginLeft: spacing.sm,
+    },
+    libraryBadge: {
+        backgroundColor: colors.surfaceElevated,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 2,
+        borderRadius: borderRadius.sm,
+    },
+    libraryText: {
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        color: colors.textMuted,
+    },
     publicBadge: {
         backgroundColor: colors.accentMuted,
         paddingHorizontal: spacing.sm,
@@ -212,7 +269,34 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         marginBottom: spacing.md,
     },
+    actionRow: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    followBtn: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1,
+        borderColor: colors.accent,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+        gap: spacing.xs,
+    },
+    followBtnActive: {
+        backgroundColor: colors.accent,
+    },
+    followBtnText: {
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        color: colors.accent,
+    },
+    followBtnTextActive: {
+        color: colors.background,
+    },
     startBtn: {
+        flex: 1,
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
