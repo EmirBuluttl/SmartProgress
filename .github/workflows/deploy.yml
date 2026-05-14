@@ -24,12 +24,18 @@ jobs:
         run: |
           set -euo pipefail
           HOST_NAME="${EC2_HOST:-3.79.148.219}"
-          test -n "$EC2_SSH_KEY"
+          if [ -z "${EC2_SSH_KEY:-}" ]; then
+            echo "::error::EC2_SSH_KEY or SSH_PRIVATE_KEY repository secret is empty."
+            exit 1
+          fi
+          echo "Preparing SSH for host: $HOST_NAME"
           mkdir -p ~/.ssh
           chmod 700 ~/.ssh
           printf '%s\n' "$EC2_SSH_KEY" > ~/.ssh/smartprogress_deploy_key
           chmod 600 ~/.ssh/smartprogress_deploy_key
-          ssh-keyscan -H "$HOST_NAME" >> ~/.ssh/known_hosts
+          ssh-keyscan -T 10 -H "$HOST_NAME" >> ~/.ssh/known_hosts || {
+            echo "::warning::ssh-keyscan failed; SSH will use StrictHostKeyChecking=accept-new."
+          }
 
       - name: Deploy over SSH
         env:
@@ -43,6 +49,7 @@ jobs:
           REMOTE_APP_DIR="${APP_DIR:-/home/ubuntu/smartprogress}"
 
           ssh -i ~/.ssh/smartprogress_deploy_key \
+            -o StrictHostKeyChecking=accept-new \
             -o ServerAliveInterval=30 \
             -o ServerAliveCountMax=10 \
             "$USER_NAME@$HOST_NAME" \
