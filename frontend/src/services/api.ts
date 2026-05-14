@@ -6,10 +6,17 @@ import axios, { AxiosError } from "axios";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { SyncWorkoutPayload } from "../types/workout";
 
+function getDefaultApiUrl(): string {
+    if (typeof window !== "undefined" && window.location?.hostname) {
+        return `${window.location.protocol}//${window.location.hostname}:3000`;
+    }
+    return "http://3.79.148.219:3000";
+}
+
 const RAW_API_URL =
     process.env.EXPO_PUBLIC_API_URL ||
     process.env.API_URL ||
-    "http://3.71.189.248:3000";
+    getDefaultApiUrl();
 
 const API_BASE_URL = `${RAW_API_URL.replace(/\/+$/, "")}/api/v1`;
 
