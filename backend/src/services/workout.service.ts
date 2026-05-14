@@ -11,12 +11,25 @@ import { ValidationError } from "../utils/errors";
 
 // ─── Zod Schema for JSONB Workout Data ───────
 
+// Preprocessor: coerce string → number, NaN → 0
+const coerceNumber = z.preprocess((val) => {
+    if (val === undefined || val === null || val === "") return 0;
+    const num = Number(val);
+    return isNaN(num) ? 0 : num;
+}, z.number());
+
+const coerceInt = z.preprocess((val) => {
+    if (val === undefined || val === null || val === "") return 0;
+    const num = parseInt(String(val), 10);
+    return isNaN(num) ? 0 : num;
+}, z.number().int());
+
 const workoutSetSchema = z.object({
-    reps: z.number().int().min(0),
-    weight: z.number().nonnegative(),
+    reps: coerceInt.pipe(z.number().int().min(0)),
+    weight: coerceNumber.pipe(z.number().nonnegative()),
     unit: z.enum(["kg", "lbs"]).default("kg"),
-    rpe: z.union([z.number(), z.string()]).optional(),
-    rir: z.union([z.number(), z.string()]).optional(),
+    rpe: z.union([z.number(), z.string()]).optional().nullable(),
+    rir: z.union([z.number(), z.string()]).optional().nullable(),
     isWarmup: z.boolean().optional(),
 });
 
@@ -30,8 +43,8 @@ const workoutDataSchema = z.object({
         .array(workoutExerciseSchema)
         .min(1, "At least one exercise is required")
         .optional(),
-    totalDuration: z.number().int().nonnegative().optional(),
-    totalVolume: z.number().nonnegative().optional(),
+    totalDuration: coerceInt.optional(),
+    totalVolume: coerceNumber.optional(),
     caloriesBurned: z.number().nonnegative().optional(),
     // Running-specific fields
     distance: z.number().nonnegative().optional(),
@@ -45,9 +58,9 @@ const workoutDataSchema = z.object({
 const syncWorkoutItemSchema = z.object({
     sportId: z.string().uuid("Invalid sport ID"),
     title: z.string().min(1, "Title is required").max(200),
-    notes: z.string().max(2000).optional(),
+    notes: z.string().max(2000).optional().nullable(),
     data: workoutDataSchema,
-    logDate: z.string().datetime({ message: "Invalid date format, use ISO 8601" }),
+    logDate: z.string().datetime({ offset: true, message: "Invalid date format, use ISO 8601" }),
 });
 
 export const syncWorkoutsSchema = z.object({
@@ -74,7 +87,7 @@ export class WorkoutService {
         const workoutData: CreateWorkoutLogData[] = input.workouts.map((w) => ({
             sportId: w.sportId,
             title: w.title,
-            notes: w.notes,
+            notes: w.notes ?? undefined,
             data: w.data,
             logDate: new Date(w.logDate),
         }));
