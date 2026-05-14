@@ -13,6 +13,7 @@ import {
     ActivityIndicator,
     Alert,
     RefreshControl,
+    Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -51,6 +52,7 @@ interface ProgramData {
         firstName?: string;
         lastName?: string;
         nickname?: string | null;
+        avatarUrl?: string | null;
     };
     data: {
         days: ProgramDay[];
@@ -227,6 +229,11 @@ export default function ProgramDetailScreen() {
     const ownerName =
         program.user?.nickname ||
         [program.user?.firstName, program.user?.lastName].filter(Boolean).join(" ");
+    const ownerInitials = getInitials(
+        program.user?.firstName,
+        program.user?.lastName,
+        ownerName || "SP",
+    );
 
     return (
         <View style={s.container}>
@@ -330,8 +337,14 @@ export default function ProgramDetailScreen() {
                             </Text>
                         </View>
                         {program.isPublic && ownerName ? (
-                            <View style={s.metaItem}>
-                                <Ionicons name="person-outline" size={16} color={colors.accent} />
+                            <View style={s.ownerPill}>
+                                {program.user?.avatarUrl ? (
+                                    <Image source={{ uri: program.user.avatarUrl }} style={s.ownerAvatar} />
+                                ) : (
+                                    <View style={s.ownerAvatarFallback}>
+                                        <Text style={s.ownerAvatarText}>{ownerInitials}</Text>
+                                    </View>
+                                )}
                                 <Text style={s.metaText}>{ownerName}</Text>
                             </View>
                         ) : null}
@@ -436,7 +449,7 @@ export default function ProgramDetailScreen() {
                                             <Text style={s.exerciseDot}>•</Text>
                                             <Text style={s.exerciseName}>{ex.name}</Text>
                                             <Text style={s.exerciseSets}>
-                                                {ex.targetSets.length} set
+                                                {formatSetSummary(ex.targetSets)}
                                             </Text>
                                         </View>
                                     ))}
@@ -460,6 +473,21 @@ export default function ProgramDetailScreen() {
             </ScrollView>
         </View>
     );
+}
+
+function formatSetSummary(targetSets: ProgramDay["exercises"][number]["targetSets"] = []): string {
+    const warmup = targetSets.filter((set) => set.isWarmup).length;
+    const working = targetSets.length - warmup;
+    const parts: string[] = [];
+    if (warmup > 0) parts.push(`${warmup} ısınma`);
+    if (working > 0) parts.push(`${working} çalışma`);
+    return parts.length > 0 ? `${parts.join(" · ")} seti` : "Set yok";
+}
+
+function getInitials(firstName?: string, lastName?: string, fallback = "SP"): string {
+    const initials = `${firstName?.charAt(0) || ""}${lastName?.charAt(0) || ""}`.trim();
+    if (initials) return initials.toUpperCase();
+    return fallback.slice(0, 2).toUpperCase();
 }
 
 // ─── Styles ─────────────────────────────────
@@ -510,6 +538,30 @@ const createStyles = (colors: any) => StyleSheet.create({
     metaRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
     metaItem: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
     metaText: { fontSize: fontSize.xs, color: colors.textMuted },
+    ownerPill: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    ownerAvatar: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        backgroundColor: colors.surfaceElevated,
+    },
+    ownerAvatarFallback: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+    },
+    ownerAvatarText: {
+        fontSize: 10,
+        fontWeight: fontWeight.bold,
+        color: colors.accent,
+    },
     starAction: {
         flexDirection: "row",
         alignItems: "center",

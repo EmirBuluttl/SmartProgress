@@ -35,8 +35,8 @@ services:
       # ÖNEMLİ: 0.0.0.0 hatasını bu değişkenler ve host ayarı çözer
       EXPO_DEV_CLIENT_NETWORK_OPTION: lan
       NODE_ENV: production
-      EXPO_PUBLIC_API_URL: http://3.71.189.248:3000
-      API_URL: http://3.71.189.248:3000 # Kendi sunucu IP'ni buraya yaz
+      EXPO_PUBLIC_API_URL: http://3.79.148.219:3000
+      API_URL: http://3.79.148.219:3000 # Kendi sunucu IP'ni buraya yaz
     # Dockerfile'daki CMD'yi burada ezerek hata veren parametreyi düzeltiyoruz
     command: [ "npx", "expo", "start", "--web", "--host", "lan", "--non-interactive", "--clear" ]
     networks:

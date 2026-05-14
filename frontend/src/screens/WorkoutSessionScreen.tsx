@@ -452,6 +452,15 @@ export default function WorkoutSessionScreen() {
         }));
     }, [updateSession]);
 
+    const reorderSets = useCallback((exerciseId: string, sets: WorkoutSet[]) => {
+        updateSession((prev) => ({
+            ...prev,
+            exercises: prev.exercises.map((e) =>
+                e.id === exerciseId ? { ...e, sets } : e,
+            ),
+        }));
+    }, [updateSession]);
+
     const updateExerciseName = useCallback((exerciseId: string, name: string) => {
         updateSession((prev) => ({
             ...prev,
@@ -709,6 +718,132 @@ export default function WorkoutSessionScreen() {
 
     const renderExerciseItem = ({ item: exercise, drag, isActive, getIndex }: RenderItemParams<WorkoutExercise>) => {
         const exIndex = getIndex() ?? 0;
+        const getSetLabel = (set: WorkoutSet, sets: WorkoutSet[]) => {
+            const sameTypeSets = sets.filter((candidate) => !!candidate.isWarmup === !!set.isWarmup);
+            const setNumber = sameTypeSets.findIndex((candidate) => candidate.id === set.id) + 1;
+            return set.isWarmup ? `W${setNumber}` : `${setNumber}`;
+        };
+
+        const renderSetItem = ({ item: set, drag: dragSet, getIndex: getSetIndex }: RenderItemParams<WorkoutSet>) => {
+            const setIndex = getSetIndex() ?? 0;
+            const isWarmup = !!set.isWarmup;
+            const label = getSetLabel(set, exercise.sets);
+
+            return (
+                <ScaleDecorator>
+                    <View style={[styles.setRow, isWarmup && styles.warmupSetRow]}>
+                        <TouchableOpacity
+                            onLongPress={dragSet}
+                            delayLongPress={180}
+                            style={[styles.setDragHandle, isWarmup && styles.warmupSetDragHandle]}
+                        >
+                            <Text style={[styles.setNumber, isWarmup && styles.warmupSetNumber]}>
+                                {label}
+                            </Text>
+                        </TouchableOpacity>
+
+                        <View style={[styles.inputWrapper, { flex: 1 }]}>
+                            <TextInput
+                                ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-weight`] = el; }}
+                                style={styles.numericInput}
+                                value={getTextValue(exercise.id, set.id, "weight", set.weight)}
+                                onChangeText={(text) => {
+                                    onNumericChange(exercise.id, set.id, "weight", text);
+                                    if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
+                                }}
+                                onBlur={() => onNumericBlur(exercise.id, set.id, "weight")}
+                                placeholder={set.targetWeight ?? exercise.targetWeight ?? "0"}
+                                placeholderTextColor={
+                                    (set.targetWeight || exercise.targetWeight)
+                                        ? colors.accentDark
+                                        : colors.textMuted
+                                }
+                                keyboardType="decimal-pad"
+                                selectionColor={colors.accent}
+                                returnKeyType="next"
+                                onSubmitEditing={() => focusNext(exIndex, setIndex, "weight")}
+                                blurOnSubmit={false}
+                            />
+                        </View>
+
+                        <View style={[styles.inputWrapper, { flex: 1 }]}>
+                            <TextInput
+                                ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-reps`] = el; }}
+                                style={styles.numericInput}
+                                value={getTextValue(exercise.id, set.id, "reps", set.reps)}
+                                onChangeText={(text) => {
+                                    onNumericChange(exercise.id, set.id, "reps", text);
+                                    if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
+                                }}
+                                onBlur={() => onNumericBlur(exercise.id, set.id, "reps", true)}
+                                placeholder={set.targetReps ?? exercise.targetReps ?? "0"}
+                                placeholderTextColor={
+                                    (set.targetReps || exercise.targetReps)
+                                        ? colors.accentDark
+                                        : colors.textMuted
+                                }
+                                keyboardType="number-pad"
+                                selectionColor={colors.accent}
+                                returnKeyType="next"
+                                onSubmitEditing={() => focusNext(exIndex, setIndex, "reps")}
+                                blurOnSubmit={false}
+                            />
+                        </View>
+
+                        {(rpeMode === "rpe" || rpeMode === "both") && (
+                            <View style={[styles.inputWrapper, { flex: 0.8 }]}>
+                                <TextInput
+                                    ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-rpe`] = el; }}
+                                    style={styles.numericInput}
+                                    value={getTextValue(exercise.id, set.id, "rpe", set.rpe ?? 0)}
+                                    onChangeText={(text) => onNumericChange(exercise.id, set.id, "rpe", text)}
+                                    onBlur={() => onNumericBlur(exercise.id, set.id, "rpe")}
+                                    placeholder={
+                                        (set.targetRPE || exercise.targetRPE)
+                                            ? `${set.targetRPE ?? exercise.targetRPE}`
+                                            : "—"
+                                    }
+                                    placeholderTextColor={colors.accentDark}
+                                    keyboardType="number-pad"
+                                    selectionColor={colors.accent}
+                                    returnKeyType="next"
+                                    onSubmitEditing={() => focusNext(exIndex, setIndex, "rpe")}
+                                    blurOnSubmit={false}
+                                />
+                            </View>
+                        )}
+
+                        {(rpeMode === "rir" || rpeMode === "both") && (
+                            <View style={[styles.inputWrapper, { flex: 0.8 }]}>
+                                <TextInput
+                                    style={styles.numericInput}
+                                    value={getTextValue(exercise.id, set.id, "rir" as any, (set as any).rir ?? "")}
+                                    onChangeText={(text) => onNumericChange(exercise.id, set.id, "rir" as any, text)}
+                                    onBlur={() => onNumericBlur(exercise.id, set.id, "rir" as any)}
+                                    placeholder={
+                                        (set.targetRIR || exercise.targetRIR)
+                                            ? `${set.targetRIR ?? exercise.targetRIR}`
+                                            : "—"
+                                    }
+                                    placeholderTextColor={colors.accentDark}
+                                    keyboardType="number-pad"
+                                    selectionColor={colors.accent}
+                                />
+                            </View>
+                        )}
+
+                        <TouchableOpacity
+                            onPress={() => removeSet(exercise.id, set.id)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={{ paddingLeft: 4 }}
+                        >
+                            <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                    </View>
+                </ScaleDecorator>
+            );
+        };
+
         return (
             <ScaleDecorator>
                 <View style={[styles.exerciseCard, isActive && styles.activeExerciseCard]}>
@@ -768,7 +903,7 @@ export default function WorkoutSessionScreen() {
                         )}
                     </View>
 
-                    {(() => {
+                    {false && (() => {
                         let warmupCount = 0;
                         let workingCount = 0;
                         return exercise.sets.map((set: WorkoutSet, setIndex: number) => {
@@ -883,6 +1018,15 @@ export default function WorkoutSessionScreen() {
                             );
                         });
                     })()}
+
+                    <DraggableFlatList
+                        data={exercise.sets}
+                        keyExtractor={(set) => set.id}
+                        renderItem={renderSetItem}
+                        onDragEnd={({ data }) => reorderSets(exercise.id, data)}
+                        scrollEnabled={false}
+                        activationDistance={8}
+                    />
 
                     <View style={styles.addSetRow}>
                         <TouchableOpacity
@@ -1057,11 +1201,30 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         marginBottom: spacing.sm,
     },
+    warmupSetRow: {
+        opacity: 0.75,
+        borderLeftWidth: 3,
+        borderLeftColor: colors.textMuted,
+        paddingLeft: spacing.xs,
+    },
+    setDragHandle: {
+        flex: 0.5,
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 48,
+    },
+    warmupSetDragHandle: {
+        opacity: 0.95,
+    },
     setNumber: {
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         color: colors.textSecondary,
         textAlign: "center",
+    },
+    warmupSetNumber: {
+        fontStyle: "italic",
+        color: colors.textMuted,
     },
     inputWrapper: {
         marginHorizontal: spacing.xs,

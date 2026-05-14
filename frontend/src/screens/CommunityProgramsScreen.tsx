@@ -7,6 +7,7 @@ import {
     FlatList,
     ActivityIndicator,
     Alert,
+    Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -23,6 +24,12 @@ function ownerName(program: any) {
     const user = program.user;
     if (!user) return "Topluluk";
     return user.nickname || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Topluluk";
+}
+
+function ownerInitials(program: any) {
+    const user = program.user;
+    const initials = `${user?.firstName?.charAt(0) || ""}${user?.lastName?.charAt(0) || ""}`.trim();
+    return (initials || ownerName(program).slice(0, 2)).toUpperCase();
 }
 
 function programDayCount(program: any) {
@@ -130,7 +137,16 @@ export default function CommunityProgramsScreen() {
                             <View style={styles.cardHeader}>
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.name} numberOfLines={1}>{item.name}</Text>
-                                    <Text style={styles.owner} numberOfLines={1}>{ownerName(item)}</Text>
+                                    <View style={styles.ownerRow}>
+                                        {item.user?.avatarUrl ? (
+                                            <Image source={{ uri: item.user.avatarUrl }} style={styles.ownerAvatar} />
+                                        ) : (
+                                            <View style={styles.ownerAvatarFallback}>
+                                                <Text style={styles.ownerAvatarText}>{ownerInitials(item)}</Text>
+                                            </View>
+                                        )}
+                                        <Text style={styles.owner} numberOfLines={1}>{ownerName(item)}</Text>
+                                    </View>
                                 </View>
                                 <TouchableOpacity
                                     style={styles.starPill}
@@ -218,10 +234,35 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
         color: colors.text,
     },
+    ownerRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        marginTop: 4,
+    },
     owner: {
         fontSize: fontSize.xs,
         color: colors.textMuted,
-        marginTop: 2,
+        flex: 1,
+    },
+    ownerAvatar: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        backgroundColor: colors.surfaceElevated,
+    },
+    ownerAvatarFallback: {
+        width: 22,
+        height: 22,
+        borderRadius: 11,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+    },
+    ownerAvatarText: {
+        fontSize: 9,
+        fontWeight: fontWeight.bold,
+        color: colors.accent,
     },
     starPill: {
         flexDirection: "row",

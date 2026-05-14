@@ -72,9 +72,7 @@ export default function HomeScreen() {
                 workoutApi.list({ limit: 20 }),
                 programApi.listMine(),
             ]);
-            const fetchedWorkouts = [...(workoutRes.data.workouts || [])].sort(
-                (a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime(),
-            );
+            const fetchedWorkouts = sortNewestFirst(workoutRes.data.workouts || []);
             if (userRes.data) updateUser(userRes.data);
             setWorkouts(fetchedWorkouts);
 
@@ -372,7 +370,7 @@ export default function HomeScreen() {
             />
             {workouts.length > 0 ? (
                 <FlatList
-                    data={workouts}
+                    data={sortNewestFirst(workouts)}
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     keyExtractor={(item) => item.id}
@@ -478,6 +476,9 @@ export default function HomeScreen() {
                         prog.user?.nickname ||
                         [prog.user?.firstName, prog.user?.lastName].filter(Boolean).join(" ") ||
                         "Topluluk";
+                    const ownerInitials =
+                        `${prog.user?.firstName?.charAt(0) || ""}${prog.user?.lastName?.charAt(0) || ""}`.trim().toUpperCase() ||
+                        owner.slice(0, 2).toUpperCase();
                     const dayCount = Array.isArray(prog.data?.days)
                         ? prog.data.days.length
                         : Array.isArray(prog.data?.exercises)
@@ -494,7 +495,16 @@ export default function HomeScreen() {
                                 <View style={styles.programHeader}>
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.programName} numberOfLines={1}>{prog.name}</Text>
-                                        <Text style={styles.communityOwner} numberOfLines={1}>{owner}</Text>
+                                        <View style={styles.communityOwnerRow}>
+                                            {prog.user?.avatarUrl ? (
+                                                <Image source={{ uri: prog.user.avatarUrl }} style={styles.communityOwnerAvatar} />
+                                            ) : (
+                                                <View style={styles.communityOwnerAvatarFallback}>
+                                                    <Text style={styles.communityOwnerAvatarText}>{ownerInitials}</Text>
+                                                </View>
+                                            )}
+                                            <Text style={styles.communityOwner} numberOfLines={1}>{owner}</Text>
+                                        </View>
                                     </View>
                                     <View style={styles.communityStar}>
                                         <Ionicons name="star" size={15} color={colors.accent} />
@@ -576,6 +586,14 @@ function calculateStreak(workouts: any[], programs: any[] = []): number {
 
 function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });
+}
+
+function sortNewestFirst(items: any[]): any[] {
+    return [...items].sort((a, b) => {
+        const left = new Date(b.logDate || b.createdAt || 0).getTime();
+        const right = new Date(a.logDate || a.createdAt || 0).getTime();
+        return left - right;
+    });
 }
 
 function formatDuration(seconds: number): string {
@@ -717,10 +735,35 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     publicBadgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.accent },
     communityCard: { marginBottom: spacing.md },
+    communityOwnerRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        marginTop: 4,
+    },
     communityOwner: {
         fontSize: fontSize.xs,
         color: colors.textMuted,
-        marginTop: 2,
+        flex: 1,
+    },
+    communityOwnerAvatar: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        backgroundColor: colors.surfaceElevated,
+    },
+    communityOwnerAvatarFallback: {
+        width: 20,
+        height: 20,
+        borderRadius: 10,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+    },
+    communityOwnerAvatarText: {
+        fontSize: 8,
+        fontWeight: fontWeight.bold,
+        color: colors.accent,
     },
     communityStar: {
         flexDirection: "row",
