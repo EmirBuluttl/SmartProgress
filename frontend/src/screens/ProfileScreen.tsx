@@ -13,6 +13,7 @@ import {
     Image,
     Alert,
     Dimensions,
+    Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -56,6 +57,33 @@ export default function ProfileScreen() {
     const [loading, setLoading] = useState(true);
 
     const pickProfileImage = async () => {
+        const savePickedImage = async (uri: string) => {
+            updateUser({ avatarUrl: uri, profileImage: uri });
+            try {
+                await authApi.updateProfile({ avatarUrl: uri });
+            } catch (err) {
+                console.warn("[Profile] Failed to persist profile image:", err);
+            }
+        };
+
+        if (Platform.OS === "web") {
+            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+            if (status !== "granted") {
+                Alert.alert("Ä°zin Gerekli", "LÃ¼tfen galeri iznini verin.");
+                return;
+            }
+            const result = await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ["images"],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+            });
+            if (!result.canceled && result.assets[0]) {
+                await savePickedImage(result.assets[0].uri);
+            }
+            return;
+        }
+
         Alert.alert(
             "Profil Fotoğrafı",
             "Fotoğraf kaynağını seç",
@@ -75,7 +103,7 @@ export default function ProfileScreen() {
                             quality: 0.8,
                         });
                         if (!result.canceled && result.assets[0]) {
-                            updateUser({ profileImage: result.assets[0].uri });
+                            await savePickedImage(result.assets[0].uri);
                         }
                     },
                 },
@@ -94,7 +122,7 @@ export default function ProfileScreen() {
                             quality: 0.8,
                         });
                         if (!result.canceled && result.assets[0]) {
-                            updateUser({ profileImage: result.assets[0].uri });
+                            await savePickedImage(result.assets[0].uri);
                         }
                     },
                 },
@@ -180,9 +208,9 @@ export default function ProfileScreen() {
             <View style={styles.profileHeader}>
                 <TouchableOpacity onPress={pickProfileImage} activeOpacity={0.85}>
                     <View style={styles.avatarLarge}>
-                        {user?.profileImage ? (
+                        {user?.avatarUrl || user?.profileImage ? (
                             <Image
-                                source={{ uri: user.profileImage }}
+                                source={{ uri: user.avatarUrl || user.profileImage }}
                                 style={styles.avatarImage}
                             />
                         ) : (

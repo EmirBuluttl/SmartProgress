@@ -33,6 +33,7 @@ const updateProfileSchema = z.object({
     firstName: z.string().min(1).max(50).optional(),
     lastName: z.string().min(1).max(50).optional(),
     nickname: z.string().max(50).optional(),
+    avatarUrl: z.string().optional().nullable(),
     settings: z.record(z.any()).optional(),
 });
 

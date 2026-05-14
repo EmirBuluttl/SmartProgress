@@ -149,12 +149,15 @@ export class WorkoutRepository {
      * Delete a workout log by ID, ensuring it belongs to the user.
      */
     async deleteById(userId: string, id: string): Promise<void> {
-        await prisma.workoutLog.delete({
+        const result = await prisma.workoutLog.deleteMany({
             where: {
                 id,
                 userId,
             },
         });
+        if (result.count === 0) {
+            throw new Error("Workout not found or not owned by user");
+        }
     }
 }
 

@@ -29,6 +29,7 @@ export interface UpdateProfileDto {
     firstName?: string;
     lastName?: string;
     nickname?: string;
+    avatarUrl?: string | null;
     settings?: Record<string, any>;
 }
 
@@ -40,6 +41,7 @@ export interface AuthResponse {
         firstName: string;
         lastName: string;
         nickname: string | null;
+        avatarUrl: string | null;
         role: string;
         settings: unknown;
     };
@@ -90,6 +92,7 @@ export class AuthService {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 nickname: user.nickname,
+                avatarUrl: user.avatarUrl,
                 role: user.role,
                 settings: user.settings,
             },
@@ -130,6 +133,7 @@ export class AuthService {
                 firstName: user.firstName,
                 lastName: user.lastName,
                 nickname: user.nickname,
+                avatarUrl: user.avatarUrl,
                 role: user.role,
                 settings: user.settings,
             },
@@ -153,6 +157,7 @@ export class AuthService {
             firstName: user.firstName,
             lastName: user.lastName,
             nickname: user.nickname,
+            avatarUrl: user.avatarUrl,
             role: user.role,
             settings: user.settings,
         };
@@ -171,6 +176,7 @@ export class AuthService {
         if (dto.firstName !== undefined) updateData.firstName = dto.firstName;
         if (dto.lastName !== undefined) updateData.lastName = dto.lastName;
         if (dto.nickname !== undefined) updateData.nickname = dto.nickname;
+        if (dto.avatarUrl !== undefined) updateData.avatarUrl = dto.avatarUrl;
         if (dto.settings !== undefined) {
             // Merge with existing settings to preserve unset keys
             updateData.settings = { ...(user.settings as any || {}), ...dto.settings };
@@ -184,6 +190,7 @@ export class AuthService {
             firstName: updated.firstName,
             lastName: updated.lastName,
             nickname: updated.nickname,
+            avatarUrl: updated.avatarUrl,
             role: updated.role,
             settings: updated.settings,
         };

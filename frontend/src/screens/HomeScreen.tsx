@@ -2,7 +2,7 @@
 // HomeScreen — Dashboard
 // Sıradaki antrenman (cycle-aware), hızlı başlat
 // ─────────────────────────────────────────────
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useRef } from "react";
 import {
     View,
     Text,
@@ -13,6 +13,8 @@ import {
     ActivityIndicator,
     TouchableOpacity,
     Image,
+    NativeSyntheticEvent,
+    NativeScrollEvent,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -36,6 +38,7 @@ const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
 
 type HomeNav = NativeStackNavigationProp<RootStackParamList>;
 const FAVORITES_KEY = "program_favorite_id";
+let savedHomeScrollY = 0;
 
 export default function HomeScreen() {
     const navigation = useNavigation<HomeNav>();
@@ -50,6 +53,8 @@ export default function HomeScreen() {
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const [bannerRefresh, setBannerRefresh] = useState(0);
     const hasLoadedDashboard = React.useRef(false);
+    const scrollRef = useRef<ScrollView | null>(null);
+    const shouldRestoreScroll = useRef(false);
 
     const loadDashboard = async () => {
         try {
@@ -65,7 +70,9 @@ export default function HomeScreen() {
                 workoutApi.list({ limit: 20 }),
                 programApi.listMine(),
             ]);
-            const fetchedWorkouts = workoutRes.data.workouts || [];
+            const fetchedWorkouts = [...(workoutRes.data.workouts || [])].sort(
+                (a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime(),
+            );
             if (userRes.data) updateUser(userRes.data);
             setWorkouts(fetchedWorkouts);
 
@@ -105,13 +112,28 @@ export default function HomeScreen() {
 
     useFocusEffect(
         useCallback(() => {
+            shouldRestoreScroll.current = savedHomeScrollY > 0;
             if (!hasLoadedDashboard.current) {
                 setLoading(true);
             }
             loadDashboard();
             loadFavorite();
+            const restoreTimer = setTimeout(restoreScrollPosition, 50);
+            return () => clearTimeout(restoreTimer);
         }, [])
     );
+
+    const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+        savedHomeScrollY = event.nativeEvent.contentOffset.y;
+    };
+
+    const restoreScrollPosition = () => {
+        if (!shouldRestoreScroll.current || savedHomeScrollY <= 0) return;
+        requestAnimationFrame(() => {
+            scrollRef.current?.scrollTo({ y: savedHomeScrollY, animated: false });
+        });
+        shouldRestoreScroll.current = false;
+    };
 
     // Refresh the active workout banner whenever screen gains focus
     useFocusEffect(
@@ -155,9 +177,13 @@ export default function HomeScreen() {
 
     return (
         <ScrollView
+            ref={scrollRef}
             style={styles.container}
             contentContainerStyle={styles.content}
             showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            onContentSizeChange={restoreScrollPosition}
         >
             {/* ─── Header ─── */}
             <View style={styles.header}>
@@ -177,8 +203,8 @@ export default function HomeScreen() {
                     }
                     activeOpacity={0.8}
                 >
-                    {user?.profileImage ? (
-                        <Image source={{ uri: user.profileImage }} style={{ width: "100%", height: "100%", borderRadius: 20 }} />
+                    {user?.avatarUrl || user?.profileImage ? (
+                        <Image source={{ uri: user.avatarUrl || user.profileImage }} style={{ width: "100%", height: "100%", borderRadius: 20 }} />
                     ) : (
                         <Text style={styles.avatarText}>{initials}</Text>
                     )}

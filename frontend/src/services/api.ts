@@ -108,6 +108,7 @@ export const authApi = {
         firstName?: string;
         lastName?: string;
         nickname?: string;
+        avatarUrl?: string | null;
         settings?: Record<string, any>;
     }) => api.patch("/auth/me", data),
 };

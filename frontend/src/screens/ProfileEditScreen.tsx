@@ -13,6 +13,7 @@ import {
     Alert,
     ActivityIndicator,
     Image,
+    Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -32,7 +33,7 @@ export default function ProfileEditScreen() {
     const [firstName, setFirstName] = useState(user?.firstName || "");
     const [lastName, setLastName] = useState(user?.lastName || "");
     const [nickname, setNickname] = useState((user as any)?.nickname || "");
-    const [profileImage, setProfileImage] = useState(user?.profileImage || "");
+    const [profileImage, setProfileImage] = useState(user?.avatarUrl || user?.profileImage || "");
     const [saving, setSaving] = useState(false);
 
     const pickImage = async (source: "camera" | "gallery") => {
@@ -70,6 +71,10 @@ export default function ProfileEditScreen() {
     };
 
     const handlePickImage = () => {
+        if (Platform.OS === "web") {
+            pickImage("gallery");
+            return;
+        }
         Alert.alert("Profil Fotoğrafı", "Fotoğraf kaynağını seç", [
             { text: "Kamera", onPress: () => pickImage("camera") },
             { text: "Galeri", onPress: () => pickImage("gallery") },
@@ -89,11 +94,13 @@ export default function ProfileEditScreen() {
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
                 nickname: nickname.trim() || undefined,
+                avatarUrl: profileImage || null,
             });
 
             updateUser({
                 firstName: firstName.trim(),
                 lastName: lastName.trim(),
+                avatarUrl: profileImage || null,
                 profileImage: profileImage || undefined,
             });
 

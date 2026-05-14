@@ -14,6 +14,7 @@ interface User {
     firstName: string;
     lastName: string;
     profileImage?: string;
+    avatarUrl?: string | null;
     role: string;
     settings: {
         is_auto_suggest_enabled: boolean;
