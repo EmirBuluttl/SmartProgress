@@ -101,11 +101,9 @@ export default function WorkoutSummaryScreen() {
                 <GymCard elevated style={styles.statCard}>
                     <Ionicons name="barbell-outline" size={24} color={colors.accent} />
                     <Text style={styles.statValue}>
-                        {totalVolume >= 1000
-                            ? `${(totalVolume / 1000).toFixed(1)}t`
-                            : `${totalVolume}kg`}
+                        {Number(totalVolume || 0).toFixed(1)}
                     </Text>
-                    <Text style={styles.statLabel}>Toplam Hacim</Text>
+                    <Text style={styles.statLabel}>Yük Skoru</Text>
                 </GymCard>
 
                 <GymCard elevated style={styles.statCard}>

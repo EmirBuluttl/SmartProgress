@@ -16,6 +16,7 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
+import { calculateLoadScoreFromExercises } from "../utils/workoutMetrics";
 
 type Route = RouteProp<RootStackParamList, "WorkoutDetail">;
 
@@ -47,13 +48,7 @@ export default function WorkoutDetailScreen() {
     const exercises = workout?.data?.exercises || [];
     const duration = workout?.data?.totalDuration || workout?.data?.duration || 0;
 
-    // Compute total volume
-    let totalVolume = 0;
-    exercises.forEach((ex: any) => {
-        ex.sets?.forEach((set: any) => {
-            totalVolume += (parseFloat(set.weight) || 0) * (parseInt(set.reps, 10) || 0);
-        });
-    });
+    const loadScore = calculateLoadScoreFromExercises(exercises);
 
     return (
         <View style={styles.root}>
@@ -94,8 +89,8 @@ export default function WorkoutDetailScreen() {
                     </View>
                     <View style={styles.statBox}>
                         <Ionicons name="trending-up-outline" size={20} color={colors.accent} />
-                        <Text style={styles.statValue}>{totalVolume > 0 ? `${Math.round(totalVolume / 1000)}k` : "—"}</Text>
-                        <Text style={styles.statLabel}>Hacim</Text>
+                        <Text style={styles.statValue}>{loadScore > 0 ? loadScore.toFixed(1) : "—"}</Text>
+                        <Text style={styles.statLabel}>Yük Skoru</Text>
                     </View>
                 </View>
 

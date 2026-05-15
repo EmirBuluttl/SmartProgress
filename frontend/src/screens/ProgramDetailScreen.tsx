@@ -23,6 +23,7 @@ import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { parseApiError, programApi, workoutApi } from "../services/api";
 import { showAlert } from "../utils/confirm";
+import ActionConfirmModal from "../components/ActionConfirmModal";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -70,6 +71,7 @@ export default function ProgramDetailScreen() {
     const [loading, setLoading] = useState(true);
     const [refreshing, setRefreshing] = useState(false);
     const [deleting, setDeleting] = useState(false);
+    const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
     const [socialBusy, setSocialBusy] = useState(false);
     const [workoutCount, setWorkoutCount] = useState(0);
 
@@ -262,7 +264,7 @@ export default function ProgramDetailScreen() {
                             </TouchableOpacity>
 
                             <Pressable
-                                onPress={handleDelete}
+                                onPress={() => setConfirmDeleteVisible(true)}
                                 disabled={deleting}
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                 style={s.headerIconBtn}
@@ -471,6 +473,20 @@ export default function ProgramDetailScreen() {
                     </View>
                 )}
             </ScrollView>
+            <ActionConfirmModal
+                visible={confirmDeleteVisible}
+                title="Programı sil?"
+                message="Bu program kalıcı olarak silinecek. Bu işlem geri alınamaz."
+                primaryLabel="Sil"
+                secondaryLabel="Vazgeç"
+                destructivePrimary
+                onPrimary={() => {
+                    setConfirmDeleteVisible(false);
+                    handleDelete();
+                }}
+                onSecondary={() => setConfirmDeleteVisible(false)}
+                onDismiss={() => setConfirmDeleteVisible(false)}
+            />
         </View>
     );
 }

@@ -43,6 +43,7 @@ import { useAuth } from "../store/AuthContext";
 import AccentButton from "../components/AccentButton";
 import { confirmDialog, showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
+import { calculateLoadScoreFromExercises, clampRir, clampRpe } from "../utils/workoutMetrics";
 
 // ─── Constants ───────────────────────────────
 
@@ -184,7 +185,10 @@ export default function WorkoutSessionScreen() {
 
         // RIR accepts string ranges like "1-2", "2-3" — preserve as-is
         if (field === "rir") {
-            updateSet(exerciseId, setId, field as any, raw.trim() || "");
+            const currentSet = session.exercises
+                .find((exercise) => exercise.id === exerciseId)
+                ?.sets.find((set) => set.id === setId);
+            updateSet(exerciseId, setId, field as any, clampRir(raw, currentSet?.reps) ?? "");
             setTextCache((prev) => {
                 const next = { ...prev };
                 delete next[key];
@@ -194,7 +198,7 @@ export default function WorkoutSessionScreen() {
         }
 
         const num = isInteger ? (parseInt(raw, 10) || 0) : (parseFloat(raw) || 0);
-        const clamped = field === "rpe" ? Math.min(num, 10) : num;
+        const clamped = field === "rpe" ? clampRpe(num) : num;
         updateSet(exerciseId, setId, field as any, clamped);
         // Clear cache so it falls back to formatted number
         setTextCache((prev) => {
@@ -218,10 +222,10 @@ export default function WorkoutSessionScreen() {
             nextSet.reps = parseInt(repsRaw, 10) || 0;
         }
         if (rpeRaw !== undefined) {
-            nextSet.rpe = Math.min(parseFloat(rpeRaw) || 0, 10);
+            nextSet.rpe = clampRpe(rpeRaw);
         }
         if (rirRaw !== undefined) {
-            (nextSet as any).rir = rirRaw.trim();
+            (nextSet as any).rir = clampRir(rirRaw, nextSet.reps) ?? "";
         }
 
         return nextSet;
@@ -603,9 +607,7 @@ export default function WorkoutSessionScreen() {
                 exercises: validExercises,
                 completedAt: new Date().toISOString(),
                 totalDuration: elapsed,
-                totalVolume: validExercises.reduce((total, ex) =>
-                    total + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0), 0
-                ),
+                totalVolume: calculateLoadScoreFromExercises(validExercises),
                 status: "completed",
             };
 
@@ -637,9 +639,7 @@ export default function WorkoutSessionScreen() {
             }
 
             // ── Compute summary stats ──
-            const totalVolume = validExercises.reduce((total, ex) =>
-                total + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0), 0
-            );
+            const totalVolume = calculateLoadScoreFromExercises(validExercises);
             const setCount = validExercises.reduce((total, ex) => total + ex.sets.length, 0);
 
             // ── Advance cycle day if linked to a program ──
@@ -668,7 +668,7 @@ export default function WorkoutSessionScreen() {
                 programName: route.params?.programName,
                 dayLabel,
                 nextDayLabel,
-                totalVolume: Math.round(totalVolume),
+                totalVolume,
                 duration: elapsed,
                 exerciseCount: validExercises.length,
                 setCount,

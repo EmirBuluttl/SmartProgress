@@ -120,6 +120,7 @@ export default function ProgramCreateScreen() {
     const [showRIR, setShowRIR] = useState(false);
     const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+    const [copyTargetsVisible, setCopyTargetsVisible] = useState(false);
 
     // Pre-populate fields in edit mode
     useEffect(() => {
@@ -359,6 +360,7 @@ export default function ProgramCreateScreen() {
             ),
         );
         setActiveDayIdx(targetIndex);
+        setCopyTargetsVisible(false);
     };
 
     const handleCopyDay = (targetIndex: number) => {
@@ -674,33 +676,6 @@ export default function ProgramCreateScreen() {
                         )}
                     </View>
 
-                    {!activeDay.isRestDay && activeDay.exercises.length > 0 && days.length > 1 && (
-                        <View style={styles.copyDayPanel}>
-                            <View style={styles.copyDayHeader}>
-                                <Ionicons name="copy-outline" size={16} color={colors.accent} />
-                                <Text style={styles.copyDayTitle}>Bu günü kopyala</Text>
-                            </View>
-                            <ScrollView
-                                horizontal
-                                showsHorizontalScrollIndicator={false}
-                                contentContainerStyle={styles.copyDayTargets}
-                            >
-                                {days.map((day, idx) => {
-                                    if (idx === activeDayIdx || day.isRestDay) return null;
-                                    return (
-                                        <TouchableOpacity
-                                            key={`copy-${idx}`}
-                                            style={styles.copyDayChip}
-                                            onPress={() => handleCopyDay(idx)}
-                                        >
-                                            <Text style={styles.copyDayChipText}>{day.label}</Text>
-                                        </TouchableOpacity>
-                                    );
-                                })}
-                            </ScrollView>
-                        </View>
-                    )}
-
                     {/* Frequency deviation warning */}
                     {isFrequencyMismatch && (
                         <View style={styles.warningBanner}>
@@ -718,18 +693,50 @@ export default function ProgramCreateScreen() {
                         <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>
                             Egzersizler — {activeDay.label}
                         </Text>
-                        <TouchableOpacity
-                            style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
-                            onPress={toggleRestDay}
-                        >
-                            <Ionicons
-                                name={activeDay.isRestDay ? "checkbox" : "square-outline"}
-                                size={20}
-                                color={activeDay.isRestDay ? colors.accent : colors.textSecondary}
-                            />
-                            <Text style={{ fontSize: fontSize.sm, color: activeDay.isRestDay ? colors.accent : colors.textSecondary }}>Dinlenme Günü</Text>
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+                            {!activeDay.isRestDay && activeDay.exercises.length > 0 && days.length > 1 && (
+                                <TouchableOpacity
+                                    style={styles.headerActionBtn}
+                                    onPress={() => setCopyTargetsVisible((visible) => !visible)}
+                                >
+                                    <Ionicons name="copy-outline" size={18} color={colors.accent} />
+                                </TouchableOpacity>
+                            )}
+                            <TouchableOpacity
+                                style={{ flexDirection: "row", alignItems: "center", gap: 4 }}
+                                onPress={toggleRestDay}
+                            >
+                                <Ionicons
+                                    name={activeDay.isRestDay ? "checkbox" : "square-outline"}
+                                    size={20}
+                                    color={activeDay.isRestDay ? colors.accent : colors.textSecondary}
+                                />
+                                <Text style={{ fontSize: fontSize.sm, color: activeDay.isRestDay ? colors.accent : colors.textSecondary }}>Dinlenme Günü</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
+
+                    {copyTargetsVisible && !activeDay.isRestDay && (
+                        <ScrollView
+                            horizontal
+                            showsHorizontalScrollIndicator={false}
+                            contentContainerStyle={styles.copyDayTargets}
+                            style={styles.copyDayTargetScroll}
+                        >
+                            {days.map((day, idx) => {
+                                if (idx === activeDayIdx || day.isRestDay) return null;
+                                return (
+                                    <TouchableOpacity
+                                        key={`copy-${idx}`}
+                                        style={styles.copyDayChip}
+                                        onPress={() => handleCopyDay(idx)}
+                                    >
+                                        <Text style={styles.copyDayChipText}>{day.label}</Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </ScrollView>
+                    )}
 
                     {/* RPE/RIR Toggle Buttons */}
                     {!activeDay.isRestDay && (
@@ -1114,24 +1121,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     removeDayBtn: {
         padding: spacing.sm,
     },
-    copyDayPanel: {
-        marginTop: spacing.md,
-        padding: spacing.md,
+    headerActionBtn: {
+        width: 36,
+        height: 36,
         borderRadius: borderRadius.md,
-        backgroundColor: colors.background,
-        borderWidth: 1,
-        borderColor: colors.border,
-    },
-    copyDayHeader: {
-        flexDirection: "row",
         alignItems: "center",
-        gap: spacing.xs,
-        marginBottom: spacing.sm,
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accent,
     },
-    copyDayTitle: {
-        fontSize: fontSize.sm,
-        fontWeight: fontWeight.semibold,
-        color: colors.textSecondary,
+    copyDayTargetScroll: {
+        marginBottom: spacing.md,
     },
     copyDayTargets: {
         gap: spacing.sm,

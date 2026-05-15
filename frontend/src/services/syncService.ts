@@ -11,6 +11,7 @@ import {
     SyncWorkoutPayload,
     STORAGE_KEYS,
 } from "../types/workout";
+import { calculateLoadScoreFromExercises, clampRir, clampRpe } from "../utils/workoutMetrics";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -27,10 +28,8 @@ function generateId(): string {
  * Convert a completed WorkoutSession into the API payload format.
  */
 function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
-    // Hacim: Σ (weight × reps) sadece dolu setler üzerinden
-    const totalVolume = session.exercises.reduce((total, ex) => (
-        total + ex.sets.reduce((s, set) => s + (set.weight * set.reps), 0)
-    ), 0);
+    // Load score: working sets count as 1, or RPE/10 when RPE is logged.
+    const totalVolume = calculateLoadScoreFromExercises(session.exercises);
 
     return {
         sportId: session.sportId,
@@ -44,13 +43,13 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
                         reps: s.reps,
                         weight: s.weight,
                         unit: s.unit,
-                        rpe: s.rpe ?? undefined,
-                        rir: (s as any).rir ?? undefined,
+                        rpe: s.rpe !== undefined && s.rpe !== "" ? clampRpe(s.rpe) : undefined,
+                        rir: clampRir((s as any).rir, s.reps),
                         isWarmup: s.isWarmup ?? false,
                     })),
             })).filter((ex) => ex.sets.length > 0),
             totalDuration: session.totalDuration,
-            totalVolume: Math.round(totalVolume),
+            totalVolume,
             programId: session.programId,
             dayIndex: session.dayIndex,
         },

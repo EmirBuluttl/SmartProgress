@@ -20,6 +20,7 @@ import {
     syncPendingWorkouts,
 } from "../services/syncService";
 import { showAlert } from "../utils/confirm";
+import ActionConfirmModal from "../components/ActionConfirmModal";
 import GymCard from "../components/GymCard";
 
 const FAVORITES_KEY = "workout_favorites";
@@ -39,6 +40,8 @@ export default function WorkoutHistoryScreen() {
 
     const [workouts, setWorkouts] = useState<WorkoutItem[]>([]);
     const [favorites, setFavorites] = useState<Set<string>>(new Set());
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+    const [confirmClearPending, setConfirmClearPending] = useState(false);
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [pendingInfo, setPendingInfo] = useState({ pending: 0, failed: 0, permanent: 0 });
@@ -96,6 +99,7 @@ export default function WorkoutHistoryScreen() {
     const handleClearPending = async () => {
         await clearAllPendingWorkouts();
         await loadPendingInfo();
+        setConfirmClearPending(false);
     };
 
     const toggleFavorite = async (id: string) => {
@@ -118,6 +122,7 @@ export default function WorkoutHistoryScreen() {
             const apiError = parseApiError(err);
             showAlert("Hata", apiError.message || "Silme islemi basarisiz.");
         }
+        setPendingDeleteId(null);
     };
 
     const handleClearOrder = async () => {
@@ -168,7 +173,7 @@ export default function WorkoutHistoryScreen() {
                                 color={isFav ? colors.accent : colors.textMuted}
                             />
                         </Pressable>
-                        <Pressable onPress={() => handleDelete(item.id)} style={styles.iconBtn}>
+                        <Pressable onPress={() => setPendingDeleteId(item.id)} style={styles.iconBtn}>
                             <Ionicons name="trash-outline" size={21} color={colors.error} />
                         </Pressable>
                     </View>
@@ -222,7 +227,7 @@ export default function WorkoutHistoryScreen() {
                             )}
                         </Pressable>
                         <Pressable
-                            onPress={handleClearPending}
+                            onPress={() => setConfirmClearPending(true)}
                             style={[styles.pendingBtn, { backgroundColor: colors.error }]}
                         >
                             <Text style={styles.pendingBtnText}>Temizle</Text>
@@ -245,6 +250,28 @@ export default function WorkoutHistoryScreen() {
                     {workouts.map(renderWorkout)}
                 </ScrollView>
             )}
+            <ActionConfirmModal
+                visible={!!pendingDeleteId}
+                title="Antrenmanı sil?"
+                message="Bu antrenman kaydı kalıcı olarak silinecek. Bu işlem geri alınamaz."
+                primaryLabel="Sil"
+                secondaryLabel="Vazgeç"
+                destructivePrimary
+                onPrimary={() => pendingDeleteId && handleDelete(pendingDeleteId)}
+                onSecondary={() => setPendingDeleteId(null)}
+                onDismiss={() => setPendingDeleteId(null)}
+            />
+            <ActionConfirmModal
+                visible={confirmClearPending}
+                title="Bekleyen kayıtları temizle?"
+                message="Sunucuya gönderilemeyen yerel antrenman kayıtları silinecek."
+                primaryLabel="Temizle"
+                secondaryLabel="Vazgeç"
+                destructivePrimary
+                onPrimary={handleClearPending}
+                onSecondary={() => setConfirmClearPending(false)}
+                onDismiss={() => setConfirmClearPending(false)}
+            />
         </View>
     );
 }

@@ -16,10 +16,12 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { workoutApi } from "../services/api";
+import { getPersonalRecords } from "../utils/workoutMetrics";
 
 interface PRRecord {
     exercise: string;
     weight: number;
+    reps: number;
     unit: string;
     date: string;
 }
@@ -43,37 +45,7 @@ export default function RecordsScreen() {
             const res = await workoutApi.list({ limit: 200 });
             const workouts = res.data.workouts || [];
 
-            const highestWeightMap = new Map<string, PRRecord>();
-            workouts.forEach((wk: any) => {
-                if (wk.data?.exercises) {
-                    wk.data.exercises.forEach((ex: any) => {
-                        let maxWeight = 0;
-                        let maxUnit = "kg";
-                        ex.sets?.forEach((set: any) => {
-                            const w = parseFloat(set.weight) || 0;
-                            if (w > maxWeight) {
-                                maxWeight = w;
-                                maxUnit = set.unit || "kg";
-                            }
-                        });
-                        if (maxWeight > 0) {
-                            const existing = highestWeightMap.get(ex.name);
-                            if (!existing || maxWeight > existing.weight) {
-                                highestWeightMap.set(ex.name, {
-                                    exercise: ex.name,
-                                    weight: maxWeight,
-                                    unit: maxUnit,
-                                    date: wk.logDate,
-                                });
-                            }
-                        }
-                    });
-                }
-            });
-
-            const allPrs = Array.from(highestWeightMap.values());
-            allPrs.sort((a, b) => b.weight - a.weight);
-            setRecords(allPrs);
+            setRecords(getPersonalRecords(workouts) as PRRecord[]);
         } catch (err) {
             console.error("[Records] Load error:", err);
         } finally {
@@ -114,7 +86,7 @@ export default function RecordsScreen() {
                 <Text style={styles.recordDate}>{formatDate(item.date)}</Text>
             </View>
             <Text style={styles.recordWeight}>
-                {item.weight} <Text style={styles.recordUnit}>{item.unit}</Text>
+                {item.weight} <Text style={styles.recordUnit}>{item.unit} x {item.reps}</Text>
             </Text>
         </View>
     );

@@ -32,6 +32,7 @@ import StatBadge from "../components/StatBadge";
 import SectionHeader from "../components/SectionHeader";
 import ActiveWorkoutBanner from "../components/ActiveWorkoutBanner";
 import { syncPendingWorkouts } from "../services/syncService";
+import { countProgressEvents } from "../utils/workoutMetrics";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -95,7 +96,7 @@ export default function HomeScreen() {
             setStats({
                 totalWorkouts: workoutRes.data.count || fetchedWorkouts.length,
                 currentStreak: streak,
-                totalPRs: 0,
+                totalPRs: countProgressEvents(fetchedWorkouts),
             });
 
             try {
@@ -246,8 +247,8 @@ export default function HomeScreen() {
                 <View style={{ width: spacing.sm }} />
                 <StatBadge
                     value={stats.totalPRs}
-                    label="PR"
-                    icon={<Ionicons name="trophy-outline" size={18} color={colors.accent} />}
+                    label="Progress"
+                    icon={<Ionicons name="trending-up-outline" size={18} color={colors.accent} />}
                 />
             </View>
 

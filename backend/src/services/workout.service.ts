@@ -74,6 +74,65 @@ export const syncWorkoutsSchema = z.object({
 
 export type SyncWorkoutsInput = z.infer<typeof syncWorkoutsSchema>;
 
+function toNumber(value: unknown): number {
+    if (value === null || value === undefined || value === "") return 0;
+    const parsed = Number(String(value).replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function clampRpe(value: unknown): number {
+    return Math.min(10, Math.max(0, toNumber(value)));
+}
+
+function clampRir(value: unknown, reps: unknown): number | undefined {
+    if (value === null || value === undefined || value === "") return undefined;
+    return Math.min(Math.max(0, Math.floor(toNumber(reps))), Math.max(0, toNumber(value)));
+}
+
+function calculateLoadScore(data: any): number {
+    const exercises = Array.isArray(data?.exercises) ? data.exercises : [];
+    const score = exercises.reduce((total: number, exercise: any) => {
+        const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+        return total + sets.reduce((setTotal: number, set: any) => {
+            if (set?.isWarmup) return setTotal;
+            if (toNumber(set?.weight) <= 0 && toNumber(set?.reps) <= 0 && toNumber(set?.rpe) <= 0) return setTotal;
+            const rpe = clampRpe(set?.rpe);
+            return setTotal + (rpe > 0 ? rpe / 10 : 1);
+        }, 0);
+    }, 0);
+    return Math.round(score * 10) / 10;
+}
+
+function normalizeWorkoutData(data: any) {
+    const exercises = Array.isArray(data?.exercises)
+        ? data.exercises.map((exercise: any) => ({
+            ...exercise,
+            sets: Array.isArray(exercise?.sets)
+                ? exercise.sets.map((set: any) => {
+                    const normalizedSet = { ...set };
+                    if (set?.rpe !== undefined && set?.rpe !== null && set?.rpe !== "") {
+                        normalizedSet.rpe = clampRpe(set.rpe);
+                    } else {
+                        delete normalizedSet.rpe;
+                    }
+
+                    const rir = clampRir(set?.rir, set?.reps);
+                    if (rir !== undefined) normalizedSet.rir = rir;
+                    else delete normalizedSet.rir;
+
+                    return normalizedSet;
+                })
+                : [],
+        }))
+        : data?.exercises;
+
+    const normalized = { ...data, exercises };
+    return {
+        ...normalized,
+        totalVolume: calculateLoadScore(normalized),
+    };
+}
+
 // ─── Service ─────────────────────────────────
 
 export class WorkoutService {
@@ -90,7 +149,7 @@ export class WorkoutService {
             sportId: w.sportId,
             title: w.title,
             notes: w.notes ?? undefined,
-            data: w.data,
+            data: normalizeWorkoutData(w.data),
             logDate: new Date(w.logDate),
         }));
 

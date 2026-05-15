@@ -29,6 +29,7 @@ import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
 import AccentButton from "../components/AccentButton";
 import { confirmDialog } from "../utils/confirm";
+import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
 
 const AVAILABLE_COLORS = [
     "#CCFF00", // Default Lime
@@ -156,31 +157,7 @@ export default function ProfileScreen() {
             const workouts = workRes.data.workouts || [];
             setWorkouts(workouts);
 
-            // Extract PRs
-            const highestWeightMap = new Map<string, any>();
-            workouts.forEach((wk: any) => {
-                if (wk.data?.exercises) {
-                    wk.data.exercises.forEach((ex: any) => {
-                        let maxWeight = 0;
-                        ex.sets?.forEach((set: any) => {
-                            const w = parseFloat(set.weight) || 0;
-                            if (w > maxWeight) maxWeight = w;
-                        });
-                        if (maxWeight > 0) {
-                            const cb = highestWeightMap.get(ex.name);
-                            if (!cb || maxWeight > cb.weight) {
-                                highestWeightMap.set(ex.name, {
-                                    exercise: ex.name,
-                                    date: wk.logDate,
-                                    weight: maxWeight,
-                                    unit: ex.sets[0]?.unit || "kg"
-                                });
-                            }
-                        }
-                    });
-                }
-            });
-            const allPrs = Array.from(highestWeightMap.values());
+            const allPrs = getPersonalRecords(workouts);
             setPrs(allPrs.slice(0, 3));
 
             const streak = calculateStreak(workouts, progRes.data.programs || []);
@@ -188,7 +165,7 @@ export default function ProfileScreen() {
             setStats({
                 totalWorkouts: workouts.length || 0,
                 currentStreak: streak,
-                totalPRs: allPrs.length
+                totalPRs: countProgressEvents(workouts)
             });
         } catch (error) {
             console.error("Profile Load Error", error);
@@ -269,7 +246,7 @@ export default function ProfileScreen() {
                 <View style={styles.quickStatDivider} />
                 <View style={styles.quickStatItem}>
                     <Text style={styles.quickStatValue}>{stats.totalPRs}</Text>
-                    <Text style={styles.quickStatLabel}>PR</Text>
+                    <Text style={styles.quickStatLabel}>Progress</Text>
                 </View>
             </View>
 
@@ -433,7 +410,7 @@ export default function ProfileScreen() {
                             <Ionicons name="trophy" size={18} color={colors.warning} />
                             <Text style={styles.prExercise}>{pr.exercise}</Text>
                             <Text style={styles.prWeight}>
-                                {pr.weight} {pr.unit}
+                                {pr.weight} {pr.unit} x {pr.reps}
                             </Text>
                         </View>
                         {index < prs.length - 1 && <View style={styles.prDivider} />}
@@ -490,14 +467,7 @@ function HeatmapCalendar({ workouts, colors, heatmapStyles }: { workouts: any[],
     workouts.forEach((w) => {
         const dateStr = w.logDate?.split("T")?.[0] ?? "";
         if (!dateStr) return;
-        let vol = 0;
-        if (w.data?.exercises) {
-            w.data.exercises.forEach((ex: any) => {
-                ex.sets?.forEach((s: any) => {
-                    vol += (parseFloat(s.weight) || 0) * (parseInt(s.reps) || 0);
-                });
-            });
-        }
+        const vol = calculateWorkoutLoadScore(w);
         volumeMap.set(dateStr, (volumeMap.get(dateStr) ?? 0) + vol);
     });
 
@@ -530,7 +500,7 @@ function HeatmapCalendar({ workouts, colors, heatmapStyles }: { workouts: any[],
     return (
         <View style={heatmapStyles.container}>
             <Text style={heatmapStyles.title}>📅 Aktivite Takvimi</Text>
-            <Text style={heatmapStyles.subtitle}>Son 6 ay · hacim bazlı yoğunluk</Text>
+            <Text style={heatmapStyles.subtitle}>Son 6 ay · yük skoru yoğunluğu</Text>
 
             <View style={heatmapStyles.grid}>
                 {/* Day labels column */}

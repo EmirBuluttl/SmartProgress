@@ -21,6 +21,7 @@ import { workoutApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
+import { calculateWorkoutLoadScore, getPersonalRecords } from "../utils/workoutMetrics";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -58,14 +59,7 @@ export default function MyProgressScreen() {
         const labels: string[] = [];
 
         [...filtered].reverse().forEach((wk: any, idx: number) => {
-            let vol = 0;
-            wk.data?.exercises?.forEach((ex: any) => {
-                ex.sets?.forEach((set: any) => {
-                    const w = parseFloat(set.weight) || 0;
-                    const r = parseInt(set.reps, 10) || 0;
-                    if (set.completed !== false) vol += w * r;
-                });
-            });
+            const vol = calculateWorkoutLoadScore(wk);
             if (vol > 0) {
                 volumePoints.push(vol);
                 labels.push(`A${idx + 1}`);
@@ -88,31 +82,7 @@ export default function MyProgressScreen() {
             setAllWorkouts(workouts);
             buildVolumeData(workouts, filter);
 
-            const highestWeightMap = new Map<string, any>();
-            workouts.forEach((wk: any) => {
-                wk.data?.exercises?.forEach((ex: any) => {
-                    let maxW = 0;
-                    ex.sets?.forEach((set: any) => {
-                        const w = parseFloat(set.weight) || 0;
-                        if (w > maxW) maxW = w;
-                    });
-                    if (maxW > 0) {
-                        const best = highestWeightMap.get(ex.name);
-                        if (!best || maxW > best.weight) {
-                            highestWeightMap.set(ex.name, {
-                                exercise: ex.name,
-                                date: wk.logDate,
-                                workoutTitle: wk.title,
-                                weight: maxW,
-                                unit: ex.sets?.[0]?.unit || "kg",
-                            });
-                        }
-                    }
-                });
-            });
-            // Keep all PRs sorted by highest weight descending
-            const sortedPrs = Array.from(highestWeightMap.values()).sort((a: any, b: any) => b.weight - a.weight);
-            setPrs(sortedPrs);
+            setPrs(getPersonalRecords(workouts));
         } catch (err) {
             console.error("Analytics Load Error", err);
         } finally {
@@ -161,18 +131,18 @@ export default function MyProgressScreen() {
                 </View>
 
                 {/* ─── Volume Chart ─── */}
-                <SectionHeader title="📊 Antrenman Hacmi" />
+                <SectionHeader title="📊 Yük Skoru" />
                 <GymCard elevated style={styles.chartCard}>
                     <LineChart
                         data={volumeData}
                         width={SCREEN_WIDTH - spacing.lg * 4}
                         height={200}
-                        yAxisSuffix=" kg"
+                        yAxisSuffix=""
                         chartConfig={{
                             backgroundColor: colors.surface,
                             backgroundGradientFrom: colors.surfaceLight,
                             backgroundGradientTo: colors.surface,
-                            decimalPlaces: 0,
+                            decimalPlaces: 1,
                             // Convert the hex accent color to rgb for chart-kit:
                             color: (opacity = 1) => {
                                 const hexMatch = colors.accent.match(/\w\w/g);
@@ -193,7 +163,7 @@ export default function MyProgressScreen() {
                     />
                     <View style={styles.chartLegend}>
                         <View style={styles.legendDot} />
-                        <Text style={styles.legendText}>Toplam Hacim (kg)</Text>
+                        <Text style={styles.legendText}>Çalışma setleri ve RPE yoğunluğu</Text>
                     </View>
                 </GymCard>
 
@@ -252,7 +222,7 @@ export default function MyProgressScreen() {
                                     </View>
                                     <View style={styles.prWeight}>
                                         <Text style={styles.prWeightValue}>{pr.weight}</Text>
-                                        <Text style={styles.prWeightUnit}>{pr.unit}</Text>
+                                        <Text style={styles.prWeightUnit}>{pr.unit} x {pr.reps}</Text>
                                     </View>
                                 </View>
                             </GymCard>
@@ -284,7 +254,7 @@ export default function MyProgressScreen() {
                             <>
                                 <Text style={styles.modalExercise}>{selectedPR.exercise}</Text>
                                 <Text style={styles.modalWeight}>
-                                    {selectedPR.weight} {selectedPR.unit}
+                                    {selectedPR.weight} {selectedPR.unit} x {selectedPR.reps}
                                 </Text>
                                 <View style={styles.modalMeta}>
                                     <Text style={styles.modalMetaText}>

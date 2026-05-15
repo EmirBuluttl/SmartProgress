@@ -87,7 +87,7 @@ export interface WorkoutSession {
     startedAt: string; // ISO 8601
     completedAt?: string; // ISO 8601
     totalDuration: number; // seconds
-    totalVolume?: number; // toplam hacim (Σ weight × reps)
+    totalVolume?: number; // load score: working sets, weighted by RPE when logged
     status: SessionStatus;
     programId?: string;    // linked program (for cycle advance)
     dayIndex?: number;     // which day was trained
