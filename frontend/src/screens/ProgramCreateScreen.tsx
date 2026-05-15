@@ -28,6 +28,7 @@ import {
 } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import PrivacyModal from "../components/PrivacyModal";
+import { confirmDialog } from "../utils/confirm";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -137,12 +138,37 @@ export default function ProgramCreateScreen() {
     const workoutDayCount = days.filter((d) => !d.isRestDay).length;
     const isFrequencyMismatch = workoutDayCount !== frequency;
 
-    const handleFrequencyChange = (f: number) => {
+    const handleFrequencyChange = async (f: number) => {
+        if (f === frequency) return;
+
+        const workoutDays = days.filter((day) => !day.isRestDay);
+        const restDays = days.filter((day) => day.isRestDay);
+        const removedWorkoutDays = workoutDays.slice(f);
+        const removedHasData = removedWorkoutDays.some((day) => day.exercises.length > 0);
+
+        if (removedHasData) {
+            const confirmed = await confirmDialog(
+                "Frekansı düşürüyorsunuz",
+                `Bu değişiklik ${removedWorkoutDays.length} antrenman gününü kaldıracak. Bu günlerde yazdığınız egzersizler silinir. Devam etmek istiyor musunuz?`,
+            );
+            if (!confirmed) return;
+        }
+
+        const nextWorkoutDays =
+            f <= workoutDays.length
+                ? workoutDays.slice(0, f)
+                : [
+                    ...workoutDays,
+                    ...Array.from({ length: f - workoutDays.length }, (_, index) =>
+                        makeDay(workoutDays.length + index),
+                    ),
+                ];
+
+        const restDay = restDays[0] ?? { label: "Dinlenme", isRestDay: true, exercises: [] };
+
         setFrequency(f);
-        // Auto-generate template when frequency changes
-        const newDays = generateTemplate(f);
-        setDays(newDays);
-        setActiveDayIdx(0);
+        setDays([...nextWorkoutDays, restDay]);
+        setActiveDayIdx((prev) => Math.min(prev, nextWorkoutDays.length - 1));
     };
 
     // ─── Day Management ───────────────────────

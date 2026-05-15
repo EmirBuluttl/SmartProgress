@@ -72,7 +72,10 @@ export class ProgramRepository {
         userId?: string,
     ) {
         return prisma.program.findMany({
-            where: { isPublic: true },
+            where: {
+                isPublic: true,
+                sourceProgramId: null,
+            },
             include: socialInclude(userId),
             orderBy: [
                 { programStars: { _count: "desc" } },

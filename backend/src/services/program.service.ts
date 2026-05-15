@@ -149,7 +149,7 @@ export class ProgramService {
             frequency: source.frequency,
             data: source.data,
             isPublic: false,
-            sourceProgramId: source.id,
+            sourceProgramId: source.sourceProgramId ?? source.id,
         });
     }
 

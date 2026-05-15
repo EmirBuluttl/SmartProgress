@@ -42,6 +42,7 @@ import { programApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import AccentButton from "../components/AccentButton";
 import { confirmDialog, showAlert } from "../utils/confirm";
+import ActionConfirmModal from "../components/ActionConfirmModal";
 
 // ─── Constants ───────────────────────────────
 
@@ -130,6 +131,7 @@ export default function WorkoutSessionScreen() {
     const [restored, setRestored] = useState(false);
     const [rpeMode, setRpeMode] = useState<"rpe" | "rir" | "both">("rpe");
     const [recentlyAddedExerciseId, setRecentlyAddedExerciseId] = useState<string | null>(null);
+    const [emptyFinishModalVisible, setEmptyFinishModalVisible] = useState(false);
     const isWeb = Platform.OS === "web";
 
     // Use a ref for finishing flag so beforeRemove always has the latest value
@@ -559,6 +561,19 @@ export default function WorkoutSessionScreen() {
         }));
     }, [updateSession]);
 
+    const discardWorkout = useCallback(async () => {
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+        if (saveTimerRef.current) {
+            clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = null;
+        }
+        await clearActiveSession();
+        navigation.goBack();
+    }, [navigation]);
+
     // ─── Finish Workout ──────────────────────
 
     const finishWorkout = async () => {
@@ -570,7 +585,7 @@ export default function WorkoutSessionScreen() {
         );
 
         if (validExercises.length === 0) {
-            showAlert("Eksik Bilgi", "En az bir egzersiz adı ve bir set bilgisi girmelisiniz.");
+            setEmptyFinishModalVisible(true);
             return;
         }
 
@@ -673,17 +688,7 @@ export default function WorkoutSessionScreen() {
         );
 
         const doCancel = async () => {
-            // Stop the timer immediately
-            if (intervalRef.current) {
-                clearInterval(intervalRef.current);
-                intervalRef.current = null;
-            }
-            if (saveTimerRef.current) {
-                clearTimeout(saveTimerRef.current);
-                saveTimerRef.current = null;
-            }
-            await clearActiveSession();
-            navigation.goBack();
+            await discardWorkout();
         };
 
         const doSaveAndLeave = async () => {
@@ -742,6 +747,11 @@ export default function WorkoutSessionScreen() {
                 },
             ],
         );
+    };
+
+    const confirmEmptyWorkoutCancel = async () => {
+        setEmptyFinishModalVisible(false);
+        await discardWorkout();
     };
 
 
@@ -1225,6 +1235,17 @@ export default function WorkoutSessionScreen() {
             style={styles.container}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
+            <ActionConfirmModal
+                visible={emptyFinishModalVisible}
+                title="Henüz veri girmediniz"
+                message="Bu antrenmanda kayıtlı set verisi yok. Yanlışlıkla başlattıysanız antrenmanı iptal edebilir veya loglamaya devam edebilirsiniz."
+                primaryLabel="Antrenmanı İptal Et"
+                secondaryLabel="Devam Et"
+                destructivePrimary
+                onPrimary={confirmEmptyWorkoutCancel}
+                onSecondary={() => setEmptyFinishModalVisible(false)}
+                onDismiss={() => setEmptyFinishModalVisible(false)}
+            />
             {isWeb ? (
                 <ScrollView
                     ref={webScrollRef}
