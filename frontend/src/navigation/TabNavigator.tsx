@@ -35,6 +35,8 @@ export default function TabNavigator() {
                 tabBarActiveTintColor: colors.accent,
                 tabBarInactiveTintColor: colors.tabBarInactive,
                 tabBarLabelStyle: styles.tabBarLabel,
+                tabBarItemStyle: styles.tabBarItem,
+                tabBarIconStyle: styles.tabBarIcon,
                 tabBarIcon: ({ focused, color, size }) => {
                     const icons = TAB_ICONS[route.name];
                     const iconName = focused ? icons.focused : icons.unfocused;
@@ -66,15 +68,25 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.tabBarBg,
         borderTopColor: colors.border,
         borderTopWidth: 1,
-        height: Platform.OS === "ios" ? 88 : 64,
+        height: Platform.OS === "ios" ? 88 : Platform.OS === "web" ? 72 : 68,
         paddingTop: 8,
-        paddingBottom: Platform.OS === "ios" ? 28 : 8,
+        paddingBottom: Platform.OS === "ios" ? 28 : Platform.OS === "web" ? 12 : 10,
         elevation: 0,
         shadowOpacity: 0,
+    },
+    tabBarItem: {
+        minHeight: 56,
+        paddingTop: 2,
+        paddingBottom: 4,
+    },
+    tabBarIcon: {
+        marginTop: 2,
     },
     tabBarLabel: {
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
-        marginTop: 2,
+        lineHeight: 16,
+        marginTop: 0,
+        marginBottom: 0,
     },
 });
