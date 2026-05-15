@@ -835,9 +835,8 @@ export default function WorkoutSessionScreen() {
             const canMoveSetUp = setIndex > 0;
             const canMoveSetDown = setIndex < exercise.sets.length - 1;
 
-            return (
-                <ScaleDecorator>
-                    <View style={[styles.setRow, isWarmup && styles.warmupSetRow]}>
+            const setContent = (
+                <View style={[styles.setRow, isWarmup && styles.warmupSetRow]}>
                         {isWeb ? (
                             <View style={[styles.setDragHandle, styles.webSetOrderHandle, isWarmup && styles.warmupSetDragHandle]}>
                                 <Text style={[styles.setNumber, isWarmup && styles.warmupSetNumber]}>
@@ -969,14 +968,14 @@ export default function WorkoutSessionScreen() {
                         >
                             <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
                         </TouchableOpacity>
-                    </View>
-                </ScaleDecorator>
+                </View>
             );
+
+            return isWeb ? setContent : <ScaleDecorator>{setContent}</ScaleDecorator>;
         };
 
-        return (
-            <ScaleDecorator>
-                <View style={[
+        const exerciseContent = (
+            <View style={[
                     styles.exerciseCard,
                     isActive && styles.activeExerciseCard,
                     recentlyAddedExerciseId === exercise.id && styles.recentlyAddedExerciseCard,
@@ -1213,9 +1212,10 @@ export default function WorkoutSessionScreen() {
                         </TouchableOpacity>
                     </View>
 
-                </View>
-            </ScaleDecorator>
+            </View>
         );
+
+        return isWeb ? exerciseContent : <ScaleDecorator>{exerciseContent}</ScaleDecorator>;
     };
 
     // ─── Render ──────────────────────────────
