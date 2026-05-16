@@ -56,6 +56,7 @@ interface ProgramData {
         avatarUrl?: string | null;
     };
     data: {
+        frequency?: number;
         days: ProgramDay[];
     } | null;
     createdAt: string;
@@ -340,7 +341,9 @@ export default function ProgramDetailScreen() {
                     <View style={s.metaRow}>
                         <View style={s.metaItem}>
                             <Ionicons name="repeat-outline" size={16} color={colors.accent} />
-                            <Text style={s.metaText}>Frekans: {program.frequency} gün/döngü</Text>
+                            <Text style={s.metaText}>
+                                {program.data?.frequency ? `Frekans: ${program.data.frequency} gün/hafta` : "Frekans hedefi yok"}
+                            </Text>
                         </View>
                         <View style={s.metaItem}>
                             <Ionicons name="calendar-outline" size={16} color={colors.accent} />

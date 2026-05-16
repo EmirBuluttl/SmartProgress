@@ -452,7 +452,7 @@ export default function HomeScreen() {
                                 </View>
                                 <Text style={styles.programDesc} numberOfLines={2}>
                                     {prog.description || (isCycle
-                                        ? `${dayCount} günlük döngüsel program · Haftada ${prog.data?.frequency} gün`
+                                        ? `${dayCount} günlük döngüsel program${prog.data?.frequency ? ` · Haftada ${prog.data.frequency} gün` : ""}`
                                         : "Açıklama yok.")}
                                 </Text>
                             </GymCard>

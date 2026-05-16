@@ -123,8 +123,8 @@ export default function ProgramCreateScreen() {
 
     const [name, setName] = useState("");
     const [description, setDescription] = useState("");
-    const [frequency, setFrequency] = useState(3);
-    const [days, setDays] = useState<ProgramDay[]>(generateTemplate(3));
+    const [frequency, setFrequency] = useState<number | null>(null);
+    const [days, setDays] = useState<ProgramDay[]>([makeDay(0)]);
     const [activeDayIdx, setActiveDayIdx] = useState(0);
     const [isSaving, setIsSaving] = useState(false);
     const [showRPE, setShowRPE] = useState(false);
@@ -139,8 +139,8 @@ export default function ProgramCreateScreen() {
         if (isEditMode && editProgramData) {
             setName(editProgramData.name || "");
             setDescription(editProgramData.description || "");
-            const freq = editProgramData.data?.frequency || editProgramData.frequency || 3;
-            setFrequency(freq);
+            const freq = editProgramData.data?.frequency ?? null;
+            setFrequency(typeof freq === "number" ? freq : null);
             const rawDays = editProgramData.data?.days || editProgramData.days || [];
             if (rawDays.length > 0) {
                 setDays(rawDays.map((d: any) => ({
@@ -164,7 +164,7 @@ export default function ProgramCreateScreen() {
 
     // --- Frequency deviation warning ---
     const workoutDayCount = days.filter((d) => !d.isRestDay).length;
-    const isFrequencyMismatch = workoutDayCount !== frequency;
+    const isFrequencyMismatch = frequency !== null && workoutDayCount !== frequency;
 
     const applyFrequencyChange = (f: number) => {
         if (f === frequency) return;
@@ -201,6 +201,11 @@ export default function ProgramCreateScreen() {
         }
 
         applyFrequencyChange(f);
+    };
+
+    const clearFrequency = () => {
+        setFrequency(null);
+        setPendingAction(null);
     };
 
     // ─── Day Management ───────────────────────
@@ -513,7 +518,7 @@ export default function ProgramCreateScreen() {
         try {
             setIsSaving(true);
             const programData = {
-                frequency,
+                ...(frequency !== null ? { frequency } : {}),
                 days: days.map((d) => ({
                     label: d.label,
                     isRestDay: !!d.isRestDay,
@@ -536,7 +541,7 @@ export default function ProgramCreateScreen() {
                     name: safeString(name),
                     description: safeString(description),
                     isPublic,
-                    frequency,
+                    frequency: frequency ?? workoutDayCount,
                     data: programData,
                 });
             } else {
@@ -544,7 +549,7 @@ export default function ProgramCreateScreen() {
                     name: safeString(name),
                     description: safeString(description),
                     isPublic,
-                    frequency,
+                    frequency: frequency ?? workoutDayCount,
                     data: programData,
                 });
             }
@@ -607,8 +612,15 @@ export default function ProgramCreateScreen() {
 
                 {/* ── Frequency Selector ── */}
                 <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>🗓 Haftalık Frekans</Text>
-                    <Text style={styles.sectionSubtitle}>Haftada kaç gün antrenman yapacaksın?</Text>
+                    <View style={styles.sectionTitleRow}>
+                        <Text style={styles.sectionTitle}>🗓 Haftalık Frekans</Text>
+                        {frequency !== null && (
+                            <TouchableOpacity onPress={clearFrequency} style={styles.clearFrequencyBtn}>
+                                <Text style={styles.clearFrequencyText}>Temizle</Text>
+                            </TouchableOpacity>
+                        )}
+                    </View>
+                    <Text style={styles.sectionSubtitle}>İstersen haftalık hedefini seç. Seçmezsen sadece gün döngüsü takip edilir.</Text>
                     <View style={styles.freqRow}>
                         {FREQUENCY_OPTIONS.map((f) => (
                             <TouchableOpacity
@@ -701,7 +713,7 @@ export default function ProgramCreateScreen() {
                     </View>
 
                     {/* Frequency deviation warning */}
-                    {isFrequencyMismatch && (
+                    {isFrequencyMismatch && frequency !== null && (
                         <View style={styles.warningBanner}>
                             <Ionicons name="warning-outline" size={16} color="#F59E0B" />
                             <Text style={styles.warningText}>
@@ -1035,6 +1047,23 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
         color: colors.text,
         marginBottom: spacing.xs,
+    },
+    sectionTitleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: spacing.xs,
+    },
+    clearFrequencyBtn: {
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.surfaceElevated,
+    },
+    clearFrequencyText: {
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+        color: colors.textSecondary,
     },
     sectionSubtitle: {
         fontSize: fontSize.sm,
