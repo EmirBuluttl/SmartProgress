@@ -33,8 +33,32 @@ model User {
   workoutLogs WorkoutLog[]
   programs    Program[]
   programStars ProgramStar[]
+  bodyMeasurements BodyMeasurement[]
 
   @@map("users")
+}
+
+model BodyMeasurement {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  date      DateTime @db.Date
+  weight    Float?
+  waist     Float?
+  chest     Float?
+  arm       Float?
+  leg       Float?
+  hip       Float?
+  shoulder  Float?
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([userId, date])
+  @@map("body_measurements")
 }
 
 enum Role {

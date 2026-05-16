@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import authRoutes from "./routes/auth.routes";
 import workoutRoutes from "./routes/workout.routes";
 import programRoutes from "./routes/program.routes";
+import bodyMeasurementRoutes from "./routes/bodyMeasurement.routes";
 
 // Middleware imports
 import { errorHandler } from "./middlewares/errorHandler";
@@ -74,6 +75,7 @@ app.get("/health", (_req, res) => {
 app.use("/api/v1/auth", authRoutes);
 app.use("/api/v1/workouts", workoutRoutes);
 app.use("/api/v1/programs", programRoutes);
+app.use("/api/v1/body-measurements", bodyMeasurementRoutes);
 
 // ─────────────────────────────────────────────
 // 404 Handler
