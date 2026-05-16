@@ -188,6 +188,18 @@ export default function ProgramDetailScreen() {
         navigateToSession(dayIndex);
     };
 
+    const navigateToDayDetail = (dayIndex: number) => {
+        if (!program?.data?.days?.[dayIndex]) return;
+        setSelectedDayIndex(null);
+        navigation.navigate("ProgramDayDetail", {
+            programId: program.id,
+            programName: program.name,
+            dayIndex,
+            day: program.data.days[dayIndex],
+            programData: program.data as any,
+        });
+    };
+
     const handleEdit = () => {
         if (!program) return;
         navigation.navigate("ProgramCreate", {
@@ -514,11 +526,13 @@ export default function ProgramDetailScreen() {
                         : "Bu program gününü sıradaki günü beklemeden başlatabilirsiniz."
                 }
                 primaryLabel="Günü Başlat"
-                secondaryLabel="Vazgeç"
+                secondaryLabel="Detayları Gör"
                 onPrimary={() => {
                     if (selectedDayIndex !== null) handleStartSelectedDay(selectedDayIndex);
                 }}
-                onSecondary={() => setSelectedDayIndex(null)}
+                onSecondary={() => {
+                    if (selectedDayIndex !== null) navigateToDayDetail(selectedDayIndex);
+                }}
                 onDismiss={() => setSelectedDayIndex(null)}
             />
         </View>

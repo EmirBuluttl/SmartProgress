@@ -17,6 +17,7 @@ import ProgramListScreen from "../screens/ProgramListScreen";
 import WorkoutDetailScreen from "../screens/WorkoutDetailScreen";
 import WorkoutSummaryScreen from "../screens/WorkoutSummaryScreen";
 import ProgramDetailScreen from "../screens/ProgramDetailScreen";
+import ProgramDayDetailScreen from "../screens/ProgramDayDetailScreen";
 import ProfileEditScreen from "../screens/ProfileEditScreen";
 import RecordsScreen from "../screens/RecordsScreen";
 import CommunityProgramsScreen from "../screens/CommunityProgramsScreen";
@@ -36,7 +37,7 @@ export type RootStackParamList = {
                 exercises: {
                     id: string;
                     name: string;
-                    targetSets: { targetReps: string; targetRPE?: string; targetRIR?: string; targetWeight?: string }[];
+                    targetSets: { targetReps: string; targetRPE?: string; targetRIR?: string; targetWeight?: string; isWarmup?: boolean }[];
                 }[];
             }[];
             exercises?: {
@@ -64,6 +65,21 @@ export type RootStackParamList = {
     CommunityPrograms: undefined;
     WorkoutDetail: { workout: any };
     ProgramDetail: { programId: string };
+    ProgramDayDetail: {
+        programId: string;
+        programName: string;
+        dayIndex: number;
+        day: {
+            label: string;
+            isRestDay?: boolean;
+            exercises: {
+                id?: string;
+                name: string;
+                targetSets: { targetReps: string; targetRPE?: string; targetRIR?: string; targetWeight?: string; isWarmup?: boolean }[];
+            }[];
+        };
+        programData: any;
+    };
     ProfileEdit: undefined;
     Records: undefined;
 };
@@ -129,6 +145,11 @@ function AppNavigator() {
             <AppStack.Screen
                 name="ProgramDetail"
                 component={ProgramDetailScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="ProgramDayDetail"
+                component={ProgramDayDetailScreen}
                 options={{ animation: "slide_from_right" }}
             />
             <AppStack.Screen
