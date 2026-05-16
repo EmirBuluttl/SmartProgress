@@ -20,6 +20,9 @@ interface ActionConfirmModalProps {
     onSecondary: () => void;
     onDismiss: () => void;
     destructivePrimary?: boolean;
+    tertiaryLabel?: string;
+    onTertiary?: () => void;
+    destructiveTertiary?: boolean;
 }
 
 export default function ActionConfirmModal({
@@ -32,6 +35,9 @@ export default function ActionConfirmModal({
     onSecondary,
     onDismiss,
     destructivePrimary = false,
+    tertiaryLabel,
+    onTertiary,
+    destructiveTertiary = false,
 }: ActionConfirmModalProps) {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -74,6 +80,23 @@ export default function ActionConfirmModal({
                             </Text>
                         </TouchableOpacity>
                     </View>
+                    {tertiaryLabel && onTertiary && (
+                        <TouchableOpacity
+                            style={[
+                                styles.tertiaryButton,
+                                destructiveTertiary && styles.tertiaryDestructiveButton,
+                            ]}
+                            onPress={onTertiary}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={[
+                                styles.tertiaryText,
+                                destructiveTertiary && styles.destructiveText,
+                            ]}>
+                                {tertiaryLabel}
+                            </Text>
+                        </TouchableOpacity>
+                    )}
                 </Pressable>
             </Pressable>
         </Modal>
@@ -121,6 +144,20 @@ const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").
             flexDirection: "row",
             gap: spacing.md,
         },
+        tertiaryButton: {
+            alignItems: "center",
+            justifyContent: "center",
+            minHeight: 44,
+            marginTop: spacing.md,
+            paddingHorizontal: spacing.md,
+            borderRadius: borderRadius.md,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: "transparent",
+        },
+        tertiaryDestructiveButton: {
+            borderColor: colors.error,
+        },
         button: {
             flex: 1,
             alignItems: "center",
@@ -156,5 +193,11 @@ const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").
         },
         destructiveText: {
             color: colors.error,
+        },
+        tertiaryText: {
+            color: colors.textSecondary,
+            fontSize: fontSize.md,
+            fontWeight: fontWeight.semibold,
+            textAlign: "center",
         },
     });

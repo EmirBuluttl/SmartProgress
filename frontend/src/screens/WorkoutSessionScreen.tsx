@@ -1237,13 +1237,16 @@ export default function WorkoutSessionScreen() {
                 title={exitModalHasData ? "Antrenman devam ediyor" : "Antrenman iptal edilsin mi?"}
                 message={
                     exitModalHasData
-                        ? "Antrenmanı şimdi bırakırsanız mevcut girişler kaydedilir ve daha sonra devam edebilirsiniz."
+                        ? "Antrenmanı yarıda bırakıp daha sonra devam edebilir, loglamaya dönebilir veya tamamen iptal edebilirsiniz."
                         : "Henüz veri girmediniz. Bu antrenmanı iptal etmek ister misiniz?"
                 }
                 primaryLabel={exitModalHasData ? "Kaydet ve Çık" : "Antrenmanı İptal Et"}
                 secondaryLabel="Devam Et"
                 destructivePrimary={!exitModalHasData}
                 onPrimary={() => leaveWorkout(exitModalHasData ? "save" : "discard")}
+                tertiaryLabel={exitModalHasData ? "Antrenmanı İptal Et" : undefined}
+                destructiveTertiary
+                onTertiary={exitModalHasData ? () => leaveWorkout("discard") : undefined}
                 onSecondary={() => {
                     pendingExitActionRef.current = null;
                     setExitModalVisible(false);
