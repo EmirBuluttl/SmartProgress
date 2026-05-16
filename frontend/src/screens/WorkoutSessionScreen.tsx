@@ -11,7 +11,6 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    Alert,
     Platform,
     KeyboardAvoidingView,
 } from "react-native";
@@ -41,7 +40,7 @@ import {
 import { programApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import AccentButton from "../components/AccentButton";
-import { confirmDialog, showAlert } from "../utils/confirm";
+import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import { calculateLoadScoreFromExercises, clampRir, clampRpe } from "../utils/workoutMetrics";
 
@@ -84,6 +83,13 @@ function insertSetByType<T extends { isWarmup?: boolean }>(sets: T[], nextSet: T
     const copy = [...sets];
     copy.splice(insertIndex, 0, nextSet);
     return copy;
+}
+
+function hasLoggedWorkoutData(session: WorkoutSession): boolean {
+    return session.exercises.some((exercise) =>
+        exercise.name.trim().length > 0 &&
+        exercise.sets.some((set) => Number(set.weight) > 0 || Number(set.reps) > 0 || Number(set.rpe) > 0),
+    );
 }
 
 /**
@@ -143,6 +149,8 @@ export default function WorkoutSessionScreen() {
     const [rpeMode, setRpeMode] = useState<"rpe" | "rir" | "both">("rpe");
     const [recentlyAddedExerciseId, setRecentlyAddedExerciseId] = useState<string | null>(null);
     const [emptyFinishModalVisible, setEmptyFinishModalVisible] = useState(false);
+    const [exitModalVisible, setExitModalVisible] = useState(false);
+    const [exitModalHasData, setExitModalHasData] = useState(false);
     const isWeb = Platform.OS === "web";
 
     // Use a ref for finishing flag so beforeRemove always has the latest value
@@ -153,6 +161,7 @@ export default function WorkoutSessionScreen() {
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const inputRefs = useRef<Record<string, TextInput | null>>({});
     const webScrollRef = useRef<ScrollView | null>(null);
+    const pendingExitActionRef = useRef<any>(null);
 
     const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe") => {
         let nextKey = "";
@@ -421,7 +430,7 @@ export default function WorkoutSessionScreen() {
         };
     }, [session, elapsed, restored]);
 
-    // ─── Back Navigation — just save silently ─
+    // ─── Back Navigation — ask before leaving active workout ─
     useEffect(() => {
         const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
             // Use ref instead of state to avoid stale closure issue:
@@ -430,12 +439,14 @@ export default function WorkoutSessionScreen() {
             // The ref always has the latest value.
             if (finishingRef.current) return;
 
-            // Always save the current session before leaving
-            saveActiveSession({ ...session, totalDuration: elapsed });
-            // Let the navigation proceed — session stays in AsyncStorage
+            e.preventDefault();
+            pendingExitActionRef.current = e.data.action;
+            const currentSession = materializeSessionInputs();
+            setExitModalHasData(hasLoggedWorkoutData(currentSession));
+            setExitModalVisible(true);
         });
         return unsubscribe;
-    }, [navigation, session, elapsed]);
+    }, [navigation, materializeSessionInputs]);
 
     // ─── Update Helpers ──────────────────────
 
@@ -590,6 +601,31 @@ export default function WorkoutSessionScreen() {
         navigation.goBack();
     }, [navigation]);
 
+    const leaveWorkout = useCallback(async (mode: "save" | "discard") => {
+        setExitModalVisible(false);
+        finishingRef.current = true;
+
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+        if (saveTimerRef.current) {
+            clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = null;
+        }
+
+        if (mode === "save") {
+            await saveActiveSession({ ...materializeSessionInputs(), totalDuration: elapsed });
+        } else {
+            await clearActiveSession();
+        }
+
+        const action = pendingExitActionRef.current;
+        pendingExitActionRef.current = null;
+        if (action) navigation.dispatch(action);
+        else navigation.goBack();
+    }, [elapsed, materializeSessionInputs, navigation]);
+
     // ─── Finish Workout ──────────────────────
 
     const finishWorkout = async () => {
@@ -694,71 +730,9 @@ export default function WorkoutSessionScreen() {
     };
 
     const cancelWorkout = async () => {
-        // Check if any sets have been filled in
-        const hasData = session.exercises.some((ex) =>
-            ex.sets.some((s) => s.weight > 0 || s.reps > 0)
-        );
-
-        const doCancel = async () => {
-            await discardWorkout();
-        };
-
-        const doSaveAndLeave = async () => {
-            // Save current session to AsyncStorage so user can continue later
-            await saveActiveSession({ ...session, totalDuration: elapsed });
-            navigation.goBack();
-        };
-
-        if (!hasData) {
-            // Nothing entered — session doesn't count, exit immediately
-            doCancel();
-            return;
-        }
-
-        // Data exists — give user 3 options
-        if (isWeb) {
-            const shouldSaveAndLeave = await confirmDialog(
-                "Antrenman Devam Ediyor",
-                "Verileriniz kayıtlı. Kaydedip çıkmak ister misiniz?",
-            );
-            if (shouldSaveAndLeave) {
-                await doSaveAndLeave();
-            }
-            return;
-        }
-
-        Alert.alert(
-            "Antrenman Devam Ediyor",
-            "Verileriniz kayıtlı. Ne yapmak istersiniz?",
-            [
-                {
-                    text: "Vazgeç",
-                    style: "cancel",
-                },
-                {
-                    text: "Kaydet ve Çık",
-                    onPress: doSaveAndLeave,
-                },
-                {
-                    text: "İptal Et",
-                    style: "destructive",
-                    onPress: () => {
-                        Alert.alert(
-                            "Emin misiniz?",
-                            "Antrenman tamamen silinecek ve geri alınamaz.",
-                            [
-                                { text: "Hayır", style: "cancel" },
-                                {
-                                    text: "Evet, Sil",
-                                    style: "destructive",
-                                    onPress: doCancel,
-                                },
-                            ],
-                        );
-                    },
-                },
-            ],
-        );
+        pendingExitActionRef.current = null;
+        setExitModalHasData(hasLoggedWorkoutData(materializeSessionInputs()));
+        setExitModalVisible(true);
     };
 
     const confirmEmptyWorkoutCancel = async () => {
@@ -1257,6 +1231,27 @@ export default function WorkoutSessionScreen() {
                 onPrimary={confirmEmptyWorkoutCancel}
                 onSecondary={() => setEmptyFinishModalVisible(false)}
                 onDismiss={() => setEmptyFinishModalVisible(false)}
+            />
+            <ActionConfirmModal
+                visible={exitModalVisible}
+                title={exitModalHasData ? "Antrenman devam ediyor" : "Antrenman iptal edilsin mi?"}
+                message={
+                    exitModalHasData
+                        ? "Antrenmanı şimdi bırakırsanız mevcut girişler kaydedilir ve daha sonra devam edebilirsiniz."
+                        : "Henüz veri girmediniz. Bu antrenmanı iptal etmek ister misiniz?"
+                }
+                primaryLabel={exitModalHasData ? "Kaydet ve Çık" : "Antrenmanı İptal Et"}
+                secondaryLabel="Devam Et"
+                destructivePrimary={!exitModalHasData}
+                onPrimary={() => leaveWorkout(exitModalHasData ? "save" : "discard")}
+                onSecondary={() => {
+                    pendingExitActionRef.current = null;
+                    setExitModalVisible(false);
+                }}
+                onDismiss={() => {
+                    pendingExitActionRef.current = null;
+                    setExitModalVisible(false);
+                }}
             />
             {isWeb ? (
                 <ScrollView
