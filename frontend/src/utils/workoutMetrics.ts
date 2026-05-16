@@ -28,6 +28,13 @@ export interface PersonalRecord {
     date?: string;
 }
 
+export interface ProgressPoint {
+    date?: string;
+    improved: number;
+    comparable: number;
+    percentage: number;
+}
+
 function toNumber(value: unknown): number {
     if (value === null || value === undefined || value === "") return 0;
     const parsed = Number(String(value).replace(",", "."));
@@ -146,4 +153,38 @@ export function countProgressEvents(workouts: AnyWorkout[]): number {
     });
 
     return count;
+}
+
+export function buildProgressTrend(workouts: AnyWorkout[]): ProgressPoint[] {
+    const chronological = [...workouts].sort(
+        (a, b) => new Date(a.logDate || 0).getTime() - new Date(b.logDate || 0).getTime(),
+    );
+    const bestByExercise = new Map<string, PersonalRecord>();
+
+    return chronological.map((workout) => {
+        let improved = 0;
+        let comparable = 0;
+
+        getWorkoutExercises(workout).forEach((exercise) => {
+            const best = getBestSet(exercise);
+            if (!best) return;
+
+            const key = normalizeExerciseName(best.exercise);
+            const previousBest = bestByExercise.get(key);
+            if (previousBest) {
+                comparable += 1;
+                if (beatsRecord(best, previousBest)) improved += 1;
+            }
+            if (beatsRecord(best, previousBest)) {
+                bestByExercise.set(key, { ...best, date: workout.logDate });
+            }
+        });
+
+        return {
+            date: workout.logDate,
+            improved,
+            comparable,
+            percentage: comparable > 0 ? Math.round((improved / comparable) * 100) : 0,
+        };
+    });
 }

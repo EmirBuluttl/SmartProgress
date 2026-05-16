@@ -21,7 +21,7 @@ import { workoutApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
-import { calculateWorkoutLoadScore, getPersonalRecords } from "../utils/workoutMetrics";
+import { buildProgressTrend, getPersonalRecords } from "../utils/workoutMetrics";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -36,7 +36,7 @@ export default function MyProgressScreen() {
 
     const [filter, setFilter] = React.useState<TimeFilter>("1A");
     const [allWorkouts, setAllWorkouts] = React.useState<any[]>([]);
-    const [volumeData, setVolumeData] = React.useState<{
+    const [progressData, setProgressData] = React.useState<{
         labels: string[];
         datasets: { data: number[] }[];
     }>({ labels: ["0"], datasets: [{ data: [0] }] });
@@ -47,29 +47,28 @@ export default function MyProgressScreen() {
 
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
-    // ─── Volume calculation ───────────────────
+    // ─── Progress calculation ─────────────────
 
-    const buildVolumeData = (workouts: any[], activeFilter: TimeFilter) => {
+    const buildProgressData = (workouts: any[], activeFilter: TimeFilter) => {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - FILTER_DAYS[activeFilter]);
         cutoff.setHours(0, 0, 0, 0);
-        const filtered = workouts.filter((w: any) => new Date(w.logDate) >= cutoff);
+        const points = buildProgressTrend(workouts).filter((point) => new Date(point.date || 0) >= cutoff);
 
-        const volumePoints: number[] = [];
+        const progressPoints: number[] = [];
         const labels: string[] = [];
 
-        [...filtered].reverse().forEach((wk: any, idx: number) => {
-            const vol = calculateWorkoutLoadScore(wk);
-            if (vol > 0) {
-                volumePoints.push(vol);
+        points.forEach((point, idx: number) => {
+            if (point.comparable > 0) {
+                progressPoints.push(point.percentage);
                 labels.push(`A${idx + 1}`);
             }
         });
 
-        if (volumePoints.length === 0) {
-            setVolumeData({ labels: ["-"], datasets: [{ data: [0] }] });
+        if (progressPoints.length === 0) {
+            setProgressData({ labels: ["-"], datasets: [{ data: [0] }] });
         } else {
-            setVolumeData({ labels, datasets: [{ data: volumePoints }] });
+            setProgressData({ labels, datasets: [{ data: progressPoints }] });
         }
     };
 
@@ -80,7 +79,7 @@ export default function MyProgressScreen() {
             const res = await workoutApi.list({ limit: 200 });
             const workouts = res.data.workouts || [];
             setAllWorkouts(workouts);
-            buildVolumeData(workouts, filter);
+            buildProgressData(workouts, filter);
 
             setPrs(getPersonalRecords(workouts));
         } catch (err) {
@@ -92,7 +91,7 @@ export default function MyProgressScreen() {
 
     // Re-filter when filter changes
     React.useEffect(() => {
-        if (allWorkouts.length > 0) buildVolumeData(allWorkouts, filter);
+        if (allWorkouts.length > 0) buildProgressData(allWorkouts, filter);
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filter]);
 
@@ -130,14 +129,14 @@ export default function MyProgressScreen() {
                     ))}
                 </View>
 
-                {/* ─── Volume Chart ─── */}
-                <SectionHeader title="📊 Yük Skoru" />
+                {/* ─── Progress Chart ─── */}
+                <SectionHeader title="📊 Progress Yüzdesi" />
                 <GymCard elevated style={styles.chartCard}>
                     <LineChart
-                        data={volumeData}
+                        data={progressData}
                         width={SCREEN_WIDTH - spacing.lg * 4}
                         height={200}
-                        yAxisSuffix=""
+                        yAxisSuffix="%"
                         chartConfig={{
                             backgroundColor: colors.surface,
                             backgroundGradientFrom: colors.surfaceLight,
@@ -163,7 +162,7 @@ export default function MyProgressScreen() {
                     />
                     <View style={styles.chartLegend}>
                         <View style={styles.legendDot} />
-                        <Text style={styles.legendText}>Çalışma setleri ve RPE yoğunluğu</Text>
+                        <Text style={styles.legendText}>Önceki kayıtlarına göre gelişen hareket oranı</Text>
                     </View>
                 </GymCard>
 
