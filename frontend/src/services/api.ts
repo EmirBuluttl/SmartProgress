@@ -140,6 +140,25 @@ export const workoutApi = {
     delete: (id: string) => api.delete(`/workouts/${id}`),
 };
 
+export const bodyMeasurementApi = {
+    list: (params?: { limit?: number }) =>
+        api.get("/body-measurements", { params }),
+
+    save: (data: {
+        date: string;
+        weight?: number | string | null;
+        waist?: number | string | null;
+        chest?: number | string | null;
+        arm?: number | string | null;
+        leg?: number | string | null;
+        hip?: number | string | null;
+        shoulder?: number | string | null;
+        notes?: string | null;
+    }) => api.post("/body-measurements", data),
+
+    delete: (id: string) => api.delete(`/body-measurements/${id}`),
+};
+
 // ─── Program Endpoints ───────────────────────
 
 export const programApi = {

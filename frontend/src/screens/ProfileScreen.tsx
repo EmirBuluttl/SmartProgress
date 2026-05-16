@@ -253,6 +253,26 @@ export default function ProfileScreen() {
             {/* ─── Activity Heatmap ─── */}
             <HeatmapCalendar workouts={workouts} colors={colors} heatmapStyles={heatmapStyles} />
 
+            <SectionHeader title="📈 Takip" />
+            <GymCard style={styles.settingsCard}>
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    activeOpacity={0.75}
+                    onPress={() => navigation.navigate("BodyMeasurements")}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="body-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Vücut Ölçüleri</Text>
+                            <Text style={styles.settingDesc}>Kilo, bel, kol ve diğer ölçülerini takip et</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+            </GymCard>
+
             {/* ─── Settings ─── */}
             <SectionHeader title="⚙️ Ayarlar" />
             <GymCard style={styles.settingsCard}>
