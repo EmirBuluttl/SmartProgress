@@ -76,6 +76,16 @@ function createSession(): WorkoutSession {
     };
 }
 
+function insertSetByType<T extends { isWarmup?: boolean }>(sets: T[], nextSet: T, isWarmup: boolean): T[] {
+    const insertAfterIndex = isWarmup
+        ? sets.map((set) => !!set.isWarmup).lastIndexOf(true)
+        : sets.map((set) => !set.isWarmup).lastIndexOf(true);
+    const insertIndex = insertAfterIndex >= 0 ? insertAfterIndex + 1 : isWarmup ? 0 : sets.length;
+    const copy = [...sets];
+    copy.splice(insertIndex, 0, nextSet);
+    return copy;
+}
+
 /**
  * Normalize any incoming programData shape into a ProgramData or null.
  * Supported shapes:
@@ -506,11 +516,12 @@ export default function WorkoutSessionScreen() {
     }, [updateSession]);
 
     const addSetToExercise = useCallback((exerciseId: string, isWarmup = false) => {
+        const newSet = { id: uid(), weight: 0, reps: 0, unit: "kg" as const, completed: false, isWarmup };
         updateSession((prev) => ({
             ...prev,
             exercises: prev.exercises.map((e) =>
                 e.id === exerciseId
-                    ? { ...e, sets: [...e.sets, { id: uid(), weight: 0, reps: 0, unit: "kg" as const, completed: false, isWarmup }] }
+                    ? { ...e, sets: insertSetByType(e.sets, newSet, isWarmup) }
                     : e
             ),
         }));

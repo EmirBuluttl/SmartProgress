@@ -81,6 +81,16 @@ function makeWorkingSet(): TargetSet {
     return { targetReps: "", isWarmup: false };
 }
 
+function insertSetByType<T extends { isWarmup?: boolean }>(sets: T[], nextSet: T, isWarmup: boolean): T[] {
+    const insertAfterIndex = isWarmup
+        ? sets.map((set) => !!set.isWarmup).lastIndexOf(true)
+        : sets.map((set) => !set.isWarmup).lastIndexOf(true);
+    const insertIndex = insertAfterIndex >= 0 ? insertAfterIndex + 1 : isWarmup ? 0 : sets.length;
+    const copy = [...sets];
+    copy.splice(insertIndex, 0, nextSet);
+    return copy;
+}
+
 function cloneExercise(exercise: TargetExercise): TargetExercise {
     return {
         ...exercise,
@@ -274,7 +284,7 @@ export default function ProgramCreateScreen() {
                         ...d,
                         exercises: d.exercises.map((e) =>
                             e.id === exId
-                                ? { ...e, targetSets: [...e.targetSets, isWarmup ? makeWarmupSet() : makeWorkingSet()] }
+                                ? { ...e, targetSets: insertSetByType(e.targetSets, isWarmup ? makeWarmupSet() : makeWorkingSet(), isWarmup) }
                                 : e
                         ),
                     }
