@@ -412,11 +412,21 @@ export default function HomeScreen() {
             {/* ─── My Programs ─── */}
             <SectionHeader
                 title="🔥 Programlarım"
-                actionLabel="Yeni Oluştur"
-                onAction={() => navigation.navigate("ProgramCreate")}
+                actionLabel={programs.length > 3 ? "Tümü" : "Yeni Oluştur"}
+                onAction={() => programs.length > 3 ? navigation.navigate("ProgramList") : navigation.navigate("ProgramCreate")}
             />
+            {programs.length > 3 && (
+                <TouchableOpacity
+                    style={styles.inlineCreateBtn}
+                    onPress={() => navigation.navigate("ProgramCreate")}
+                    activeOpacity={0.8}
+                >
+                    <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
+                    <Text style={styles.inlineCreateText}>Yeni program oluştur</Text>
+                </TouchableOpacity>
+            )}
             {programs.length > 0 ? (
-                programs.map((prog) => {
+                programs.slice(0, 3).map((prog) => {
                     const isCycle = isCycleProgram(prog.data);
                     const dayIdx = prog.currentDayIndex ?? 0;
                     const dayCount = isCycle ? prog.data.days.length : 0;
@@ -805,6 +815,22 @@ const createStyles = (colors: any) => StyleSheet.create({
     programDesc: {
         fontSize: fontSize.sm, color: colors.textSecondary,
         marginBottom: spacing.xs, lineHeight: 20,
+    },
+    inlineCreateBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        alignSelf: "flex-start",
+        gap: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        marginBottom: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accentMuted,
+    },
+    inlineCreateText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
     },
     emptyStateText: {
         fontSize: fontSize.sm, color: colors.textMuted,
