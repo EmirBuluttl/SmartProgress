@@ -265,7 +265,21 @@ export default function HomeScreen() {
                     </View>
 
                     <Text style={styles.todayProgName}>{favoriteProgram.name}</Text>
-                    <Text style={styles.todayDayLabel}>{currentDay.label}</Text>
+                    <TouchableOpacity
+                        activeOpacity={0.75}
+                        onPress={() => navigation.navigate("ProgramDayDetail", {
+                            programId: favoriteProgram.id,
+                            programName: favoriteProgram.name,
+                            dayIndex: currentDayIndex,
+                            day: currentDay,
+                            programData: favoriteProgram.data,
+                        })}
+                    >
+                        <View style={styles.todayDayAction}>
+                            <Text style={styles.todayDayLabel}>{currentDay.label}</Text>
+                            <Ionicons name="chevron-forward" size={16} color={colors.accent} />
+                        </View>
+                    </TouchableOpacity>
 
                     {/* Exercise preview */}
                     {currentDay.exercises.length > 0 ? (
@@ -675,7 +689,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     todayDayLabel: {
         fontSize: fontSize.md, fontWeight: fontWeight.bold,
-        color: colors.accent, marginBottom: spacing.sm,
+        color: colors.accent,
+    },
+    todayDayAction: {
+        flexDirection: "row",
+        alignItems: "center",
+        alignSelf: "flex-start",
+        gap: spacing.xs,
+        marginBottom: spacing.sm,
     },
     todayProgDesc: {
         fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 20,
