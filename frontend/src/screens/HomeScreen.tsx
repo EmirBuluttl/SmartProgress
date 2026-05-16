@@ -391,18 +391,15 @@ export default function HomeScreen() {
                                 <Text style={styles.workoutDate}>
                                     📅 {formatDate(item.logDate)}
                                 </Text>
-                                {item.data?.exercises && (
-                                    <View style={{ marginBottom: spacing.sm }}>
-                                        {item.data.exercises.slice(0, 2).map((ex: any, i: number) => (
-                                            <Text key={i} style={styles.exerciseText}>
-                                                • {ex.name} — {ex.sets?.[0]?.weight || 0}{ex.sets?.[0]?.unit || "kg"} x {ex.sets?.[0]?.reps || 0}
-                                            </Text>
-                                        ))}
-                                    </View>
-                                )}
-                                <Text style={styles.durationText}>
-                                    ⏱ {formatDuration(item.data?.totalDuration || item.data?.duration || 0)}
-                                </Text>
+                                <View style={styles.workoutSummaryRow}>
+                                    <Text style={styles.workoutSummaryText}>
+                                        {countWorkoutSets(item)} set
+                                    </Text>
+                                    <View style={styles.workoutSummaryDot} />
+                                    <Text style={styles.workoutSummaryText}>
+                                        {formatDuration(item.data?.totalDuration || item.data?.duration || 0)}
+                                    </Text>
+                                </View>
                             </GymCard>
                         </TouchableOpacity>
                     )}
@@ -603,6 +600,14 @@ function formatDuration(seconds: number): string {
     return `${m}dk ${s > 0 ? `${s}sn` : ""}`.trim();
 }
 
+function countWorkoutSets(workout: any): number {
+    const exercises = Array.isArray(workout?.data?.exercises) ? workout.data.exercises : [];
+    return exercises.reduce((sum: number, exercise: any) => {
+        const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+        return sum + sets.length;
+    }, 0);
+}
+
 // ─── Styles ─────────────────────────────────
 
 const createStyles = (colors: any) => StyleSheet.create({
@@ -713,8 +718,23 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     sportBadgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.semibold, color: colors.accent },
     workoutDate: { fontSize: fontSize.sm, color: colors.textSecondary, marginBottom: spacing.sm },
-    exerciseText: { fontSize: fontSize.sm, color: colors.textMuted, marginBottom: 2 },
-    durationText: { fontSize: fontSize.sm, color: colors.textSecondary, fontWeight: fontWeight.medium },
+    workoutSummaryRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    workoutSummaryText: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+        fontWeight: fontWeight.medium,
+    },
+    workoutSummaryDot: {
+        width: 4,
+        height: 4,
+        borderRadius: 2,
+        backgroundColor: colors.textMuted,
+    },
     // Programs
     programCard: { marginBottom: spacing.md },
     programHeader: {
