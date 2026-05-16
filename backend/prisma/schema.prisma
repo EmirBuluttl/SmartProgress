@@ -34,6 +34,7 @@ model User {
   programs    Program[]
   programStars ProgramStar[]
   bodyMeasurements BodyMeasurement[]
+  nutritionLogs NutritionLog[]
 
   @@map("users")
 }
@@ -59,6 +60,26 @@ model BodyMeasurement {
   @@index([userId])
   @@index([userId, date])
   @@map("body_measurements")
+}
+
+model NutritionLog {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  date      DateTime @db.Date
+  calories  Int?
+  protein   Float?
+  carbs     Float?
+  fat       Float?
+  notes     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId])
+  @@index([userId, date])
+  @@map("nutrition_logs")
 }
 
 enum Role {
