@@ -135,6 +135,7 @@ export default function ProgramCreateScreen() {
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
     const [copyTargetsVisible, setCopyTargetsVisible] = useState(false);
     const [validationNotice, setValidationNotice] = useState<{ title: string; message: string } | null>(null);
+    const [conceptNotice, setConceptNotice] = useState<{ title: string; message: string } | null>(null);
     const [reorderModal, setReorderModal] = useState<{
         exerciseId: string;
         currentIndex: number;
@@ -845,6 +846,15 @@ export default function ProgramCreateScreen() {
                                 <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: showRPE ? colors.accent : colors.textMuted }}>RPE</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
+                                style={styles.infoBtn}
+                                onPress={() => setConceptNotice({
+                                    title: "RPE nedir?",
+                                    message: "RPE, setin ne kadar zor hissettirdiğini 0-10 arası puanlamaktır. 10, daha tekrar çıkmazdı demektir; 7 ise yaklaşık 3 tekrar daha çıkardı anlamına gelir.",
+                                })}
+                            >
+                                <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
+                            </TouchableOpacity>
+                            <TouchableOpacity
                                 style={[{
                                     flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "center",
                                     paddingVertical: spacing.sm, borderRadius: borderRadius.sm,
@@ -857,6 +867,15 @@ export default function ProgramCreateScreen() {
                             >
                                 <Ionicons name={showRIR ? "checkbox" : "square-outline"} size={16} color={showRIR ? colors.accent : colors.textMuted} />
                                 <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: showRIR ? colors.accent : colors.textMuted }}>RIR</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.infoBtn}
+                                onPress={() => setConceptNotice({
+                                    title: "RIR nedir?",
+                                    message: "RIR, sette kaç tekrar daha yapabileceğini tahmin etmektir. RIR 2, o sette yaklaşık 2 tekrar yedek kaldı demektir.",
+                                })}
+                            >
+                                <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
                             </TouchableOpacity>
                         </View>
                     )}
@@ -1082,6 +1101,12 @@ export default function ProgramCreateScreen() {
                 message={validationNotice?.message ?? ""}
                 onClose={() => setValidationNotice(null)}
             />
+            <NoticeModal
+                visible={!!conceptNotice}
+                title={conceptNotice?.title ?? ""}
+                message={conceptNotice?.message ?? ""}
+                onClose={() => setConceptNotice(null)}
+            />
         </KeyboardAvoidingView>
     );
 }
@@ -1273,6 +1298,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     addDayBtnDisabled: {
         borderColor: colors.border,
         opacity: 0.55,
+    },
+    infoBtn: {
+        width: 40,
+        minHeight: 40,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.surfaceElevated,
+        borderWidth: 1,
+        borderColor: colors.border,
     },
     dayLimitText: {
         fontSize: fontSize.xs,

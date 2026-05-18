@@ -44,6 +44,7 @@ import { useAuth } from "../store/AuthContext";
 import AccentButton from "../components/AccentButton";
 import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
+import NoticeModal from "../components/NoticeModal";
 import { calculateLoadScoreFromExercises, clampRir, clampRpe } from "../utils/workoutMetrics";
 
 // ─── Constants ───────────────────────────────
@@ -186,6 +187,7 @@ export default function WorkoutSessionScreen() {
     const [addExerciseModalVisible, setAddExerciseModalVisible] = useState(false);
     const [newExerciseName, setNewExerciseName] = useState("");
     const [newExerciseIndex, setNewExerciseIndex] = useState(0);
+    const [conceptNotice, setConceptNotice] = useState<{ title: string; message: string } | null>(null);
     const isWeb = Platform.OS === "web";
 
     // Use a ref for finishing flag so beforeRemove always has the latest value
@@ -897,6 +899,15 @@ export default function WorkoutSessionScreen() {
                             {modeLabelMap[rpeMode]}
                         </Text>
                     </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.infoBtn}
+                        onPress={() => setConceptNotice({
+                            title: "RPE / RIR nedir?",
+                            message: "RPE, setin zorluğunu 0-10 arası puanlamaktır. RIR ise sette kaç tekrar yedek kaldığını tahmin etmektir. Örn. RIR 2, yaklaşık 2 tekrar daha çıkardı demektir.",
+                        })}
+                    >
+                        <Ionicons name="information-circle-outline" size={18} color={colors.textMuted} />
+                    </TouchableOpacity>
 
                     <TouchableOpacity
                         style={[styles.rirToggleBtn, { borderColor: colors.accent }]}
@@ -1370,6 +1381,12 @@ export default function WorkoutSessionScreen() {
                     setExitModalVisible(false);
                 }}
             />
+            <NoticeModal
+                visible={!!conceptNotice}
+                title={conceptNotice?.title ?? ""}
+                message={conceptNotice?.message ?? ""}
+                onClose={() => setConceptNotice(null)}
+            />
             <Modal
                 visible={addExerciseModalVisible}
                 transparent
@@ -1564,6 +1581,17 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
         color: colors.textSecondary,
+    },
+    infoBtn: {
+        width: 38,
+        minHeight: 34,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginRight: spacing.sm,
     },
     timerText: {
         fontSize: fontSize.xl,
