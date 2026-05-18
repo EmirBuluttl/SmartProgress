@@ -3,12 +3,14 @@
 // ─────────────────────────────────────────────
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import { env } from "../config/env";
 import { userRepository } from "../repositories/user.repository";
 import {
     ConflictError,
     UnauthorizedError,
     NotFoundError,
+    ValidationError,
 } from "../utils/errors";
 
 // ─── DTOs ────────────────────────────────────
@@ -22,6 +24,15 @@ export interface RegisterDto {
 
 export interface LoginDto {
     email: string;
+    password: string;
+}
+
+export interface ForgotPasswordDto {
+    email: string;
+}
+
+export interface ResetPasswordDto {
+    token: string;
     password: string;
 }
 
@@ -52,6 +63,14 @@ export interface AuthResponse {
 const DEFAULT_USER_SETTINGS = {
     is_auto_suggest_enabled: true,
 };
+
+const PASSWORD_RESET_EXPIRES_MINUTES = 30;
+const PASSWORD_RESET_MESSAGE =
+    "Eğer bu e-posta ile kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi.";
+
+function hashResetToken(token: string): string {
+    return crypto.createHash("sha256").update(token).digest("hex");
+}
 
 // ─── Service ─────────────────────────────────
 
@@ -194,6 +213,55 @@ export class AuthService {
             role: updated.role,
             settings: updated.settings,
         };
+    }
+
+    async requestPasswordReset(dto: ForgotPasswordDto): Promise<{
+        message: string;
+        resetToken?: string;
+        resetUrl?: string;
+    }> {
+        const email = dto.email.trim().toLowerCase();
+        const user = await userRepository.findByEmail(email);
+
+        if (!user || !user.isActive) {
+            return { message: PASSWORD_RESET_MESSAGE };
+        }
+
+        const token = crypto.randomBytes(32).toString("hex");
+        const tokenHash = hashResetToken(token);
+        const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60 * 1000);
+
+        await userRepository.updateById(user.id, {
+            passwordResetTokenHash: tokenHash,
+            passwordResetExpiresAt: expiresAt,
+        });
+
+        const resetUrl = `${env.APP_URL.replace(/\/+$/, "")}/reset-password?token=${token}`;
+
+        if (env.PASSWORD_RESET_EXPOSE_TOKEN || env.NODE_ENV !== "production") {
+            return { message: PASSWORD_RESET_MESSAGE, resetToken: token, resetUrl };
+        }
+
+        console.log(`[AuthService] Password reset link for ${email}: ${resetUrl}`);
+        return { message: PASSWORD_RESET_MESSAGE };
+    }
+
+    async resetPassword(dto: ResetPasswordDto): Promise<{ message: string }> {
+        const tokenHash = hashResetToken(dto.token.trim());
+        const user = await userRepository.findByPasswordResetTokenHash(tokenHash);
+
+        if (!user || !user.passwordResetExpiresAt || user.passwordResetExpiresAt < new Date()) {
+            throw new ValidationError("Şifre sıfırlama bağlantısı geçersiz veya süresi dolmuş.");
+        }
+
+        const passwordHash = await bcrypt.hash(dto.password, env.BCRYPT_SALT_ROUNDS);
+        await userRepository.updateById(user.id, {
+            passwordHash,
+            passwordResetTokenHash: null,
+            passwordResetExpiresAt: null,
+        });
+
+        return { message: "Şifreniz güncellendi. Yeni şifrenizle giriş yapabilirsiniz." };
     }
 
     /**

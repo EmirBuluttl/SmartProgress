@@ -8,10 +8,12 @@ import { useTheme } from "../hooks/ThemeContext";
 
 import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
+import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 
 export type AuthStackParamList = {
     Login: undefined;
     Register: undefined;
+    ForgotPassword: undefined;
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -32,6 +34,11 @@ export default function AuthStack() {
             <Stack.Screen
                 name="Register"
                 component={RegisterScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <Stack.Screen
+                name="ForgotPassword"
+                component={ForgotPasswordScreen}
                 options={{ animation: "slide_from_right" }}
             />
         </Stack.Navigator>

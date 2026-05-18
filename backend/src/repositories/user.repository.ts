@@ -23,6 +23,12 @@ export class UserRepository {
         });
     }
 
+    async findByPasswordResetTokenHash(tokenHash: string): Promise<User | null> {
+        return prisma.user.findFirst({
+            where: { passwordResetTokenHash: tokenHash },
+        });
+    }
+
     /**
      * Create a new user with optional settings.
      */

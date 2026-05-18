@@ -29,6 +29,18 @@ const loginSchema = z.object({
     password: z.string().min(1, "Password is required"),
 });
 
+const forgotPasswordSchema = z.object({
+    email: z.string().email("Invalid email format"),
+});
+
+const resetPasswordSchema = z.object({
+    token: z.string().min(16, "Reset token is required"),
+    password: z
+        .string()
+        .min(8, "Password must be at least 8 characters")
+        .max(128, "Password must not exceed 128 characters"),
+});
+
 const updateProfileSchema = z.object({
     firstName: z.string().min(1).max(50).optional(),
     lastName: z.string().min(1).max(50).optional(),
@@ -68,6 +80,34 @@ export class AuthController {
             }
 
             const result = await authService.login(parsed.data);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async forgotPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const parsed = forgotPasswordSchema.safeParse(req.body);
+            if (!parsed.success) {
+                throw new ValidationError("Validation failed", parsed.error.flatten());
+            }
+
+            const result = await authService.requestPasswordReset(parsed.data);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async resetPassword(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const parsed = resetPasswordSchema.safeParse(req.body);
+            if (!parsed.success) {
+                throw new ValidationError("Validation failed", parsed.error.flatten());
+            }
+
+            const result = await authService.resetPassword(parsed.data);
             res.status(200).json(result);
         } catch (error) {
             next(error);

@@ -18,4 +18,8 @@ export const env = {
 
     // Database
     DATABASE_URL: process.env.DATABASE_URL || "",
+
+    // Password reset
+    APP_URL: process.env.APP_URL || "https://app.smartprogress.online",
+    PASSWORD_RESET_EXPOSE_TOKEN: process.env.PASSWORD_RESET_EXPOSE_TOKEN === "true",
 } as const;

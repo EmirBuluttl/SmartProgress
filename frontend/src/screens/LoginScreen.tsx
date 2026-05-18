@@ -14,7 +14,6 @@ import {
     ScrollView,
     ActivityIndicator,
     TextInput as TextInputType,
-    Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -61,11 +60,7 @@ export default function LoginScreen() {
     };
 
     const handleForgotPassword = () => {
-        Alert.alert(
-            "Şifremi Unuttum",
-            "Kayıtlı e-posta adresinize bir sıfırlama bağlantısı göndereceğiz. Bu özellik yakında aktif olacaktır.",
-            [{ text: "Tamam" }],
-        );
+        navigation.navigate("ForgotPassword");
     };
 
     return (

@@ -25,6 +25,8 @@ model User {
   nickname     String?  @map("nickname")
   avatarUrl    String?  @map("avatar_url")
   settings     Json?    @db.JsonB
+  passwordResetTokenHash String?   @map("password_reset_token_hash")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
   role         Role     @default(ATHLETE)
   isActive     Boolean  @default(true) @map("is_active")
   createdAt    DateTime @default(now()) @map("created_at")
