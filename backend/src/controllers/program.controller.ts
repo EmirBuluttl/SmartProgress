@@ -7,6 +7,8 @@ import { programService } from "../services/program.service";
 import { autoRegulationService } from "../services/autoRegulation.service";
 import { ValidationError } from "../utils/errors";
 
+const MAX_PROGRAM_DAYS = 7;
+
 // ─── Zod Schemas ─────────────────────────────
 
 const createProgramSchema = z.object({
@@ -19,6 +21,15 @@ const createProgramSchema = z.object({
     frequency: z.number().int().min(1).max(7).optional(),
     data: z.any().optional(),
 });
+
+function assertProgramDayLimit(data: any): void {
+    if (Array.isArray(data?.days) && data.days.length > MAX_PROGRAM_DAYS) {
+        throw new ValidationError(
+            `Program cannot have more than ${MAX_PROGRAM_DAYS} days`,
+            { days: [`Maximum ${MAX_PROGRAM_DAYS} days are allowed`] },
+        );
+    }
+}
 
 // ─── Controller ──────────────────────────────
 
@@ -42,6 +53,7 @@ export class ProgramController {
                 ...parsed.data,
                 data: req.body.data ?? parsed.data.data
             };
+            assertProgramDayLimit(programPayload.data);
 
             const program = await programService.createProgram(userId, programPayload);
             console.log("[ProgramController] Created Program:", {
@@ -207,6 +219,7 @@ export class ProgramController {
                 ...parsed.data,
                 data: req.body.data ?? parsed.data.data,
             };
+            assertProgramDayLimit(payload.data);
 
             const program = await programService.updateProgram(userId, programId, payload);
             res.status(200).json(program);

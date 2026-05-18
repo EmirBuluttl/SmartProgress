@@ -35,6 +35,7 @@ import NoticeModal from "../components/NoticeModal";
 // ─── Helpers ─────────────────────────────────
 
 const FREQUENCY_OPTIONS = [2, 3, 4, 5, 6, 7];
+const MAX_PROGRAM_DAYS = 7;
 
 type PendingAction =
     | null
@@ -217,6 +218,13 @@ export default function ProgramCreateScreen() {
     // ─── Day Management ───────────────────────
 
     const addDay = () => {
+        if (days.length >= MAX_PROGRAM_DAYS) {
+            setValidationNotice({
+                title: "Gün sınırı",
+                message: `Bir programda en fazla ${MAX_PROGRAM_DAYS} gün olabilir.`,
+            });
+            return;
+        }
         setDays((prev) => {
             const next = [...prev, makeDay(prev.length)];
             setActiveDayIdx(next.length - 1);
@@ -722,8 +730,16 @@ export default function ProgramCreateScreen() {
                                 ) : null}
                             </TouchableOpacity>
                         ))}
-                        <TouchableOpacity style={styles.addDayBtn} onPress={addDay}>
-                            <Ionicons name="add" size={20} color={colors.accent} />
+                        <TouchableOpacity
+                            style={[styles.addDayBtn, days.length >= MAX_PROGRAM_DAYS && styles.addDayBtnDisabled]}
+                            onPress={addDay}
+                            disabled={days.length >= MAX_PROGRAM_DAYS}
+                        >
+                            <Ionicons
+                                name="add"
+                                size={20}
+                                color={days.length >= MAX_PROGRAM_DAYS ? colors.textMuted : colors.accent}
+                            />
                         </TouchableOpacity>
                     </ScrollView>
 
@@ -754,6 +770,9 @@ export default function ProgramCreateScreen() {
                                 Seçtiğiniz frekans ({frequency}) ile antrenman gün sayısı ({workoutDayCount}) uyuşmuyor.
                             </Text>
                         </View>
+                    )}
+                    {days.length >= MAX_PROGRAM_DAYS && (
+                        <Text style={styles.dayLimitText}>Maksimum {MAX_PROGRAM_DAYS} gün eklenebilir.</Text>
                     )}
                 </View>
 
@@ -1250,6 +1269,16 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderStyle: "dashed",
         alignItems: "center",
         justifyContent: "center",
+    },
+    addDayBtnDisabled: {
+        borderColor: colors.border,
+        opacity: 0.55,
+    },
+    dayLimitText: {
+        fontSize: fontSize.xs,
+        color: colors.textMuted,
+        marginTop: -spacing.sm,
+        marginBottom: spacing.md,
     },
     dayLabelRow: {
         flexDirection: "row",
