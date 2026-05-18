@@ -65,7 +65,7 @@ function buildExerciseProgressTrend(workouts: any[], exerciseName: string) {
 export default function MyProgressScreen() {
     const { user } = useAuth();
     const { colors } = useTheme();
-    const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled !== false;
+    const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled === true;
 
     const [filter, setFilter] = React.useState<TimeFilter>("1A");
     const [chartMetric, setChartMetric] = React.useState<ChartMetric>("progress:all");

@@ -172,7 +172,7 @@ export default function WorkoutSessionScreen() {
     const { user } = useAuth();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled !== false;
+    const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled === true;
 
     const [session, setSession] = useState<WorkoutSession>(createSession);
     const [elapsed, setElapsed] = useState(0);

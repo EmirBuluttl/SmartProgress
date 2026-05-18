@@ -48,7 +48,7 @@ export default function ProfileScreen() {
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
 
     const [autoSuggestEnabled, setAutoSuggestEnabled] = useState(
-        user?.settings?.is_auto_suggest_enabled ?? true
+        user?.settings?.is_auto_suggest_enabled === true
     );
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 

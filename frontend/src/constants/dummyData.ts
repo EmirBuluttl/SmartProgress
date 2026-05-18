@@ -11,7 +11,7 @@ export const dummyUser = {
     role: "ATHLETE",
     avatarUrl: null,
     settings: {
-        is_auto_suggest_enabled: true,
+        is_auto_suggest_enabled: false,
     },
 };
 
