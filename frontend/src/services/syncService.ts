@@ -276,6 +276,23 @@ export async function getPendingWorkoutCount(): Promise<{ pending: number; faile
 
 // ─── Active Session Persistence ──────────────
 
+function normalizeActiveSession(rawSession: any): WorkoutSession | null {
+    if (!rawSession || typeof rawSession !== "object") return null;
+    if (!rawSession.id || !rawSession.startedAt || rawSession.status !== "active") return null;
+    if (rawSession.completedAt) return null;
+
+    return {
+        ...rawSession,
+        title: typeof rawSession.title === "string" ? rawSession.title : "",
+        sportId: rawSession.sportId || "00000000-0000-0000-0000-000000000001",
+        exercises: Array.isArray(rawSession.exercises) ? rawSession.exercises : [],
+        totalDuration: Number.isFinite(Number(rawSession.totalDuration))
+            ? Math.max(0, Number(rawSession.totalDuration))
+            : 0,
+        status: "active",
+    };
+}
+
 /**
  * Save the active workout session to AsyncStorage (crash protection).
  */
@@ -292,7 +309,7 @@ export async function saveActiveSession(session: WorkoutSession): Promise<void> 
 export async function restoreActiveSession(): Promise<WorkoutSession | null> {
     try {
         const raw = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
-        return raw ? JSON.parse(raw) : null;
+        return raw ? normalizeActiveSession(JSON.parse(raw)) : null;
     } catch {
         return null;
     }

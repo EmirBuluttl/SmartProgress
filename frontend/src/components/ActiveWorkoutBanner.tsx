@@ -23,6 +23,14 @@ interface Props {
     refreshKey?: number;
 }
 
+function getElapsedSeconds(session: WorkoutSession): number {
+    const startedAt = new Date(session.startedAt).getTime();
+    const wallClockElapsed = Number.isFinite(startedAt)
+        ? Math.floor((Date.now() - startedAt) / 1000)
+        : 0;
+    return Math.max(0, session.totalDuration || 0, wallClockElapsed);
+}
+
 export default function ActiveWorkoutBanner({ refreshKey }: Props) {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
@@ -39,12 +47,7 @@ export default function ActiveWorkoutBanner({ refreshKey }: Props) {
             if (mounted) {
                 setActiveSession(session);
                 if (session) {
-                    const startTime = new Date(session.startedAt).getTime();
-                    const savedDuration = session.totalDuration || 0;
-                    // Calculate time from when the session was last saved
-                    const now = Date.now();
-                    const elapsedSinceSave = Math.floor((now - startTime) / 1000);
-                    setElapsed(Math.max(savedDuration, elapsedSinceSave));
+                    setElapsed(getElapsedSeconds(session));
                 }
             }
         };
@@ -56,7 +59,7 @@ export default function ActiveWorkoutBanner({ refreshKey }: Props) {
     useEffect(() => {
         if (!activeSession) return;
         const interval = setInterval(() => {
-            setElapsed((prev) => prev + 1);
+            setElapsed(getElapsedSeconds(activeSession));
         }, 1000);
         return () => clearInterval(interval);
     }, [activeSession]);

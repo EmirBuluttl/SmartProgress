@@ -95,6 +95,14 @@ function hasLoggedWorkoutData(session: WorkoutSession): boolean {
     );
 }
 
+function getElapsedSeconds(session: WorkoutSession): number {
+    const startedAt = new Date(session.startedAt).getTime();
+    const wallClockElapsed = Number.isFinite(startedAt)
+        ? Math.floor((Date.now() - startedAt) / 1000)
+        : 0;
+    return Math.max(0, session.totalDuration || 0, wallClockElapsed);
+}
+
 /**
  * Normalize any incoming programData shape into a ProgramData or null.
  * Supported shapes:
@@ -189,6 +197,7 @@ export default function WorkoutSessionScreen() {
     const [newExerciseIndex, setNewExerciseIndex] = useState(0);
     const [noteModalVisible, setNoteModalVisible] = useState(false);
     const [noteDraft, setNoteDraft] = useState("");
+    const [startBlockedModalVisible, setStartBlockedModalVisible] = useState(false);
     const [conceptNotice, setConceptNotice] = useState<{ title: string; message: string } | null>(null);
     const isWeb = Platform.OS === "web";
 
@@ -323,17 +332,19 @@ export default function WorkoutSessionScreen() {
 
             if (isFreeWorkout) {
                 const saved = await restoreActiveSession();
-                if (saved && saved.status === "active" && !saved.completedAt) {
+                if (saved) {
                     setSession(saved);
-                    const start = new Date(saved.startedAt).getTime();
-                    setElapsed(Math.floor((Date.now() - start) / 1000));
+                    setElapsed(getElapsedSeconds(saved));
+                    setStartBlockedModalVisible(true);
                 } else {
                     await clearActiveSession();
-                    setSession({
+                    const newSession = {
                         ...createSession(),
                         title: "Serbest Antrenman",
-                    });
+                    };
+                    setSession(newSession);
                     setElapsed(0);
+                    await saveActiveSession(newSession);
                 }
             }
 
@@ -342,8 +353,14 @@ export default function WorkoutSessionScreen() {
             // Clear any stale session and load program data
             // ────────────────────────────────────────
             if (!isFreeWorkout && hasProgramParams) {
-                console.log("[WorkoutSession] Program params detected, clearing any old session");
-                await clearActiveSession();
+                const saved = await restoreActiveSession();
+                if (saved) {
+                    setSession(saved);
+                    setElapsed(getElapsedSeconds(saved));
+                    setStartBlockedModalVisible(true);
+                    setRestored(true);
+                    return;
+                }
 
                 const programId = params?.programId;
                 const hasProgramDataParam = !!params?.programData;
@@ -441,13 +458,16 @@ export default function WorkoutSessionScreen() {
                             }),
                         };
                     });
-                    setSession(prev => ({
-                        ...prev,
+                    const newSession: WorkoutSession = {
+                        ...createSession(),
                         title,
                         exercises: newExercises,
                         programId: programId,
                         dayIndex,
-                    }));
+                    };
+                    setSession(newSession);
+                    setElapsed(0);
+                    await saveActiveSession(newSession);
                 } else {
                     console.warn("[WorkoutSession] No exercises found for this day");
                     navigation.goBack();
@@ -459,10 +479,9 @@ export default function WorkoutSessionScreen() {
             // ────────────────────────────────────────
             else if (!isFreeWorkout) {
                 const saved = await restoreActiveSession();
-                if (saved && saved.status === "active" && !saved.completedAt) {
+                if (saved) {
                     setSession(saved);
-                    const start = new Date(saved.startedAt).getTime();
-                    setElapsed(Math.floor((Date.now() - start) / 1000));
+                    setElapsed(getElapsedSeconds(saved));
                 } else {
                     // No valid session to restore and no program params
                     await clearActiveSession();
@@ -480,12 +499,12 @@ export default function WorkoutSessionScreen() {
     useEffect(() => {
         intervalRef.current = setInterval(() => {
             if (finishingRef.current) return; // don't tick after finish
-            setElapsed((prev) => prev + 1);
+            setElapsed(getElapsedSeconds(session));
         }, 1000);
         return () => {
             if (intervalRef.current) clearInterval(intervalRef.current);
         };
-    }, []);
+    }, [session.startedAt, session.totalDuration]);
 
     useEffect(() => {
         if (!recentlyAddedExerciseId) return;
@@ -504,9 +523,7 @@ export default function WorkoutSessionScreen() {
         saveTimerRef.current = setTimeout(() => {
             if (finishingRef.current) return;
             const nextSession = { ...getSessionWithCachedInputs(), totalDuration: elapsed };
-            if (nextSession.exercises.length > 0) {
-                saveActiveSession(nextSession);
-            }
+            saveActiveSession(nextSession);
         }, AUTOSAVE_DEBOUNCE_MS);
         return () => {
             if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
@@ -519,9 +536,7 @@ export default function WorkoutSessionScreen() {
         const persistNow = () => {
             if (finishingRef.current) return;
             const nextSession = { ...getSessionWithCachedInputs(), totalDuration: elapsed };
-            if (nextSession.exercises.length > 0) {
-                saveActiveSession(nextSession);
-            }
+            saveActiveSession(nextSession);
         };
 
         const appStateSubscription = AppState.addEventListener("change", (state) => {
@@ -1436,6 +1451,16 @@ export default function WorkoutSessionScreen() {
                     pendingExitActionRef.current = null;
                     setExitModalVisible(false);
                 }}
+            />
+            <ActionConfirmModal
+                visible={startBlockedModalVisible}
+                title="Devam eden antrenman var"
+                message="Bu antrenman bitirilmeden veya iptal edilmeden yeni bir antrenman başlatılamaz. Mevcut kayda geri döndüm; istersen buradan devam edebilir ya da iptal edebilirsin."
+                primaryLabel="Antrenmana Devam Et"
+                secondaryLabel="Tamam"
+                onPrimary={() => setStartBlockedModalVisible(false)}
+                onSecondary={() => setStartBlockedModalVisible(false)}
+                onDismiss={() => setStartBlockedModalVisible(false)}
             />
             <NoticeModal
                 visible={!!conceptNotice}
