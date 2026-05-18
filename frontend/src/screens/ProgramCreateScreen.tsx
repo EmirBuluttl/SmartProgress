@@ -12,6 +12,7 @@ import {
     TouchableOpacity,
     Alert,
     KeyboardAvoidingView,
+    Modal,
     Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -133,6 +134,11 @@ export default function ProgramCreateScreen() {
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
     const [copyTargetsVisible, setCopyTargetsVisible] = useState(false);
     const [validationNotice, setValidationNotice] = useState<{ title: string; message: string } | null>(null);
+    const [reorderModal, setReorderModal] = useState<{
+        exerciseId: string;
+        currentIndex: number;
+        target: string;
+    } | null>(null);
 
     // Pre-populate fields in edit mode
     useEffect(() => {
@@ -269,6 +275,34 @@ export default function ProgramCreateScreen() {
                     : d
             )
         );
+    };
+
+    const moveExerciseToPosition = () => {
+        if (!reorderModal) return;
+        const targetPosition = parseInt(reorderModal.target, 10);
+        const activeExercises = days[activeDayIdx]?.exercises ?? [];
+
+        if (!Number.isFinite(targetPosition) || targetPosition < 1 || targetPosition > activeExercises.length) {
+            setValidationNotice({
+                title: "Geçersiz sıra",
+                message: `Hareket sırası 1 ile ${activeExercises.length} arasında olmalı.`,
+            });
+            return;
+        }
+
+        const toIndex = targetPosition - 1;
+        setDays((prev) =>
+            prev.map((day, index) => {
+                if (index !== activeDayIdx) return day;
+                const fromIndex = day.exercises.findIndex((exercise) => exercise.id === reorderModal.exerciseId);
+                if (fromIndex < 0 || fromIndex === toIndex) return day;
+                const exercises = [...day.exercises];
+                const [moved] = exercises.splice(fromIndex, 1);
+                exercises.splice(toIndex, 0, moved);
+                return { ...day, exercises };
+            }),
+        );
+        setReorderModal(null);
     };
 
     const toggleRestDay = () => {
@@ -819,7 +853,19 @@ export default function ProgramCreateScreen() {
                             {activeDay.exercises.map((exercise, exIndex) => (
                                 <View key={exercise.id} style={styles.exerciseCard}>
                                     <View style={styles.exHeader}>
-                                        <Text style={styles.exNumber} numberOfLines={1}>#{exIndex + 1}</Text>
+                                        <TouchableOpacity
+                                            style={styles.exNumberBtn}
+                                            onPress={() =>
+                                                setReorderModal({
+                                                    exerciseId: exercise.id,
+                                                    currentIndex: exIndex,
+                                                    target: String(exIndex + 1),
+                                                })
+                                            }
+                                            activeOpacity={0.75}
+                                        >
+                                            <Text style={styles.exNumber} numberOfLines={1}>#{exIndex + 1}</Text>
+                                        </TouchableOpacity>
                                         <TextInput
                                             style={styles.exNameInput}
                                             placeholder="Egzersiz Adı (Örn: Bench Press)"
@@ -947,6 +993,51 @@ export default function ProgramCreateScreen() {
             </ScrollView>
 
             {/* ── Privacy Modal (cross-platform) ── */}
+            <Modal
+                visible={!!reorderModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setReorderModal(null)}
+            >
+                <View style={styles.reorderOverlay}>
+                    <View style={styles.reorderModal}>
+                        <Text style={styles.reorderTitle}>Hareket sırası</Text>
+                        <Text style={styles.reorderMessage}>
+                            Bu hareketi kaçıncı sıraya taşımak istiyorsun?
+                        </Text>
+                        <TextInput
+                            style={styles.reorderInput}
+                            value={reorderModal?.target ?? ""}
+                            onChangeText={(text) =>
+                                setReorderModal((prev) => prev ? { ...prev, target: text.replace(/[^0-9]/g, "") } : prev)
+                            }
+                            keyboardType="number-pad"
+                            placeholder={`1-${activeDay?.exercises.length ?? 1}`}
+                            placeholderTextColor={colors.textMuted}
+                            selectionColor={colors.accent}
+                            autoFocus
+                        />
+                        <Text style={styles.reorderHint}>
+                            Min 1, max {activeDay?.exercises.length ?? 1}. Diğer hareketler otomatik kayar.
+                        </Text>
+                        <View style={styles.reorderActions}>
+                            <TouchableOpacity
+                                style={styles.reorderSecondaryBtn}
+                                onPress={() => setReorderModal(null)}
+                            >
+                                <Text style={styles.reorderSecondaryText}>İptal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.reorderPrimaryBtn}
+                                onPress={moveExerciseToPosition}
+                            >
+                                <Text style={styles.reorderPrimaryText}>Taşı</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+
             <PrivacyModal
                 visible={privacyModalVisible}
                 onSelectPrivate={() => doSave(false)}
@@ -1223,12 +1314,21 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         marginBottom: spacing.md,
     },
+    exNumberBtn: {
+        marginRight: spacing.sm,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        minWidth: 44,
+        minHeight: 34,
+        alignItems: "center",
+        justifyContent: "center",
+    },
     exNumber: {
         fontSize: fontSize.lg,
         fontWeight: fontWeight.bold,
         color: colors.accent,
-        marginRight: spacing.sm,
-        minWidth: 42,
         textAlign: "center",
         lineHeight: 24,
     },
@@ -1319,6 +1419,81 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     addExerciseText: {
         fontSize: fontSize.lg,
+        fontWeight: fontWeight.bold,
+        color: colors.background,
+    },
+    reorderOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.62)",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: spacing.lg,
+    },
+    reorderModal: {
+        width: "100%",
+        maxWidth: 420,
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+    },
+    reorderTitle: {
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.heavy,
+        color: colors.text,
+        marginBottom: spacing.sm,
+    },
+    reorderMessage: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+        lineHeight: 20,
+        marginBottom: spacing.md,
+    },
+    reorderInput: {
+        minHeight: 54,
+        borderRadius: borderRadius.md,
+        borderWidth: 1.5,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        color: colors.text,
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.bold,
+        textAlign: "center",
+        marginBottom: spacing.sm,
+    },
+    reorderHint: {
+        fontSize: fontSize.xs,
+        color: colors.textMuted,
+        marginBottom: spacing.lg,
+    },
+    reorderActions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    reorderSecondaryBtn: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceElevated,
+    },
+    reorderSecondaryText: {
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+        color: colors.textSecondary,
+    },
+    reorderPrimaryBtn: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+    },
+    reorderPrimaryText: {
+        fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         color: colors.background,
     },
