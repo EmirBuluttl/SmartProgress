@@ -22,6 +22,9 @@ router.patch("/:id/visibility", (req, res, next) =>
 router.patch("/:id/advance-day", (req, res, next) =>
     programController.advanceDay(req, res, next),
 );
+router.patch("/:id/day", (req, res, next) =>
+    programController.setDay(req, res, next),
+);
 router.post("/:id/star", (req, res, next) => programController.star(req, res, next));
 router.delete("/:id/star", (req, res, next) => programController.unstar(req, res, next));
 router.post("/:id/copy", (req, res, next) => programController.copy(req, res, next));

@@ -207,6 +207,9 @@ export const programApi = {
     advanceDay: (id: string) =>
         api.patch(`/programs/${id}/advance-day`),
 
+    setDay: (id: string, dayIndex: number) =>
+        api.patch(`/programs/${id}/day`, { dayIndex }),
+
     star: (id: string) => api.post(`/programs/${id}/star`),
 
     unstar: (id: string) => api.delete(`/programs/${id}/star`),

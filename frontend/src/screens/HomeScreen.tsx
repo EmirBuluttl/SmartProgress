@@ -55,6 +55,7 @@ export default function HomeScreen() {
     const [loading, setLoading] = useState(true);
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const [bannerRefresh, setBannerRefresh] = useState(0);
+    const [dayPickerOpen, setDayPickerOpen] = useState(false);
     const hasLoadedDashboard = React.useRef(false);
     const scrollRef = useRef<ScrollView | null>(null);
     const shouldRestoreScroll = useRef(false);
@@ -193,6 +194,13 @@ export default function HomeScreen() {
         ? (currentDayIndex + 1) % cycleData.days.length
         : 0;
     const nextDay = cycleData?.days?.[nextDayIndex];
+
+    const selectActiveProgramDay = async (dayIndex: number) => {
+        if (!favoriteProgram) return;
+        await programApi.setDay(favoriteProgram.id, dayIndex);
+        setDayPickerOpen(false);
+        await loadDashboard();
+    };
 
     return (
         <ScrollView
@@ -333,7 +341,41 @@ export default function HomeScreen() {
                                 Gün {currentDayIndex + 1}/{cycleData?.days.length}
                             </Text>
                         </View>
+                        <TouchableOpacity
+                            style={styles.changeDayBtn}
+                            onPress={() => setDayPickerOpen((prev) => !prev)}
+                            activeOpacity={0.82}
+                        >
+                            <Ionicons name="swap-horizontal-outline" size={13} color={colors.textSecondary} />
+                            <Text style={styles.changeDayText}>Gün değiştir</Text>
+                        </TouchableOpacity>
                     </View>
+
+                    {dayPickerOpen ? (
+                        <View style={styles.dayPickerPanel}>
+                            {cycleData?.days.map((day: any, index: number) => (
+                                <TouchableOpacity
+                                    key={`${day.label}-${index}`}
+                                    style={[
+                                        styles.dayPickerChip,
+                                        index === currentDayIndex && styles.dayPickerChipActive,
+                                    ]}
+                                    onPress={() => selectActiveProgramDay(index)}
+                                    activeOpacity={0.82}
+                                >
+                                    <Text
+                                        style={[
+                                            styles.dayPickerChipText,
+                                            index === currentDayIndex && styles.dayPickerChipTextActive,
+                                        ]}
+                                        numberOfLines={1}
+                                    >
+                                        {index + 1}. {day.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    ) : null}
 
                     <AccentButton
                         title={currentDay.exercises.length > 0 ? "▶ Antrenmanı Başlat" : "⏭ Sonraki Güne Geç"}
@@ -772,7 +814,13 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.md, color: colors.textSecondary,
         textAlign: "center", paddingVertical: spacing.md,
     },
-    freqBadgeRow: { flexDirection: "row", marginBottom: spacing.sm },
+    freqBadgeRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        flexWrap: "wrap",
+        marginBottom: spacing.sm,
+    },
     freqBadge: {
         flexDirection: "row", alignItems: "center",
         backgroundColor: colors.accentMuted,
@@ -780,6 +828,54 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: borderRadius.full, gap: spacing.xs,
     },
     freqBadgeText: { fontSize: fontSize.xs, color: colors.accent, fontWeight: fontWeight.bold },
+    changeDayBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    changeDayText: {
+        fontSize: fontSize.xs,
+        color: colors.textSecondary,
+        fontWeight: fontWeight.semibold,
+    },
+    dayPickerPanel: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+        padding: spacing.sm,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginBottom: spacing.md,
+    },
+    dayPickerChip: {
+        maxWidth: "100%",
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    dayPickerChipActive: {
+        backgroundColor: colors.accent,
+        borderColor: colors.accent,
+    },
+    dayPickerChipText: {
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+        color: colors.textSecondary,
+    },
+    dayPickerChipTextActive: {
+        color: colors.background,
+    },
     // Workouts
     workoutList: { paddingBottom: spacing.xl },
     workoutCard: { marginBottom: spacing.sm },

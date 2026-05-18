@@ -200,6 +200,22 @@ export class ProgramController {
         }
     }
 
+    async setDay(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const programId = req.params.id as string;
+            const dayIndex = Number(req.body?.dayIndex);
+            const program = await programService.setDayIndex(userId, programId, dayIndex);
+            res.status(200).json({
+                message: "Day selected",
+                currentDayIndex: program.currentDayIndex,
+                program,
+            });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     /**
      * PUT /:id
      * Update a program (name, description, frequency, data, isPublic).

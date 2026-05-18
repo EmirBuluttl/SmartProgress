@@ -3,7 +3,7 @@
 // ─────────────────────────────────────────────
 import { Program } from "@prisma/client";
 import { programRepository } from "../repositories/program.repository";
-import { NotFoundError, ForbiddenError } from "../utils/errors";
+import { NotFoundError, ForbiddenError, BadRequestError } from "../utils/errors";
 
 // ─── DTOs ────────────────────────────────────
 
@@ -175,6 +175,24 @@ export class ProgramService {
 
         const nextIndex = (program.currentDayIndex + 1) % totalDays;
         return programRepository.updateDayIndex(programId, nextIndex);
+    }
+
+    async setDayIndex(userId: string, programId: string, dayIndex: number): Promise<Program> {
+        const program = await programRepository.findById(programId);
+        if (!program) {
+            throw new NotFoundError("Program not found");
+        }
+        if (program.userId !== userId) {
+            throw new ForbiddenError("You can only modify your own programs");
+        }
+
+        const data = program.data as any;
+        const totalDays = Array.isArray(data?.days) ? data.days.length : 0;
+        if (!Number.isInteger(dayIndex) || dayIndex < 0 || dayIndex >= totalDays) {
+            throw new BadRequestError("Invalid program day");
+        }
+
+        return programRepository.updateDayIndex(programId, dayIndex);
     }
 
     /**
