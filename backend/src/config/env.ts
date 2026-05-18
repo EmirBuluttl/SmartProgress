@@ -22,4 +22,7 @@ export const env = {
     // Password reset
     APP_URL: process.env.APP_URL || "https://app.smartprogress.online",
     PASSWORD_RESET_EXPOSE_TOKEN: process.env.PASSWORD_RESET_EXPOSE_TOKEN === "true",
+    PASSWORD_RESET_FROM_EMAIL: process.env.PASSWORD_RESET_FROM_EMAIL || "SmartProgress <noreply@smartprogress.online>",
+    RESEND_API_KEY: process.env.RESEND_API_KEY || "",
+    BREVO_API_KEY: process.env.BREVO_API_KEY || "",
 } as const;

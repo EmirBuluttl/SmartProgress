@@ -72,6 +72,67 @@ function hashResetToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
 }
 
+async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<boolean> {
+    const subject = "SmartProgress şifre sıfırlama";
+    const html = `
+        <p>SmartProgress hesabınız için şifre sıfırlama isteği aldık.</p>
+        <p><a href="${resetUrl}">Şifrenizi sıfırlamak için tıklayın</a></p>
+        <p>Bu bağlantı ${PASSWORD_RESET_EXPIRES_MINUTES} dakika geçerlidir. Bu işlemi siz istemediyseniz bu e-postayı yok sayabilirsiniz.</p>
+    `;
+    const text = `SmartProgress şifre sıfırlama bağlantınız: ${resetUrl}\n\nBu bağlantı ${PASSWORD_RESET_EXPIRES_MINUTES} dakika geçerlidir.`;
+
+    try {
+        if (env.RESEND_API_KEY) {
+            const response = await fetch("https://api.resend.com/emails", {
+                method: "POST",
+                headers: {
+                    Authorization: `Bearer ${env.RESEND_API_KEY}`,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    from: env.PASSWORD_RESET_FROM_EMAIL,
+                    to: email,
+                    subject,
+                    html,
+                    text,
+                }),
+            });
+            if (!response.ok) {
+                console.warn("[AuthService] Resend password reset email failed:", response.status, await response.text());
+                return false;
+            }
+            return true;
+        }
+
+        if (env.BREVO_API_KEY) {
+            const response = await fetch("https://api.brevo.com/v3/smtp/email", {
+                method: "POST",
+                headers: {
+                    "api-key": env.BREVO_API_KEY,
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    sender: { email: env.PASSWORD_RESET_FROM_EMAIL.replace(/^.*<|>$/g, "") },
+                    to: [{ email }],
+                    subject,
+                    htmlContent: html,
+                    textContent: text,
+                }),
+            });
+            if (!response.ok) {
+                console.warn("[AuthService] Brevo password reset email failed:", response.status, await response.text());
+                return false;
+            }
+            return true;
+        }
+    } catch (error) {
+        console.warn("[AuthService] Password reset email failed:", error);
+        return false;
+    }
+
+    return false;
+}
+
 // ─── Service ─────────────────────────────────
 
 export class AuthService {
@@ -238,11 +299,15 @@ export class AuthService {
 
         const resetUrl = `${env.APP_URL.replace(/\/+$/, "")}/reset-password?token=${token}`;
 
+        const emailSent = await sendPasswordResetEmail(email, resetUrl);
+
         if (env.PASSWORD_RESET_EXPOSE_TOKEN || env.NODE_ENV !== "production") {
             return { message: PASSWORD_RESET_MESSAGE, resetToken: token, resetUrl };
         }
 
-        console.log(`[AuthService] Password reset link for ${email}: ${resetUrl}`);
+        if (!emailSent) {
+            console.warn(`[AuthService] Password reset email could not be sent for ${email}. Configure RESEND_API_KEY or BREVO_API_KEY.`);
+        }
         return { message: PASSWORD_RESET_MESSAGE };
     }
 

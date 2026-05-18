@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import {
     ActivityIndicator,
     KeyboardAvoidingView,
@@ -11,7 +11,7 @@ import {
     View,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../navigation/AuthStack";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
@@ -19,9 +19,11 @@ import { useTheme } from "../hooks/ThemeContext";
 import { authApi, parseApiError } from "../services/api";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "ForgotPassword">;
+type Route = RouteProp<AuthStackParamList, "ForgotPassword">;
 
 export default function ForgotPasswordScreen() {
     const navigation = useNavigation<Nav>();
+    const route = useRoute<Route>();
     const { colors } = useTheme();
     const styles = useMemo(() => createStyles(colors), [colors]);
 
@@ -34,6 +36,15 @@ export default function ForgotPasswordScreen() {
     const [message, setMessage] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [step, setStep] = useState<"request" | "reset">("request");
+
+    useEffect(() => {
+        const routeToken = route.params?.token;
+        if (routeToken) {
+            setToken(String(routeToken));
+            setStep("reset");
+            setMessage("Sıfırlama bağlantısı alındı. Yeni şifreni belirleyebilirsin.");
+        }
+    }, [route.params?.token]);
 
     const requestReset = async () => {
         setError(null);
@@ -50,6 +61,9 @@ export default function ForgotPasswordScreen() {
             setMessage(res.data.message || "Şifre sıfırlama bağlantısı hazırlandı.");
             if (res.data.resetToken) {
                 setToken(res.data.resetToken);
+                setStep("reset");
+            }
+            if (!res.data.resetToken) {
                 setStep("reset");
             }
         } catch (err) {

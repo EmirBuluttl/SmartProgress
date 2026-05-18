@@ -15,9 +15,12 @@ import { colors } from "./constants/theme";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const linking: any = {
-    prefixes: ["http://localhost:8082", "smartprogress://"],
+    prefixes: ["https://app.smartprogress.online", "http://localhost:8082", "smartprogress://"],
     config: {
         screens: {
+            Login: "login",
+            Register: "register",
+            ForgotPassword: "reset-password",
             MainTabs: {
                 screens: {
                     Home: "",
