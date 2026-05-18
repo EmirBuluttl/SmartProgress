@@ -92,7 +92,10 @@ export default function HomeScreen() {
             );
             setPrograms(myPrograms);
 
-            const streak = calculateStreak(fetchedWorkouts, myPrograms || []);
+            const activeProgramId =
+                (await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY)) ||
+                (await AsyncStorage.getItem(FAVORITES_KEY));
+            const streak = calculateStreak(fetchedWorkouts, myPrograms || [], activeProgramId);
             setStats({
                 totalWorkouts: workoutRes.data.count || fetchedWorkouts.length,
                 currentStreak: streak,
@@ -551,35 +554,32 @@ export default function HomeScreen() {
 
 // ─── Helpers ────────────────────────────────
 
-function calculateStreak(workouts: any[], programs: any[] = []): number {
+function calculateStreak(workouts: any[], programs: any[] = [], activeProgramId?: string | null): number {
     if (!workouts.length) return 0;
     
     // Create a Set of all dates the user worked out
     const workedOutDates = new Set(workouts.map((w) => new Date(w.logDate).toDateString()));
     let streak = 0;
     const today = new Date();
-    
-    // Determine which days of the week are usually rest days based on the user's active/favorite program
-    // If no program, assume no rest days
+
+    const activeProgram = activeProgramId
+        ? programs.find((program) => program.id === activeProgramId)
+        : null;
+    const cycleProgram = activeProgram && isCycleProgram(activeProgram.data)
+        ? activeProgram
+        : programs.find((program) => isCycleProgram(program.data));
+    const cycleDays = cycleProgram && isCycleProgram(cycleProgram.data)
+        ? cycleProgram.data.days
+        : [];
+    const currentCycleIndex = cycleProgram?.currentDayIndex ?? 0;
+
     let restDaysOfWeek = new Set<number>(); // 0 = Sunday, 1 = Monday, etc.
-    if (programs.length > 0) {
-        // Just pick the first cycle program to extract rest days for simplicity 
-        // Or if you have a favorite program, pick that one. Here we pick the first cycle program.
-        const cycleProg = programs.find(p => isCycleProgram(p.data));
-        if (cycleProg) {
-            // Find which indices in the cycle are rest days
-            cycleProg.data.days.forEach((day: any, index: number) => {
-                if (day.isRestDay) {
-                   // This is an approximation. A true cycle might not align perfectly with calendar weeks.
-                   // For a 7-day frequency cycle synced to calendar:
-                   if (cycleProg.data.frequency === 7) {
-                       // Assuming Day 1 is Monday (1)
-                       let dotw = (index + 1) % 7;
-                       restDaysOfWeek.add(dotw);
-                   }
-                }
-            });
-        }
+    if (!cycleDays.length) {
+        restDaysOfWeek = new Set();
+    } else if (cycleProgram?.data?.frequency === 7) {
+        cycleDays.forEach((day: any, index: number) => {
+            if (day.isRestDay) restDaysOfWeek.add((index + 1) % 7);
+        });
     }
 
     // Check up to 365 days back
@@ -587,6 +587,9 @@ function calculateStreak(workouts: any[], programs: any[] = []): number {
         const day = new Date(today);
         day.setDate(today.getDate() - i);
         const dayString = day.toDateString();
+        const cycleDay = cycleDays.length
+            ? cycleDays[((currentCycleIndex - i) % cycleDays.length + cycleDays.length) % cycleDays.length]
+            : null;
         
         if (workedOutDates.has(dayString)) {
             // Worked out!
@@ -595,8 +598,8 @@ function calculateStreak(workouts: any[], programs: any[] = []): number {
             // It's today. If they haven't worked out today, it doesn't break the streak yet.
             // (They still have time to work out today).
             continue;
-        } else if (restDaysOfWeek.has(day.getDay())) {
-            // It was a rest day, so it doesn't break the streak, but we don't increment it either (or maybe we do? Typically streaks count continuous action days, ignoring rest days. Let's just ignore the gap).
+        } else if (cycleDay?.isRestDay || restDaysOfWeek.has(day.getDay())) {
+            // Rest/off days keep the chain alive but do not increment workout streak.
             continue;
         } else {
             // Did not work out, and it wasn't a recognized rest day. Streak broken.
