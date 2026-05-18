@@ -628,7 +628,7 @@ function countWorkoutSets(workout: any): number {
     const exercises = Array.isArray(workout?.data?.exercises) ? workout.data.exercises : [];
     return exercises.reduce((sum: number, exercise: any) => {
         const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
-        return sum + sets.length;
+        return sum + sets.filter((set: any) => !set?.isWarmup).length;
     }, 0);
 }
 

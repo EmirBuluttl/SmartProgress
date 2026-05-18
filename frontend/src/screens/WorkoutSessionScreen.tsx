@@ -687,7 +687,10 @@ export default function WorkoutSessionScreen() {
 
             // ── Compute summary stats ──
             const totalVolume = calculateLoadScoreFromExercises(validExercises);
-            const setCount = validExercises.reduce((total, ex) => total + ex.sets.length, 0);
+            const setCount = validExercises.reduce(
+                (total, ex) => total + ex.sets.filter((set) => !set.isWarmup).length,
+                0,
+            );
 
             // ── Advance cycle day if linked to a program ──
             const programId = route.params?.programId;
