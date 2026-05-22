@@ -58,6 +58,7 @@ export type RootStackParamList = {
         duration: number;
         exerciseCount: number;
         setCount: number;
+        notes?: string;
     };
     ProgramCreate: {
         editProgramId?: string;

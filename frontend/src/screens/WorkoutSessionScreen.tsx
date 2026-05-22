@@ -88,10 +88,38 @@ function insertSetByType<T extends { isWarmup?: boolean }>(sets: T[], nextSet: T
     return copy;
 }
 
+function parseDurationInput(raw: string): number {
+    const value = raw.trim().toLowerCase().replace(/\s+/g, "");
+    if (!value) return 0;
+    const parts = value.split(":");
+    if (parts.length === 2) {
+        const minutes = parseInt(parts[0], 10) || 0;
+        const seconds = parseInt(parts[1], 10) || 0;
+        return Math.max(0, minutes * 60 + seconds);
+    }
+    return Math.max(0, parseInt(value.replace(/sn|sec|s/g, ""), 10) || 0);
+}
+
+function formatDurationInput(seconds: number | string | undefined): string {
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    if (total <= 0) return "";
+    if (total < 60) return String(total);
+    const minutes = Math.floor(total / 60);
+    const remainder = total % 60;
+    return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
+function hasLoggedSetData(set: WorkoutSet): boolean {
+    return Number(set.weight) > 0 ||
+        Number(set.reps) > 0 ||
+        Number(set.durationSeconds) > 0 ||
+        Number(set.rpe) > 0;
+}
+
 function hasLoggedWorkoutData(session: WorkoutSession): boolean {
     return session.exercises.some((exercise) =>
         exercise.name.trim().length > 0 &&
-        exercise.sets.some((set) => Number(set.weight) > 0 || Number(set.reps) > 0 || Number(set.rpe) > 0),
+        exercise.sets.some(hasLoggedSetData),
     );
 }
 
@@ -197,6 +225,7 @@ export default function WorkoutSessionScreen() {
     const [newExerciseIndex, setNewExerciseIndex] = useState(0);
     const [noteModalVisible, setNoteModalVisible] = useState(false);
     const [noteDraft, setNoteDraft] = useState("");
+    const [setSettingsExercise, setSetSettingsExercise] = useState<WorkoutExercise | null>(null);
     const [startBlockedModalVisible, setStartBlockedModalVisible] = useState(false);
     const [conceptNotice, setConceptNotice] = useState<{ title: string; message: string } | null>(null);
     const isWeb = Platform.OS === "web";
@@ -238,6 +267,15 @@ export default function WorkoutSessionScreen() {
         return numericValue > 0 ? String(numericValue) : "";
     };
 
+    const getEffortTextValue = (exerciseId: string, set: WorkoutSet): string => {
+        if (set.effortMode === "duration") {
+            const key = cacheKey(exerciseId, set.id, "durationSeconds");
+            if (key in textCache) return textCache[key];
+            return formatDurationInput(set.durationSeconds);
+        }
+        return getTextValue(exerciseId, set.id, "reps", set.reps);
+    };
+
     const onNumericChange = (exerciseId: string, setId: string, field: keyof WorkoutSet, text: string) => {
         // Replace comma with dot for Turkish keyboards
         const normalized = text.replace(/,/g, ".");
@@ -249,6 +287,16 @@ export default function WorkoutSessionScreen() {
         const key = cacheKey(exerciseId, setId, field as string);
         const raw = textCache[key];
         if (raw === undefined) return;
+
+        if (field === "durationSeconds") {
+            updateSet(exerciseId, setId, field as any, parseDurationInput(raw));
+            setTextCache((prev) => {
+                const next = { ...prev };
+                delete next[key];
+                return next;
+            });
+            return;
+        }
 
         // RIR accepts string ranges like "1-2", "2-3" — preserve as-is
         if (field === "rir") {
@@ -281,6 +329,7 @@ export default function WorkoutSessionScreen() {
         const nextSet = { ...set };
         const weightRaw = textCache[cacheKey(exerciseId, set.id, "weight")];
         const repsRaw = textCache[cacheKey(exerciseId, set.id, "reps")];
+        const durationRaw = textCache[cacheKey(exerciseId, set.id, "durationSeconds")];
         const rpeRaw = textCache[cacheKey(exerciseId, set.id, "rpe")];
         const rirRaw = textCache[cacheKey(exerciseId, set.id, "rir")];
 
@@ -289,6 +338,9 @@ export default function WorkoutSessionScreen() {
         }
         if (repsRaw !== undefined) {
             nextSet.reps = parseInt(repsRaw, 10) || 0;
+        }
+        if (durationRaw !== undefined) {
+            nextSet.durationSeconds = parseDurationInput(durationRaw);
         }
         if (rpeRaw !== undefined) {
             nextSet.rpe = clampRpe(rpeRaw);
@@ -446,6 +498,9 @@ export default function WorkoutSessionScreen() {
                                     id: uid(),
                                     weight: 0,
                                     reps: 0,
+                                    weightMode: "kg" as const,
+                                    effortMode: "reps" as const,
+                                    durationSeconds: 0,
                                     rpe: 0,
                                     unit: "kg" as const,
                                     completed: false,
@@ -606,7 +661,7 @@ export default function WorkoutSessionScreen() {
     }, [updateSession]);
 
     const updateSet = useCallback(
-        (exerciseId: string, setId: string, field: keyof WorkoutSet, value: string | number | boolean) => {
+        (exerciseId: string, setId: string, field: keyof WorkoutSet, value: string | number | boolean | undefined) => {
             updateSession((prev) => ({
                 ...prev,
                 exercises: prev.exercises.map((e) =>
@@ -623,6 +678,49 @@ export default function WorkoutSessionScreen() {
         },
         [updateSession],
     );
+
+    const updateSetPatch = useCallback(
+        (exerciseId: string, setId: string, patch: Partial<WorkoutSet>) => {
+            updateSession((prev) => ({
+                ...prev,
+                exercises: prev.exercises.map((e) =>
+                    e.id === exerciseId
+                        ? {
+                            ...e,
+                            sets: e.sets.map((s) => s.id === setId ? { ...s, ...patch } : s),
+                        }
+                        : e,
+                ),
+            }));
+        },
+        [updateSession],
+    );
+
+    const setWeightMode = useCallback((exerciseId: string, set: WorkoutSet, weightMode: "kg" | "bodyweight") => {
+        const key = cacheKey(exerciseId, set.id, "weight");
+        setTextCache((prev) => {
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+        updateSetPatch(exerciseId, set.id, weightMode === "bodyweight"
+            ? { weightMode, weight: 0 }
+            : { weightMode });
+    }, [updateSetPatch]);
+
+    const setEffortMode = useCallback((exerciseId: string, set: WorkoutSet, effortMode: "reps" | "duration") => {
+        const repsKey = cacheKey(exerciseId, set.id, "reps");
+        const durationKey = cacheKey(exerciseId, set.id, "durationSeconds");
+        setTextCache((prev) => {
+            const next = { ...prev };
+            delete next[repsKey];
+            delete next[durationKey];
+            return next;
+        });
+        updateSetPatch(exerciseId, set.id, effortMode === "duration"
+            ? { effortMode, reps: 0, durationSeconds: set.durationSeconds ?? 0 }
+            : { effortMode, durationSeconds: 0 });
+    }, [updateSetPatch]);
 
     const toggleSetCompleted = useCallback((exerciseId: string, setId: string) => {
         updateSession((prev) => ({
@@ -663,7 +761,7 @@ export default function WorkoutSessionScreen() {
             name: newExerciseName.trim(),
             isCustom: true,
             sets: [
-                { id: uid(), weight: 0, reps: 0, unit: "kg", completed: false },
+                { id: uid(), weight: 0, reps: 0, weightMode: "kg", effortMode: "reps", durationSeconds: 0, unit: "kg", completed: false },
             ],
         };
         const insertIndex = Math.max(0, Math.min(newExerciseIndex, session.exercises.length));
@@ -691,7 +789,7 @@ export default function WorkoutSessionScreen() {
     }, [updateSession]);
 
     const addSetToExercise = useCallback((exerciseId: string, isWarmup = false) => {
-        const newSet = { id: uid(), weight: 0, reps: 0, unit: "kg" as const, completed: false, isWarmup };
+        const newSet = { id: uid(), weight: 0, reps: 0, weightMode: "kg" as const, effortMode: "reps" as const, durationSeconds: 0, unit: "kg" as const, completed: false, isWarmup };
         updateSession((prev) => ({
             ...prev,
             exercises: prev.exercises.map((e) =>
@@ -797,7 +895,7 @@ export default function WorkoutSessionScreen() {
 
         const currentSession = materializeSessionInputs();
         const validExercises = currentSession.exercises.filter(
-            (e) => e.name.trim().length > 0 && e.sets.some((s) => s.weight > 0 || s.reps > 0),
+            (e) => e.name.trim().length > 0 && e.sets.some(hasLoggedSetData),
         );
 
         if (validExercises.length === 0) {
@@ -886,6 +984,7 @@ export default function WorkoutSessionScreen() {
                 duration: elapsed,
                 exerciseCount: validExercises.length,
                 setCount,
+                notes: completedSession.notes,
             });
         } catch (error) {
             console.error("[WorkoutSession] Kaydetme hatası:", error);
@@ -1014,6 +1113,8 @@ export default function WorkoutSessionScreen() {
 
     const renderExerciseItem = ({ item: exercise, drag, isActive, getIndex }: RenderItemParams<WorkoutExercise>) => {
         const exIndex = getIndex() ?? 0;
+        const hasBodyweightSet = exercise.sets.some((set) => set.weightMode === "bodyweight");
+        const hasDurationSet = exercise.sets.some((set) => set.effortMode === "duration");
         const getSetLabel = (set: WorkoutSet, sets: WorkoutSet[]) => {
             const sameTypeSets = sets.filter((candidate) => !!candidate.isWarmup === !!set.isWarmup);
             const setNumber = sameTypeSets.findIndex((candidate) => candidate.id === set.id) + 1;
@@ -1066,8 +1167,9 @@ export default function WorkoutSessionScreen() {
                         <View style={[styles.inputWrapper, { flex: 1 }]}>
                             <TextInput
                                 ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-weight`] = el; }}
-                                style={styles.numericInput}
-                                value={getTextValue(exercise.id, set.id, "weight", set.weight)}
+                                style={[styles.numericInput, set.weightMode === "bodyweight" && styles.exceptionInput]}
+                                value={set.weightMode === "bodyweight" ? "BW" : getTextValue(exercise.id, set.id, "weight", set.weight)}
+                                editable={set.weightMode !== "bodyweight"}
                                 onChangeText={(text) => {
                                     onNumericChange(exercise.id, set.id, "weight", text);
                                     if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
@@ -1090,20 +1192,20 @@ export default function WorkoutSessionScreen() {
                         <View style={[styles.inputWrapper, { flex: 1 }]}>
                             <TextInput
                                 ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-reps`] = el; }}
-                                style={styles.numericInput}
-                                value={getTextValue(exercise.id, set.id, "reps", set.reps)}
+                                style={[styles.numericInput, set.effortMode === "duration" && styles.exceptionInput]}
+                                value={getEffortTextValue(exercise.id, set)}
                                 onChangeText={(text) => {
-                                    onNumericChange(exercise.id, set.id, "reps", text);
+                                    onNumericChange(exercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" as any : "reps", text);
                                     if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
                                 }}
-                                onBlur={() => onNumericBlur(exercise.id, set.id, "reps", true)}
-                                placeholder={set.targetReps ?? exercise.targetReps ?? "0"}
+                                onBlur={() => onNumericBlur(exercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" : "reps", set.effortMode !== "duration")}
+                                placeholder={set.effortMode === "duration" ? "sn" : (set.targetReps ?? exercise.targetReps ?? "0")}
                                 placeholderTextColor={
-                                    (set.targetReps || exercise.targetReps)
+                                    set.effortMode !== "duration" && (set.targetReps || exercise.targetReps)
                                         ? colors.accentDark
                                         : colors.textMuted
                                 }
-                                keyboardType="number-pad"
+                                keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
                                 selectionColor={colors.accent}
                                 returnKeyType="next"
                                 onSubmitEditing={() => focusNext(exIndex, setIndex, "reps")}
@@ -1224,6 +1326,13 @@ export default function WorkoutSessionScreen() {
                                 <Ionicons name="trash-outline" size={20} color={colors.error} />
                             </TouchableOpacity>
                         )}
+                        <TouchableOpacity
+                            onPress={() => setSetSettingsExercise(exercise)}
+                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            style={styles.exerciseSettingsBtn}
+                        >
+                            <Ionicons name="options-outline" size={20} color={colors.textMuted} />
+                        </TouchableOpacity>
                     </View>
 
                     {isAutoSuggestEnabled && (
@@ -1237,8 +1346,8 @@ export default function WorkoutSessionScreen() {
 
                     <View style={styles.setHeaderRow}>
                         <Text style={[styles.setHeaderText, { flex: 0.5 }]}>SET</Text>
-                        <Text style={[styles.setHeaderText, { flex: 1 }]}>KG</Text>
-                        <Text style={[styles.setHeaderText, { flex: 1 }]}>TEKRAR</Text>
+                        <Text style={[styles.setHeaderText, { flex: 1 }]}>{hasBodyweightSet ? "KG/BW" : "KG"}</Text>
+                        <Text style={[styles.setHeaderText, { flex: 1 }]}>{hasDurationSet ? "TEKRAR/SURE" : "TEKRAR"}</Text>
                         {(rpeMode === "rpe" || rpeMode === "both") && (
                             <Text style={[styles.setHeaderText, { flex: 0.8 }]}>RPE</Text>
                         )}
@@ -1410,6 +1519,10 @@ export default function WorkoutSessionScreen() {
         return isWeb ? exerciseContent : <ScaleDecorator>{exerciseContent}</ScaleDecorator>;
     };
 
+    const settingsExercise = setSettingsExercise
+        ? session.exercises.find((exercise) => exercise.id === setSettingsExercise.id) ?? null
+        : null;
+
     // ─── Render ──────────────────────────────
 
     return (
@@ -1468,6 +1581,96 @@ export default function WorkoutSessionScreen() {
                 message={conceptNotice?.message ?? ""}
                 onClose={() => setConceptNotice(null)}
             />
+            <Modal
+                visible={!!settingsExercise}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSetSettingsExercise(null)}
+            >
+                <View style={styles.addExerciseOverlay}>
+                    <View style={styles.addExerciseModal}>
+                        <View style={styles.setSettingsHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.addExerciseTitle}>Set ayarları</Text>
+                                <Text style={styles.setSettingsSubtitle} numberOfLines={1}>
+                                    {settingsExercise?.name}
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setSetSettingsExercise(null)}
+                                style={styles.setSettingsCloseBtn}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Ionicons name="close" size={20} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView
+                            style={styles.setSettingsList}
+                            contentContainerStyle={styles.setSettingsListContent}
+                            showsVerticalScrollIndicator={false}
+                        >
+                            {settingsExercise && (() => {
+                                let warmupCount = 0;
+                                let workingCount = 0;
+                                return settingsExercise.sets.map((set) => {
+                                    const isWarmup = !!set.isWarmup;
+                                    if (isWarmup) warmupCount++;
+                                    else workingCount++;
+                                    const label = isWarmup ? `W${warmupCount}` : `${workingCount}`;
+                                    const currentWeightMode = set.weightMode ?? "kg";
+                                    const currentEffortMode = set.effortMode ?? "reps";
+
+                                    return (
+                                        <View key={set.id} style={styles.setSettingsRow}>
+                                            <View style={styles.setSettingsSetBadge}>
+                                                <Text style={styles.setSettingsSetText}>{label}</Text>
+                                            </View>
+                                            <View style={styles.setSettingsControls}>
+                                                <View style={styles.segmentedControl}>
+                                                    <TouchableOpacity
+                                                        style={[styles.segmentBtn, currentWeightMode === "kg" && styles.segmentBtnActive]}
+                                                        onPress={() => setWeightMode(settingsExercise.id, set, "kg")}
+                                                    >
+                                                        <Text style={[styles.segmentText, currentWeightMode === "kg" && styles.segmentTextActive]}>KG</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.segmentBtn, currentWeightMode === "bodyweight" && styles.segmentBtnActive]}
+                                                        onPress={() => setWeightMode(settingsExercise.id, set, "bodyweight")}
+                                                    >
+                                                        <Text style={[styles.segmentText, currentWeightMode === "bodyweight" && styles.segmentTextActive]}>BW</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                                <View style={styles.segmentedControl}>
+                                                    <TouchableOpacity
+                                                        style={[styles.segmentBtn, currentEffortMode === "reps" && styles.segmentBtnActive]}
+                                                        onPress={() => setEffortMode(settingsExercise.id, set, "reps")}
+                                                    >
+                                                        <Text style={[styles.segmentText, currentEffortMode === "reps" && styles.segmentTextActive]}>Tekrar</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.segmentBtn, currentEffortMode === "duration" && styles.segmentBtnActive]}
+                                                        onPress={() => setEffortMode(settingsExercise.id, set, "duration")}
+                                                    >
+                                                        <Text style={[styles.segmentText, currentEffortMode === "duration" && styles.segmentTextActive]}>Süre</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                            </View>
+                                        </View>
+                                    );
+                                });
+                            })()}
+                        </ScrollView>
+
+                        <TouchableOpacity
+                            style={styles.modalPrimaryBtn}
+                            onPress={() => setSetSettingsExercise(null)}
+                        >
+                            <Text style={styles.modalPrimaryText}>Tamam</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
             <Modal
                 visible={noteModalVisible}
                 transparent
@@ -1813,6 +2016,17 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingVertical: spacing.xs,
         marginRight: spacing.sm,
     },
+    exerciseSettingsBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: colors.border,
+        marginLeft: spacing.xs,
+    },
 
     // Set Header
     setHeaderRow: {
@@ -1876,6 +2090,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         minHeight: 48,
         borderWidth: 1.5,
         borderColor: colors.border,
+    },
+    exceptionInput: {
+        borderColor: colors.accent,
+        color: colors.accent,
     },
 
     // Complete Button
@@ -2027,6 +2245,86 @@ const createStyles = (colors: any) => StyleSheet.create({
     noteMetaText: {
         fontSize: fontSize.xs,
         color: colors.textMuted,
+    },
+    setSettingsHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+        marginBottom: spacing.md,
+    },
+    setSettingsSubtitle: {
+        color: colors.textMuted,
+        fontSize: fontSize.sm,
+        marginTop: -spacing.sm,
+    },
+    setSettingsCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    setSettingsList: {
+        maxHeight: 360,
+    },
+    setSettingsListContent: {
+        gap: spacing.sm,
+        paddingBottom: spacing.sm,
+    },
+    setSettingsRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        padding: spacing.sm,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+    },
+    setSettingsSetBadge: {
+        width: 42,
+        height: 42,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceLight,
+    },
+    setSettingsSetText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    setSettingsControls: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    segmentedControl: {
+        flexDirection: "row",
+        backgroundColor: colors.surfaceLight,
+        borderRadius: borderRadius.sm,
+        padding: 3,
+        gap: 3,
+    },
+    segmentBtn: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 30,
+        borderRadius: borderRadius.sm,
+    },
+    segmentBtnActive: {
+        backgroundColor: colors.accent,
+    },
+    segmentText: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    segmentTextActive: {
+        color: colors.background,
     },
     modalDangerText: {
         color: colors.error,

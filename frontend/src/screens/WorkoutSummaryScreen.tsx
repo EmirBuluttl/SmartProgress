@@ -2,7 +2,7 @@
 // WorkoutSummaryScreen — Post-workout özeti
 // Antrenman bitince gösterilen özet ekranı
 // ─────────────────────────────────────────────
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
     View,
     Text,
@@ -19,6 +19,7 @@ import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import AccentButton from "../components/AccentButton";
+import NoticeModal from "../components/NoticeModal";
 
 type SummaryRoute = RouteProp<RootStackParamList, "WorkoutSummary">;
 
@@ -42,10 +43,13 @@ export default function WorkoutSummaryScreen() {
         duration,
         exerciseCount,
         setCount,
+        notes,
     } = route.params;
 
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const [notesVisible, setNotesVisible] = useState(false);
+    const trimmedNotes = notes?.trim();
 
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -141,6 +145,19 @@ export default function WorkoutSummaryScreen() {
                 </Animated.View>
             )}
 
+            {trimmedNotes ? (
+                <Animated.View style={[styles.noteActionWrap, { opacity: fadeAnim }]}>
+                    <TouchableOpacity
+                        style={styles.noteActionBtn}
+                        onPress={() => setNotesVisible(true)}
+                        activeOpacity={0.85}
+                    >
+                        <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+                        <Text style={styles.noteActionText}>Notları Görüntüle</Text>
+                    </TouchableOpacity>
+                </Animated.View>
+            ) : null}
+
             {/* ─── Actions ─── */}
             <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
                 <AccentButton
@@ -149,6 +166,12 @@ export default function WorkoutSummaryScreen() {
                     style={{ minHeight: 56 }}
                 />
             </Animated.View>
+            <NoticeModal
+                visible={notesVisible}
+                title="Antrenman Notu"
+                message={trimmedNotes ?? ""}
+                onClose={() => setNotesVisible(false)}
+            />
         </ScrollView>
     );
 }
@@ -249,6 +272,26 @@ const createStyles = (colors: any) => StyleSheet.create({
     nextDayHint: {
         fontSize: fontSize.sm,
         color: colors.textMuted,
+    },
+    noteActionWrap: {
+        width: "100%",
+        marginBottom: spacing.lg,
+    },
+    noteActionBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        minHeight: 48,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+    },
+    noteActionText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     actions: {
         width: "100%",

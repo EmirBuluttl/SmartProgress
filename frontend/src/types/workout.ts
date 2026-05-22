@@ -8,7 +8,10 @@
 export interface WorkoutSet {
     id: string;
     weight: number;
+    weightMode?: "kg" | "bodyweight";
     reps: number;
+    effortMode?: "reps" | "duration";
+    durationSeconds?: number;
     unit: "kg" | "lbs";
     rpe?: number | string; // Rate of Perceived Exertion (1-10)
     rir?: number | string; // Reps in reserve
@@ -121,6 +124,9 @@ export interface SyncWorkoutPayload {
             sets: {
                 reps: number;
                 weight: number;
+                weightMode?: "kg" | "bodyweight";
+                effortMode?: "reps" | "duration";
+                durationSeconds?: number;
                 unit: "kg" | "lbs";
                 rpe?: number | string;
                 rir?: number | string;

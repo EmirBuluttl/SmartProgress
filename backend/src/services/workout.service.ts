@@ -27,6 +27,9 @@ const coerceInt = z.preprocess((val) => {
 const workoutSetSchema = z.object({
     reps: coerceInt.pipe(z.number().int().min(0)),
     weight: coerceNumber.pipe(z.number().nonnegative()),
+    weightMode: z.enum(["kg", "bodyweight"]).optional(),
+    effortMode: z.enum(["reps", "duration"]).optional(),
+    durationSeconds: coerceInt.pipe(z.number().int().min(0)).optional(),
     unit: z.enum(["kg", "lbs"]).default("kg"),
     rpe: z.union([z.number(), z.string()]).optional().nullable(),
     rir: z.union([z.number(), z.string()]).optional().nullable(),
@@ -116,7 +119,11 @@ function calculateLoadScore(data: any): number {
         const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
         return total + sets.reduce((setTotal: number, set: any) => {
             if (set?.isWarmup) return setTotal;
-            if (toNumber(set?.weight) <= 0 && toNumber(set?.reps) <= 0 && toNumber(set?.rpe) <= 0) return setTotal;
+            const hasLoggedData = toNumber(set?.weight) > 0 ||
+                toNumber(set?.reps) > 0 ||
+                toNumber(set?.durationSeconds) > 0 ||
+                toNumber(set?.rpe) > 0;
+            if (!hasLoggedData) return setTotal;
             const rpe = clampRpe(set?.rpe);
             return setTotal + (rpe > 0 ? rpe / 10 : 1);
         }, 0);
@@ -140,6 +147,13 @@ function normalizeWorkoutData(data: any) {
                     const rir = normalizeRirLogValue(set?.rir, set?.reps);
                     if (rir !== undefined) normalizedSet.rir = rir;
                     else delete normalizedSet.rir;
+
+                    normalizedSet.weightMode = set?.weightMode === "bodyweight" ? "bodyweight" : "kg";
+                    if (normalizedSet.weightMode === "bodyweight") normalizedSet.weight = 0;
+
+                    normalizedSet.effortMode = set?.effortMode === "duration" ? "duration" : "reps";
+                    normalizedSet.durationSeconds = Math.max(0, Math.floor(toNumber(set?.durationSeconds)));
+                    if (normalizedSet.effortMode !== "duration") normalizedSet.durationSeconds = 0;
 
                     return normalizedSet;
                 })
