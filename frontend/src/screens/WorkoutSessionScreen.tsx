@@ -1114,8 +1114,10 @@ export default function WorkoutSessionScreen() {
 
     const renderExerciseItem = ({ item: exercise, drag, isActive, getIndex }: RenderItemParams<WorkoutExercise>) => {
         const exIndex = getIndex() ?? 0;
-        const hasBodyweightSet = exercise.sets.some((set) => set.weightMode === "bodyweight");
-        const hasDurationSet = exercise.sets.some((set) => set.effortMode === "duration");
+        const weightModes = new Set(exercise.sets.map((set) => set.weightMode === "bodyweight" ? "BW" : "KG"));
+        const effortModes = new Set(exercise.sets.map((set) => set.effortMode === "duration" ? "SÜRE" : "TEKRAR"));
+        const weightHeader = weightModes.size === 1 ? [...weightModes][0] : "KG/BW";
+        const effortHeader = effortModes.size === 1 ? [...effortModes][0] : "TEKRAR/SÜRE";
         const getSetLabel = (set: WorkoutSet, sets: WorkoutSet[]) => {
             const sameTypeSets = sets.filter((candidate) => !!candidate.isWarmup === !!set.isWarmup);
             const setNumber = sameTypeSets.findIndex((candidate) => candidate.id === set.id) + 1;
@@ -1347,8 +1349,8 @@ export default function WorkoutSessionScreen() {
 
                     <View style={styles.setHeaderRow}>
                         <Text style={[styles.setHeaderText, { flex: 0.5 }]}>SET</Text>
-                        <Text style={[styles.setHeaderText, { flex: 1 }]}>{hasBodyweightSet ? "KG/BW" : "KG"}</Text>
-                        <Text style={[styles.setHeaderText, { flex: 1 }]}>{hasDurationSet ? "TEKRAR/SURE" : "TEKRAR"}</Text>
+                        <Text style={[styles.setHeaderText, { flex: 1 }]}>{weightHeader}</Text>
+                        <Text style={[styles.setHeaderText, { flex: 1 }]}>{effortHeader}</Text>
                         {(rpeMode === "rpe" || rpeMode === "both") && (
                             <Text style={[styles.setHeaderText, { flex: 0.8 }]}>RPE</Text>
                         )}
