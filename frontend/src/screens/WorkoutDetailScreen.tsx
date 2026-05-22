@@ -27,6 +27,15 @@ function formatDuration(seconds: number): string {
     return `${m}dk ${s > 0 ? `${s}s` : ""}`;
 }
 
+function formatSetDuration(seconds: number): string {
+    const total = Math.max(0, Math.floor(Number(seconds) || 0));
+    if (total <= 0) return "—";
+    if (total < 60) return `${total}sn`;
+    const minutes = Math.floor(total / 60);
+    const remainder = total % 60;
+    return `${minutes}:${String(remainder).padStart(2, "0")}`;
+}
+
 function formatDate(iso: string): string {
     const d = new Date(iso);
     return d.toLocaleDateString("tr-TR", {
@@ -113,8 +122,8 @@ export default function WorkoutDetailScreen() {
                                 {/* Header */}
                                 <View style={styles.setHeaderRow}>
                                     <Text style={[styles.setHeaderCell, { flex: 0.4 }]}>SET</Text>
-                                    <Text style={[styles.setHeaderCell, { flex: 1 }]}>AĞIRLIK</Text>
-                                    <Text style={[styles.setHeaderCell, { flex: 0.8 }]}>TEKRAR</Text>
+                                    <Text style={[styles.setHeaderCell, { flex: 1 }]}>AGIRLIK</Text>
+                                    <Text style={[styles.setHeaderCell, { flex: 0.8 }]}>TEKRAR/SURE</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 0.6 }]}>RPE</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 0.6 }]}>RIR</Text>
                                 </View>
@@ -136,10 +145,12 @@ export default function WorkoutDetailScreen() {
                                             {label}
                                         </Text>
                                         <Text style={[styles.setCell, styles.setCellAccent, { flex: 1 }]}>
-                                            {set.weight > 0 ? `${set.weight} ${set.unit || "kg"}` : "—"}
+                                            {set.weightLabel === "BW" ? "BW" : set.weight > 0 ? `${set.weight} ${set.unit || "kg"}` : "—"}
                                         </Text>
                                         <Text style={[styles.setCell, { flex: 0.8 }]}>
-                                            {set.reps > 0 ? `${set.reps}` : "—"}
+                                            {set.effortType === "duration"
+                                                ? formatSetDuration(set.durationSeconds)
+                                                : set.reps > 0 ? `${set.reps}` : "—"}
                                         </Text>
                                         <Text style={[styles.setCell, { flex: 0.6 }]}>
                                             {set.rpe ? set.rpe : "—"}
