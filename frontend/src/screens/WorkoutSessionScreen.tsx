@@ -215,7 +215,7 @@ export default function WorkoutSessionScreen() {
     const [elapsed, setElapsed] = useState(0);
     const [finishing, setFinishing] = useState(false);
     const [restored, setRestored] = useState(false);
-    const [rpeMode, setRpeMode] = useState<"rpe" | "rir" | "both">("rpe");
+    const [rpeMode, setRpeMode] = useState<"none" | "rpe" | "rir" | "both">("none");
     const [recentlyAddedExerciseId, setRecentlyAddedExerciseId] = useState<string | null>(null);
     const [emptyFinishModalVisible, setEmptyFinishModalVisible] = useState(false);
     const [exitModalVisible, setExitModalVisible] = useState(false);
@@ -1021,13 +1021,14 @@ export default function WorkoutSessionScreen() {
 
     const cycleMode = () => {
         setRpeMode((prev) => {
+            if (prev === "none") return "rpe";
             if (prev === "rpe") return "rir";
             if (prev === "rir") return "both";
-            return "rpe";
+            return "none";
         });
     };
 
-    const modeLabelMap = { rpe: "RPE", rir: "RIR", both: "RPE+RIR" };
+    const modeLabelMap = { none: "RPE/RIR Kapalı", rpe: "RPE", rir: "RIR", both: "RPE+RIR" };
 
     const renderHeader = () => (
         <View style={styles.listHeader}>
