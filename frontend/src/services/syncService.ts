@@ -39,13 +39,10 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
             exercises: session.exercises.map((ex) => ({
                 name: ex.name,
                 sets: ex.sets
-                    .filter((s) => s.weight > 0 || s.weightLabel === "BW" || s.reps > 0 || (s.durationSeconds ?? 0) > 0)
+                    .filter((s) => s.weight > 0 || s.reps > 0)
                     .map((s) => ({
                         reps: s.reps,
                         weight: s.weight,
-                        weightLabel: s.weightLabel,
-                        effortType: s.effortType ?? "reps",
-                        durationSeconds: s.durationSeconds ?? 0,
                         unit: s.unit,
                         rpe: s.rpe !== undefined && s.rpe !== "" ? clampRpe(s.rpe) : undefined,
                         rir: normalizeRirLogValue((s as any).rir, s.reps),

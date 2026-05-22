@@ -1,9 +1,6 @@
 type AnySet = {
     weight?: number | string;
-    weightLabel?: string | null;
     reps?: number | string;
-    effortType?: string | null;
-    durationSeconds?: number | string;
     rpe?: number | string | null;
     rir?: number | string | null;
     unit?: "kg" | "lbs" | string;
@@ -87,11 +84,7 @@ function isWorkingSet(set: AnySet): boolean {
 }
 
 function hasLoggedSetData(set: AnySet): boolean {
-    return toNumber(set.weight) > 0 ||
-        String(set.weightLabel || "").toUpperCase() === "BW" ||
-        toNumber(set.reps) > 0 ||
-        toNumber(set.durationSeconds) > 0 ||
-        toNumber(set.rpe) > 0;
+    return toNumber(set.weight) > 0 || toNumber(set.reps) > 0 || toNumber(set.rpe) > 0;
 }
 
 export function calculateLoadScoreFromExercises(exercises: AnyExercise[] = []): number {

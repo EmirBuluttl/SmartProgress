@@ -88,55 +88,10 @@ function insertSetByType<T extends { isWarmup?: boolean }>(sets: T[], nextSet: T
     return copy;
 }
 
-function createEmptyWorkoutSet(isWarmup = false): WorkoutSet {
-    return {
-        id: uid(),
-        weight: 0,
-        reps: 0,
-        effortType: "reps",
-        durationSeconds: 0,
-        unit: "kg",
-        completed: false,
-        isWarmup,
-    };
-}
-
-function parseDurationInput(raw: string): number {
-    const value = raw.trim().toLowerCase().replace(/\s+/g, "");
-    if (!value) return 0;
-
-    const timeParts = value.split(":");
-    if (timeParts.length === 2) {
-        const minutes = parseInt(timeParts[0], 10) || 0;
-        const seconds = parseInt(timeParts[1], 10) || 0;
-        return Math.max(0, minutes * 60 + seconds);
-    }
-
-    const stripped = value.replace(/sn|sec|s/g, "");
-    return Math.max(0, parseInt(stripped, 10) || 0);
-}
-
-function formatDurationInput(seconds: number | string | undefined): string {
-    const total = Math.max(0, Math.floor(Number(seconds) || 0));
-    if (total <= 0) return "";
-    if (total < 60) return String(total);
-    const minutes = Math.floor(total / 60);
-    const remainder = total % 60;
-    return `${minutes}:${String(remainder).padStart(2, "0")}`;
-}
-
-function hasLoggedSetData(set: WorkoutSet): boolean {
-    return Number(set.weight) > 0 ||
-        set.weightLabel === "BW" ||
-        Number(set.reps) > 0 ||
-        Number(set.durationSeconds) > 0 ||
-        Number(set.rpe) > 0;
-}
-
 function hasLoggedWorkoutData(session: WorkoutSession): boolean {
     return session.exercises.some((exercise) =>
         exercise.name.trim().length > 0 &&
-        exercise.sets.some(hasLoggedSetData),
+        exercise.sets.some((set) => Number(set.weight) > 0 || Number(set.reps) > 0 || Number(set.rpe) > 0),
     );
 }
 
@@ -283,15 +238,6 @@ export default function WorkoutSessionScreen() {
         return numericValue > 0 ? String(numericValue) : "";
     };
 
-    const getEffortTextValue = (exerciseId: string, set: WorkoutSet): string => {
-        if (set.effortType === "duration") {
-            const key = cacheKey(exerciseId, set.id, "durationSeconds");
-            if (key in textCache) return textCache[key];
-            return formatDurationInput(set.durationSeconds);
-        }
-        return getTextValue(exerciseId, set.id, "reps", set.reps);
-    };
-
     const onNumericChange = (exerciseId: string, setId: string, field: keyof WorkoutSet, text: string) => {
         // Replace comma with dot for Turkish keyboards
         const normalized = text.replace(/,/g, ".");
@@ -303,16 +249,6 @@ export default function WorkoutSessionScreen() {
         const key = cacheKey(exerciseId, setId, field as string);
         const raw = textCache[key];
         if (raw === undefined) return;
-
-        if (field === "durationSeconds") {
-            updateSet(exerciseId, setId, field as any, parseDurationInput(raw));
-            setTextCache((prev) => {
-                const next = { ...prev };
-                delete next[key];
-                return next;
-            });
-            return;
-        }
 
         // RIR accepts string ranges like "1-2", "2-3" — preserve as-is
         if (field === "rir") {
@@ -345,7 +281,6 @@ export default function WorkoutSessionScreen() {
         const nextSet = { ...set };
         const weightRaw = textCache[cacheKey(exerciseId, set.id, "weight")];
         const repsRaw = textCache[cacheKey(exerciseId, set.id, "reps")];
-        const durationRaw = textCache[cacheKey(exerciseId, set.id, "durationSeconds")];
         const rpeRaw = textCache[cacheKey(exerciseId, set.id, "rpe")];
         const rirRaw = textCache[cacheKey(exerciseId, set.id, "rir")];
 
@@ -354,9 +289,6 @@ export default function WorkoutSessionScreen() {
         }
         if (repsRaw !== undefined) {
             nextSet.reps = parseInt(repsRaw, 10) || 0;
-        }
-        if (durationRaw !== undefined) {
-            nextSet.durationSeconds = parseDurationInput(durationRaw);
         }
         if (rpeRaw !== undefined) {
             nextSet.rpe = clampRpe(rpeRaw);
@@ -511,8 +443,12 @@ export default function WorkoutSessionScreen() {
                                     ? undefined
                                     : exercisePreviousWeights[workingSetIndex++];
                                 return {
-                                    ...createEmptyWorkoutSet(isWarmup),
+                                    id: uid(),
+                                    weight: 0,
+                                    reps: 0,
                                     rpe: 0,
+                                    unit: "kg" as const,
+                                    completed: false,
                                     isWarmup,
                                     targetReps: ts?.targetReps,
                                     targetWeight: previousWeight ? String(previousWeight) : ts?.targetWeight,
@@ -670,7 +606,7 @@ export default function WorkoutSessionScreen() {
     }, [updateSession]);
 
     const updateSet = useCallback(
-        (exerciseId: string, setId: string, field: keyof WorkoutSet, value: string | number | boolean | undefined) => {
+        (exerciseId: string, setId: string, field: keyof WorkoutSet, value: string | number | boolean) => {
             updateSession((prev) => ({
                 ...prev,
                 exercises: prev.exercises.map((e) =>
@@ -687,58 +623,6 @@ export default function WorkoutSessionScreen() {
         },
         [updateSession],
     );
-
-    const updateSetPatch = useCallback(
-        (exerciseId: string, setId: string, patch: Partial<WorkoutSet>) => {
-            updateSession((prev) => ({
-                ...prev,
-                exercises: prev.exercises.map((e) =>
-                    e.id === exerciseId
-                        ? {
-                            ...e,
-                            sets: e.sets.map((s) =>
-                                s.id === setId ? { ...s, ...patch } : s,
-                            ),
-                        }
-                        : e,
-                ),
-            }));
-        },
-        [updateSession],
-    );
-
-    const toggleBodyweightSet = useCallback((exerciseId: string, set: WorkoutSet) => {
-        const key = cacheKey(exerciseId, set.id, "weight");
-        setTextCache((prev) => {
-            const next = { ...prev };
-            delete next[key];
-            return next;
-        });
-        updateSetPatch(
-            exerciseId,
-            set.id,
-            set.weightLabel === "BW"
-                ? { weightLabel: undefined }
-                : { weightLabel: "BW", weight: 0 },
-        );
-    }, [updateSetPatch]);
-
-    const toggleSetEffortType = useCallback((exerciseId: string, set: WorkoutSet) => {
-        const repsKey = cacheKey(exerciseId, set.id, "reps");
-        const durationKey = cacheKey(exerciseId, set.id, "durationSeconds");
-        setTextCache((prev) => {
-            const next = { ...prev };
-            delete next[repsKey];
-            delete next[durationKey];
-            return next;
-        });
-
-        if (set.effortType === "duration") {
-            updateSetPatch(exerciseId, set.id, { effortType: "reps", durationSeconds: 0 });
-        } else {
-            updateSetPatch(exerciseId, set.id, { effortType: "duration", reps: 0, durationSeconds: set.durationSeconds ?? 0 });
-        }
-    }, [updateSetPatch]);
 
     const toggleSetCompleted = useCallback((exerciseId: string, setId: string) => {
         updateSession((prev) => ({
@@ -778,7 +662,9 @@ export default function WorkoutSessionScreen() {
             id: uid(),
             name: newExerciseName.trim(),
             isCustom: true,
-            sets: [createEmptyWorkoutSet()],
+            sets: [
+                { id: uid(), weight: 0, reps: 0, unit: "kg", completed: false },
+            ],
         };
         const insertIndex = Math.max(0, Math.min(newExerciseIndex, session.exercises.length));
         updateSession((prev) => {
@@ -805,7 +691,7 @@ export default function WorkoutSessionScreen() {
     }, [updateSession]);
 
     const addSetToExercise = useCallback((exerciseId: string, isWarmup = false) => {
-        const newSet = createEmptyWorkoutSet(isWarmup);
+        const newSet = { id: uid(), weight: 0, reps: 0, unit: "kg" as const, completed: false, isWarmup };
         updateSession((prev) => ({
             ...prev,
             exercises: prev.exercises.map((e) =>
@@ -911,7 +797,7 @@ export default function WorkoutSessionScreen() {
 
         const currentSession = materializeSessionInputs();
         const validExercises = currentSession.exercises.filter(
-            (e) => e.name.trim().length > 0 && e.sets.some(hasLoggedSetData),
+            (e) => e.name.trim().length > 0 && e.sets.some((s) => s.weight > 0 || s.reps > 0),
         );
 
         if (validExercises.length === 0) {
@@ -1177,71 +1063,52 @@ export default function WorkoutSessionScreen() {
                             </TouchableOpacity>
                         )}
 
-                        <View style={[styles.inputWrapper, { flex: 1.25 }]}>
-                            <View style={styles.inputWithChip}>
-                                <TextInput
-                                    ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-weight`] = el; }}
-                                    style={[styles.numericInput, styles.inputWithChipField, set.weightLabel === "BW" && styles.numericInputActiveChip]}
-                                    value={set.weightLabel === "BW" ? "BW" : getTextValue(exercise.id, set.id, "weight", set.weight)}
-                                    editable={set.weightLabel !== "BW"}
-                                    onChangeText={(text) => {
-                                        onNumericChange(exercise.id, set.id, "weight", text);
-                                        if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
-                                    }}
-                                    onBlur={() => onNumericBlur(exercise.id, set.id, "weight")}
-                                    placeholder={set.targetWeight ?? exercise.targetWeight ?? "0"}
-                                    placeholderTextColor={
-                                        (set.targetWeight || exercise.targetWeight)
-                                            ? colors.accentDark
-                                            : colors.textMuted
-                                    }
-                                    keyboardType="decimal-pad"
-                                    selectionColor={colors.accent}
-                                    returnKeyType="next"
-                                    onSubmitEditing={() => focusNext(exIndex, setIndex, "weight")}
-                                    blurOnSubmit={false}
-                                />
-                                <TouchableOpacity
-                                    onPress={() => toggleBodyweightSet(exercise.id, set)}
-                                    style={[styles.inlineChipButton, set.weightLabel === "BW" && styles.inlineChipButtonActive]}
-                                >
-                                    <Text style={[styles.inlineChipText, set.weightLabel === "BW" && styles.inlineChipTextActive]}>BW</Text>
-                                </TouchableOpacity>
-                            </View>
+                        <View style={[styles.inputWrapper, { flex: 1 }]}>
+                            <TextInput
+                                ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-weight`] = el; }}
+                                style={styles.numericInput}
+                                value={getTextValue(exercise.id, set.id, "weight", set.weight)}
+                                onChangeText={(text) => {
+                                    onNumericChange(exercise.id, set.id, "weight", text);
+                                    if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
+                                }}
+                                onBlur={() => onNumericBlur(exercise.id, set.id, "weight")}
+                                placeholder={set.targetWeight ?? exercise.targetWeight ?? "0"}
+                                placeholderTextColor={
+                                    (set.targetWeight || exercise.targetWeight)
+                                        ? colors.accentDark
+                                        : colors.textMuted
+                                }
+                                keyboardType="decimal-pad"
+                                selectionColor={colors.accent}
+                                returnKeyType="next"
+                                onSubmitEditing={() => focusNext(exIndex, setIndex, "weight")}
+                                blurOnSubmit={false}
+                            />
                         </View>
 
-                        <View style={[styles.inputWrapper, { flex: 1.25 }]}>
-                            <View style={styles.inputWithChip}>
-                                <TextInput
-                                    ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-reps`] = el; }}
-                                    style={[styles.numericInput, styles.inputWithChipField]}
-                                    value={getEffortTextValue(exercise.id, set)}
-                                    onChangeText={(text) => {
-                                        onNumericChange(exercise.id, set.id, set.effortType === "duration" ? "durationSeconds" as any : "reps", text);
-                                        if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
-                                    }}
-                                    onBlur={() => onNumericBlur(exercise.id, set.id, set.effortType === "duration" ? "durationSeconds" : "reps", set.effortType !== "duration")}
-                                    placeholder={set.effortType === "duration" ? "sn" : (set.targetReps ?? exercise.targetReps ?? "0")}
-                                    placeholderTextColor={
-                                        set.effortType !== "duration" && (set.targetReps || exercise.targetReps)
-                                            ? colors.accentDark
-                                            : colors.textMuted
-                                    }
-                                    keyboardType="number-pad"
-                                    selectionColor={colors.accent}
-                                    returnKeyType="next"
-                                    onSubmitEditing={() => focusNext(exIndex, setIndex, "reps")}
-                                    blurOnSubmit={false}
-                                />
-                                <TouchableOpacity
-                                    onPress={() => toggleSetEffortType(exercise.id, set)}
-                                    style={[styles.inlineChipButton, set.effortType === "duration" && styles.inlineChipButtonActive]}
-                                >
-                                    <Text style={[styles.inlineChipText, set.effortType === "duration" && styles.inlineChipTextActive]}>
-                                        {set.effortType === "duration" ? "SN" : "REP"}
-                                    </Text>
-                                </TouchableOpacity>
-                            </View>
+                        <View style={[styles.inputWrapper, { flex: 1 }]}>
+                            <TextInput
+                                ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-reps`] = el; }}
+                                style={styles.numericInput}
+                                value={getTextValue(exercise.id, set.id, "reps", set.reps)}
+                                onChangeText={(text) => {
+                                    onNumericChange(exercise.id, set.id, "reps", text);
+                                    if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
+                                }}
+                                onBlur={() => onNumericBlur(exercise.id, set.id, "reps", true)}
+                                placeholder={set.targetReps ?? exercise.targetReps ?? "0"}
+                                placeholderTextColor={
+                                    (set.targetReps || exercise.targetReps)
+                                        ? colors.accentDark
+                                        : colors.textMuted
+                                }
+                                keyboardType="number-pad"
+                                selectionColor={colors.accent}
+                                returnKeyType="next"
+                                onSubmitEditing={() => focusNext(exIndex, setIndex, "reps")}
+                                blurOnSubmit={false}
+                            />
                         </View>
 
                         {(rpeMode === "rpe" || rpeMode === "both") && (
@@ -1370,8 +1237,8 @@ export default function WorkoutSessionScreen() {
 
                     <View style={styles.setHeaderRow}>
                         <Text style={[styles.setHeaderText, { flex: 0.5 }]}>SET</Text>
-                        <Text style={[styles.setHeaderText, { flex: 1.25 }]}>KG/BW</Text>
-                        <Text style={[styles.setHeaderText, { flex: 1.25 }]}>REP/SN</Text>
+                        <Text style={[styles.setHeaderText, { flex: 1 }]}>KG</Text>
+                        <Text style={[styles.setHeaderText, { flex: 1 }]}>TEKRAR</Text>
                         {(rpeMode === "rpe" || rpeMode === "both") && (
                             <Text style={[styles.setHeaderText, { flex: 0.8 }]}>RPE</Text>
                         )}
@@ -1997,11 +1864,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     inputWrapper: {
         marginHorizontal: spacing.xs,
     },
-    inputWithChip: {
-        flexDirection: "row",
-        alignItems: "center",
-        gap: 4,
-    },
     numericInput: {
         backgroundColor: colors.surfaceLight,
         borderRadius: borderRadius.sm,
@@ -2014,36 +1876,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         minHeight: 48,
         borderWidth: 1.5,
         borderColor: colors.border,
-    },
-    inputWithChipField: {
-        flex: 1,
-    },
-    numericInputActiveChip: {
-        color: colors.accent,
-        borderColor: colors.accent,
-    },
-    inlineChipButton: {
-        minWidth: 34,
-        height: 48,
-        borderRadius: borderRadius.sm,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surfaceLight,
-        alignItems: "center",
-        justifyContent: "center",
-        paddingHorizontal: 5,
-    },
-    inlineChipButtonActive: {
-        borderColor: colors.accent,
-        backgroundColor: colors.accentMuted,
-    },
-    inlineChipText: {
-        fontSize: fontSize.xs,
-        fontWeight: fontWeight.bold,
-        color: colors.textMuted,
-    },
-    inlineChipTextActive: {
-        color: colors.accent,
     },
 
     // Complete Button
