@@ -22,6 +22,16 @@ export class NotificationController {
             next(error);
         }
     }
+
+    async clear(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const result = await notificationService.clearForUser(userId);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
 }
 
 export const notificationController = new NotificationController();

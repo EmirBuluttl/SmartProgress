@@ -236,6 +236,15 @@ export default function HomeScreen() {
         }
     };
 
+    const clearNotifications = async () => {
+        try {
+            const res = await notificationApi.clear();
+            setNotifications(res.data.notifications || []);
+        } catch (err) {
+            console.warn("[HomeScreen] Failed to clear notifications:", err);
+        }
+    };
+
     return (
         <>
         <ScrollView
@@ -667,9 +676,16 @@ export default function HomeScreen() {
                 <View style={styles.notificationModal}>
                     <View style={styles.notificationHeader}>
                         <Text style={styles.notificationTitle}>Bildirimler</Text>
-                        <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
-                            <Ionicons name="close" size={24} color={colors.text} />
-                        </TouchableOpacity>
+                        <View style={styles.notificationHeaderActions}>
+                            {notifications.length > 0 ? (
+                                <TouchableOpacity onPress={clearNotifications} style={styles.notificationClearBtn}>
+                                    <Text style={styles.notificationClearText}>Temizle</Text>
+                                </TouchableOpacity>
+                            ) : null}
+                            <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
+                                <Ionicons name="close" size={24} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                     {notifications.length === 0 ? (
                         <View style={styles.notificationEmpty}>
@@ -856,6 +872,25 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         marginBottom: spacing.md,
+    },
+    notificationHeaderActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    notificationClearBtn: {
+        minHeight: 34,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    notificationClearText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     notificationTitle: {
         color: colors.text,

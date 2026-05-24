@@ -27,6 +27,12 @@ export class NotificationRepository {
         });
     }
 
+    clearForUser(userId: string) {
+        return prisma.notification.deleteMany({
+            where: { userId },
+        });
+    }
+
     findProgramSplitPrompt(userId: string, programId: string) {
         return prisma.notification.findFirst({
             where: {

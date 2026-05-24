@@ -229,6 +229,7 @@ export const programApi = {
 export const notificationApi = {
     list: (params?: { limit?: number }) => api.get("/notifications", { params }),
     markRead: (id: string) => api.patch(`/notifications/${id}/read`),
+    clear: () => api.delete("/notifications"),
 };
 
 export const profileApi = {

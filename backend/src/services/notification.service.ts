@@ -16,6 +16,11 @@ export class NotificationService {
         return this.listForUser(userId);
     }
 
+    async clearForUser(userId: string) {
+        await notificationRepository.clearForUser(userId);
+        return this.listForUser(userId);
+    }
+
     async ensureSplitTagPromptNotificationsForUser(userId: string) {
         const programs = await prisma.program.findMany({
             where: {
