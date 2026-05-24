@@ -24,6 +24,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import { parseApiError, programApi, workoutApi } from "../services/api";
 import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
+import NoticeModal from "../components/NoticeModal";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -80,6 +81,7 @@ export default function ProgramDetailScreen() {
     const [socialBusy, setSocialBusy] = useState(false);
     const [syncingSource, setSyncingSource] = useState(false);
     const [workoutCount, setWorkoutCount] = useState(0);
+    const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -255,7 +257,7 @@ export default function ProgramDetailScreen() {
         try {
             const res = await programApi.syncSource(program.id);
             setProgram(res.data as ProgramData);
-            showAlert("Güncellendi", "Program kopyan kaynak programın son sürümüne geçirildi.");
+            setNotice({ title: "Güncellendi", message: "Program kopyan kaynak programın son sürümüne geçirildi." });
         } catch (err) {
             const apiError = parseApiError(err);
             showAlert("Hata", apiError.message || "Program güncellenemedi.");
@@ -579,6 +581,12 @@ export default function ProgramDetailScreen() {
                     if (selectedDayIndex !== null) navigateToDayDetail(selectedDayIndex);
                 }}
                 onDismiss={() => setSelectedDayIndex(null)}
+            />
+            <NoticeModal
+                visible={!!notice}
+                title={notice?.title ?? ""}
+                message={notice?.message ?? ""}
+                onClose={() => setNotice(null)}
             />
         </View>
     );
