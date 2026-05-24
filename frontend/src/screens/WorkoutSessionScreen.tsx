@@ -17,7 +17,7 @@ import {
     Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
@@ -46,6 +46,7 @@ import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
+import { summarizeCardioBlocks } from "../utils/cardio";
 
 // ─── Constants ───────────────────────────────
 
@@ -72,6 +73,7 @@ function createSession(): WorkoutSession {
         title: "",
         sportId: DEFAULT_SPORT_ID,
         exercises: [],
+        cardioBlocks: [],
         startedAt: new Date().toISOString(),
         totalDuration: 0,
         status: "active",
@@ -116,8 +118,18 @@ function hasLoggedSetData(set: WorkoutSet): boolean {
         Number(set.rpe) > 0;
 }
 
+function hasLoggedCardioData(session: WorkoutSession): boolean {
+    return (session.cardioBlocks || []).some((block) =>
+        Number(block.totalDuration) > 0 ||
+        Number(block.totalDistance) > 0 ||
+        Number(block.totalSteps) > 0 ||
+        Number(block.totalCalories) > 0 ||
+        (Array.isArray(block.stages) && block.stages.length > 0),
+    );
+}
+
 function hasLoggedWorkoutData(session: WorkoutSession): boolean {
-    return session.exercises.some((exercise) =>
+    return hasLoggedCardioData(session) || session.exercises.some((exercise) =>
         exercise.name.trim().length > 0 &&
         exercise.sets.some(hasLoggedSetData),
     );
@@ -608,6 +620,21 @@ export default function WorkoutSessionScreen() {
         loadLatestBodyWeight();
     }, [loadLatestBodyWeight]);
 
+    useFocusEffect(
+        useCallback(() => {
+            if (!restored || finishingRef.current) return;
+            let mounted = true;
+            restoreActiveSession().then((saved) => {
+                if (!mounted || !saved || saved.id !== session.id) return;
+                setSession(saved);
+                setElapsed(getElapsedSeconds(saved));
+            });
+            return () => {
+                mounted = false;
+            };
+        }, [restored, session.id]),
+    );
+
     // ─── Timer ───────────────────────────────
     useEffect(() => {
         intervalRef.current = setInterval(() => {
@@ -1004,8 +1031,15 @@ export default function WorkoutSessionScreen() {
         const validExercises = currentSession.exercises.filter(
             (e) => e.name.trim().length > 0 && e.sets.some(hasLoggedSetData),
         );
+        const validCardioBlocks = (currentSession.cardioBlocks || []).filter((block) =>
+            Number(block.totalDuration) > 0 ||
+            Number(block.totalDistance) > 0 ||
+            Number(block.totalSteps) > 0 ||
+            Number(block.totalCalories) > 0 ||
+            (Array.isArray(block.stages) && block.stages.length > 0),
+        );
 
-        if (validExercises.length === 0) {
+        if (validExercises.length === 0 && validCardioBlocks.length === 0) {
             setEmptyFinishModalVisible(true);
             return;
         }
@@ -1021,6 +1055,7 @@ export default function WorkoutSessionScreen() {
             const completedSession: WorkoutSession = {
                 ...currentSession,
                 exercises: validExercises,
+                cardioBlocks: validCardioBlocks,
                 completedAt: new Date().toISOString(),
                 totalDuration: elapsed,
                 totalVolume: calculateLoadScoreFromExercises(validExercises),
@@ -1092,6 +1127,7 @@ export default function WorkoutSessionScreen() {
                 exerciseCount: validExercises.length,
                 setCount,
                 notes: completedSession.notes,
+                cardioBlocks: completedSession.cardioBlocks,
             });
         } catch (error) {
             console.error("[WorkoutSession] Kaydetme hatası:", error);
@@ -1136,6 +1172,12 @@ export default function WorkoutSessionScreen() {
     };
 
     const modeLabelMap = { none: "RPE/RIR Kapalı", rpe: "RPE", rir: "RIR", both: "RPE+RIR" };
+
+    const openCardioSession = async (cardioBlockId?: string) => {
+        const activeSession = { ...materializeSessionInputs(), totalDuration: elapsed };
+        await saveActiveSession(activeSession);
+        navigation.navigate("CardioSession", cardioBlockId ? { cardioBlockId } : undefined);
+    };
 
     const renderHeader = () => (
         <View style={styles.listHeader}>
@@ -1209,6 +1251,24 @@ export default function WorkoutSessionScreen() {
 
     const renderFooter = () => (
         <View style={styles.listFooter}>
+            {(session.cardioBlocks || []).length > 0 ? (
+                <View style={styles.cardioSummaryCard}>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.cardioSummaryTitle}>Kardiyo</Text>
+                        <Text style={styles.cardioSummaryText}>{summarizeCardioBlocks(session.cardioBlocks)}</Text>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.cardioAddSmallBtn}
+                        onPress={() => openCardioSession(session.cardioBlocks?.[0]?.id)}
+                    >
+                        <Ionicons name="create-outline" size={18} color={colors.accent} />
+                    </TouchableOpacity>
+                </View>
+            ) : null}
+            <TouchableOpacity style={styles.cardioAddBtn} onPress={() => openCardioSession()} activeOpacity={0.86}>
+                <Ionicons name="pulse-outline" size={18} color={colors.accent} />
+                <Text style={styles.cardioAddText}>Kardiyo Ekle</Text>
+            </TouchableOpacity>
             <AccentButton
                 title="Antrenmanı Bitir"
                 onPress={finishWorkout}
@@ -2319,6 +2379,54 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     listFooter: {
         marginTop: spacing.md,
+    },
+    cardioAddBtn: {
+        minHeight: 50,
+        marginBottom: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+    },
+    cardioAddText: {
+        color: colors.accent,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    cardioSummaryCard: {
+        marginBottom: spacing.md,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    cardioSummaryTitle: {
+        color: colors.textPrimary,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    cardioSummaryText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        marginTop: spacing.xs,
+    },
+    cardioAddSmallBtn: {
+        width: 40,
+        height: 40,
+        borderRadius: 20,
+        alignItems: "center",
+        justifyContent: "center",
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
     },
 
     // Add Set

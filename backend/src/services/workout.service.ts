@@ -73,7 +73,6 @@ const cardioBlockSchema = z.object({
 const workoutDataSchema = z.object({
     exercises: z
         .array(workoutExerciseSchema)
-        .min(1, "At least one exercise is required")
         .optional(),
     totalDuration: coerceInt.optional(),
     totalVolume: coerceNumber.optional(),
