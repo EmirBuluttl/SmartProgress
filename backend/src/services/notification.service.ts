@@ -18,7 +18,11 @@ export class NotificationService {
 
     async clearForUser(userId: string) {
         await notificationRepository.clearForUser(userId);
-        return this.listForUser(userId);
+        const [items, unreadCount] = await Promise.all([
+            notificationRepository.listByUser(userId),
+            notificationRepository.unreadCount(userId),
+        ]);
+        return { notifications: items, unreadCount };
     }
 
     async ensureSplitTagPromptNotificationsForUser(userId: string) {

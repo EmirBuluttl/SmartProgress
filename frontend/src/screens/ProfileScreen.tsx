@@ -721,8 +721,8 @@ function HeatmapCalendar({ workouts, colors, heatmapStyles }: { workouts: any[],
 function calculateStreak(workouts: any[], programs: any[] = []): number {
     if (!workouts.length) return 0;
 
-    // Create a Set of all dates the user worked out
-    const workedOutDates = new Set(workouts.map((w) => new Date(w.logDate).toDateString()));
+    // One or more workouts on the same calendar day count as a single streak day.
+    const workedOutDates = new Set(workouts.map((w) => workoutDateKey(w.logDate)));
     let streak = 0;
     const today = new Date();
 
@@ -747,7 +747,7 @@ function calculateStreak(workouts: any[], programs: any[] = []): number {
     for (let i = 0; i < 365; i++) {
         const day = new Date(today);
         day.setDate(today.getDate() - i);
-        const dayString = day.toDateString();
+        const dayString = workoutDateKey(day);
 
         if (workedOutDates.has(dayString)) {
             streak++;
@@ -760,6 +760,11 @@ function calculateStreak(workouts: any[], programs: any[] = []): number {
         }
     }
     return streak;
+}
+
+function workoutDateKey(value: string | Date): string {
+    const date = value instanceof Date ? value : new Date(value);
+    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 }
 
 // ─── Styles ─────────────────────────────────
