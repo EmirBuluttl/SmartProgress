@@ -56,6 +56,7 @@ export default function ProfileScreen() {
         user?.settings?.profile_visibility === "public"
     );
     const [themePickerVisible, setThemePickerVisible] = useState(false);
+    const [rememberInfoVisible, setRememberInfoVisible] = useState(false);
 
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 5 });
     const [programs, setPrograms] = useState<any[]>([]);
@@ -347,7 +348,12 @@ export default function ProfileScreen() {
                             <Ionicons name="repeat-outline" size={20} color={colors.accent} />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.settingTitle}>Tekrarlarımı Hatırla</Text>
+                            <View style={styles.settingTitleRow}>
+                                <Text style={styles.settingTitle}>Tekrarlarımı Hatırla</Text>
+                                <TouchableOpacity onPress={() => setRememberInfoVisible(true)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                    <Ionicons name="information-circle-outline" size={17} color={colors.accent} />
+                                </TouchableOpacity>
+                            </View>
                             <Text style={styles.settingDesc}>Açıkken placeholder son log tekrarını önceliklendirir</Text>
                         </View>
                     </View>
@@ -544,6 +550,45 @@ export default function ProfileScreen() {
                         onPress={() => setThemePickerVisible(false)}
                     >
                         <Text style={styles.themeModalCloseText}>Kapat</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+        <Modal
+            visible={rememberInfoVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setRememberInfoVisible(false)}
+        >
+            <View style={styles.themeModalOverlay}>
+                <View style={styles.themeModalCard}>
+                    <Text style={styles.themeModalTitle}>Tekrarlarımı Hatırla</Text>
+                    <Text style={styles.themeModalDesc}>
+                        Kapalıyken programdaki hedef tekrar görünür. Açıkken aynı hareket için son logladığın tekrar sayısı öncelik kazanır.
+                    </Text>
+                    <View style={styles.rememberCompareRow}>
+                        <View style={styles.rememberExampleCard}>
+                            <Text style={styles.rememberExampleTitle}>Kapalı</Text>
+                            <Text style={styles.rememberInputLabel}>Tekrar</Text>
+                            <View style={styles.rememberFakeInput}>
+                                <Text style={styles.rememberFakePlaceholder}>8-12</Text>
+                            </View>
+                            <Text style={styles.rememberExampleText}>Program hedefi</Text>
+                        </View>
+                        <View style={styles.rememberExampleCard}>
+                            <Text style={styles.rememberExampleTitle}>Açık</Text>
+                            <Text style={styles.rememberInputLabel}>Tekrar</Text>
+                            <View style={styles.rememberFakeInput}>
+                                <Text style={styles.rememberFakePlaceholder}>10</Text>
+                            </View>
+                            <Text style={styles.rememberExampleText}>Son logun</Text>
+                        </View>
+                    </View>
+                    <TouchableOpacity
+                        style={styles.themeModalClose}
+                        onPress={() => setRememberInfoVisible(false)}
+                    >
+                        <Text style={styles.themeModalCloseText}>Anladım</Text>
                     </TouchableOpacity>
                 </View>
             </View>
@@ -864,6 +909,11 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.semibold,
         color: colors.text,
     },
+    settingTitleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
     settingDesc: {
         fontSize: fontSize.xs,
         color: colors.textMuted,
@@ -1020,6 +1070,48 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
+    },
+    rememberCompareRow: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginBottom: spacing.lg,
+    },
+    rememberExampleCard: {
+        flex: 1,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceLight,
+        padding: spacing.md,
+    },
+    rememberExampleTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        marginBottom: spacing.sm,
+    },
+    rememberInputLabel: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        marginBottom: spacing.xs,
+    },
+    rememberFakeInput: {
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.sm,
+        marginBottom: spacing.sm,
+    },
+    rememberFakePlaceholder: {
+        color: colors.accent,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    rememberExampleText: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
     },
 });
 

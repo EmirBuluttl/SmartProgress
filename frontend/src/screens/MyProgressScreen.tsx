@@ -49,6 +49,7 @@ export default function MyProgressScreen() {
 
     const [filter, setFilter] = React.useState<TimeFilter>("1A");
     const [chartMetric, setChartMetric] = React.useState<ChartMetric>("progress:all");
+    const [splitFilter, setSplitFilter] = React.useState("Tümü");
     const [allWorkouts, setAllWorkouts] = React.useState<any[]>([]);
     const [bodyMeasurements, setBodyMeasurements] = React.useState<any[]>([]);
     const [nutritionLogs, setNutritionLogs] = React.useState<any[]>([]);
@@ -78,6 +79,11 @@ export default function MyProgressScreen() {
         ];
     }, [allWorkouts]);
 
+    const splitOptions = React.useMemo(() => {
+        const labels = Array.from(new Set(allWorkouts.map((workout) => String(workout.title || "Genel"))));
+        return ["Tümü", ...labels];
+    }, [allWorkouts]);
+
     const buildChartData = (
         workouts: any[],
         measurements: any[],
@@ -88,11 +94,14 @@ export default function MyProgressScreen() {
         const cutoff = new Date();
         cutoff.setDate(cutoff.getDate() - FILTER_DAYS[activeFilter]);
         cutoff.setHours(0, 0, 0, 0);
+        const scopedWorkouts = splitFilter === "Tümü"
+            ? workouts
+            : workouts.filter((workout) => String(workout.title || "Genel") === splitFilter);
         const labels: string[] = [];
         let dataPoints: number[] = [];
 
         if (metric === "progress:all") {
-            buildProgressTrend(workouts)
+            buildProgressTrend(scopedWorkouts)
                 .filter((point) => new Date(point.date || 0) >= cutoff && point.comparable > 0)
                 .forEach((point, idx) => {
                     dataPoints.push(point.percentage);
@@ -100,7 +109,7 @@ export default function MyProgressScreen() {
                 });
         } else if (metric.startsWith("exercise:")) {
             const exerciseName = metric.replace("exercise:", "");
-            buildExerciseScoreTrend(workouts, exerciseName)
+            buildExerciseScoreTrend(scopedWorkouts, exerciseName)
                 .filter((point) => new Date(point.date || 0) >= cutoff && point.comparable)
                 .forEach((point, idx) => {
                     dataPoints.push(point.score);
@@ -195,7 +204,7 @@ export default function MyProgressScreen() {
             buildChartData(allWorkouts, bodyMeasurements, nutritionLogs, filter, chartMetric);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [filter, chartMetric]);
+    }, [filter, chartMetric, splitFilter]);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -229,6 +238,24 @@ export default function MyProgressScreen() {
                         >
                             <Text style={[styles.metricFilterText, chartMetric === option.key && styles.metricFilterTextActive]}>
                                 {option.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
+
+                <ScrollView
+                    horizontal
+                    showsHorizontalScrollIndicator={false}
+                    contentContainerStyle={styles.metricFilterRow}
+                >
+                    {splitOptions.map((option) => (
+                        <TouchableOpacity
+                            key={option}
+                            style={[styles.splitFilterBtn, splitFilter === option && styles.metricFilterBtnActive]}
+                            onPress={() => setSplitFilter(option)}
+                        >
+                            <Text style={[styles.metricFilterText, splitFilter === option && styles.metricFilterTextActive]}>
+                                {option}
                             </Text>
                         </TouchableOpacity>
                     ))}
@@ -465,6 +492,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+    },
+    splitFilterBtn: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.full,
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.surface,

@@ -29,6 +29,7 @@ export interface PersonalRecord {
     reps: number;
     unit: string;
     date?: string;
+    splitLabel?: string;
 }
 
 export interface ProgressPoint {
@@ -157,7 +158,7 @@ export function getPersonalRecords(workouts: AnyWorkout[]): PersonalRecord[] {
             const key = normalizeExerciseName(best.exercise);
             const current = records.get(key);
             if (beatsRecord(best, current)) {
-                records.set(key, { ...best, date: workout.logDate });
+                records.set(key, { ...best, date: workout.logDate, splitLabel: String((workout as any).title || "Genel") });
             }
         });
     });

@@ -50,11 +50,14 @@ interface ProgramData {
     starCount?: number;
     sourceProgramId?: string | null;
     user?: {
+        id?: string;
         firstName?: string;
         lastName?: string;
         nickname?: string | null;
         avatarUrl?: string | null;
     };
+    sourceProgram?: ProgramData;
+    sourceUpdateAvailable?: boolean;
     data: {
         frequency?: number;
         days: ProgramDay[];
@@ -75,6 +78,7 @@ export default function ProgramDetailScreen() {
     const [confirmDeleteVisible, setConfirmDeleteVisible] = useState(false);
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
     const [socialBusy, setSocialBusy] = useState(false);
+    const [syncingSource, setSyncingSource] = useState(false);
     const [workoutCount, setWorkoutCount] = useState(0);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
@@ -245,6 +249,21 @@ export default function ProgramDetailScreen() {
         }
     };
 
+    const syncFromSource = async () => {
+        if (!program || syncingSource) return;
+        setSyncingSource(true);
+        try {
+            const res = await programApi.syncSource(program.id);
+            setProgram(res.data as ProgramData);
+            showAlert("Güncellendi", "Program kopyan kaynak programın son sürümüne geçirildi.");
+        } catch (err) {
+            const apiError = parseApiError(err);
+            showAlert("Hata", apiError.message || "Program güncellenemedi.");
+        } finally {
+            setSyncingSource(false);
+        }
+    };
+
     if (loading) {
         return (
             <View style={s.centered}>
@@ -372,7 +391,13 @@ export default function ProgramDetailScreen() {
                             </Text>
                         </View>
                         {program.isPublic && ownerName ? (
-                            <View style={s.ownerPill}>
+                            <TouchableOpacity
+                                style={s.ownerPill}
+                                activeOpacity={0.75}
+                                onPress={() => {
+                                    if (program.user?.id) navigation.navigate("PublicProfile", { userId: program.user.id });
+                                }}
+                            >
                                 {program.user?.avatarUrl ? (
                                     <Image source={{ uri: program.user.avatarUrl }} style={s.ownerAvatar} />
                                 ) : (
@@ -381,7 +406,7 @@ export default function ProgramDetailScreen() {
                                     </View>
                                 )}
                                 <Text style={s.metaText}>{ownerName}</Text>
-                            </View>
+                            </TouchableOpacity>
                         ) : null}
                         {program.isPublic && (
                             <TouchableOpacity
@@ -416,6 +441,23 @@ export default function ProgramDetailScreen() {
                             <Ionicons name="library-outline" size={16} color={colors.background} />
                             <Text style={s.copyBtnText}>Kitaplığıma Ekle</Text>
                         </TouchableOpacity>
+                    )}
+                    {program.sourceUpdateAvailable && (
+                        <View style={s.sourceUpdateBox}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={s.sourceUpdateTitle}>Kaynak program güncellendi</Text>
+                                <Text style={s.sourceUpdateText}>
+                                    İstersen bu kopyayı program sahibinin son sürümüne geçirebilirsin.
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                style={s.sourceUpdateBtn}
+                                onPress={syncFromSource}
+                                disabled={syncingSource}
+                            >
+                                <Text style={s.sourceUpdateBtnText}>{syncingSource ? "..." : "Güncelle"}</Text>
+                            </TouchableOpacity>
+                        </View>
                     )}
                 </View>
 
@@ -659,6 +701,38 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
         color: colors.background,
+    },
+    sourceUpdateBox: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+        borderRadius: borderRadius.md,
+        padding: spacing.md,
+        marginTop: spacing.md,
+    },
+    sourceUpdateTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    sourceUpdateText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        marginTop: 2,
+    },
+    sourceUpdateBtn: {
+        backgroundColor: colors.accent,
+        borderRadius: borderRadius.sm,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+    },
+    sourceUpdateBtnText: {
+        color: colors.background,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
     },
 
     // Current day banner

@@ -4,6 +4,7 @@
 import { Program } from "@prisma/client";
 import { programRepository } from "../repositories/program.repository";
 import { NotFoundError, ForbiddenError, BadRequestError } from "../utils/errors";
+import prisma from "../config/prisma";
 
 // ─── DTOs ────────────────────────────────────
 
@@ -130,7 +131,15 @@ export class ProgramService {
             console.warn(`[ProgramService] getProgramById: ACCESS DENIED. requestUserId=${userId}, ownerUserId=${program.userId}`);
             throw new ForbiddenError("You don't have access to this program");
         }
-        return this.decorateProgram(program, userId);
+        const decorated: any = this.decorateProgram(program, userId);
+        if (decorated.sourceProgramId) {
+            const source = await programRepository.findByIdWithSocial(decorated.sourceProgramId, userId);
+            if (source?.isPublic || source?.userId === userId) {
+                decorated.sourceProgram = this.decorateProgram(source, userId);
+                decorated.sourceUpdateAvailable = source.updatedAt > decorated.updatedAt;
+            }
+        }
+        return decorated;
     }
 
     async starProgram(userId: string, programId: string) {
@@ -177,6 +186,31 @@ export class ProgramService {
             data: source.data,
             isPublic: false,
             sourceProgramId: source.sourceProgramId ?? source.id,
+        });
+    }
+
+    async syncLibraryCopyFromSource(userId: string, programId: string): Promise<Program> {
+        const copy = await programRepository.findById(programId);
+        if (!copy) {
+            throw new NotFoundError("Program not found");
+        }
+        if (copy.userId !== userId) {
+            throw new ForbiddenError("You can only update your own library programs");
+        }
+        if (!copy.sourceProgramId) {
+            throw new BadRequestError("This program is not linked to a source program");
+        }
+
+        const source = await programRepository.findById(copy.sourceProgramId);
+        if (!source || !source.isPublic) {
+            throw new NotFoundError("Source program is no longer available");
+        }
+
+        return programRepository.update(programId, {
+            name: source.name,
+            description: source.description,
+            frequency: source.frequency,
+            data: source.data as any,
         });
     }
 
@@ -245,7 +279,9 @@ export class ProgramService {
         if (dto.frequency !== undefined) updateData.frequency = dto.frequency;
         if (dto.data !== undefined) updateData.data = dto.data;
 
-        return programRepository.update(programId, updateData);
+        const updated = await programRepository.update(programId, updateData);
+        await this.notifyLibraryCopiesAboutSourceUpdate(program, updated);
+        return updated;
     }
 
     /**
@@ -260,6 +296,49 @@ export class ProgramService {
             throw new ForbiddenError("You can only delete your own programs");
         }
         return programRepository.deleteById(programId);
+    }
+
+    private async notifyLibraryCopiesAboutSourceUpdate(previous: Program, updated: Program) {
+        if (!updated.isPublic || updated.sourceProgramId) return;
+        const meaningfulChange =
+            previous.name !== updated.name ||
+            previous.description !== updated.description ||
+            previous.frequency !== updated.frequency ||
+            JSON.stringify(previous.data) !== JSON.stringify(updated.data);
+        if (!meaningfulChange) return;
+
+        const copies = await programRepository.findLibraryCopiesBySource(updated.id);
+        for (const copy of copies) {
+            if (copy.userId === updated.userId) continue;
+            const existingUnread = await prisma.notification.findFirst({
+                where: {
+                    userId: copy.userId,
+                    readAt: null,
+                    type: "SOURCE_PROGRAM_UPDATED",
+                    metadata: {
+                        path: ["sourceProgramId"],
+                        equals: updated.id,
+                    },
+                },
+            });
+            if (existingUnread) continue;
+
+            await prisma.notification.create({
+                data: {
+                    userId: copy.userId,
+                    type: "SOURCE_PROGRAM_UPDATED",
+                    title: "Kaydettiğin program güncellendi",
+                    message: `"${updated.name}" programının sahibi yeni bir sürüm yayınladı. İstersen kütüphanendeki kopyayı güncelleyebilirsin.`,
+                    actionLabel: "Kopyayı Aç",
+                    actionScreen: "ProgramDetail",
+                    actionParams: { programId: copy.id },
+                    metadata: {
+                        programId: copy.id,
+                        sourceProgramId: updated.id,
+                    },
+                },
+            });
+        }
     }
 }
 

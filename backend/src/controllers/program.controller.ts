@@ -299,6 +299,17 @@ export class ProgramController {
         }
     }
 
+    async syncSource(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const programId = req.params.id as string;
+            const program = await programService.syncLibraryCopyFromSource(userId, programId);
+            res.status(200).json(program);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     /**
      * GET /suggest/:exerciseName
      * Auto-regulation weight suggestion.

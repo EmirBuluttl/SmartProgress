@@ -53,6 +53,20 @@ export class ProgramRepository {
         });
     }
 
+    async findLibraryCopiesBySource(sourceProgramId: string) {
+        return prisma.program.findMany({
+            where: {
+                sourceProgramId,
+            },
+            select: {
+                id: true,
+                userId: true,
+                name: true,
+                updatedAt: true,
+            },
+        });
+    }
+
     /**
      * Update program visibility (public/private).
      */

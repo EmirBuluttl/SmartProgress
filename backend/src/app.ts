@@ -11,6 +11,7 @@ import programRoutes from "./routes/program.routes";
 import bodyMeasurementRoutes from "./routes/bodyMeasurement.routes";
 import nutritionRoutes from "./routes/nutrition.routes";
 import notificationRoutes from "./routes/notification.routes";
+import profileRoutes from "./routes/profile.routes";
 
 // Middleware imports
 import { errorHandler } from "./middlewares/errorHandler";
@@ -80,6 +81,7 @@ app.use("/api/v1/programs", programRoutes);
 app.use("/api/v1/body-measurements", bodyMeasurementRoutes);
 app.use("/api/v1/nutrition", nutritionRoutes);
 app.use("/api/v1/notifications", notificationRoutes);
+app.use("/api/v1/profiles", profileRoutes);
 
 // ─────────────────────────────────────────────
 // 404 Handler

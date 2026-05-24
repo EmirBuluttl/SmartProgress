@@ -24,6 +24,7 @@ interface PRRecord {
     reps: number;
     unit: string;
     date: string;
+    splitLabel?: string;
 }
 
 export default function RecordsScreen() {
@@ -32,6 +33,7 @@ export default function RecordsScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     const [records, setRecords] = useState<PRRecord[]>([]);
+    const [splitFilter, setSplitFilter] = useState("Tümü");
     const [loading, setLoading] = useState(true);
 
     useFocusEffect(
@@ -91,6 +93,17 @@ export default function RecordsScreen() {
         </View>
     );
 
+    const splitOptions = React.useMemo(() => {
+        const labels = Array.from(new Set(records.map((record) => record.splitLabel || "Genel")));
+        return ["Tümü", ...labels];
+    }, [records]);
+
+    const visibleRecords = React.useMemo(() => (
+        splitFilter === "Tümü"
+            ? records
+            : records.filter((record) => (record.splitLabel || "Genel") === splitFilter)
+    ), [records, splitFilter]);
+
     if (loading) {
         return (
             <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
@@ -120,14 +133,32 @@ export default function RecordsScreen() {
                     <Text style={styles.emptySubtext}>Antrenman loglarınızdan rekorlar otomatik hesaplanır.</Text>
                 </View>
             ) : (
-                <FlatList
-                    data={records}
-                    keyExtractor={(item) => item.exercise}
-                    renderItem={renderItem}
-                    contentContainerStyle={styles.listContent}
-                    showsVerticalScrollIndicator={false}
-                    ItemSeparatorComponent={() => <View style={styles.separator} />}
-                />
+                <>
+                    <View style={styles.filterWrap}>
+                        <FlatList
+                            horizontal
+                            data={splitOptions}
+                            keyExtractor={(item) => item}
+                            showsHorizontalScrollIndicator={false}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    style={[styles.filterChip, splitFilter === item && styles.filterChipActive]}
+                                    onPress={() => setSplitFilter(item)}
+                                >
+                                    <Text style={[styles.filterChipText, splitFilter === item && styles.filterChipTextActive]}>{item}</Text>
+                                </TouchableOpacity>
+                            )}
+                        />
+                    </View>
+                    <FlatList
+                        data={visibleRecords}
+                        keyExtractor={(item) => item.exercise}
+                        renderItem={renderItem}
+                        contentContainerStyle={styles.listContent}
+                        showsVerticalScrollIndicator={false}
+                        ItemSeparatorComponent={() => <View style={styles.separator} />}
+                    />
+                </>
             )}
         </View>
     );
@@ -157,6 +188,31 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.lg,
         paddingBottom: spacing.xxxl,
+    },
+    filterWrap: {
+        paddingHorizontal: spacing.lg,
+        paddingTop: spacing.md,
+    },
+    filterChip: {
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.full,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        marginRight: spacing.sm,
+    },
+    filterChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    filterChipText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    filterChipTextActive: {
+        color: colors.accent,
     },
     recordRow: {
         flexDirection: "row",

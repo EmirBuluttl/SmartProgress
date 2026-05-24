@@ -23,6 +23,7 @@ import RecordsScreen from "../screens/RecordsScreen";
 import CommunityProgramsScreen from "../screens/CommunityProgramsScreen";
 import BodyMeasurementsScreen from "../screens/BodyMeasurementsScreen";
 import NutritionScreen from "../screens/NutritionScreen";
+import PublicProfileScreen from "../screens/PublicProfileScreen";
 
 // ─── Types ───────────────────────────────────
 
@@ -88,6 +89,7 @@ export type RootStackParamList = {
     Records: undefined;
     BodyMeasurements: undefined;
     Nutrition: undefined;
+    PublicProfile: { userId: string };
 };
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
@@ -176,6 +178,11 @@ function AppNavigator() {
             <AppStack.Screen
                 name="Nutrition"
                 component={NutritionScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="PublicProfile"
+                component={PublicProfileScreen}
                 options={{ animation: "slide_from_right" }}
             />
         </AppStack.Navigator>

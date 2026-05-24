@@ -216,6 +216,8 @@ export const programApi = {
 
     copyToLibrary: (id: string) => api.post(`/programs/${id}/copy`),
 
+    syncSource: (id: string) => api.post(`/programs/${id}/sync-source`),
+
     /** Delete a program by ID */
     deleteProgram: (id: string) => api.delete(`/programs/${id}`),
 
@@ -227,6 +229,10 @@ export const programApi = {
 export const notificationApi = {
     list: (params?: { limit?: number }) => api.get("/notifications", { params }),
     markRead: (id: string) => api.patch(`/notifications/${id}/read`),
+};
+
+export const profileApi = {
+    getPublicProfile: (userId: string) => api.get(`/profiles/${userId}`),
 };
 
 export default api;
