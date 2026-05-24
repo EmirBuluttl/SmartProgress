@@ -18,7 +18,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { restoreActiveSession, saveActiveSession } from "../services/syncService";
 import { CardioBlock, CardioStage, CardioType, WorkoutSession } from "../types/workout";
-import { CARDIO_TYPE_LABELS, formatCardioDuration, getCardioStageDuration, summarizeCardioBlock } from "../utils/cardio";
+import { CARDIO_TYPE_LABELS, formatCardioDuration, getCardioStageDuration, summarizeCardioBlock, summarizeCardioStage } from "../utils/cardio";
 
 type Route = RouteProp<RootStackParamList, "CardioSession">;
 
@@ -77,6 +77,29 @@ function applyDraftToStage(stage: CardioStage, draft: DraftValues): CardioStage 
         calories: toNumber(draft.calories),
         note: draft.note.trim() || undefined,
     };
+}
+
+function draftFromStage(stage?: CardioStage | null): DraftValues {
+    if (!stage) return emptyDraft;
+    return {
+        speed: stage.speed ? String(stage.speed) : "",
+        incline: stage.incline ? String(stage.incline) : "",
+        resistance: stage.resistance ? String(stage.resistance) : "",
+        rpm: stage.rpm ? String(stage.rpm) : "",
+        distance: stage.distance ? String(stage.distance) : "",
+        steps: stage.steps ? String(stage.steps) : "",
+        calories: stage.calories ? String(stage.calories) : "",
+        note: stage.note || "",
+    };
+}
+
+function metricChanged(stage: CardioStage, draft: DraftValues): boolean {
+    const keys: (keyof DraftValues)[] = ["speed", "incline", "resistance", "rpm", "distance", "steps", "calories"];
+    return keys.some((key) => {
+        const current = (stage as any)[key];
+        const next = toNumber(draft[key]);
+        return (current || undefined) !== (next || undefined);
+    });
 }
 
 function closeStage(stage: CardioStage, now = Date.now()): CardioStage {
@@ -164,7 +187,10 @@ export default function CardioSessionScreen() {
                 : undefined;
             if (existing) setBlock(existing);
             else if (activeBlock) setBlock(activeBlock);
-            if (saved?.activeCardioStage) setActiveStage(saved.activeCardioStage);
+            if (saved?.activeCardioStage) {
+                setActiveStage(saved.activeCardioStage);
+                setDraft(draftFromStage(saved.activeCardioStage));
+            }
         });
         return () => {
             mounted = false;
@@ -209,6 +235,16 @@ export default function CardioSessionScreen() {
 
     const updateDraft = (key: keyof DraftValues, value: string) => {
         setDraft((prev) => ({ ...prev, [key]: value }));
+    };
+
+    const autoAdvanceStageIfMetricsChanged = async () => {
+        if (!block || !activeStage || !metricChanged(activeStage, draft)) return;
+        const closedStage = closeStage(activeStage);
+        const nextBlock = { ...block, stages: [...block.stages, closedStage] };
+        const nextStage = buildStageFromDraft(draft, false);
+        setBlock(nextBlock);
+        setActiveStage(nextStage);
+        await persistCardioState(nextBlock, nextStage);
     };
 
     const startStage = async (isRest = false) => {
@@ -316,6 +352,7 @@ export default function CardioSessionScreen() {
                             placeholderTextColor={colors.textMuted}
                             keyboardType="decimal-pad"
                             style={styles.input}
+                            onBlur={autoAdvanceStageIfMetricsChanged}
                         />
                     </View>
                 ))}
@@ -391,6 +428,7 @@ export default function CardioSessionScreen() {
                                     <View key={stage.id} style={styles.stageRow}>
                                         <View style={{ flex: 1 }}>
                                             <Text style={styles.stageTitle}>{stage.isRest ? "Mola" : `Stage ${index + 1}`}</Text>
+                                            <Text style={styles.stageMetric}>{summarizeCardioStage(stage, index)}</Text>
                                             {stage.note ? <Text style={styles.stageNote}>{stage.note}</Text> : null}
                                         </View>
                                         <Text style={styles.stageMeta}>{formatCardioDuration(stage.duration)}</Text>
@@ -522,6 +560,7 @@ function createStyles(colors: any) {
             justifyContent: "space-between",
         },
         stageTitle: { color: colors.text, fontWeight: fontWeight.semibold },
+        stageMetric: { color: colors.accent, fontSize: fontSize.sm, marginTop: 2 },
         stageNote: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 },
         stageMeta: { color: colors.textSecondary },
         footer: { gap: spacing.md, marginTop: spacing.md },

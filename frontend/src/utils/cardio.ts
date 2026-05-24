@@ -26,11 +26,29 @@ export function getCardioStageDuration(stage: CardioStage, now = Date.now()): nu
 }
 
 export function summarizeCardioBlock(block: CardioBlock): string {
+    const stageDetails = (block.stages || [])
+        .map((stage, index) => summarizeCardioStage(stage, index))
+        .filter(Boolean);
     const parts = [formatCardioDuration(block.totalDuration)];
     if (block.totalDistance && block.totalDistance > 0) parts.push(`${block.totalDistance.toFixed(2)} km`);
     if (block.totalSteps && block.totalSteps > 0) parts.push(`${Math.round(block.totalSteps)} adim`);
     if (block.totalCalories && block.totalCalories > 0) parts.push(`${Math.round(block.totalCalories)} kcal`);
+    if (stageDetails.length > 0) parts.push(stageDetails.join(" / "));
     return parts.join(" | ");
+}
+
+export function summarizeCardioStage(stage: CardioStage, index?: number): string {
+    const metrics: string[] = [];
+    if (stage.speed && stage.speed > 0) metrics.push(`${stage.speed} hiz`);
+    if (stage.incline && stage.incline > 0) metrics.push(`${stage.incline} egim`);
+    if (stage.resistance && stage.resistance > 0) metrics.push(`${stage.resistance} direnc`);
+    if (stage.rpm && stage.rpm > 0) metrics.push(`${stage.rpm} RPM`);
+    if (stage.distance && stage.distance > 0) metrics.push(`${stage.distance} km`);
+    if (stage.steps && stage.steps > 0) metrics.push(`${Math.round(stage.steps)} adim`);
+    if (stage.calories && stage.calories > 0) metrics.push(`${Math.round(stage.calories)} kcal`);
+    if (metrics.length === 0) return "";
+    const prefix = stage.isRest ? "Mola" : index !== undefined ? `S${index + 1}` : "Stage";
+    return `${prefix}: ${metrics.join(", ")}`;
 }
 
 export function summarizeCardioBlocks(blocks: CardioBlock[] | undefined): string {
