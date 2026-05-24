@@ -36,6 +36,15 @@ import NoticeModal from "../components/NoticeModal";
 
 const FREQUENCY_OPTIONS = [2, 3, 4, 5, 6, 7];
 const MAX_PROGRAM_DAYS = 7;
+const SPLIT_OPTIONS = [
+    { key: "PPL", label: "PPL", desc: "Push Pull Legs" },
+    { key: "AP", label: "AP", desc: "Anterior Posterior" },
+    { key: "UL", label: "UL", desc: "Upper Lower" },
+    { key: "TL", label: "TL", desc: "Torso Limbs" },
+    { key: "FB", label: "FB", desc: "Full Body" },
+    { key: "OTHER", label: "Diğer", desc: "Özel split" },
+] as const;
+type ProgramSplitType = typeof SPLIT_OPTIONS[number]["key"];
 
 type PendingAction =
     | null
@@ -132,6 +141,8 @@ export default function ProgramCreateScreen() {
     const [showRPE, setShowRPE] = useState(false);
     const [showRIR, setShowRIR] = useState(false);
     const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
+    const [splitModalVisible, setSplitModalVisible] = useState(false);
+    const [selectedSplit, setSelectedSplit] = useState<ProgramSplitType>("OTHER");
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
     const [copyTargetsVisible, setCopyTargetsVisible] = useState(false);
     const [validationNotice, setValidationNotice] = useState<{ title: string; message: string } | null>(null);
@@ -147,6 +158,10 @@ export default function ProgramCreateScreen() {
         if (isEditMode && editProgramData) {
             setName(editProgramData.name || "");
             setDescription(editProgramData.description || "");
+            const existingSplit = String(editProgramData.data?.splitType || "").toUpperCase();
+            if (SPLIT_OPTIONS.some((option) => option.key === existingSplit)) {
+                setSelectedSplit(existingSplit as ProgramSplitType);
+            }
             const freq = editProgramData.data?.frequency ?? null;
             setFrequency(typeof freq === "number" ? freq : null);
             const rawDays = editProgramData.data?.days || editProgramData.days || [];
@@ -568,12 +583,14 @@ export default function ProgramCreateScreen() {
         setPrivacyModalVisible(true);
     }, [name, days]);
 
-    const doSave = useCallback(async (isPublic: boolean) => {
+    const doSave = useCallback(async (isPublic: boolean, splitType?: ProgramSplitType) => {
         setPrivacyModalVisible(false);
+        setSplitModalVisible(false);
         try {
             setIsSaving(true);
             const programData = {
                 ...(frequency !== null ? { frequency } : {}),
+                ...(isPublic ? { splitType: splitType ?? selectedSplit } : {}),
                 days: days.map((d) => ({
                     label: d.label,
                     isRestDay: !!d.isRestDay,
@@ -615,7 +632,7 @@ export default function ProgramCreateScreen() {
         } finally {
             setIsSaving(false);
         }
-    }, [days, frequency, name, description, isEditMode, editProgramId, navigation]);
+    }, [days, frequency, name, description, isEditMode, editProgramId, navigation, selectedSplit]);
 
     const activeDay = days[activeDayIdx];
 
@@ -1091,9 +1108,60 @@ export default function ProgramCreateScreen() {
             <PrivacyModal
                 visible={privacyModalVisible}
                 onSelectPrivate={() => doSave(false)}
-                onSelectPublic={() => doSave(true)}
+                onSelectPublic={() => {
+                    setPrivacyModalVisible(false);
+                    setSplitModalVisible(true);
+                }}
                 onCancel={() => setPrivacyModalVisible(false)}
             />
+            <Modal
+                visible={splitModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSplitModalVisible(false)}
+            >
+                <View style={styles.splitOverlay}>
+                    <View style={styles.splitModal}>
+                        <Text style={styles.splitTitle}>Program Spliti</Text>
+                        <Text style={styles.splitMessage}>
+                            Public programların keşfette filtrelenebilmesi için split tipini seç.
+                        </Text>
+                        <View style={styles.splitGrid}>
+                            {SPLIT_OPTIONS.map((option) => {
+                                const isActive = selectedSplit === option.key;
+                                return (
+                                    <TouchableOpacity
+                                        key={option.key}
+                                        style={[styles.splitOption, isActive && styles.splitOptionActive]}
+                                        onPress={() => setSelectedSplit(option.key)}
+                                    >
+                                        <Text style={[styles.splitOptionLabel, isActive && styles.splitOptionLabelActive]}>
+                                            {option.label}
+                                        </Text>
+                                        <Text style={[styles.splitOptionDesc, isActive && styles.splitOptionDescActive]}>
+                                            {option.desc}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        <View style={styles.splitActions}>
+                            <TouchableOpacity
+                                style={styles.splitSecondaryBtn}
+                                onPress={() => setSplitModalVisible(false)}
+                            >
+                                <Text style={styles.splitSecondaryText}>İptal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.splitPrimaryBtn}
+                                onPress={() => doSave(true, selectedSplit)}
+                            >
+                                <Text style={styles.splitPrimaryText}>Public Kaydet</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
             {pendingModalProps && (
                 <ActionConfirmModal
                     visible={!!pendingAction}
@@ -1572,6 +1640,98 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         color: colors.background,
+    },
+    splitOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.68)",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: spacing.lg,
+    },
+    splitModal: {
+        width: "100%",
+        maxWidth: 440,
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+    },
+    splitTitle: {
+        color: colors.text,
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.heavy,
+        marginBottom: spacing.xs,
+    },
+    splitMessage: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+        marginBottom: spacing.md,
+    },
+    splitGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+        marginBottom: spacing.lg,
+    },
+    splitOption: {
+        width: "48%",
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceElevated,
+        padding: spacing.md,
+    },
+    splitOptionActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    splitOptionLabel: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+        marginBottom: 2,
+    },
+    splitOptionLabelActive: {
+        color: colors.accent,
+    },
+    splitOptionDesc: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+    },
+    splitOptionDescActive: {
+        color: colors.textSecondary,
+    },
+    splitActions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    splitSecondaryBtn: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceElevated,
+        paddingVertical: spacing.md,
+    },
+    splitSecondaryText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    splitPrimaryBtn: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        paddingVertical: spacing.md,
+    },
+    splitPrimaryText: {
+        color: colors.background,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
     },
     warningBanner: {
         flexDirection: "row",

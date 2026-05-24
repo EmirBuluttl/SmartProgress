@@ -19,6 +19,7 @@ interface User {
     settings: {
         is_auto_suggest_enabled: boolean;
         remember_reps_enabled?: boolean;
+        profile_visibility?: "public" | "private";
     } | null;
 }
 

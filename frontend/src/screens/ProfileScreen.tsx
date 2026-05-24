@@ -52,6 +52,9 @@ export default function ProfileScreen() {
     const [rememberRepsEnabled, setRememberRepsEnabled] = useState(
         user?.settings?.remember_reps_enabled === true
     );
+    const [profilePublic, setProfilePublic] = useState(
+        user?.settings?.profile_visibility === "public"
+    );
     const [themePickerVisible, setThemePickerVisible] = useState(false);
 
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 5 });
@@ -365,6 +368,43 @@ export default function ProfileScreen() {
                             true: colors.accentMuted,
                         }}
                         thumbColor={rememberRepsEnabled ? colors.accent : colors.textMuted}
+                    />
+                </View>
+
+                <View style={styles.settingDivider} />
+
+                <View style={styles.settingRow}>
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name={profilePublic ? "globe-outline" : "lock-closed-outline"} size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Profil Görünürlüğü</Text>
+                            <Text style={styles.settingDesc}>
+                                {profilePublic ? "Public profil hazırlığı açık" : "Profilin varsayılan olarak gizli"}
+                            </Text>
+                        </View>
+                    </View>
+                    <Switch
+                        value={profilePublic}
+                        onValueChange={async (val) => {
+                            setProfilePublic(val);
+                            const newSettings = {
+                                ...user?.settings,
+                                profile_visibility: val ? "public" : "private",
+                            };
+                            updateUser({ settings: newSettings });
+                            try {
+                                await authApi.updateProfile({ settings: newSettings });
+                            } catch (err) {
+                                console.warn("[Profile] Failed to persist profile visibility:", err);
+                            }
+                        }}
+                        trackColor={{
+                            false: colors.surfaceElevated,
+                            true: colors.accentMuted,
+                        }}
+                        thumbColor={profilePublic ? colors.accent : colors.textMuted}
                     />
                 </View>
 

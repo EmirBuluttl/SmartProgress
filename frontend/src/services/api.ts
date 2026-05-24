@@ -191,10 +191,10 @@ export const programApi = {
 
     listMine: () => api.get("/programs/mine"),
 
-    listPublic: (params?: { limit?: number; offset?: number }) =>
+    listPublic: (params?: { limit?: number; offset?: number; split?: string; sort?: string }) =>
         api.get("/programs/public", { params }),
 
-    listCommunity: (params?: { limit?: number; offset?: number }) =>
+    listCommunity: (params?: { limit?: number; offset?: number; split?: string; sort?: string }) =>
         api.get("/programs/community", { params }),
 
     toggleVisibility: (id: string) =>

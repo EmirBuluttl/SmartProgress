@@ -70,17 +70,25 @@ export class ProgramRepository {
         limit = 20,
         offset = 0,
         userId?: string,
+        sort: "stars" | "newest" | "oldest" = "stars",
     ) {
+        const orderBy =
+            sort === "oldest"
+                ? [{ createdAt: "asc" as const }]
+                : sort === "newest"
+                    ? [{ createdAt: "desc" as const }]
+                    : [
+                        { programStars: { _count: "desc" as const } },
+                        { createdAt: "desc" as const },
+                    ];
+
         return prisma.program.findMany({
             where: {
                 isPublic: true,
                 sourceProgramId: null,
             },
             include: socialInclude(userId),
-            orderBy: [
-                { programStars: { _count: "desc" } },
-                { createdAt: "desc" },
-            ],
+            orderBy,
             take: limit,
             skip: offset,
         });

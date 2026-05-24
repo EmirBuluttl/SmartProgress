@@ -16,6 +16,16 @@ export interface CreateProgramDto {
     sourceProgramId?: string;
 }
 
+export type ProgramSplitType = "PPL" | "AP" | "UL" | "TL" | "FB" | "OTHER";
+export type ProgramSortType = "stars" | "newest" | "oldest";
+
+function normalizeSplit(value: unknown): ProgramSplitType | undefined {
+    const split = String(value || "").trim().toUpperCase();
+    return ["PPL", "AP", "UL", "TL", "FB", "OTHER"].includes(split)
+        ? split as ProgramSplitType
+        : undefined;
+}
+
 // ─── Service ─────────────────────────────────
 
 export class ProgramService {
@@ -75,9 +85,26 @@ export class ProgramService {
     /**
      * Get all public programs (community feed).
      */
-    async getPublicPrograms(limit?: number, offset?: number, userId?: string) {
-        const programs = await programRepository.findPublicPrograms(limit, offset, userId);
-        return programs.map((program) => this.decorateProgram(program, userId));
+    async getPublicPrograms(
+        limit?: number,
+        offset?: number,
+        userId?: string,
+        filters?: { split?: ProgramSplitType; sort?: ProgramSortType },
+    ) {
+        const fetchLimit = filters?.split ? Math.max(limit ?? 20, 100) : limit;
+        const programs = await programRepository.findPublicPrograms(
+            fetchLimit,
+            offset,
+            userId,
+            filters?.sort ?? "stars",
+        );
+        return programs
+            .filter((program) => {
+                if (!filters?.split) return true;
+                return normalizeSplit((program.data as any)?.splitType) === filters.split;
+            })
+            .slice(0, limit ?? 20)
+            .map((program) => this.decorateProgram(program, userId));
     }
 
     /**

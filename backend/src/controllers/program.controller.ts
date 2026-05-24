@@ -8,6 +8,8 @@ import { autoRegulationService } from "../services/autoRegulation.service";
 import { ValidationError } from "../utils/errors";
 
 const MAX_PROGRAM_DAYS = 7;
+const splitSchema = z.enum(["PPL", "AP", "UL", "TL", "FB", "OTHER"]).optional();
+const sortSchema = z.enum(["stars", "newest", "oldest"]).optional();
 
 // ─── Zod Schemas ─────────────────────────────
 
@@ -99,7 +101,9 @@ export class ProgramController {
             const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
             const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
 
-            const programs = await programService.getPublicPrograms(limit, offset, req.user?.userId);
+            const split = splitSchema.parse(req.query.split || undefined);
+            const sort = sortSchema.parse(req.query.sort || undefined);
+            const programs = await programService.getPublicPrograms(limit, offset, req.user?.userId, { split, sort });
             res.status(200).json({
                 count: programs.length,
                 programs,
@@ -147,7 +151,9 @@ export class ProgramController {
             const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
             const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
 
-            const programs = await programService.getPublicPrograms(limit, offset, userId);
+            const split = splitSchema.parse(req.query.split || undefined);
+            const sort = sortSchema.parse(req.query.sort || undefined);
+            const programs = await programService.getPublicPrograms(limit, offset, userId, { split, sort });
             res.status(200).json({
                 count: programs.length,
                 programs,

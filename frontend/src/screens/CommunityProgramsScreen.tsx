@@ -19,6 +19,24 @@ import GymCard from "../components/GymCard";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
+type SortMode = "stars" | "newest" | "oldest";
+type SplitFilter = "ALL" | "PPL" | "AP" | "UL" | "TL" | "FB" | "OTHER";
+
+const SORT_OPTIONS: { key: SortMode; label: string }[] = [
+    { key: "stars", label: "Yıldız" },
+    { key: "newest", label: "Yeni" },
+    { key: "oldest", label: "Eski" },
+];
+
+const SPLIT_OPTIONS: { key: SplitFilter; label: string }[] = [
+    { key: "ALL", label: "Tümü" },
+    { key: "PPL", label: "PPL" },
+    { key: "AP", label: "AP" },
+    { key: "UL", label: "UL" },
+    { key: "TL", label: "TL" },
+    { key: "FB", label: "FB" },
+    { key: "OTHER", label: "Diğer" },
+];
 
 function ownerName(program: any) {
     const user = program.user;
@@ -38,6 +56,11 @@ function programDayCount(program: any) {
     return 0;
 }
 
+function splitLabel(program: any) {
+    const split = String(program.data?.splitType || "OTHER").toUpperCase();
+    return SPLIT_OPTIONS.find((option) => option.key === split)?.label || "Diğer";
+}
+
 export default function CommunityProgramsScreen() {
     const navigation = useNavigation<Nav>();
     const { colors } = useTheme();
@@ -46,17 +69,23 @@ export default function CommunityProgramsScreen() {
     const [programs, setPrograms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [busyId, setBusyId] = useState<string | null>(null);
+    const [sort, setSort] = useState<SortMode>("stars");
+    const [split, setSplit] = useState<SplitFilter>("ALL");
 
     const load = useCallback(async () => {
         try {
-            const res = await programApi.listCommunity({ limit: 50 });
+            const res = await programApi.listCommunity({
+                limit: 50,
+                sort,
+                ...(split !== "ALL" ? { split } : {}),
+            });
             setPrograms(res.data.programs || []);
         } catch (err) {
             console.error("[CommunityPrograms] Load error:", err);
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [sort, split]);
 
     useFocusEffect(useCallback(() => {
         setLoading(true);
@@ -67,7 +96,11 @@ export default function CommunityProgramsScreen() {
         setPrograms((prev) =>
             prev
                 .map((program) => (program.id === next.id ? { ...program, ...next } : program))
-                .sort((a, b) => (b.starCount || 0) - (a.starCount || 0)),
+                .sort((a, b) => {
+                    if (sort === "newest") return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+                    if (sort === "oldest") return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+                    return (b.starCount || 0) - (a.starCount || 0);
+                }),
         );
     };
 
@@ -122,6 +155,38 @@ export default function CommunityProgramsScreen() {
                 data={programs}
                 keyExtractor={(item) => item.id}
                 contentContainerStyle={styles.list}
+                ListHeaderComponent={
+                    <View style={styles.filters}>
+                        <Text style={styles.filterLabel}>Sıralama</Text>
+                        <View style={styles.filterRow}>
+                            {SORT_OPTIONS.map((option) => (
+                                <TouchableOpacity
+                                    key={option.key}
+                                    style={[styles.filterChip, sort === option.key && styles.filterChipActive]}
+                                    onPress={() => setSort(option.key)}
+                                >
+                                    <Text style={[styles.filterChipText, sort === option.key && styles.filterChipTextActive]}>
+                                        {option.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                        <Text style={styles.filterLabel}>Split</Text>
+                        <View style={styles.filterRow}>
+                            {SPLIT_OPTIONS.map((option) => (
+                                <TouchableOpacity
+                                    key={option.key}
+                                    style={[styles.filterChip, split === option.key && styles.filterChipActive]}
+                                    onPress={() => setSplit(option.key)}
+                                >
+                                    <Text style={[styles.filterChipText, split === option.key && styles.filterChipTextActive]}>
+                                        {option.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+                    </View>
+                }
                 ListEmptyComponent={
                     <View style={styles.empty}>
                         <Ionicons name="planet-outline" size={48} color={colors.textMuted} />
@@ -177,6 +242,10 @@ export default function CommunityProgramsScreen() {
                                     <Ionicons name="repeat-outline" size={13} color={colors.textMuted} />
                                     <Text style={styles.metaText}>{item.frequency || 7}/döngü</Text>
                                 </View>
+                                <View style={styles.metaPill}>
+                                    <Ionicons name="layers-outline" size={13} color={colors.textMuted} />
+                                    <Text style={styles.metaText}>{splitLabel(item)}</Text>
+                                </View>
                             </View>
 
                             {!item.isMine && (
@@ -222,6 +291,43 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
     },
     list: { padding: spacing.lg, paddingBottom: 120 },
+    filters: {
+        marginBottom: spacing.lg,
+        gap: spacing.sm,
+    },
+    filterLabel: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0,
+    },
+    filterRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+        marginBottom: spacing.xs,
+    },
+    filterChip: {
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+    },
+    filterChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    filterChipText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    filterChipTextActive: {
+        color: colors.accent,
+    },
     card: { marginBottom: spacing.md },
     cardHeader: {
         flexDirection: "row",
