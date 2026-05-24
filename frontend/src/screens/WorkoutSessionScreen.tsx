@@ -201,6 +201,32 @@ function buildPreviousWeightLookup(workouts: any[]): Map<string, number[]> {
     return lookup;
 }
 
+function buildPreviousRepsLookup(workouts: any[]): Map<string, number[]> {
+    const lookup = new Map<string, number[]>();
+    const newestFirst = [...workouts].sort(
+        (a, b) => new Date(b.logDate || b.createdAt || 0).getTime() - new Date(a.logDate || a.createdAt || 0).getTime(),
+    );
+
+    newestFirst.forEach((workout) => {
+        const exercises = Array.isArray(workout?.data?.exercises) ? workout.data.exercises : [];
+        exercises.forEach((exercise: any) => {
+            const key = normalizeExerciseNameForLookup(exercise?.name);
+            if (!key || lookup.has(key)) return;
+
+            const reps = (Array.isArray(exercise?.sets) ? exercise.sets : [])
+                .filter((set: any) => !set?.isWarmup)
+                .map((set: any) => Number(set?.reps))
+                .filter((rep: number) => Number.isFinite(rep) && rep > 0);
+
+            if (reps.length > 0) {
+                lookup.set(key, reps);
+            }
+        });
+    });
+
+    return lookup;
+}
+
 // ─── Component ───────────────────────────────
 
 export default function WorkoutSessionScreen() {
@@ -210,6 +236,7 @@ export default function WorkoutSessionScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled === true;
+    const rememberRepsEnabled = user?.settings?.remember_reps_enabled === true;
 
     const [session, setSession] = useState<WorkoutSession>(createSession);
     const [elapsed, setElapsed] = useState(0);
@@ -470,18 +497,24 @@ export default function WorkoutSessionScreen() {
                         : (programName ?? "Antrenman");
 
                     let previousWeights = new Map<string, number[]>();
+                    let previousReps = new Map<string, number[]>();
                     try {
                         const workoutRes = await workoutApi.list({ limit: 200 });
-                        previousWeights = buildPreviousWeightLookup(workoutRes.data.workouts || []);
+                        const workouts = workoutRes.data.workouts || [];
+                        previousWeights = buildPreviousWeightLookup(workouts);
+                        if (rememberRepsEnabled) previousReps = buildPreviousRepsLookup(workouts);
                     } catch (err) {
-                        console.warn("[WorkoutSession] Previous weights could not be loaded:", err);
+                        console.warn("[WorkoutSession] Previous set placeholders could not be loaded:", err);
                     }
 
                     const newExercises: WorkoutExercise[] = templateExercises.map((templateEx: any) => {
                         const targetSet = templateEx.targetSets?.[0] ?? templateEx.sets?.[0];
                         const exercisePreviousWeights =
                             previousWeights.get(normalizeExerciseNameForLookup(templateEx.name)) || [];
+                        const exercisePreviousReps =
+                            previousReps.get(normalizeExerciseNameForLookup(templateEx.name)) || [];
                         let workingSetIndex = 0;
+                        let repsSetIndex = 0;
                         return {
                             id: uid(),
                             name: templateEx.name,
@@ -494,6 +527,9 @@ export default function WorkoutSessionScreen() {
                                 const previousWeight = isWarmup
                                     ? undefined
                                     : exercisePreviousWeights[workingSetIndex++];
+                                const previousRepsValue = isWarmup
+                                    ? undefined
+                                    : exercisePreviousReps[repsSetIndex++];
                                 return {
                                     id: uid(),
                                     weight: 0,
@@ -505,7 +541,7 @@ export default function WorkoutSessionScreen() {
                                     unit: "kg" as const,
                                     completed: false,
                                     isWarmup,
-                                    targetReps: ts?.targetReps,
+                                    targetReps: previousRepsValue ? String(previousRepsValue) : ts?.targetReps,
                                     targetWeight: previousWeight ? String(previousWeight) : ts?.targetWeight,
                                     targetRPE: ts?.targetRPE,
                                     targetRIR: ts?.targetRIR,
@@ -1103,7 +1139,7 @@ export default function WorkoutSessionScreen() {
     const renderFooter = () => (
         <View style={styles.listFooter}>
             <AccentButton
-                title="✅  Antrenmanı Bitir"
+                title="Antrenmanı Bitir"
                 onPress={finishWorkout}
                 loading={finishing}
                 style={styles.finishBtn}

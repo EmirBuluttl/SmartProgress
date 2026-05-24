@@ -262,7 +262,7 @@ export default function MyProgressScreen() {
                 </View>
 
                 {/* ─── Progress Chart ─── */}
-                <SectionHeader title={`📊 ${chartTitle}`} />
+                <SectionHeader title={chartTitle} />
                 <GymCard elevated style={styles.chartCard}>
                     <LineChart
                         data={chartData}
@@ -307,7 +307,7 @@ export default function MyProgressScreen() {
                 {/* ─── AI Suggestion ─── */}
                 {isAutoSuggestEnabled && (
                     <>
-                        <SectionHeader title="🧠 Akıllı Tahmin" />
+                        <SectionHeader title="Akıllı Tahmin" />
                         <GymCard elevated style={styles.suggestionCard}>
                             <View style={styles.suggestionHeader}>
                                 <Ionicons name="sparkles" size={22} color={colors.accent} />
@@ -331,7 +331,7 @@ export default function MyProgressScreen() {
 
                 {/* ─── Personal Records ─── */}
                 <SectionHeader
-                    title="🏆 Kişisel Rekorlar (PR)"
+                    title="Kişisel Rekorlar (PR)"
                     actionLabel={showAllPrs ? "Gizle" : "Tümünü Gör"}
                     onAction={() => setShowAllPrs(!showAllPrs)}
                 />
@@ -382,7 +382,7 @@ export default function MyProgressScreen() {
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
                         <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>🏆 Kişisel Rekor</Text>
+                            <Text style={styles.modalTitle}>Kişisel Rekor</Text>
                             <TouchableOpacity onPress={() => setSelectedPR(null)}>
                                 <Ionicons name="close" size={24} color={colors.text} />
                             </TouchableOpacity>
@@ -395,7 +395,7 @@ export default function MyProgressScreen() {
                                 </Text>
                                 <View style={styles.modalMeta}>
                                     <Text style={styles.modalMetaText}>
-                                        📅 {new Date(selectedPR.date).toLocaleDateString("tr-TR", {
+                                        {new Date(selectedPR.date).toLocaleDateString("tr-TR", {
                                             day: "numeric",
                                             month: "long",
                                             year: "numeric",
@@ -403,7 +403,7 @@ export default function MyProgressScreen() {
                                     </Text>
                                     {selectedPR.workoutTitle && (
                                         <Text style={styles.modalMetaText}>
-                                            🏋️ {selectedPR.workoutTitle}
+                                            {selectedPR.workoutTitle}
                                         </Text>
                                     )}
                                 </View>

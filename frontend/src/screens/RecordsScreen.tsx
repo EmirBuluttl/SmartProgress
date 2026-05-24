@@ -109,7 +109,7 @@ export default function RecordsScreen() {
                 >
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>🏆 Kişisel Rekorlar</Text>
+                <Text style={styles.headerTitle}>Kişisel Rekorlar</Text>
                 <View style={{ width: 24 }} />
             </View>
 

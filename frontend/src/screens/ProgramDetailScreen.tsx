@@ -420,7 +420,7 @@ export default function ProgramDetailScreen() {
                 </View>
 
                 {/* ─── Current Day Highlight ─── */}
-                {days.length > 0 && (
+                {days.length > 0 && isOwner && (
                     <View style={s.currentDayBanner}>
                         <View style={s.currentDayDot} />
                         <Text style={s.currentDayLabel}>
@@ -436,7 +436,7 @@ export default function ProgramDetailScreen() {
                 <Text style={s.sectionTitle}>Program Takvimi</Text>
 
                 {days.map((day, idx) => {
-                    const isCurrent = idx === currentDayIndex;
+                    const isCurrent = isOwner && idx === currentDayIndex;
                     const isRest = day.isRestDay;
 
                     return (

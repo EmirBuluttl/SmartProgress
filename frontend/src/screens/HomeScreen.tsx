@@ -33,6 +33,7 @@ import SectionHeader from "../components/SectionHeader";
 import ActiveWorkoutBanner from "../components/ActiveWorkoutBanner";
 import { syncPendingWorkouts } from "../services/syncService";
 import { countProgressEvents } from "../utils/workoutMetrics";
+import { showAlert } from "../utils/confirm";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -223,19 +224,28 @@ export default function HomeScreen() {
                     </View>
                     <Text style={styles.streakText}>Antrenman Kaçırmadın</Text>
                 </View>
-                <TouchableOpacity
-                    style={styles.avatarCircle}
-                    onPress={() =>
-                        (navigation as any).navigate("MainTabs", { screen: "Profile" })
-                    }
-                    activeOpacity={0.8}
-                >
-                    {user?.avatarUrl || user?.profileImage ? (
-                        <Image source={{ uri: user.avatarUrl || user.profileImage }} style={{ width: "100%", height: "100%", borderRadius: 20 }} />
-                    ) : (
-                        <Text style={styles.avatarText}>{initials}</Text>
-                    )}
-                </TouchableOpacity>
+                <View style={styles.headerActions}>
+                    <TouchableOpacity
+                        style={styles.notificationBtn}
+                        onPress={() => showAlert("Bildirimler", "Bildirim merkezi hazırlanıyor. Progress, PR, program yıldızları ve antrenman hatırlatıcıları burada toplanacak.")}
+                        activeOpacity={0.82}
+                    >
+                        <Ionicons name="notifications-outline" size={22} color={colors.accent} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                        style={styles.avatarCircle}
+                        onPress={() =>
+                            (navigation as any).navigate("MainTabs", { screen: "Profile" })
+                        }
+                        activeOpacity={0.8}
+                    >
+                        {user?.avatarUrl || user?.profileImage ? (
+                            <Image source={{ uri: user.avatarUrl || user.profileImage }} style={{ width: "100%", height: "100%", borderRadius: 20 }} />
+                        ) : (
+                            <Text style={styles.avatarText}>{initials}</Text>
+                        )}
+                    </TouchableOpacity>
+                </View>
             </View>
 
             {/* ─── Active Workout Banner ─── */}
@@ -285,7 +295,7 @@ export default function HomeScreen() {
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
                         <View style={styles.todayBadge}>
-                            <Text style={styles.todayBadgeText}>⚡ SIRADAKI ANTRENMAN</Text>
+                            <Text style={styles.todayBadgeText}>SIRADAKI ANTRENMAN</Text>
                         </View>
                         <TouchableOpacity onPress={() => toggleFavoriteProgram(favoriteProgram.id)}>
                             <Ionicons name="bookmark" size={20} color={colors.accent} />
@@ -378,7 +388,7 @@ export default function HomeScreen() {
                     ) : null}
 
                     <AccentButton
-                        title={currentDay.exercises.length > 0 ? "▶ Antrenmanı Başlat" : "⏭ Sonraki Güne Geç"}
+                        title={currentDay.exercises.length > 0 ? "Antrenmanı Başlat" : "Sonraki Güne Geç"}
                         onPress={() => {
                             if (currentDay.exercises.length > 0) {
                                 navigation.navigate("WorkoutSession", {
@@ -465,7 +475,7 @@ export default function HomeScreen() {
                                     </View>
                                 </View>
                                 <Text style={styles.workoutDate}>
-                                    📅 {formatDate(item.logDate)}
+                                    {formatDate(item.logDate)}
                                 </Text>
                                 <View style={styles.workoutSummaryRow}>
                                     <Text style={styles.workoutSummaryText}>
@@ -487,7 +497,7 @@ export default function HomeScreen() {
 
             {/* ─── My Programs ─── */}
             <SectionHeader
-                title="🔥 Programlarım"
+                title="Programlarım"
                 actionLabel={programs.length > 3 ? "Tümü" : "Yeni Oluştur"}
                 onAction={() => programs.length > 3 ? navigation.navigate("ProgramList") : navigation.navigate("ProgramCreate")}
             />
@@ -708,6 +718,21 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: "space-between",
         alignItems: "center",
         marginBottom: spacing.xxl,
+    },
+    headerActions: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    notificationBtn: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
     },
     streakRow: {
         flexDirection: "row",

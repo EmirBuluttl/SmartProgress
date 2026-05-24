@@ -18,6 +18,7 @@ interface User {
     role: string;
     settings: {
         is_auto_suggest_enabled: boolean;
+        remember_reps_enabled?: boolean;
     } | null;
 }
 

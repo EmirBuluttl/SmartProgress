@@ -151,6 +151,18 @@ export default function ProgramCreateScreen() {
             setFrequency(typeof freq === "number" ? freq : null);
             const rawDays = editProgramData.data?.days || editProgramData.days || [];
             if (rawDays.length > 0) {
+                const hasRpeTargets = rawDays.some((day: any) =>
+                    (day.exercises || []).some((ex: any) =>
+                        (ex.targetSets || []).some((set: any) => !!set.targetRPE),
+                    ),
+                );
+                const hasRirTargets = rawDays.some((day: any) =>
+                    (day.exercises || []).some((ex: any) =>
+                        (ex.targetSets || []).some((set: any) => !!set.targetRIR),
+                    ),
+                );
+                setShowRPE(hasRpeTargets);
+                setShowRIR(hasRirTargets);
                 setDays(rawDays.map((d: any) => ({
                     label: d.label || "",
                     isRestDay: !!d.isRestDay,
@@ -698,7 +710,7 @@ export default function ProgramCreateScreen() {
 
                 {/* ── Day Tabs ── */}
                 <View style={styles.sectionCard}>
-                    <Text style={styles.sectionTitle}>🏋️ Antrenman Günleri</Text>
+                    <Text style={styles.sectionTitle}>Antrenman Günleri</Text>
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}

@@ -85,7 +85,7 @@ export default function WorkoutSummaryScreen() {
                 style={[styles.trophyWrap, { transform: [{ scale: scaleAnim }] }]}
             >
                 <View style={styles.trophyCircle}>
-                    <Text style={styles.trophyEmoji}>🏆</Text>
+                    <Ionicons name="trophy-outline" size={48} color={colors.accent} />
                 </View>
             </Animated.View>
 

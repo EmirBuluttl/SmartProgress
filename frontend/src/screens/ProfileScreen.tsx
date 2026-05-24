@@ -14,6 +14,7 @@ import {
     Alert,
     Dimensions,
     Platform,
+    Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
@@ -47,10 +48,11 @@ export default function ProfileScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
 
-    const [autoSuggestEnabled, setAutoSuggestEnabled] = useState(
-        user?.settings?.is_auto_suggest_enabled === true
-    );
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+    const [rememberRepsEnabled, setRememberRepsEnabled] = useState(
+        user?.settings?.remember_reps_enabled === true
+    );
+    const [themePickerVisible, setThemePickerVisible] = useState(false);
 
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 5 });
     const [programs, setPrograms] = useState<any[]>([]);
@@ -194,6 +196,7 @@ export default function ProfileScreen() {
     const email = user?.email || "sporcu@smartprogress.com";
 
     return (
+        <>
         <ScrollView
             style={styles.container}
             contentContainerStyle={styles.content}
@@ -253,7 +256,7 @@ export default function ProfileScreen() {
             {/* ─── Activity Heatmap ─── */}
             <HeatmapCalendar workouts={workouts} colors={colors} heatmapStyles={heatmapStyles} />
 
-            <SectionHeader title="📈 Takip" />
+            <SectionHeader title="Takip" />
             <GymCard style={styles.settingsCard}>
                 <TouchableOpacity
                     style={styles.settingRow}
@@ -291,7 +294,7 @@ export default function ProfileScreen() {
             </GymCard>
 
             {/* ─── Settings ─── */}
-            <SectionHeader title="⚙️ Ayarlar" />
+            <SectionHeader title="Ayarlar" />
             <GymCard style={styles.settingsCard}>
                 <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
@@ -299,30 +302,15 @@ export default function ProfileScreen() {
                             <Ionicons name="sparkles" size={20} color={colors.accent} />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.settingTitle}>Akıllı Öneri</Text>
+                            <Text style={styles.settingTitle}>Premium Üyelik</Text>
                             <Text style={styles.settingDesc}>
-                                Auto-Regulation ağırlık tahmini
+                                AI destekli öneriler yeni patch ile hazırlanıyor
                             </Text>
                         </View>
                     </View>
-                    <Switch
-                        value={autoSuggestEnabled}
-                        onValueChange={async (val) => {
-                            setAutoSuggestEnabled(val);
-                            const newSettings = { ...user?.settings, is_auto_suggest_enabled: val };
-                            updateUser({ settings: newSettings });
-                            try {
-                                await authApi.updateProfile({ settings: newSettings });
-                            } catch (err) {
-                                console.warn("[Profile] Failed to persist auto-suggest setting:", err);
-                            }
-                        }}
-                        trackColor={{
-                            false: colors.surfaceElevated,
-                            true: colors.accentMuted,
-                        }}
-                        thumbColor={autoSuggestEnabled ? colors.accent : colors.textMuted}
-                    />
+                    <View style={styles.comingSoonBadge}>
+                        <Text style={styles.comingSoonText}>Yakında</Text>
+                    </View>
                 </View>
 
                 <View style={styles.settingDivider} />
@@ -350,7 +338,43 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
-                <TouchableOpacity style={styles.settingRow} activeOpacity={0.7}>
+                <View style={styles.settingRow}>
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="repeat-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Tekrarlarımı Hatırla</Text>
+                            <Text style={styles.settingDesc}>Açıkken placeholder son log tekrarını önceliklendirir</Text>
+                        </View>
+                    </View>
+                    <Switch
+                        value={rememberRepsEnabled}
+                        onValueChange={async (val) => {
+                            setRememberRepsEnabled(val);
+                            const newSettings = { ...user?.settings, remember_reps_enabled: val };
+                            updateUser({ settings: newSettings });
+                            try {
+                                await authApi.updateProfile({ settings: newSettings });
+                            } catch (err) {
+                                console.warn("[Profile] Failed to persist remember reps setting:", err);
+                            }
+                        }}
+                        trackColor={{
+                            false: colors.surfaceElevated,
+                            true: colors.accentMuted,
+                        }}
+                        thumbColor={rememberRepsEnabled ? colors.accent : colors.textMuted}
+                    />
+                </View>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    activeOpacity={0.7}
+                    onPress={() => setThemePickerVisible(true)}
+                >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name="moon-outline" size={20} color={colors.textSecondary} />
@@ -360,35 +384,13 @@ export default function ProfileScreen() {
                             <Text style={styles.settingDesc}>Uygulama vurgu rengi</Text>
                         </View>
                     </View>
+                    <View style={[styles.currentColorDot, { backgroundColor: colors.accent }]} />
                 </TouchableOpacity>
-
-                {/* Color Picker Row */}
-                <View style={styles.colorPickerRow}>
-                    {AVAILABLE_COLORS.map((hex) => {
-                        const isSelected = colors.accent.toUpperCase() === hex.toUpperCase();
-                        return (
-                            <TouchableOpacity
-                                key={hex}
-                                style={[
-                                    styles.colorSwatch,
-                                    { backgroundColor: hex },
-                                    isSelected && {
-                                        borderWidth: 3,
-                                        borderColor: colors.background,
-                                        transform: [{ scale: 1.15 }]
-                                    }
-                                ]}
-                                onPress={() => setAccentColor(hex)}
-                                activeOpacity={0.8}
-                            />
-                        );
-                    })}
-                </View>
             </GymCard>
 
             {/* ─── My Programs ─── */}
             <SectionHeader
-                title="📚 Programlarım"
+                title="Programlarım"
                 actionLabel="Tümü"
                 onAction={() => navigation.navigate("ProgramList")}
             />
@@ -439,7 +441,7 @@ export default function ProfileScreen() {
             )}
 
             {/* ─── Personal Records ─── */}
-            <SectionHeader title="🏆 Rekorlarım" actionLabel="Tümü" onAction={() => (navigation as any).navigate("Records")} />
+            <SectionHeader title="Rekorlarım" actionLabel="Tümü" onAction={() => (navigation as any).navigate("Records")} />
             <GymCard style={styles.prList}>
                 {prs.length > 0 ? prs.map((pr, index) => (
                     <View key={index}>
@@ -467,6 +469,46 @@ export default function ProfileScreen() {
 
             <View style={{ height: spacing.xxxl }} />
         </ScrollView>
+        <Modal
+            visible={themePickerVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setThemePickerVisible(false)}
+        >
+            <View style={styles.themeModalOverlay}>
+                <View style={styles.themeModalCard}>
+                    <Text style={styles.themeModalTitle}>Tema Rengi</Text>
+                    <Text style={styles.themeModalDesc}>Uygulamanın vurgu rengini seç</Text>
+                    <View style={styles.colorPickerGrid}>
+                        {AVAILABLE_COLORS.map((hex) => {
+                            const isSelected = colors.accent.toUpperCase() === hex.toUpperCase();
+                            return (
+                                <TouchableOpacity
+                                    key={hex}
+                                    style={[
+                                        styles.colorSwatch,
+                                        { backgroundColor: hex },
+                                        isSelected && styles.colorSwatchSelected,
+                                    ]}
+                                    onPress={async () => {
+                                        await setAccentColor(hex);
+                                        setThemePickerVisible(false);
+                                    }}
+                                    activeOpacity={0.8}
+                                />
+                            );
+                        })}
+                    </View>
+                    <TouchableOpacity
+                        style={styles.themeModalClose}
+                        onPress={() => setThemePickerVisible(false)}
+                    >
+                        <Text style={styles.themeModalCloseText}>Kapat</Text>
+                    </TouchableOpacity>
+                </View>
+            </View>
+        </Modal>
+        </>
     );
 }
 
@@ -536,7 +578,7 @@ function HeatmapCalendar({ workouts, colors, heatmapStyles }: { workouts: any[],
 
     return (
         <View style={heatmapStyles.container}>
-            <Text style={heatmapStyles.title}>📅 Aktivite Takvimi</Text>
+            <Text style={heatmapStyles.title}>Aktivite Takvimi</Text>
             <Text style={heatmapStyles.subtitle}>Son 6 ay · yük skoru yoğunluğu</Text>
 
             <View style={heatmapStyles.grid}>
@@ -792,6 +834,24 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.border,
         marginVertical: spacing.sm,
     },
+    comingSoonBadge: {
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accentMuted,
+    },
+    comingSoonText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    currentColorDot: {
+        width: 24,
+        height: 24,
+        borderRadius: 12,
+        borderWidth: 2,
+        borderColor: colors.border,
+    },
     programCard: {
         marginBottom: spacing.sm,
     },
@@ -861,12 +921,38 @@ const createStyles = (colors: any) => StyleSheet.create({
     logoutBtn: {
         marginTop: spacing.md,
     },
-    colorPickerRow: {
+    themeModalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.62)",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: spacing.lg,
+    },
+    themeModalCard: {
+        width: "100%",
+        maxWidth: 380,
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+    },
+    themeModalTitle: {
+        color: colors.text,
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.heavy,
+        marginBottom: spacing.xs,
+    },
+    themeModalDesc: {
+        color: colors.textMuted,
+        fontSize: fontSize.sm,
+        marginBottom: spacing.lg,
+    },
+    colorPickerGrid: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        paddingHorizontal: spacing.sm,
-        paddingTop: spacing.sm,
-        paddingBottom: spacing.xs,
+        flexWrap: "wrap",
+        gap: spacing.md,
+        marginBottom: spacing.lg,
     },
     colorSwatch: {
         width: 32,
@@ -877,6 +963,23 @@ const createStyles = (colors: any) => StyleSheet.create({
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.3,
         shadowRadius: 3,
+    },
+    colorSwatchSelected: {
+        borderWidth: 3,
+        borderColor: colors.text,
+        transform: [{ scale: 1.15 }],
+    },
+    themeModalClose: {
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceElevated,
+    },
+    themeModalCloseText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
     },
 });
 

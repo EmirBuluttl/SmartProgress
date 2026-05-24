@@ -62,6 +62,7 @@ export interface AuthResponse {
 
 const DEFAULT_USER_SETTINGS = {
     is_auto_suggest_enabled: false,
+    remember_reps_enabled: false,
 };
 
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
