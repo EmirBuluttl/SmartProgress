@@ -20,6 +20,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import AccentButton from "../components/AccentButton";
 import NoticeModal from "../components/NoticeModal";
+import { CARDIO_TYPE_LABELS, summarizeCardioBlock, summarizeCardioBlocks } from "../utils/cardio";
 
 type SummaryRoute = RouteProp<RootStackParamList, "WorkoutSummary">;
 
@@ -44,6 +45,7 @@ export default function WorkoutSummaryScreen() {
         exerciseCount,
         setCount,
         notes,
+        cardioBlocks,
     } = route.params;
 
     const { colors } = useTheme();
@@ -155,6 +157,24 @@ export default function WorkoutSummaryScreen() {
                         <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                         <Text style={styles.noteActionText}>Notları Görüntüle</Text>
                     </TouchableOpacity>
+                </Animated.View>
+            ) : null}
+
+            {cardioBlocks && cardioBlocks.length > 0 ? (
+                <Animated.View style={[styles.cardioWrap, { opacity: fadeAnim }]}>
+                    <GymCard elevated style={styles.cardioCard}>
+                        <View style={styles.cardioHeader}>
+                            <Ionicons name="pulse-outline" size={20} color={colors.accent} />
+                            <Text style={styles.cardioTitle}>Kardiyo</Text>
+                        </View>
+                        <Text style={styles.cardioSummary}>{summarizeCardioBlocks(cardioBlocks)}</Text>
+                        {cardioBlocks.map((block: any) => (
+                            <View key={block.id} style={styles.cardioRow}>
+                                <Text style={styles.cardioRowTitle}>{(CARDIO_TYPE_LABELS as any)[block.type] || block.title}</Text>
+                                <Text style={styles.cardioRowText}>{summarizeCardioBlock(block)}</Text>
+                            </View>
+                        ))}
+                    </GymCard>
                 </Animated.View>
             ) : null}
 
@@ -295,5 +315,42 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     actions: {
         width: "100%",
+    },
+    cardioWrap: {
+        width: "100%",
+        marginBottom: spacing.lg,
+    },
+    cardioCard: {
+        width: "100%",
+        gap: spacing.sm,
+    },
+    cardioHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    cardioTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    cardioSummary: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+    },
+    cardioRow: {
+        paddingTop: spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    cardioRowTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    cardioRowText: {
+        color: colors.textMuted,
+        fontSize: fontSize.sm,
+        marginTop: 2,
     },
 });

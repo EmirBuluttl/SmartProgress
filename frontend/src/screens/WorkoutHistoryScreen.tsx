@@ -22,6 +22,7 @@ import {
 import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import GymCard from "../components/GymCard";
+import { summarizeCardioBlocks } from "../utils/cardio";
 
 const FAVORITES_KEY = "workout_favorites";
 const ORDER_KEY = "workout_display_order";
@@ -133,6 +134,7 @@ export default function WorkoutHistoryScreen() {
     const renderWorkout = (item: WorkoutItem) => {
         const isFav = favorites.has(item.id);
         const exerciseCount = item.data?.exercises?.length || 0;
+        const cardioSummary = summarizeCardioBlocks(item.data?.cardioBlocks);
         const duration = item.data?.totalDuration || item.data?.duration || 0;
         const durationMin = Math.floor(duration / 60);
 
@@ -162,6 +164,11 @@ export default function WorkoutHistoryScreen() {
                                     <Text style={styles.chipText}>{durationMin}dk</Text>
                                 </View>
                             )}
+                            {cardioSummary ? (
+                                <View style={styles.chip}>
+                                    <Text style={styles.chipText}>{cardioSummary}</Text>
+                                </View>
+                            ) : null}
                         </View>
                     </Pressable>
 

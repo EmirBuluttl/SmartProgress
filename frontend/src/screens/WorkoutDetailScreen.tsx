@@ -17,6 +17,7 @@ import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import { calculateLoadScoreFromExercises } from "../utils/workoutMetrics";
+import { CARDIO_TYPE_LABELS, summarizeCardioBlock, summarizeCardioBlocks } from "../utils/cardio";
 
 type Route = RouteProp<RootStackParamList, "WorkoutDetail">;
 
@@ -57,6 +58,7 @@ export default function WorkoutDetailScreen() {
     const exercises = workout?.data?.exercises || [];
     const duration = workout?.data?.totalDuration || workout?.data?.duration || 0;
     const notes = typeof workout?.notes === "string" ? workout.notes.trim() : "";
+    const cardioBlocks = Array.isArray(workout?.data?.cardioBlocks) ? workout.data.cardioBlocks : [];
 
     const loadScore = calculateLoadScoreFromExercises(exercises);
 
@@ -111,6 +113,25 @@ export default function WorkoutDetailScreen() {
                             <Text style={styles.notesTitle}>Antrenman Notu</Text>
                         </View>
                         <Text style={styles.notesText}>{notes}</Text>
+                    </GymCard>
+                ) : null}
+
+                {cardioBlocks.length > 0 ? (
+                    <GymCard elevated style={styles.cardioCard}>
+                        <View style={styles.notesHeader}>
+                            <Ionicons name="pulse-outline" size={18} color={colors.accent} />
+                            <Text style={styles.notesTitle}>Kardiyo</Text>
+                        </View>
+                        <Text style={styles.notesText}>{summarizeCardioBlocks(cardioBlocks)}</Text>
+                        {cardioBlocks.map((block: any) => (
+                            <View key={block.id} style={styles.cardioRow}>
+                                <Text style={styles.cardioTitle}>{(CARDIO_TYPE_LABELS as any)[block.type] || block.title}</Text>
+                                <Text style={styles.cardioText}>{summarizeCardioBlock(block)}</Text>
+                                {Array.isArray(block.stages) && block.stages.length > 0 ? (
+                                    <Text style={styles.cardioText}>{block.stages.length} stage</Text>
+                                ) : null}
+                            </View>
+                        ))}
                     </GymCard>
                 ) : null}
 
@@ -262,6 +283,25 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.sm,
         lineHeight: 20,
+    },
+    cardioCard: {
+        marginBottom: spacing.xl,
+    },
+    cardioRow: {
+        marginTop: spacing.sm,
+        paddingTop: spacing.sm,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+    },
+    cardioTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    cardioText: {
+        color: colors.textMuted,
+        fontSize: fontSize.sm,
+        marginTop: 2,
     },
     exerciseCard: {
         marginBottom: spacing.md,
