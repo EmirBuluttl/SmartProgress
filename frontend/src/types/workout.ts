@@ -56,6 +56,37 @@ export interface WorkoutExercise {
 
 // ─── Cycle-Based Program Data ─────────────────
 
+export type CardioType = "treadmill" | "bike" | "elliptical" | "outdoor_run" | "daily_steps" | "other";
+
+export interface CardioStage {
+    id: string;
+    startedAt: string;
+    endedAt?: string;
+    duration: number; // seconds
+    speed?: number;
+    incline?: number;
+    resistance?: number;
+    rpm?: number;
+    distance?: number;
+    steps?: number;
+    calories?: number;
+    note?: string;
+    isRest?: boolean;
+}
+
+export interface CardioBlock {
+    id: string;
+    type: CardioType;
+    title: string;
+    startedAt: string;
+    completedAt?: string;
+    totalDuration: number; // seconds
+    totalDistance?: number;
+    totalSteps?: number;
+    totalCalories?: number;
+    stages: CardioStage[];
+}
+
 export interface ProgramDay {
     label: string;             // "Gün 1 — Anterior"
     exercises: TargetExercise[];
@@ -93,6 +124,7 @@ export interface WorkoutSession {
     totalDuration: number; // seconds
     totalVolume?: number; // load score: working sets, weighted by RPE when logged
     notes?: string;
+    cardioBlocks?: CardioBlock[];
     status: SessionStatus;
     programId?: string;    // linked program (for cycle advance)
     dayIndex?: number;     // which day was trained
@@ -135,6 +167,7 @@ export interface SyncWorkoutPayload {
         }[];
         totalDuration?: number;
         totalVolume?: number;
+        cardioBlocks?: CardioBlock[];
         programId?: string;
         dayIndex?: number;
     };

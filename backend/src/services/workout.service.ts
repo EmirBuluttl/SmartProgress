@@ -41,6 +41,35 @@ const workoutExerciseSchema = z.object({
     sets: z.array(workoutSetSchema).min(1, "At least one set is required"),
 });
 
+const cardioStageSchema = z.object({
+    id: z.string().optional(),
+    startedAt: z.string().optional(),
+    endedAt: z.string().optional(),
+    duration: z.number().nonnegative().optional(),
+    speed: z.number().nonnegative().optional(),
+    incline: z.number().nonnegative().optional(),
+    resistance: z.number().nonnegative().optional(),
+    rpm: z.number().nonnegative().optional(),
+    distance: z.number().nonnegative().optional(),
+    steps: z.number().nonnegative().optional(),
+    calories: z.number().nonnegative().optional(),
+    note: z.string().max(500).optional(),
+    isRest: z.boolean().optional(),
+});
+
+const cardioBlockSchema = z.object({
+    id: z.string().optional(),
+    type: z.enum(["treadmill", "bike", "elliptical", "outdoor_run", "daily_steps", "other"]),
+    title: z.string().max(120),
+    startedAt: z.string().optional(),
+    completedAt: z.string().optional(),
+    totalDuration: z.number().nonnegative().optional(),
+    totalDistance: z.number().nonnegative().optional(),
+    totalSteps: z.number().nonnegative().optional(),
+    totalCalories: z.number().nonnegative().optional(),
+    stages: z.array(cardioStageSchema).optional(),
+});
+
 const workoutDataSchema = z.object({
     exercises: z
         .array(workoutExerciseSchema)
@@ -48,6 +77,7 @@ const workoutDataSchema = z.object({
         .optional(),
     totalDuration: coerceInt.optional(),
     totalVolume: coerceNumber.optional(),
+    cardioBlocks: z.array(cardioBlockSchema).optional(),
     programId: z.string().uuid().optional(),
     dayIndex: z.number().int().nonnegative().optional(),
     caloriesBurned: z.number().nonnegative().optional(),

@@ -54,6 +54,7 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
             })).filter((ex) => ex.sets.length > 0),
             totalDuration: session.totalDuration,
             totalVolume,
+            cardioBlocks: session.cardioBlocks ?? [],
             programId: session.programId,
             dayIndex: session.dayIndex,
         },
@@ -289,6 +290,7 @@ function normalizeActiveSession(rawSession: any): WorkoutSession | null {
         title: typeof rawSession.title === "string" ? rawSession.title : "",
         sportId: rawSession.sportId || "00000000-0000-0000-0000-000000000001",
         exercises: Array.isArray(rawSession.exercises) ? rawSession.exercises : [],
+        cardioBlocks: Array.isArray(rawSession.cardioBlocks) ? rawSession.cardioBlocks : [],
         totalDuration: Number.isFinite(Number(rawSession.totalDuration))
             ? Math.max(0, Number(rawSession.totalDuration))
             : 0,

@@ -24,6 +24,7 @@ import CommunityProgramsScreen from "../screens/CommunityProgramsScreen";
 import BodyMeasurementsScreen from "../screens/BodyMeasurementsScreen";
 import NutritionScreen from "../screens/NutritionScreen";
 import PublicProfileScreen from "../screens/PublicProfileScreen";
+import CardioSessionScreen from "../screens/CardioSessionScreen";
 
 // ─── Types ───────────────────────────────────
 
@@ -50,6 +51,7 @@ export type RootStackParamList = {
             }[];
         };
     };
+    CardioSession: { cardioBlockId?: string } | undefined;
     WorkoutSummary: {
         programId?: string;
         programName?: string;
@@ -60,6 +62,7 @@ export type RootStackParamList = {
         exerciseCount: number;
         setCount: number;
         notes?: string;
+        cardioBlocks?: any[];
     };
     ProgramCreate: {
         editProgramId?: string;
@@ -119,6 +122,15 @@ function AppNavigator() {
                 options={{
                     presentation: "fullScreenModal",
                     animation: "fade",
+                    gestureEnabled: false,
+                }}
+            />
+            <AppStack.Screen
+                name="CardioSession"
+                component={CardioSessionScreen}
+                options={{
+                    presentation: "fullScreenModal",
+                    animation: "slide_from_right",
                     gestureEnabled: false,
                 }}
             />
