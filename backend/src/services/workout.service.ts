@@ -8,6 +8,8 @@ import {
     CreateWorkoutLogData,
 } from "../repositories/workout.repository";
 import { ValidationError } from "../utils/errors";
+import prisma from "../config/prisma";
+import { notificationRepository } from "../repositories/notification.repository";
 
 // ─── Zod Schema for JSONB Workout Data ───────
 
@@ -160,6 +162,85 @@ function calculateLoadScore(data: any): number {
     return Math.round(score * 10) / 10;
 }
 
+function normalizeExerciseName(name: unknown): string {
+    return String(name || "").trim().toLowerCase();
+}
+
+function getBestLoggedSet(exercise: any): { weight: number; reps: number } | null {
+    const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+    const logged = sets
+        .filter((set: any) => !set?.isWarmup)
+        .map((set: any) => ({
+            weight: toNumber(set?.weight),
+            reps: toNumber(set?.reps),
+        }))
+        .filter((set: any) => set.weight > 0 || set.reps > 0);
+    if (logged.length === 0) return null;
+    return logged.sort((a: any, b: any) => (b.weight - a.weight) || (b.reps - a.reps))[0];
+}
+
+async function createProgressNotificationIfNeeded(userId: string, workout: WorkoutLog): Promise<void> {
+    const exercises = Array.isArray((workout.data as any)?.exercises)
+        ? (workout.data as any).exercises
+        : [];
+    if (exercises.length === 0) return;
+
+    const previousLogs = await prisma.workoutLog.findMany({
+        where: {
+            userId,
+            logDate: { lt: workout.logDate },
+        },
+        orderBy: { logDate: "desc" },
+        take: 50,
+    });
+
+    const improved: string[] = [];
+    for (const exercise of exercises) {
+        const key = normalizeExerciseName(exercise?.name);
+        if (!key) continue;
+        const currentBest = getBestLoggedSet(exercise);
+        if (!currentBest) continue;
+
+        const previousExercise = previousLogs
+            .flatMap((log) => Array.isArray((log.data as any)?.exercises) ? (log.data as any).exercises : [])
+            .find((candidate: any) => normalizeExerciseName(candidate?.name) === key);
+        const previousBest = getBestLoggedSet(previousExercise);
+        if (!previousBest) continue;
+
+        if (currentBest.weight > previousBest.weight || currentBest.reps > previousBest.reps) {
+            improved.push(String(exercise.name));
+        }
+    }
+
+    if (improved.length === 0) return;
+
+    const existing = await prisma.notification.findFirst({
+        where: {
+            userId,
+            type: "WORKOUT_PROGRESS",
+            metadata: {
+                path: ["workoutLogId"],
+                equals: workout.id,
+            },
+        },
+    });
+    if (existing) return;
+
+    const title = "Progress yakaladın";
+    const listed = improved.slice(0, 3).join(", ");
+    const extra = improved.length > 3 ? ` ve ${improved.length - 3} hareket` : "";
+    await notificationRepository.create({
+        user: { connect: { id: userId } },
+        type: "WORKOUT_PROGRESS",
+        title,
+        message: `${listed}${extra} için önceki logunun üstüne çıktın. Güzel ilerleme.`,
+        actionLabel: "MyProgress'i Aç",
+        actionScreen: "MyProgress",
+        actionParams: {},
+        metadata: { workoutLogId: workout.id, exercises: improved },
+    });
+}
+
 function normalizeWorkoutData(data: any) {
     const exercises = Array.isArray(data?.exercises)
         ? data.exercises.map((exercise: any) => ({
@@ -217,7 +298,9 @@ export class WorkoutService {
             logDate: new Date(w.logDate),
         }));
 
-        return workoutRepository.createManyWithOutbox(userId, workoutData);
+        const created = await workoutRepository.createManyWithOutbox(userId, workoutData);
+        await Promise.all(created.map((workout) => createProgressNotificationIfNeeded(userId, workout)));
+        return created;
     }
 
     /**

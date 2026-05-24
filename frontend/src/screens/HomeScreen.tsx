@@ -233,6 +233,8 @@ export default function HomeScreen() {
         setNotificationsVisible(false);
         if (notification.actionScreen === "ProgramDetail" && notification.actionParams?.programId) {
             navigation.navigate("ProgramDetail", { programId: notification.actionParams.programId });
+        } else if (notification.actionScreen === "MyProgress") {
+            (navigation as any).navigate("MainTabs", { screen: "MyProgress" });
         }
     };
 
@@ -725,8 +727,8 @@ export default function HomeScreen() {
 function calculateStreak(workouts: any[], programs: any[] = [], activeProgramId?: string | null): number {
     if (!workouts.length) return 0;
     
-    // Create a Set of all dates the user worked out
-    const workedOutDates = new Set(workouts.map((w) => new Date(w.logDate).toDateString()));
+    // One or more workouts on the same calendar day count as a single streak day.
+    const workedOutDates = new Set(workouts.map((w) => workoutDateKey(w.logDate)));
     let streak = 0;
     const today = new Date();
 
@@ -754,7 +756,7 @@ function calculateStreak(workouts: any[], programs: any[] = [], activeProgramId?
     for (let i = 0; i < 365; i++) {
         const day = new Date(today);
         day.setDate(today.getDate() - i);
-        const dayString = day.toDateString();
+        const dayString = workoutDateKey(day);
         const cycleDay = cycleDays.length
             ? cycleDays[((currentCycleIndex - i) % cycleDays.length + cycleDays.length) % cycleDays.length]
             : null;
@@ -775,6 +777,11 @@ function calculateStreak(workouts: any[], programs: any[] = [], activeProgramId?
         }
     }
     return streak;
+}
+
+function workoutDateKey(value: string | Date): string {
+    const date = value instanceof Date ? value : new Date(value);
+    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
 }
 
 function formatDate(dateStr: string): string {
