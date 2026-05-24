@@ -149,7 +149,7 @@ function normalizeWorkoutData(data: any) {
                     else delete normalizedSet.rir;
 
                     normalizedSet.weightMode = set?.weightMode === "bodyweight" ? "bodyweight" : "kg";
-                    if (normalizedSet.weightMode === "bodyweight") normalizedSet.weight = 0;
+                    normalizedSet.weight = Math.max(0, toNumber(set?.weight));
 
                     normalizedSet.effortMode = set?.effortMode === "duration" ? "duration" : "reps";
                     normalizedSet.durationSeconds = Math.max(0, Math.floor(toNumber(set?.durationSeconds)));

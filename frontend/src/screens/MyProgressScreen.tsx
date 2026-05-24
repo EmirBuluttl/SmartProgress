@@ -21,7 +21,7 @@ import { bodyMeasurementApi, nutritionApi, workoutApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
-import { buildProgressTrend, getPersonalRecords } from "../utils/workoutMetrics";
+import { buildExerciseScoreTrend, buildProgressTrend, getPersonalRecords } from "../utils/workoutMetrics";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 
@@ -40,32 +40,6 @@ function formatDateLabel(value: unknown): string {
     const date = new Date(String(value || ""));
     if (!Number.isFinite(date.getTime())) return "";
     return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
-}
-
-function bestSetForExercise(workout: any, exerciseName: string) {
-    const target = exerciseName.trim().toLowerCase();
-    const exercise = workout?.data?.exercises?.find((ex: any) => String(ex.name || "").trim().toLowerCase() === target);
-    if (!exercise) return null;
-    return [...(exercise.sets || [])]
-        .filter((set: any) => !set.isWarmup)
-        .map((set: any) => ({ weight: toNumber(set.weight), reps: Math.floor(toNumber(set.reps)) }))
-        .filter((set) => set.weight > 0 || set.reps > 0)
-        .sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0] || null;
-}
-
-function buildExerciseProgressTrend(workouts: any[], exerciseName: string) {
-    let best: { weight: number; reps: number } | null = null;
-    return [...workouts]
-        .sort((a, b) => new Date(a.logDate || 0).getTime() - new Date(b.logDate || 0).getTime())
-        .map((workout) => {
-            const next = bestSetForExercise(workout, exerciseName);
-            if (!next) return null;
-            const comparable = !!best;
-            const improved = !!best && (next.weight > best.weight || (next.weight === best.weight && next.reps > best.reps));
-            if (!best || improved) best = next;
-            return { date: workout.logDate, comparable, improved };
-        })
-        .filter(Boolean) as { date?: string; comparable: boolean; improved: boolean }[];
 }
 
 export default function MyProgressScreen() {
@@ -126,10 +100,10 @@ export default function MyProgressScreen() {
                 });
         } else if (metric.startsWith("exercise:")) {
             const exerciseName = metric.replace("exercise:", "");
-            buildExerciseProgressTrend(workouts, exerciseName)
+            buildExerciseScoreTrend(workouts, exerciseName)
                 .filter((point) => new Date(point.date || 0) >= cutoff && point.comparable)
                 .forEach((point, idx) => {
-                    dataPoints.push(point.improved ? 100 : 0);
+                    dataPoints.push(point.score);
                     labels.push(`A${idx + 1}`);
                 });
         } else if (metric === "body:weight") {
@@ -173,7 +147,21 @@ export default function MyProgressScreen() {
                 ? " kcal"
                 : " g";
 
-    const chartDecimalPlaces = chartMetric === "body:weight" || chartSuffix === " g" ? 1 : 0;
+    const chartDecimalPlaces = chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric === "body:weight" || chartSuffix === " g" ? 1 : 0;
+
+    const latestChartValue = React.useMemo(() => {
+        const values = chartData.datasets[0]?.data || [];
+        return values.length ? values[values.length - 1] : 0;
+    }, [chartData]);
+
+    const latestChartLabel = React.useMemo(() => {
+        if (chartMetric === "progress:all" || chartMetric.startsWith("exercise:")) {
+            return `${latestChartValue > 0 ? "+" : ""}${latestChartValue.toFixed(1)}%`;
+        }
+        if (chartMetric === "body:weight") return `${latestChartValue.toFixed(1)} kg`;
+        if (chartMetric === "nutrition:calories") return `${Math.round(latestChartValue)} kcal`;
+        return `${latestChartValue.toFixed(1)} g`;
+    }, [chartMetric, latestChartValue]);
 
     // ─── Load analytics ───────────────────────
 
@@ -264,6 +252,26 @@ export default function MyProgressScreen() {
                 {/* ─── Progress Chart ─── */}
                 <SectionHeader title={chartTitle} />
                 <GymCard elevated style={styles.chartCard}>
+                    <View style={styles.scoreSummaryRow}>
+                        <View>
+                            <Text style={styles.scoreSummaryLabel}>
+                                {chartMetric === "progress:all" || chartMetric.startsWith("exercise:") ? "Son yük skoru" : "Son kayıt"}
+                            </Text>
+                            <Text style={styles.scoreSummaryHint}>
+                                {chartMetric === "progress:all" || chartMetric.startsWith("exercise:")
+                                    ? "Kilo yüzdesi + tekrar katsayısı"
+                                    : "Seçili filtredeki son veri"}
+                            </Text>
+                        </View>
+                        <Text
+                            style={[
+                                styles.scoreSummaryValue,
+                                latestChartValue < 0 && styles.scoreSummaryValueNegative,
+                            ]}
+                        >
+                            {latestChartLabel}
+                        </Text>
+                    </View>
                     <LineChart
                         data={chartData}
                         width={SCREEN_WIDTH - spacing.lg * 4}
@@ -296,9 +304,9 @@ export default function MyProgressScreen() {
                         <View style={styles.legendDot} />
                         <Text style={styles.legendText}>
                             {chartMetric.startsWith("exercise:")
-                                ? "Seçili harekette önceki en iyi kayda göre gelişim"
+                                ? "Seçili harekette önceki en iyi kayda göre yük skoru"
                                 : chartMetric === "progress:all"
-                                    ? "Önceki kayıtlarına göre gelişen hareket oranı"
+                                    ? "Antrenmandaki hareketlerin ortalama yük skoru"
                                     : "Profilde kaydettiğin takip verileri"}
                         </Text>
                     </View>
@@ -498,6 +506,31 @@ const createStyles = (colors: any) => StyleSheet.create({
     chartCard: {
         marginBottom: spacing.xxl,
         overflow: "hidden",
+    },
+    scoreSummaryRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.md,
+        marginBottom: spacing.sm,
+    },
+    scoreSummaryLabel: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    scoreSummaryHint: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        marginTop: 2,
+    },
+    scoreSummaryValue: {
+        color: colors.accent,
+        fontSize: fontSize.xxl,
+        fontWeight: fontWeight.heavy,
+    },
+    scoreSummaryValueNegative: {
+        color: colors.error,
     },
     chart: {
         marginLeft: -spacing.md,

@@ -38,6 +38,14 @@ export interface ProgressPoint {
     percentage: number;
 }
 
+export interface ExerciseProgressPoint {
+    date?: string;
+    comparable: boolean;
+    score: number;
+    weight: number;
+    reps: number;
+}
+
 function toNumber(value: unknown): number {
     if (value === null || value === undefined || value === "") return 0;
     const parsed = Number(String(value).replace(",", "."));
@@ -110,7 +118,7 @@ export function calculateWorkoutLoadScore(workout: AnyWorkout): number {
     return calculateLoadScoreFromExercises(getWorkoutExercises(workout));
 }
 
-function normalizeExerciseName(name: unknown): string {
+export function normalizeExerciseName(name: unknown): string {
     return String(name || "").trim().toLowerCase();
 }
 
@@ -120,13 +128,14 @@ function getBestSet(exercise: AnyExercise): PersonalRecord | null {
 
     const best = (exercise.sets || [])
         .filter((set) => !set.isWarmup)
+        .filter((set) => set.effortMode !== "duration")
         .map((set) => ({
             exercise: name,
             weight: toNumber(set.weight),
             reps: Math.floor(toNumber(set.reps)),
             unit: set.unit || "kg",
         }))
-        .filter((set) => set.weight > 0 || set.reps > 0)
+        .filter((set) => set.weight > 0 && set.reps > 0)
         .sort((a, b) => b.weight - a.weight || b.reps - a.reps)[0];
 
     return best || null;
@@ -182,6 +191,29 @@ export function countProgressEvents(workouts: AnyWorkout[]): number {
     return count;
 }
 
+function repsDeltaCoefficient(delta: number): number {
+    const abs = Math.abs(delta);
+    if (abs === 0) return 0;
+    if (abs === 1) return 2;
+    if (abs === 2) return 5;
+    if (abs === 3) return 7;
+    return 7 + (abs - 3);
+}
+
+export function calculateSetProgressScore(previous: PersonalRecord, next: PersonalRecord): number {
+    const weightScore = previous.weight > 0
+        ? ((next.weight - previous.weight) / previous.weight) * 100
+        : 0;
+    const repsDelta = next.reps - previous.reps;
+    const repsScore = repsDelta === 0
+        ? 0
+        : repsDelta > 0
+            ? repsDeltaCoefficient(repsDelta)
+            : -repsDeltaCoefficient(repsDelta);
+
+    return Math.round((weightScore + repsScore) * 10) / 10;
+}
+
 export function buildProgressTrend(workouts: AnyWorkout[]): ProgressPoint[] {
     const chronological = [...workouts].sort(
         (a, b) => new Date(a.logDate || 0).getTime() - new Date(b.logDate || 0).getTime(),
@@ -191,6 +223,8 @@ export function buildProgressTrend(workouts: AnyWorkout[]): ProgressPoint[] {
     return chronological.map((workout) => {
         let improved = 0;
         let comparable = 0;
+        const positiveScores: number[] = [];
+        const negativeScores: number[] = [];
 
         getWorkoutExercises(workout).forEach((exercise) => {
             const best = getBestSet(exercise);
@@ -200,18 +234,58 @@ export function buildProgressTrend(workouts: AnyWorkout[]): ProgressPoint[] {
             const previousBest = bestByExercise.get(key);
             if (previousBest) {
                 comparable += 1;
-                if (beatsRecord(best, previousBest)) improved += 1;
+                const score = calculateSetProgressScore(previousBest, best);
+                if (score > 0) {
+                    improved += 1;
+                    positiveScores.push(score);
+                } else if (score < 0) {
+                    negativeScores.push(score);
+                }
             }
             if (beatsRecord(best, previousBest)) {
                 bestByExercise.set(key, { ...best, date: workout.logDate });
             }
         });
 
+        const positiveAvg = positiveScores.length
+            ? positiveScores.reduce((sum, score) => sum + score, 0) / positiveScores.length
+            : 0;
+        const negativeAvg = negativeScores.length
+            ? negativeScores.reduce((sum, score) => sum + score, 0) / negativeScores.length
+            : 0;
+        const netScore = comparable > 0 ? positiveAvg + negativeAvg * 0.5 : 0;
+
         return {
             date: workout.logDate,
             improved,
             comparable,
-            percentage: comparable > 0 ? Math.round((improved / comparable) * 100) : 0,
+            percentage: Math.round(netScore * 10) / 10,
         };
     });
+}
+
+export function buildExerciseScoreTrend(workouts: AnyWorkout[], exerciseName: string): ExerciseProgressPoint[] {
+    const target = normalizeExerciseName(exerciseName);
+    let best: PersonalRecord | undefined;
+
+    return [...workouts]
+        .sort((a, b) => new Date(a.logDate || 0).getTime() - new Date(b.logDate || 0).getTime())
+        .map((workout) => {
+            const exercise = getWorkoutExercises(workout).find((item) => normalizeExerciseName(item.name) === target);
+            if (!exercise) return null;
+            const next = getBestSet(exercise);
+            if (!next) return null;
+
+            if (!best) {
+                best = { ...next, date: workout.logDate };
+                return { date: workout.logDate, comparable: false, score: 0, weight: next.weight, reps: next.reps };
+            }
+
+            const score = calculateSetProgressScore(best, next);
+            if (beatsRecord(next, best)) {
+                best = { ...next, date: workout.logDate };
+            }
+            return { date: workout.logDate, comparable: true, score, weight: next.weight, reps: next.reps };
+        })
+        .filter(Boolean) as ExerciseProgressPoint[];
 }

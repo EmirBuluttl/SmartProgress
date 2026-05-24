@@ -39,7 +39,7 @@ import {
     savePendingWorkout,
     syncPendingWorkouts,
 } from "../services/syncService";
-import { programApi, workoutApi } from "../services/api";
+import { bodyMeasurementApi, programApi, workoutApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import AccentButton from "../components/AccentButton";
 import { showAlert } from "../utils/confirm";
@@ -255,6 +255,9 @@ export default function WorkoutSessionScreen() {
     const [setSettingsExercise, setSetSettingsExercise] = useState<WorkoutExercise | null>(null);
     const [startBlockedModalVisible, setStartBlockedModalVisible] = useState(false);
     const [conceptNotice, setConceptNotice] = useState<{ title: string; message: string } | null>(null);
+    const [latestBodyWeight, setLatestBodyWeight] = useState<number | null>(null);
+    const [bodyWeightModal, setBodyWeightModal] = useState<{ exerciseId: string; setId: string } | null>(null);
+    const [bodyWeightDraft, setBodyWeightDraft] = useState("");
     const isWeb = Platform.OS === "web";
 
     // Use a ref for finishing flag so beforeRemove always has the latest value
@@ -302,6 +305,21 @@ export default function WorkoutSessionScreen() {
         }
         return getTextValue(exerciseId, set.id, "reps", set.reps);
     };
+
+    const loadLatestBodyWeight = useCallback(async () => {
+        try {
+            const res = await bodyMeasurementApi.list({ limit: 30 });
+            const latest = (res.data.measurements || [])
+                .filter((record: any) => Number(record.weight) > 0)
+                .sort((a: any, b: any) => new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime())[0];
+            const nextWeight = latest ? Number(latest.weight) : null;
+            setLatestBodyWeight(Number.isFinite(nextWeight || NaN) ? nextWeight : null);
+            return Number.isFinite(nextWeight || NaN) ? nextWeight : null;
+        } catch (err) {
+            console.warn("[WorkoutSession] Latest body weight could not be loaded:", err);
+            return latestBodyWeight;
+        }
+    }, [latestBodyWeight]);
 
     const onNumericChange = (exerciseId: string, setId: string, field: keyof WorkoutSet, text: string) => {
         // Replace comma with dot for Turkish keyboards
@@ -586,6 +604,10 @@ export default function WorkoutSessionScreen() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
+    useEffect(() => {
+        loadLatestBodyWeight();
+    }, [loadLatestBodyWeight]);
+
     // ─── Timer ───────────────────────────────
     useEffect(() => {
         intervalRef.current = setInterval(() => {
@@ -732,17 +754,66 @@ export default function WorkoutSessionScreen() {
         [updateSession],
     );
 
-    const setWeightMode = useCallback((exerciseId: string, set: WorkoutSet, weightMode: "kg" | "bodyweight") => {
+    const setWeightMode = useCallback(async (exerciseId: string, set: WorkoutSet, weightMode: "kg" | "bodyweight") => {
         const key = cacheKey(exerciseId, set.id, "weight");
         setTextCache((prev) => {
             const next = { ...prev };
             delete next[key];
             return next;
         });
-        updateSetPatch(exerciseId, set.id, weightMode === "bodyweight"
-            ? { weightMode, weight: 0 }
-            : { weightMode });
-    }, [updateSetPatch]);
+        if (weightMode === "bodyweight") {
+            const measuredWeight = latestBodyWeight ?? await loadLatestBodyWeight();
+            if (!measuredWeight || measuredWeight <= 0) {
+                setBodyWeightDraft("");
+                setBodyWeightModal({ exerciseId, setId: set.id });
+                return;
+            }
+            updateSetPatch(exerciseId, set.id, { weightMode, weight: measuredWeight });
+            return;
+        }
+        updateSetPatch(exerciseId, set.id, { weightMode });
+    }, [latestBodyWeight, loadLatestBodyWeight, updateSetPatch]);
+
+    const saveBodyWeightForSet = useCallback(async () => {
+        if (!bodyWeightModal) return;
+        const parsed = Number(bodyWeightDraft.replace(",", "."));
+        if (!Number.isFinite(parsed) || parsed <= 0) {
+            setConceptNotice({
+                title: "Vücut ağırlığı gerekli",
+                message: "BW setleri doğru hesaplayabilmem için güncel vücut ağırlığını kg cinsinden girmen gerekiyor.",
+            });
+            return;
+        }
+
+        try {
+            const today = new Date().toISOString().slice(0, 10);
+            const existingRes = await bodyMeasurementApi.list({ limit: 30 });
+            const existingToday = (existingRes.data.measurements || []).find((record: any) =>
+                String(record.date || "").slice(0, 10) === today,
+            );
+            await bodyMeasurementApi.save({
+                date: today,
+                weight: parsed,
+                waist: existingToday?.waist ?? null,
+                chest: existingToday?.chest ?? null,
+                arm: existingToday?.arm ?? null,
+                leg: existingToday?.leg ?? null,
+                hip: existingToday?.hip ?? null,
+                shoulder: existingToday?.shoulder ?? null,
+                notes: existingToday?.notes ?? null,
+            });
+        } catch (err) {
+            console.warn("[WorkoutSession] Body weight could not be saved:", err);
+        }
+
+        setLatestBodyWeight(parsed);
+        updateSetPatch(bodyWeightModal.exerciseId, bodyWeightModal.setId, {
+            weightMode: "bodyweight",
+            weight: parsed,
+        });
+        setBodyWeightModal(null);
+        setBodyWeightDraft("");
+    }, [bodyWeightDraft, bodyWeightModal, updateSetPatch]);
 
     const setEffortMode = useCallback((exerciseId: string, set: WorkoutSet, effortMode: "reps" | "duration") => {
         const repsKey = cacheKey(exerciseId, set.id, "reps");
@@ -1214,9 +1285,13 @@ export default function WorkoutSessionScreen() {
                                     if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
                                 }}
                                 onBlur={() => onNumericBlur(exercise.id, set.id, "weight")}
-                                placeholder={set.targetWeight ?? exercise.targetWeight ?? "0"}
+                                placeholder={
+                                    set.weightMode === "bodyweight"
+                                        ? `${set.weight || latestBodyWeight || 0} kg`
+                                        : set.targetWeight ?? exercise.targetWeight ?? "0"
+                                }
                                 placeholderTextColor={
-                                    (set.targetWeight || exercise.targetWeight)
+                                    set.weightMode === "bodyweight" || (set.targetWeight || exercise.targetWeight)
                                         ? colors.accentDark
                                         : colors.textMuted
                                 }
@@ -1620,6 +1695,51 @@ export default function WorkoutSessionScreen() {
                 message={conceptNotice?.message ?? ""}
                 onClose={() => setConceptNotice(null)}
             />
+            <Modal
+                visible={!!bodyWeightModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => {
+                    setBodyWeightModal(null);
+                    setBodyWeightDraft("");
+                }}
+            >
+                <View style={styles.addExerciseOverlay}>
+                    <View style={styles.addExerciseModal}>
+                        <Text style={styles.addExerciseTitle}>Vücut ağırlığı</Text>
+                        <Text style={styles.bodyWeightModalText}>
+                            BW setlerini doğru hesaplayabilmem için güncel vücut ağırlığını kg cinsinden gir.
+                        </Text>
+                        <TextInput
+                            style={styles.addExerciseInput}
+                            value={bodyWeightDraft}
+                            onChangeText={setBodyWeightDraft}
+                            placeholder="Örn. 82.5"
+                            placeholderTextColor={colors.textMuted}
+                            keyboardType="decimal-pad"
+                            selectionColor={colors.accent}
+                            autoFocus
+                        />
+                        <View style={styles.addExerciseActions}>
+                            <TouchableOpacity
+                                style={styles.modalSecondaryBtn}
+                                onPress={() => {
+                                    setBodyWeightModal(null);
+                                    setBodyWeightDraft("");
+                                }}
+                            >
+                                <Text style={styles.modalSecondaryText}>İptal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.modalPrimaryBtn}
+                                onPress={saveBodyWeightForSet}
+                            >
+                                <Text style={styles.modalPrimaryText}>Kaydet</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
             <Modal
                 visible={!!settingsExercise}
                 transparent
@@ -2257,6 +2377,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.xl,
         fontWeight: fontWeight.heavy,
         color: colors.text,
+        marginBottom: spacing.md,
+    },
+    bodyWeightModalText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
         marginBottom: spacing.md,
     },
     addExerciseInput: {
