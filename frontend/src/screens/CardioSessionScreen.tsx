@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
+    Modal,
     KeyboardAvoidingView,
     Platform,
     ScrollView,
@@ -64,6 +65,20 @@ function buildStageFromDraft(draft: DraftValues, isRest = false): CardioStage {
     };
 }
 
+function applyDraftToStage(stage: CardioStage, draft: DraftValues): CardioStage {
+    return {
+        ...stage,
+        speed: toNumber(draft.speed),
+        incline: toNumber(draft.incline),
+        resistance: toNumber(draft.resistance),
+        rpm: toNumber(draft.rpm),
+        distance: toNumber(draft.distance),
+        steps: toNumber(draft.steps),
+        calories: toNumber(draft.calories),
+        note: draft.note.trim() || undefined,
+    };
+}
+
 function closeStage(stage: CardioStage, now = Date.now()): CardioStage {
     const endedAt = new Date(now).toISOString();
     return {
@@ -113,6 +128,16 @@ const emptyDraft: DraftValues = {
     note: "",
 };
 
+const FIELD_HELP: Partial<Record<keyof DraftValues, string>> = {
+    speed: "Koşu bandı veya dış koşu hızını km/s olarak yazabilirsin.",
+    incline: "Koşu bandı eğimini yüzde olarak tutar. Örn. 4 eğim.",
+    resistance: "Bisiklet veya eliptikte cihazın direnç seviyesidir.",
+    rpm: "Dakikadaki pedal devir sayısıdır. Tempo takibi için kullanılır.",
+    distance: "Toplam mesafeyi kilometre olarak yaz.",
+    steps: "Günlük adım veya yürüyüş hedefini kaydetmek için kullanılır.",
+    calories: "Cihazın gösterdiği yaklaşık kalori değeridir.",
+};
+
 export default function CardioSessionScreen() {
     const navigation = useNavigation<any>();
     const route = useRoute<Route>();
@@ -123,6 +148,7 @@ export default function CardioSessionScreen() {
     const [block, setBlock] = useState<CardioBlock | null>(null);
     const [activeStage, setActiveStage] = useState<CardioStage | null>(null);
     const [draft, setDraft] = useState<DraftValues>(emptyDraft);
+    const [helpText, setHelpText] = useState<{ title: string; message: string } | null>(null);
     const [now, setNow] = useState(Date.now());
     const [saving, setSaving] = useState(false);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -133,7 +159,12 @@ export default function CardioSessionScreen() {
             if (!mounted) return;
             setSession(saved);
             const existing = saved?.cardioBlocks?.find((item) => item.id === route.params?.cardioBlockId);
+            const activeBlock = saved?.activeCardioBlockId
+                ? saved?.cardioBlocks?.find((item) => item.id === saved.activeCardioBlockId)
+                : undefined;
             if (existing) setBlock(existing);
+            else if (activeBlock) setBlock(activeBlock);
+            if (saved?.activeCardioStage) setActiveStage(saved.activeCardioStage);
         });
         return () => {
             mounted = false;
@@ -156,38 +187,61 @@ export default function CardioSessionScreen() {
     const activeDuration = activeStage ? getCardioStageDuration(activeStage, now) : 0;
     const totalPreview = (block?.stages || []).reduce((sum, stage) => sum + getCardioStageDuration(stage), 0) + activeDuration;
 
-    const selectType = (type: CardioType) => {
-        setBlock(createBlock(type));
+    const persistCardioState = async (nextBlock: CardioBlock, nextActiveStage: CardioStage | null) => {
+        if (!session) return;
+        const otherBlocks = (session.cardioBlocks || []).filter((item) => item.id !== nextBlock.id);
+        const nextSession = {
+            ...session,
+            cardioBlocks: [...otherBlocks, nextBlock],
+            activeCardioBlockId: nextActiveStage ? nextBlock.id : undefined,
+            activeCardioStage: nextActiveStage || undefined,
+        };
+        setSession(nextSession);
+        await saveActiveSession(nextSession);
+    };
+
+    const selectType = async (type: CardioType) => {
+        const nextBlock = createBlock(type);
+        setBlock(nextBlock);
         setDraft(emptyDraft);
+        await persistCardioState(nextBlock, null);
     };
 
     const updateDraft = (key: keyof DraftValues, value: string) => {
         setDraft((prev) => ({ ...prev, [key]: value }));
     };
 
-    const startStage = (isRest = false) => {
+    const startStage = async (isRest = false) => {
         if (!block) return;
+        let nextBlock = block;
         if (activeStage) {
-            setBlock((prev) => prev ? { ...prev, stages: [...prev.stages, closeStage(activeStage)] } : prev);
+            nextBlock = { ...block, stages: [...block.stages, closeStage(applyDraftToStage(activeStage, draft))] };
+            setBlock(nextBlock);
         }
-        setActiveStage(buildStageFromDraft(draft, isRest));
+        const nextStage = buildStageFromDraft(draft, isRest);
+        setActiveStage(nextStage);
+        await persistCardioState(nextBlock, nextStage);
     };
 
-    const pauseStage = () => {
-        if (!activeStage) return;
-        setBlock((prev) => prev ? { ...prev, stages: [...prev.stages, closeStage(activeStage)] } : prev);
+    const pauseStage = async () => {
+        if (!block || !activeStage) return;
+        const nextBlock = { ...block, stages: [...block.stages, closeStage(applyDraftToStage(activeStage, draft))] };
+        setBlock(nextBlock);
         setActiveStage(null);
+        await persistCardioState(nextBlock, null);
     };
 
     const saveAndReturn = async () => {
         if (!session || !block) return;
         setSaving(true);
         try {
-            const completed = finalizeBlock(block, activeStage);
+            const completed = finalizeBlock(block, activeStage ? applyDraftToStage(activeStage, draft) : null);
             const otherBlocks = (session.cardioBlocks || []).filter((item) => item.id !== completed.id);
             await saveActiveSession({
                 ...session,
                 cardioBlocks: [...otherBlocks, completed],
+                activeCardioBlockId: undefined,
+                activeCardioStage: undefined,
             });
             navigation.goBack();
         } finally {
@@ -197,12 +251,26 @@ export default function CardioSessionScreen() {
 
     const renderTypePicker = () => (
         <View style={styles.typeGrid}>
-            {CARDIO_TYPES.map((type) => (
-                <TouchableOpacity key={type} style={styles.typeCard} onPress={() => selectType(type)} activeOpacity={0.85}>
-                    <Ionicons name={type === "daily_steps" ? "footsteps-outline" : "pulse-outline"} size={22} color={colors.accent} />
-                    <Text style={styles.typeText}>{CARDIO_TYPE_LABELS[type]}</Text>
-                </TouchableOpacity>
-            ))}
+            {CARDIO_TYPES.map((type) => {
+                const icon = type === "daily_steps" ? "footsteps-outline"
+                    : type === "bike" ? "bicycle-outline"
+                        : type === "treadmill" || type === "outdoor_run" ? "walk-outline"
+                            : "pulse-outline";
+                return (
+                    <TouchableOpacity key={type} style={styles.typeCard} onPress={() => selectType(type)} activeOpacity={0.85}>
+                        <View style={styles.typeIcon}>
+                            <Ionicons name={icon as any} size={24} color={colors.accent} />
+                        </View>
+                        <Text style={styles.typeText}>{CARDIO_TYPE_LABELS[type]}</Text>
+                        <Text style={styles.typeHint}>
+                            {type === "treadmill" ? "Hız, eğim, stage"
+                                : type === "daily_steps" ? "Adım ve kalori"
+                                    : type === "bike" || type === "elliptical" ? "Direnç, RPM, süre"
+                                        : "Mesafe, süre, not"}
+                        </Text>
+                    </TouchableOpacity>
+                );
+            })}
         </View>
     );
 
@@ -230,7 +298,17 @@ export default function CardioSessionScreen() {
             <View style={styles.fieldGrid}>
                 {fields.map((field) => (
                     <View key={field.key} style={styles.inputGroup}>
-                        <Text style={styles.inputLabel}>{field.label}</Text>
+                        <View style={styles.inputLabelRow}>
+                            <Text style={styles.inputLabel}>{field.label}</Text>
+                            {FIELD_HELP[field.key] ? (
+                                <TouchableOpacity
+                                    onPress={() => setHelpText({ title: field.label, message: FIELD_HELP[field.key] || "" })}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                >
+                                    <Ionicons name="information-circle-outline" size={16} color={colors.accent} />
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
                         <TextInput
                             value={draft[field.key]}
                             onChangeText={(value) => updateDraft(field.key, value)}
@@ -268,7 +346,13 @@ export default function CardioSessionScreen() {
         <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.header}>
-                    <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
+                    <TouchableOpacity
+                        style={styles.iconBtn}
+                        onPress={async () => {
+                            if (block) await persistCardioState(block, activeStage ? applyDraftToStage(activeStage, draft) : null);
+                            navigation.goBack();
+                        }}
+                    >
                         <Ionicons name="chevron-back" size={24} color={colors.text} />
                     </TouchableOpacity>
                     <View style={{ flex: 1 }}>
@@ -305,7 +389,10 @@ export default function CardioSessionScreen() {
                             <View style={styles.stageList}>
                                 {block.stages.map((stage, index) => (
                                     <View key={stage.id} style={styles.stageRow}>
-                                        <Text style={styles.stageTitle}>{stage.isRest ? "Mola" : `Stage ${index + 1}`}</Text>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.stageTitle}>{stage.isRest ? "Mola" : `Stage ${index + 1}`}</Text>
+                                            {stage.note ? <Text style={styles.stageNote}>{stage.note}</Text> : null}
+                                        </View>
                                         <Text style={styles.stageMeta}>{formatCardioDuration(stage.duration)}</Text>
                                     </View>
                                 ))}
@@ -326,6 +413,15 @@ export default function CardioSessionScreen() {
                     </>
                 )}
             </ScrollView>
+            <Modal visible={!!helpText} transparent animationType="fade" onRequestClose={() => setHelpText(null)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.helpModal}>
+                        <Text style={styles.helpTitle}>{helpText?.title}</Text>
+                        <Text style={styles.helpMessage}>{helpText?.message}</Text>
+                        <AccentButton title="Tamam" onPress={() => setHelpText(null)} size="md" />
+                    </View>
+                </View>
+            </Modal>
         </KeyboardAvoidingView>
     );
 }
@@ -352,20 +448,29 @@ function createStyles(colors: any) {
             backgroundColor: colors.surface,
         },
         eyebrow: { color: colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-        title: { color: colors.textPrimary, fontSize: fontSize.xxl, fontWeight: fontWeight.bold },
+        title: { color: colors.text, fontSize: fontSize.xxl, fontWeight: fontWeight.bold },
         typeGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
         typeCard: {
             width: "47%",
-            minHeight: 96,
+            minHeight: 126,
             padding: spacing.md,
             borderRadius: borderRadius.lg,
             backgroundColor: colors.surface,
             borderWidth: 1,
             borderColor: colors.border,
             gap: spacing.sm,
-            justifyContent: "center",
+            justifyContent: "space-between",
         },
-        typeText: { color: colors.textPrimary, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+        typeIcon: {
+            width: 42,
+            height: 42,
+            borderRadius: 21,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: colors.accentMuted,
+        },
+        typeText: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
+        typeHint: { color: colors.textSecondary, fontSize: fontSize.xs, lineHeight: 16 },
         summaryCard: {
             padding: spacing.lg,
             borderRadius: borderRadius.lg,
@@ -374,12 +479,13 @@ function createStyles(colors: any) {
             borderColor: colors.border,
             gap: spacing.xs,
         },
-        cardTitle: { color: colors.textPrimary, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+        cardTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
         timer: { color: colors.accent, fontSize: 42, fontWeight: fontWeight.bold },
         muted: { color: colors.textSecondary, fontSize: fontSize.sm },
         fieldGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md },
         inputGroup: { width: "47%", gap: spacing.xs },
         noteGroup: { width: "100%" },
+        inputLabelRow: { flexDirection: "row", alignItems: "center", gap: spacing.xs },
         inputLabel: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
         input: {
             minHeight: 48,
@@ -388,7 +494,7 @@ function createStyles(colors: any) {
             backgroundColor: colors.surface,
             borderWidth: 1,
             borderColor: colors.border,
-            color: colors.textPrimary,
+            color: colors.text,
             fontSize: fontSize.md,
         },
         noteInput: { minHeight: 56 },
@@ -415,8 +521,28 @@ function createStyles(colors: any) {
             flexDirection: "row",
             justifyContent: "space-between",
         },
-        stageTitle: { color: colors.textPrimary, fontWeight: fontWeight.semibold },
+        stageTitle: { color: colors.text, fontWeight: fontWeight.semibold },
+        stageNote: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 },
         stageMeta: { color: colors.textSecondary },
         footer: { gap: spacing.md, marginTop: spacing.md },
+        modalOverlay: {
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.72)",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: spacing.lg,
+        },
+        helpModal: {
+            width: "100%",
+            maxWidth: 420,
+            padding: spacing.lg,
+            borderRadius: borderRadius.lg,
+            backgroundColor: colors.surface,
+            borderWidth: 1,
+            borderColor: colors.border,
+            gap: spacing.md,
+        },
+        helpTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
+        helpMessage: { color: colors.textSecondary, fontSize: fontSize.md, lineHeight: 22 },
     });
 }

@@ -125,6 +125,8 @@ export interface WorkoutSession {
     totalVolume?: number; // load score: working sets, weighted by RPE when logged
     notes?: string;
     cardioBlocks?: CardioBlock[];
+    activeCardioBlockId?: string;
+    activeCardioStage?: CardioStage;
     status: SessionStatus;
     programId?: string;    // linked program (for cycle advance)
     dayIndex?: number;     // which day was trained

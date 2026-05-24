@@ -291,6 +291,10 @@ function normalizeActiveSession(rawSession: any): WorkoutSession | null {
         sportId: rawSession.sportId || "00000000-0000-0000-0000-000000000001",
         exercises: Array.isArray(rawSession.exercises) ? rawSession.exercises : [],
         cardioBlocks: Array.isArray(rawSession.cardioBlocks) ? rawSession.cardioBlocks : [],
+        activeCardioBlockId: typeof rawSession.activeCardioBlockId === "string" ? rawSession.activeCardioBlockId : undefined,
+        activeCardioStage: rawSession.activeCardioStage && typeof rawSession.activeCardioStage === "object"
+            ? rawSession.activeCardioStage
+            : undefined,
         totalDuration: Number.isFinite(Number(rawSession.totalDuration))
             ? Math.max(0, Number(rawSession.totalDuration))
             : 0,

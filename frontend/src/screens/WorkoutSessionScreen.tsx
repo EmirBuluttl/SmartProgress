@@ -119,13 +119,55 @@ function hasLoggedSetData(set: WorkoutSet): boolean {
 }
 
 function hasLoggedCardioData(session: WorkoutSession): boolean {
-    return (session.cardioBlocks || []).some((block) =>
+    return !!session.activeCardioStage || (session.cardioBlocks || []).some((block) =>
         Number(block.totalDuration) > 0 ||
         Number(block.totalDistance) > 0 ||
         Number(block.totalSteps) > 0 ||
         Number(block.totalCalories) > 0 ||
         (Array.isArray(block.stages) && block.stages.length > 0),
     );
+}
+
+function closeActiveCardioIfNeeded(session: WorkoutSession): WorkoutSession {
+    const activeStage = session.activeCardioStage;
+    const activeBlockId = session.activeCardioBlockId;
+    if (!activeStage || !activeBlockId) return session;
+
+    const now = Date.now();
+    const started = new Date(activeStage.startedAt).getTime();
+    const duration = Number.isFinite(started)
+        ? Math.max(0, Math.floor((now - started) / 1000))
+        : Math.max(0, Number(activeStage.duration) || 0);
+    const closedStage = {
+        ...activeStage,
+        endedAt: new Date(now).toISOString(),
+        duration,
+    };
+
+    const cardioBlocks = (session.cardioBlocks || []).map((block) => {
+        if (block.id !== activeBlockId) return block;
+        const stages = [...(block.stages || []), closedStage];
+        const totalDuration = stages.reduce((sum, stage) => sum + Math.max(0, Number(stage.duration) || 0), 0);
+        const totalDistance = stages.reduce((sum, stage) => sum + Math.max(0, Number(stage.distance) || 0), 0);
+        const totalSteps = stages.reduce((sum, stage) => sum + Math.max(0, Number(stage.steps) || 0), 0);
+        const totalCalories = stages.reduce((sum, stage) => sum + Math.max(0, Number(stage.calories) || 0), 0);
+        return {
+            ...block,
+            stages,
+            completedAt: new Date(now).toISOString(),
+            totalDuration,
+            totalDistance: totalDistance > 0 ? totalDistance : undefined,
+            totalSteps: totalSteps > 0 ? totalSteps : undefined,
+            totalCalories: totalCalories > 0 ? totalCalories : undefined,
+        };
+    });
+
+    return {
+        ...session,
+        cardioBlocks,
+        activeCardioBlockId: undefined,
+        activeCardioStage: undefined,
+    };
 }
 
 function hasLoggedWorkoutData(session: WorkoutSession): boolean {
@@ -264,6 +306,10 @@ export default function WorkoutSessionScreen() {
     const [newExerciseIndex, setNewExerciseIndex] = useState(0);
     const [noteModalVisible, setNoteModalVisible] = useState(false);
     const [noteDraft, setNoteDraft] = useState("");
+    const [cardioListVisible, setCardioListVisible] = useState(false);
+    const [freeWorkoutNameModalVisible, setFreeWorkoutNameModalVisible] = useState(false);
+    const [freeWorkoutNameConfirmed, setFreeWorkoutNameConfirmed] = useState(false);
+    const [freeWorkoutNameDraft, setFreeWorkoutNameDraft] = useState("");
     const [setSettingsExercise, setSetSettingsExercise] = useState<WorkoutExercise | null>(null);
     const [startBlockedModalVisible, setStartBlockedModalVisible] = useState(false);
     const [conceptNotice, setConceptNotice] = useState<{ title: string; message: string } | null>(null);
@@ -1027,7 +1073,11 @@ export default function WorkoutSessionScreen() {
     const finishWorkout = async () => {
         if (finishingRef.current) return;
 
-        const currentSession = materializeSessionInputs();
+        let currentSession = closeActiveCardioIfNeeded(materializeSessionInputs());
+        if (currentSession !== session) {
+            setSession(currentSession);
+            await saveActiveSession({ ...currentSession, totalDuration: elapsed });
+        }
         const validExercises = currentSession.exercises.filter(
             (e) => e.name.trim().length > 0 && e.sets.some(hasLoggedSetData),
         );
@@ -1041,6 +1091,12 @@ export default function WorkoutSessionScreen() {
 
         if (validExercises.length === 0 && validCardioBlocks.length === 0) {
             setEmptyFinishModalVisible(true);
+            return;
+        }
+
+        if (route.params?.mode === "free" && !freeWorkoutNameConfirmed) {
+            setFreeWorkoutNameDraft(currentSession.title && currentSession.title !== "Serbest Antrenman" ? currentSession.title : "");
+            setFreeWorkoutNameModalVisible(true);
             return;
         }
 
@@ -1171,6 +1227,16 @@ export default function WorkoutSessionScreen() {
         });
     };
 
+    const confirmFreeWorkoutName = () => {
+        const name = freeWorkoutNameDraft.trim();
+        updateSession((prev) => ({ ...prev, title: name || "Serbest Antrenman" }));
+        setFreeWorkoutNameConfirmed(true);
+        setFreeWorkoutNameModalVisible(false);
+        setTimeout(() => {
+            finishWorkout();
+        }, 0);
+    };
+
     const modeLabelMap = { none: "RPE/RIR Kapalı", rpe: "RPE", rir: "RIR", both: "RPE+RIR" };
 
     const openCardioSession = async (cardioBlockId?: string) => {
@@ -1259,9 +1325,9 @@ export default function WorkoutSessionScreen() {
                     </View>
                     <TouchableOpacity
                         style={styles.cardioAddSmallBtn}
-                        onPress={() => openCardioSession(session.cardioBlocks?.[0]?.id)}
+                        onPress={() => setCardioListVisible(true)}
                     >
-                        <Ionicons name="create-outline" size={18} color={colors.accent} />
+                        <Ionicons name="list-outline" size={18} color={colors.accent} />
                     </TouchableOpacity>
                 </View>
             ) : null}
@@ -1755,6 +1821,92 @@ export default function WorkoutSessionScreen() {
                 message={conceptNotice?.message ?? ""}
                 onClose={() => setConceptNotice(null)}
             />
+            <Modal
+                visible={freeWorkoutNameModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setFreeWorkoutNameModalVisible(false)}
+            >
+                <View style={styles.addExerciseOverlay}>
+                    <View style={styles.addExerciseModal}>
+                        <Text style={styles.addExerciseTitle}>Antrenman adı</Text>
+                        <Text style={styles.bodyWeightModalText}>
+                            Serbest antrenmanını geçmişte daha kolay bulmak için kısa bir isim verebilirsin.
+                        </Text>
+                        <TextInput
+                            style={styles.addExerciseInput}
+                            value={freeWorkoutNameDraft}
+                            onChangeText={setFreeWorkoutNameDraft}
+                            placeholder="Örn. Göğüs odaklı serbest"
+                            placeholderTextColor={colors.textMuted}
+                            selectionColor={colors.accent}
+                            autoFocus
+                        />
+                        <View style={styles.addExerciseActions}>
+                            <TouchableOpacity
+                                style={styles.modalSecondaryBtn}
+                                onPress={() => {
+                                    setFreeWorkoutNameDraft("");
+                                    confirmFreeWorkoutName();
+                                }}
+                            >
+                                <Text style={styles.modalSecondaryText}>İsimsiz Kaydet</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.modalPrimaryBtn} onPress={confirmFreeWorkoutName}>
+                                <Text style={styles.modalPrimaryText}>Kaydet</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
+            <Modal
+                visible={cardioListVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setCardioListVisible(false)}
+            >
+                <View style={styles.addExerciseOverlay}>
+                    <View style={styles.addExerciseModal}>
+                        <Text style={styles.addExerciseTitle}>Kardiyo Logları</Text>
+                        <Text style={styles.bodyWeightModalText}>
+                            Düzenlemek istediğin kardiyo kaydını seç.
+                        </Text>
+                        {(session.cardioBlocks || []).map((block) => (
+                            <TouchableOpacity
+                                key={block.id}
+                                style={styles.cardioListItem}
+                                onPress={() => {
+                                    setCardioListVisible(false);
+                                    openCardioSession(block.id);
+                                }}
+                            >
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.cardioListTitle}>{block.title}</Text>
+                                    <Text style={styles.cardioListText}>{summarizeCardioBlocks([block])}</Text>
+                                </View>
+                                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        ))}
+                        <View style={styles.addExerciseActions}>
+                            <TouchableOpacity
+                                style={styles.modalSecondaryBtn}
+                                onPress={() => setCardioListVisible(false)}
+                            >
+                                <Text style={styles.modalSecondaryText}>Kapat</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity
+                                style={styles.modalPrimaryBtn}
+                                onPress={() => {
+                                    setCardioListVisible(false);
+                                    openCardioSession();
+                                }}
+                            >
+                                <Text style={styles.modalPrimaryText}>Yeni Ekle</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
             <Modal
                 visible={!!bodyWeightModal}
                 transparent
@@ -2427,6 +2579,28 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.background,
+    },
+    cardioListItem: {
+        minHeight: 58,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        marginTop: spacing.sm,
+    },
+    cardioListTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    cardioListText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        marginTop: 2,
     },
 
     // Add Set

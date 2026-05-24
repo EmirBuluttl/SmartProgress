@@ -128,7 +128,13 @@ export default function WorkoutDetailScreen() {
                                 <Text style={styles.cardioTitle}>{(CARDIO_TYPE_LABELS as any)[block.type] || block.title}</Text>
                                 <Text style={styles.cardioText}>{summarizeCardioBlock(block)}</Text>
                                 {Array.isArray(block.stages) && block.stages.length > 0 ? (
-                                    <Text style={styles.cardioText}>{block.stages.length} stage</Text>
+                                    <View style={styles.cardioStageList}>
+                                        {block.stages.map((stage: any, index: number) => (
+                                            <Text key={stage.id || index} style={styles.cardioText}>
+                                                {stage.isRest ? "Mola" : `Stage ${index + 1}`}: {stage.note ? stage.note : "Not yok"}
+                                            </Text>
+                                        ))}
+                                    </View>
                                 ) : null}
                             </View>
                         ))}
@@ -302,6 +308,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.sm,
         marginTop: 2,
+    },
+    cardioStageList: {
+        marginTop: spacing.xs,
+        gap: 2,
     },
     exerciseCard: {
         marginBottom: spacing.md,
