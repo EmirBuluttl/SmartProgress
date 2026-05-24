@@ -224,5 +224,10 @@ export const programApi = {
         api.put(`/programs/${id}`, data),
 };
 
+export const notificationApi = {
+    list: (params?: { limit?: number }) => api.get("/notifications", { params }),
+    markRead: (id: string) => api.patch(`/notifications/${id}/read`),
+};
+
 export default api;
 

@@ -13,6 +13,7 @@ import {
     ActivityIndicator,
     TouchableOpacity,
     Image,
+    Modal,
     NativeSyntheticEvent,
     NativeScrollEvent,
 } from "react-native";
@@ -23,7 +24,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { workoutApi, programApi, authApi } from "../services/api";
+import { workoutApi, programApi, authApi, notificationApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import { isCycleProgram } from "../types/workout";
 import GymCard from "../components/GymCard";
@@ -33,7 +34,6 @@ import SectionHeader from "../components/SectionHeader";
 import ActiveWorkoutBanner from "../components/ActiveWorkoutBanner";
 import { syncPendingWorkouts } from "../services/syncService";
 import { countProgressEvents } from "../utils/workoutMetrics";
-import { showAlert } from "../utils/confirm";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -57,6 +57,9 @@ export default function HomeScreen() {
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const [bannerRefresh, setBannerRefresh] = useState(0);
     const [dayPickerOpen, setDayPickerOpen] = useState(false);
+    const [notifications, setNotifications] = useState<any[]>([]);
+    const [unreadCount, setUnreadCount] = useState(0);
+    const [notificationsVisible, setNotificationsVisible] = useState(false);
     const hasLoadedDashboard = React.useRef(false);
     const scrollRef = useRef<ScrollView | null>(null);
     const shouldRestoreScroll = useRef(false);
@@ -130,6 +133,18 @@ export default function HomeScreen() {
         }
     };
 
+    const loadNotifications = async () => {
+        try {
+            const res = await notificationApi.list({ limit: 20 });
+            setNotifications(res.data.notifications || []);
+            setUnreadCount(res.data.unreadCount || 0);
+        } catch (err) {
+            console.warn("[HomeScreen] Notifications could not be loaded:", err);
+            setNotifications([]);
+            setUnreadCount(0);
+        }
+    };
+
     useFocusEffect(
         useCallback(() => {
             shouldRestoreScroll.current = savedHomeScrollY > 0;
@@ -138,6 +153,7 @@ export default function HomeScreen() {
             }
             loadDashboard();
             loadFavorite();
+            loadNotifications();
             const restoreTimer = setTimeout(restoreScrollPosition, 50);
             return () => clearTimeout(restoreTimer);
         }, [])
@@ -203,7 +219,25 @@ export default function HomeScreen() {
         await loadDashboard();
     };
 
+    const openNotification = async (notification: any) => {
+        try {
+            if (!notification.readAt) {
+                const res = await notificationApi.markRead(notification.id);
+                setNotifications(res.data.notifications || []);
+                setUnreadCount(res.data.unreadCount || 0);
+            }
+        } catch (err) {
+            console.warn("[HomeScreen] Notification could not be marked read:", err);
+        }
+
+        setNotificationsVisible(false);
+        if (notification.actionScreen === "ProgramDetail" && notification.actionParams?.programId) {
+            navigation.navigate("ProgramDetail", { programId: notification.actionParams.programId });
+        }
+    };
+
     return (
+        <>
         <ScrollView
             ref={scrollRef}
             style={styles.container}
@@ -227,10 +261,15 @@ export default function HomeScreen() {
                 <View style={styles.headerActions}>
                     <TouchableOpacity
                         style={styles.notificationBtn}
-                        onPress={() => showAlert("Bildirimler", "Bildirim merkezi hazırlanıyor. Progress, PR, program yıldızları ve antrenman hatırlatıcıları burada toplanacak.")}
+                        onPress={() => setNotificationsVisible(true)}
                         activeOpacity={0.82}
                     >
                         <Ionicons name="notifications-outline" size={22} color={colors.accent} />
+                        {unreadCount > 0 && (
+                            <View style={styles.notificationBadge}>
+                                <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                            </View>
+                        )}
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={styles.avatarCircle}
@@ -618,6 +657,50 @@ export default function HomeScreen() {
 
             <View style={{ height: spacing.xxxl }} />
         </ScrollView>
+        <Modal
+            visible={notificationsVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setNotificationsVisible(false)}
+        >
+            <View style={styles.notificationOverlay}>
+                <View style={styles.notificationModal}>
+                    <View style={styles.notificationHeader}>
+                        <Text style={styles.notificationTitle}>Bildirimler</Text>
+                        <TouchableOpacity onPress={() => setNotificationsVisible(false)}>
+                            <Ionicons name="close" size={24} color={colors.text} />
+                        </TouchableOpacity>
+                    </View>
+                    {notifications.length === 0 ? (
+                        <View style={styles.notificationEmpty}>
+                            <Ionicons name="notifications-off-outline" size={34} color={colors.textMuted} />
+                            <Text style={styles.notificationEmptyText}>Şimdilik bildirimin yok.</Text>
+                        </View>
+                    ) : (
+                        notifications.map((item) => (
+                            <TouchableOpacity
+                                key={item.id}
+                                style={[styles.notificationItem, !item.readAt && styles.notificationItemUnread]}
+                                onPress={() => openNotification(item)}
+                                activeOpacity={0.82}
+                            >
+                                <View style={styles.notificationDotWrap}>
+                                    {!item.readAt ? <View style={styles.notificationDot} /> : null}
+                                </View>
+                                <View style={{ flex: 1 }}>
+                                    <Text style={styles.notificationItemTitle}>{item.title}</Text>
+                                    <Text style={styles.notificationItemMessage}>{item.message}</Text>
+                                    {item.actionLabel ? (
+                                        <Text style={styles.notificationAction}>{item.actionLabel}</Text>
+                                    ) : null}
+                                </View>
+                            </TouchableOpacity>
+                        ))
+                    )}
+                </View>
+            </View>
+        </Modal>
+        </>
     );
 }
 
@@ -733,6 +816,102 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
         alignItems: "center",
         justifyContent: "center",
+    },
+    notificationBadge: {
+        position: "absolute",
+        top: -3,
+        right: -3,
+        minWidth: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: colors.error,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: 4,
+        borderWidth: 1,
+        borderColor: colors.background,
+    },
+    notificationBadgeText: {
+        color: "#FFFFFF",
+        fontSize: 10,
+        fontWeight: fontWeight.bold,
+    },
+    notificationOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.62)",
+        justifyContent: "flex-start",
+        paddingTop: spacing.xxxl + spacing.xl,
+        paddingHorizontal: spacing.lg,
+    },
+    notificationModal: {
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+        maxHeight: "76%",
+    },
+    notificationHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        marginBottom: spacing.md,
+    },
+    notificationTitle: {
+        color: colors.text,
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.heavy,
+    },
+    notificationEmpty: {
+        alignItems: "center",
+        gap: spacing.sm,
+        paddingVertical: spacing.xl,
+    },
+    notificationEmptyText: {
+        color: colors.textMuted,
+        fontSize: fontSize.sm,
+    },
+    notificationItem: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceElevated,
+        padding: spacing.md,
+        marginBottom: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    notificationItemUnread: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    notificationDotWrap: {
+        width: 10,
+        paddingTop: 6,
+        alignItems: "center",
+    },
+    notificationDot: {
+        width: 8,
+        height: 8,
+        borderRadius: 4,
+        backgroundColor: colors.accent,
+    },
+    notificationItemTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+        marginBottom: 4,
+    },
+    notificationItemMessage: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 19,
+    },
+    notificationAction: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        marginTop: spacing.xs,
     },
     streakRow: {
         flexDirection: "row",

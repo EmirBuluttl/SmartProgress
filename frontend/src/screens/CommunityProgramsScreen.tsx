@@ -16,6 +16,7 @@ import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { programApi, parseApiError } from "../services/api";
 import GymCard from "../components/GymCard";
+import NoticeModal from "../components/NoticeModal";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -71,6 +72,7 @@ export default function CommunityProgramsScreen() {
     const [busyId, setBusyId] = useState<string | null>(null);
     const [sort, setSort] = useState<SortMode>("stars");
     const [split, setSplit] = useState<SplitFilter>("ALL");
+    const [splitInfoVisible, setSplitInfoVisible] = useState(false);
 
     const load = useCallback(async () => {
         try {
@@ -171,7 +173,15 @@ export default function CommunityProgramsScreen() {
                                 </TouchableOpacity>
                             ))}
                         </View>
-                        <Text style={styles.filterLabel}>Split</Text>
+                        <View style={styles.filterLabelRow}>
+                            <Text style={styles.filterLabel}>Split</Text>
+                            <TouchableOpacity
+                                style={styles.infoBtn}
+                                onPress={() => setSplitInfoVisible(true)}
+                            >
+                                <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
+                            </TouchableOpacity>
+                        </View>
                         <View style={styles.filterRow}>
                             {SPLIT_OPTIONS.map((option) => (
                                 <TouchableOpacity
@@ -262,6 +272,12 @@ export default function CommunityProgramsScreen() {
                     </TouchableOpacity>
                 )}
             />
+            <NoticeModal
+                visible={splitInfoVisible}
+                title="Split Kısaltmaları"
+                message={"PPL: Push Pull Legs\nAP: Anterior Posterior\nUL: Upper Lower\nTL: Torso Limbs\nFB: Full Body\nDiğer: Bu kalıpların dışında özel programlar"}
+                onClose={() => setSplitInfoVisible(false)}
+            />
         </View>
     );
 }
@@ -301,6 +317,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
         textTransform: "uppercase",
         letterSpacing: 0,
+    },
+    filterLabelRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    infoBtn: {
+        padding: 2,
     },
     filterRow: {
         flexDirection: "row",
