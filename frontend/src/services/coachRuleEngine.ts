@@ -21,6 +21,12 @@ export type CoachPatternKey =
     | "spinal_flexion"
     | "calf_raise";
 
+export type CoachPlanDay = {
+    label: string;
+    isRestDay?: boolean;
+    patterns: CoachPatternKey[];
+};
+
 export type CoachProfileInput = {
     frequency: number;
     split: CoachSplitType;
@@ -32,6 +38,7 @@ export type CoachProfileInput = {
     sessionMinutes?: string;
     priority?: CoachPatternKey | null;
     avoidNote?: string;
+    avoidExercises?: string[];
     selectedExercises?: Partial<Record<CoachPatternKey, string>>;
 };
 
@@ -60,6 +67,15 @@ export const COACH_PRIORITIES: { key: CoachPatternKey; label: string }[] = [
     { key: "knee_flexion", label: "Hamstring" },
 ];
 
+export const COACH_PRIORITY_GROUPS: { key: string; label: string; patterns: CoachPatternKey[] }[] = [
+    { key: "shoulders", label: "Omuz", patterns: ["shoulder_abduction", "shoulder_flexion"] },
+    { key: "chest", label: "Göğüs", patterns: ["horizontal_adduction", "upper_chest"] },
+    { key: "back", label: "Sırt", patterns: ["shoulder_adduction", "shoulder_extension", "upper_back"] },
+    { key: "arms", label: "Kol", patterns: ["elbow_flexion", "elbow_extension", "reverse_curl"] },
+    { key: "legs", label: "Bacak", patterns: ["leg_press", "knee_extension", "knee_flexion", "hip_hinge", "hip_adduction", "calf_raise"] },
+    { key: "core", label: "Karın", patterns: ["spinal_flexion"] },
+];
+
 export const COACH_PATTERN_LABELS: Record<CoachPatternKey, string> = {
     horizontal_adduction: "Göğüs",
     upper_chest: "Üst göğüs",
@@ -72,8 +88,8 @@ export const COACH_PATTERN_LABELS: Record<CoachPatternKey, string> = {
     elbow_flexion: "Biceps",
     reverse_curl: "Brachialis / ön kol",
     knee_extension: "Quadriceps",
-    leg_press: "Vastus / leg press",
-    hip_hinge: "Hamstring / glute",
+    leg_press: "Vastuslar (ön bacak)",
+    hip_hinge: "Hamstring/Glute",
     knee_flexion: "Hamstring",
     hip_adduction: "Adductor",
     spinal_flexion: "Abs",
@@ -196,9 +212,23 @@ export function targetRir(level: CoachLevel): string {
     return "1-2";
 }
 
+const PRIORITY_CLUSTERS: Partial<Record<CoachPatternKey, CoachPatternKey[]>> = {
+    shoulder_adduction: ["shoulder_adduction", "shoulder_extension", "upper_back"],
+    shoulder_extension: ["shoulder_extension", "shoulder_adduction", "upper_back"],
+    upper_back: ["upper_back", "shoulder_extension", "shoulder_adduction"],
+    horizontal_adduction: ["horizontal_adduction", "upper_chest", "shoulder_flexion"],
+    upper_chest: ["upper_chest", "horizontal_adduction", "shoulder_flexion"],
+    leg_press: ["leg_press", "knee_extension", "knee_flexion", "hip_hinge"],
+    knee_extension: ["knee_extension", "leg_press", "knee_flexion", "hip_hinge"],
+    knee_flexion: ["knee_flexion", "hip_hinge", "leg_press", "knee_extension"],
+};
+
 export function reorderForPriority(patterns: CoachPatternKey[], priority: CoachPatternKey | null): CoachPatternKey[] {
     if (!priority || !patterns.includes(priority)) return patterns;
-    return [priority, ...patterns.filter((pattern) => pattern !== priority)];
+    const cluster = PRIORITY_CLUSTERS[priority] || [priority];
+    const prioritized = cluster.filter((pattern) => patterns.includes(pattern));
+    const remaining = patterns.filter((pattern) => !prioritized.includes(pattern));
+    return [...prioritized, ...remaining];
 }
 
 export function makeTargetSets(level: CoachLevel) {
@@ -216,15 +246,80 @@ export function makeCoachId(prefix: string) {
     return `${prefix}_${Math.random().toString(36).slice(2, 9)}`;
 }
 
-export function getWorkoutDays(input: Pick<CoachProfileInput, "frequency" | "split" | "priority">) {
+function restDay(label = "Dinlenme"): CoachPlanDay {
+    return { label, isRestDay: true, patterns: [] };
+}
+
+export function getTrainingDays(input: Pick<CoachProfileInput, "frequency" | "split" | "priority">): CoachPlanDay[] {
     return COACH_SPLIT_PATTERNS[input.split].days.slice(0, input.frequency).map((day) => ({
         ...day,
         patterns: reorderForPriority(day.patterns, input.priority || null),
     }));
 }
 
+export function getWorkoutDays(input: Pick<CoachProfileInput, "frequency" | "split" | "priority">): CoachPlanDay[] {
+    const trainingDays = getTrainingDays(input);
+
+    if (input.frequency === 2) {
+        return [trainingDays[0], restDay(), restDay(), trainingDays[1], restDay(), restDay(), restDay()].filter(Boolean) as CoachPlanDay[];
+    }
+    if (input.frequency === 3) {
+        return [trainingDays[0], restDay(), trainingDays[1], restDay(), trainingDays[2], restDay(), restDay()].filter(Boolean) as CoachPlanDay[];
+    }
+    if (input.frequency === 4) {
+        return [trainingDays[0], trainingDays[1], restDay(), trainingDays[2], trainingDays[3], restDay()].filter(Boolean) as CoachPlanDay[];
+    }
+    if (input.frequency === 5) {
+        return [trainingDays[0], trainingDays[1], trainingDays[2], restDay(), trainingDays[3], trainingDays[4], restDay()].filter(Boolean) as CoachPlanDay[];
+    }
+    if (input.frequency >= 6) {
+        return [trainingDays[0], trainingDays[1], trainingDays[2], trainingDays[3], trainingDays[4], trainingDays[5], restDay()].filter(Boolean) as CoachPlanDay[];
+    }
+
+    return trainingDays;
+}
+
 export function resolveCoachExercise(pattern: CoachPatternKey, selectedExercises?: Partial<Record<CoachPatternKey, string>>) {
     return selectedExercises?.[pattern] || COACH_EXERCISE_LIBRARY[pattern][0];
+}
+
+function normalizeText(value: string) {
+    return value.toLocaleLowerCase("tr-TR").replace(/[^a-z0-9ığüşöç\s]/gi, " ").replace(/\s+/g, " ").trim();
+}
+
+export function parseAvoidedExercises(avoidNote?: string, avoidExercises: string[] = []) {
+    const noteItems = (avoidNote || "")
+        .split(/[,;\n]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+    return Array.from(new Set([...avoidExercises, ...noteItems].map(normalizeText).filter(Boolean)));
+}
+
+export function getAvailableExercises(pattern: CoachPatternKey, avoidNote?: string, avoidExercises: string[] = []) {
+    const avoided = parseAvoidedExercises(avoidNote, avoidExercises);
+    if (avoided.length === 0) return COACH_EXERCISE_LIBRARY[pattern];
+
+    const filtered = COACH_EXERCISE_LIBRARY[pattern].filter((exercise) => {
+        const normalizedExercise = normalizeText(exercise);
+        return !avoided.some((avoidedExercise) =>
+            normalizedExercise === avoidedExercise ||
+            normalizedExercise.includes(avoidedExercise) ||
+            avoidedExercise.includes(normalizedExercise),
+        );
+    });
+
+    return filtered.length > 0 ? filtered : COACH_EXERCISE_LIBRARY[pattern];
+}
+
+export function resolveCoachExerciseWithAvoidance(
+    pattern: CoachPatternKey,
+    selectedExercises?: Partial<Record<CoachPatternKey, string>>,
+    avoidNote?: string,
+    avoidExercises: string[] = [],
+) {
+    const available = getAvailableExercises(pattern, avoidNote, avoidExercises);
+    const selected = selectedExercises?.[pattern];
+    return selected && available.includes(selected) ? selected : available[0];
 }
 
 export function buildCoachProgramData(input: CoachProfileInput) {
@@ -245,10 +340,10 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         },
         days: workoutDays.map((day) => ({
             label: day.label,
-            isRestDay: false,
-            exercises: day.patterns.map((pattern) => ({
+            isRestDay: !!day.isRestDay,
+            exercises: day.isRestDay ? [] : day.patterns.map((pattern) => ({
                 id: makeCoachId("exercise"),
-                name: resolveCoachExercise(pattern, input.selectedExercises),
+                name: resolveCoachExerciseWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises),
                 targetPattern: pattern,
                 targetMuscle: COACH_PATTERN_LABELS[pattern],
                 targetSets: makeTargetSets(input.level),

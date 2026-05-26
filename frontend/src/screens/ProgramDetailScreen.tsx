@@ -80,6 +80,7 @@ export default function ProgramDetailScreen() {
     const [selectedDayIndex, setSelectedDayIndex] = useState<number | null>(null);
     const [socialBusy, setSocialBusy] = useState(false);
     const [syncingSource, setSyncingSource] = useState(false);
+    const [restAdvancing, setRestAdvancing] = useState(false);
     const [workoutCount, setWorkoutCount] = useState(0);
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
@@ -220,6 +221,21 @@ export default function ProgramDetailScreen() {
         setSelectedDayIndex(dayIndex);
     };
 
+    const completeRestDay = async () => {
+        if (!program || restAdvancing) return;
+        setRestAdvancing(true);
+        try {
+            const res = await programApi.advanceDay(program.id);
+            setProgram(res.data as ProgramData);
+            setNotice({ title: "Dinlenme tamamlandı", message: "Sıradaki antrenman gününe geçildi." });
+        } catch (err) {
+            const apiError = parseApiError(err);
+            setNotice({ title: "Hata", message: apiError.message || "Dinlenme günü tamamlanamadı." });
+        } finally {
+            setRestAdvancing(false);
+        }
+    };
+
     const toggleStar = async () => {
         if (!program || socialBusy) return;
         setSocialBusy(true);
@@ -278,6 +294,7 @@ export default function ProgramDetailScreen() {
 
     const days = program.data?.days || [];
     const currentDayIndex = program.currentDayIndex;
+    const currentDay = days[currentDayIndex];
     const isOwner = program.isMine !== false;
     const ownerName =
         program.user?.nickname ||
@@ -466,13 +483,24 @@ export default function ProgramDetailScreen() {
                 {/* ─── Current Day Highlight ─── */}
                 {days.length > 0 && isOwner && (
                     <View style={s.currentDayBanner}>
-                        <View style={s.currentDayDot} />
-                        <Text style={s.currentDayLabel}>
-                            Sıradaki:{" "}
-                            <Text style={{ fontWeight: fontWeight.bold as any }}>
-                                {days[currentDayIndex]?.label || `Gün ${currentDayIndex + 1}`}
+                        <View style={s.currentDayInfo}>
+                            <View style={s.currentDayDot} />
+                            <Text style={s.currentDayLabel}>
+                                Sıradaki:{" "}
+                                <Text style={{ fontWeight: fontWeight.bold as any }}>
+                                    {currentDay?.label || `Gün ${currentDayIndex + 1}`}
+                                </Text>
                             </Text>
-                        </Text>
+                        </View>
+                        {currentDay?.isRestDay && (
+                            <TouchableOpacity
+                                style={s.completeRestBtn}
+                                onPress={completeRestDay}
+                                disabled={restAdvancing}
+                            >
+                                <Text style={s.completeRestText}>{restAdvancing ? "..." : "Tamamla / Geç"}</Text>
+                            </TouchableOpacity>
+                        )}
                     </View>
                 )}
 
@@ -569,15 +597,31 @@ export default function ProgramDetailScreen() {
                 title={selectedDay?.label || "Program günü"}
                 message={
                     selectedDay?.isRestDay
-                        ? "Bu gün dinlenme günü olarak tanımlı. Yine de bu günü başlatmak ister misiniz?"
+                        ? selectedDayIndex === currentDayIndex
+                            ? "Bu gün dinlenme günü olarak tanımlı. Tamamlayıp sıradaki antrenman gününe geçebilirsin."
+                            : "Bu gün dinlenme günü olarak tanımlı."
                         : "Bu program gününü sıradaki günü beklemeden başlatabilirsiniz."
                 }
-                primaryLabel="Günü Başlat"
-                secondaryLabel="Detayları Gör"
+                primaryLabel={selectedDay?.isRestDay ? (selectedDayIndex === currentDayIndex ? "Tamamla / Geç" : "Detayları Gör") : "Günü Başlat"}
+                secondaryLabel={selectedDay?.isRestDay ? "Kapat" : "Detayları Gör"}
                 onPrimary={() => {
-                    if (selectedDayIndex !== null) handleStartSelectedDay(selectedDayIndex);
+                    if (selectedDayIndex === null) return;
+                    if (selectedDay?.isRestDay) {
+                        if (selectedDayIndex === currentDayIndex) {
+                            setSelectedDayIndex(null);
+                            completeRestDay();
+                        } else {
+                            navigateToDayDetail(selectedDayIndex);
+                        }
+                        return;
+                    }
+                    handleStartSelectedDay(selectedDayIndex);
                 }}
                 onSecondary={() => {
+                    if (selectedDay?.isRestDay) {
+                        setSelectedDayIndex(null);
+                        return;
+                    }
                     if (selectedDayIndex !== null) navigateToDayDetail(selectedDayIndex);
                 }}
                 onDismiss={() => setSelectedDayIndex(null)}
@@ -747,6 +791,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     currentDayBanner: {
         flexDirection: "row",
         alignItems: "center",
+        justifyContent: "space-between",
         backgroundColor: "rgba(204,255,0,0.08)",
         borderRadius: borderRadius.md,
         borderWidth: 1,
@@ -755,8 +800,20 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: spacing.lg,
         gap: spacing.sm,
     },
+    currentDayInfo: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.sm },
     currentDayDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.accent },
     currentDayLabel: { fontSize: fontSize.sm, color: colors.text },
+    completeRestBtn: {
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accent,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+    },
+    completeRestText: {
+        color: colors.background,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
 
     // Section
     sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text, marginBottom: spacing.md },

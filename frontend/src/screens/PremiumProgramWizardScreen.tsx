@@ -8,190 +8,29 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { parseApiError, programApi } from "../services/api";
-import { buildCoachProgramData } from "../services/coachRuleEngine";
-
-type Level = "beginner" | "intermediate" | "advanced";
-type SplitType = "FB" | "UL" | "AP" | "TL" | "PPL" | "PPLUL";
-type Goal = "muscle" | "strength" | "fat_loss" | "general";
-
-type PatternKey =
-    | "horizontal_adduction"
-    | "upper_chest"
-    | "shoulder_flexion"
-    | "shoulder_extension"
-    | "shoulder_adduction"
-    | "upper_back"
-    | "shoulder_abduction"
-    | "elbow_extension"
-    | "elbow_flexion"
-    | "reverse_curl"
-    | "knee_extension"
-    | "leg_press"
-    | "hip_hinge"
-    | "knee_flexion"
-    | "hip_adduction"
-    | "spinal_flexion"
-    | "calf_raise";
+import {
+    buildCoachProgramData,
+    COACH_GOALS as GOALS,
+    COACH_LEVELS as LEVELS,
+    COACH_PATTERN_LABELS as PATTERN_LABELS,
+    COACH_PRIORITY_GROUPS as PRIORITY_GROUPS,
+    COACH_PRIORITIES as PRIORITIES,
+    COACH_SPLIT_PATTERNS as SPLIT_PATTERNS,
+    defaultSplitForFrequency,
+    getAvailableExercises,
+    getTrainingDays,
+    getWorkoutDays,
+    resolveCoachExerciseWithAvoidance,
+    splitOptionsForFrequency,
+    splitReason,
+    targetRir,
+    type CoachGoal as Goal,
+    type CoachLevel as Level,
+    type CoachPatternKey as PatternKey,
+    type CoachSplitType as SplitType,
+} from "../services/coachRuleEngine";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
-
-const LEVELS: { key: Level; label: string; desc: string; rir: string }[] = [
-    { key: "beginner", label: "Başlangıç", desc: "Form, düzen ve güvenli progress.", rir: "2-3" },
-    { key: "intermediate", label: "Orta", desc: "Düşük hacim, tükenişe yakın kaliteli set.", rir: "0-1" },
-    { key: "advanced", label: "İleri", desc: "Hata payı düşük, recovery odaklı takip.", rir: "1-2" },
-];
-
-const GOALS: { key: Goal; label: string }[] = [
-    { key: "muscle", label: "Kas kazanımı" },
-    { key: "strength", label: "Güç artışı" },
-    { key: "fat_loss", label: "Yağ kaybına destek" },
-    { key: "general", label: "Genel progress" },
-];
-
-const PRIORITIES: { key: PatternKey; label: string }[] = [
-    { key: "shoulder_abduction", label: "Yan omuz" },
-    { key: "horizontal_adduction", label: "Göğüs" },
-    { key: "upper_chest", label: "Üst göğüs" },
-    { key: "shoulder_adduction", label: "Alt kanat" },
-    { key: "upper_back", label: "Üst sırt" },
-    { key: "elbow_flexion", label: "Biceps" },
-    { key: "elbow_extension", label: "Triceps" },
-    { key: "leg_press", label: "Bacak" },
-    { key: "knee_flexion", label: "Hamstring" },
-];
-
-const PATTERN_LABELS: Record<PatternKey, string> = {
-    horizontal_adduction: "Göğüs",
-    upper_chest: "Üst göğüs",
-    shoulder_flexion: "Ön omuz",
-    shoulder_extension: "Üst kanat",
-    shoulder_adduction: "Alt kanat",
-    upper_back: "Üst sırt",
-    shoulder_abduction: "Yan omuz",
-    elbow_extension: "Triceps",
-    elbow_flexion: "Biceps",
-    reverse_curl: "Brachialis / ön kol",
-    knee_extension: "Quadriceps",
-    leg_press: "Vastus / leg press",
-    hip_hinge: "Hamstring / glute",
-    knee_flexion: "Hamstring",
-    hip_adduction: "Adductor",
-    spinal_flexion: "Abs",
-    calf_raise: "Calf",
-};
-
-const EXERCISE_LIBRARY: Record<PatternKey, string[]> = {
-    horizontal_adduction: ["Pec Deck", "Smith Machine Bench Press", "Chest Press Machine", "Bench Press"],
-    upper_chest: ["Incline Smith Machine Chest Press", "Seated Low to High Fly", "Incline Dumbbell Press"],
-    shoulder_flexion: ["Machine Shoulder Press", "Seated Barbell Shoulder Press", "Dumbbell Shoulder Press"],
-    shoulder_extension: ["Close Grip Pulldown", "Chest Supported Close Grip Row", "Narrow Grip Pull Up"],
-    shoulder_adduction: ["Wide Grip Pulldown", "Wide Grip Pull Up"],
-    upper_back: ["Chest Supported Upper Back Row", "Upper Back Row"],
-    shoulder_abduction: ["Starting Hip Cable Lateral Raise", "Machine Lateral Raise", "Seated Dumbbell Lateral Raise"],
-    elbow_extension: ["Single Arm Triceps Extension", "Triceps Extension"],
-    elbow_flexion: ["Preacher Curl", "Cable Bayesian Curl", "Cable Curl"],
-    reverse_curl: ["Reverse Cable Curl", "Reverse Barbell Curl"],
-    knee_extension: ["Leg Extension", "Sissy Squat"],
-    leg_press: ["Leg Press", "Squat", "Hack Squat"],
-    hip_hinge: ["Romanian Deadlift", "Stiff Leg Deadlift", "Hyper Extension"],
-    knee_flexion: ["Seated Leg Curl", "Leg Curl"],
-    hip_adduction: ["Adductor Machine", "Cable Leg Adduction"],
-    spinal_flexion: ["Weighted Ab Crunch", "Cable Crunch", "Elbow Supported Knee Raise"],
-    calf_raise: ["Straight Leg Calf Raise", "Bent Knee Calf Raise"],
-};
-
-const SPLIT_PATTERNS: Record<SplitType, { label: string; days: { label: string; patterns: PatternKey[] }[] }> = {
-    FB: {
-        label: "Full Body",
-        days: [
-            { label: "Full Body A", patterns: ["horizontal_adduction", "shoulder_extension", "upper_back", "leg_press", "hip_hinge", "shoulder_abduction", "elbow_extension", "elbow_flexion", "spinal_flexion"] },
-            { label: "Full Body B", patterns: ["upper_chest", "shoulder_adduction", "upper_back", "knee_extension", "knee_flexion", "shoulder_abduction", "elbow_extension", "calf_raise"] },
-            { label: "Full Body C", patterns: ["horizontal_adduction", "shoulder_extension", "shoulder_adduction", "leg_press", "hip_hinge", "elbow_flexion", "reverse_curl", "spinal_flexion"] },
-        ],
-    },
-    UL: {
-        label: "Upper / Lower",
-        days: [
-            { label: "Upper A", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_extension", "shoulder_adduction", "upper_back", "shoulder_abduction", "elbow_extension", "elbow_flexion", "reverse_curl"] },
-            { label: "Lower A", patterns: ["knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
-            { label: "Upper B", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_extension", "shoulder_adduction", "upper_back", "shoulder_abduction", "elbow_extension", "elbow_flexion"] },
-            { label: "Lower B", patterns: ["leg_press", "knee_extension", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
-        ],
-    },
-    AP: {
-        label: "Anterior / Posterior",
-        days: [
-            { label: "Anterior A", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_abduction", "elbow_extension", "knee_extension", "leg_press", "spinal_flexion"] },
-            { label: "Posterior A", patterns: ["shoulder_extension", "shoulder_adduction", "upper_back", "elbow_flexion", "reverse_curl", "hip_hinge", "knee_flexion", "hip_adduction", "calf_raise"] },
-            { label: "Anterior B", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_abduction", "elbow_extension", "knee_extension", "leg_press", "spinal_flexion"] },
-            { label: "Posterior B", patterns: ["shoulder_extension", "shoulder_adduction", "upper_back", "elbow_flexion", "reverse_curl", "hip_hinge", "knee_flexion", "hip_adduction", "calf_raise"] },
-        ],
-    },
-    TL: {
-        label: "Torso / Limbs",
-        days: [
-            { label: "Torso A", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_extension", "shoulder_adduction", "upper_back", "shoulder_abduction"] },
-            { label: "Limbs A", patterns: ["elbow_extension", "elbow_flexion", "reverse_curl", "knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
-            { label: "Torso B", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_extension", "shoulder_adduction", "upper_back", "shoulder_abduction"] },
-            { label: "Limbs B", patterns: ["elbow_extension", "elbow_flexion", "reverse_curl", "knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
-        ],
-    },
-    PPL: {
-        label: "Push / Pull / Legs",
-        days: [
-            { label: "Push A", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_abduction", "elbow_extension"] },
-            { label: "Pull A", patterns: ["shoulder_extension", "shoulder_adduction", "upper_back", "elbow_flexion", "reverse_curl"] },
-            { label: "Legs A", patterns: ["knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
-            { label: "Push B", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_abduction", "elbow_extension"] },
-            { label: "Pull B", patterns: ["shoulder_extension", "shoulder_adduction", "upper_back", "elbow_flexion", "reverse_curl"] },
-            { label: "Legs B", patterns: ["knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
-        ],
-    },
-    PPLUL: {
-        label: "PPL + UL",
-        days: [
-            { label: "Push", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_abduction", "elbow_extension"] },
-            { label: "Pull", patterns: ["shoulder_extension", "shoulder_adduction", "upper_back", "elbow_flexion", "reverse_curl"] },
-            { label: "Legs", patterns: ["knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
-            { label: "Upper", patterns: ["horizontal_adduction", "upper_chest", "shoulder_extension", "shoulder_adduction", "upper_back", "shoulder_abduction", "elbow_extension", "elbow_flexion"] },
-            { label: "Lower", patterns: ["knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
-        ],
-    },
-};
-
-function defaultSplitForFrequency(frequency: number): SplitType {
-    if (frequency <= 3) return "FB";
-    if (frequency === 5) return "PPLUL";
-    if (frequency >= 6) return "PPL";
-    return "UL";
-}
-
-function splitOptionsForFrequency(frequency: number): SplitType[] {
-    if (frequency <= 3) return ["FB"];
-    if (frequency === 4) return ["UL", "AP", "TL"];
-    if (frequency === 5) return ["UL", "AP", "TL", "PPLUL"];
-    return ["PPL", "UL", "AP", "TL"];
-}
-
-function splitReason(split: SplitType): string {
-    if (split === "UL") return "Bacak gelişimi öncelikliyse veya alt/üst düzeni seviyorsan iyi seçim.";
-    if (split === "AP") return "Aynı gün göğüs ve sırt çalışmayı sevmiyorsan daha temiz ayrım sunar.";
-    if (split === "TL") return "Kollar eksik bölgeyse torso/limbs ayrımı daha uygun olabilir.";
-    if (split === "PPLUL") return "5 günlük düzende PPL hissini koruyup haftayı upper/lower ile tamamlar.";
-    if (split === "PPL") return "6 günlük düzende yüksek frekanslı, düzenli takip edilebilir split.";
-    return "3 gün veya daha az frekansta frekans/verim oranı en iyi başlangıçtır.";
-}
-
-function targetRir(level: Level): string {
-    if (level === "beginner") return "2-3";
-    if (level === "intermediate") return "0-1";
-    return "1-2";
-}
-
-function reorderForPriority(patterns: PatternKey[], priority: PatternKey | null): PatternKey[] {
-    if (!priority || !patterns.includes(priority)) return patterns;
-    return [priority, ...patterns.filter((pattern) => pattern !== priority)];
-}
 
 export default function PremiumProgramWizardScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -206,6 +45,7 @@ export default function PremiumProgramWizardScreen() {
     const [goal, setGoal] = React.useState<Goal>("muscle");
     const [equipment, setEquipment] = React.useState("");
     const [sessionMinutes, setSessionMinutes] = React.useState("");
+    const [priorityGroup, setPriorityGroup] = React.useState<string | null>(null);
     const [priority, setPriority] = React.useState<PatternKey | null>(null);
     const [avoidNote, setAvoidNote] = React.useState("");
     const [split, setSplit] = React.useState<SplitType>("UL");
@@ -221,14 +61,13 @@ export default function PremiumProgramWizardScreen() {
     }, [frequency, split]);
 
     const selectedSplit = SPLIT_PATTERNS[split];
-    const workoutDays = selectedSplit.days.slice(0, frequency).map((day) => ({
-        ...day,
-        patterns: reorderForPriority(day.patterns, priority),
-    }));
+    const trainingDays = getTrainingDays({ frequency, split, priority });
+    const workoutDays = getWorkoutDays({ frequency, split, priority });
 
-    const uniquePatterns = Array.from(new Set(workoutDays.flatMap((day) => day.patterns)));
+    const uniquePatterns = Array.from(new Set(trainingDays.flatMap((day) => day.patterns)));
 
-    const resolveExercise = (pattern: PatternKey) => selectedExercises[pattern] || EXERCISE_LIBRARY[pattern][0];
+    const selectedPriorityGroup = PRIORITY_GROUPS.find((group) => group.key === priorityGroup) || null;
+    const resolveExercise = (pattern: PatternKey) => resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote);
 
     const programName = `SmartProgress ${selectedSplit.label}`;
 
@@ -241,8 +80,8 @@ export default function PremiumProgramWizardScreen() {
         painNote,
         equipment,
         sessionMinutes,
-        priority,
-        avoidNote,
+                        priority,
+                        avoidNote,
         selectedExercises,
     });
 
@@ -363,21 +202,63 @@ export default function PremiumProgramWizardScreen() {
                             <OptionCard key={item.key} active={goal === item.key} title={item.label} onPress={() => setGoal(item.key)} colors={colors} />
                         ))}
                         <TextInput value={equipment} onChangeText={setEquipment} placeholder="Ekipman: boşsa tam salon varsayılır" placeholderTextColor={colors.textMuted} style={styles.input} />
-                        <TextInput value={sessionMinutes} onChangeText={setSessionMinutes} placeholder="Session süresi, örn: 75 dk" placeholderTextColor={colors.textMuted} style={styles.input} keyboardType="numeric" />
+                        <Text style={styles.inlineLabel}>Session suresi</Text>
+                        <View style={styles.durationGrid}>
+                            {["45", "60", "75", "90"].map((minutes) => (
+                                <TouchableOpacity
+                                    key={minutes}
+                                    style={[styles.durationChip, sessionMinutes === minutes && styles.durationChipActive]}
+                                    onPress={() => setSessionMinutes(minutes)}
+                                >
+                                    <Text style={[styles.durationText, sessionMinutes === minutes && styles.durationTextActive]}>{minutes} dk</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
                     </View>
                 );
             case 4:
                 return (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Öncelik ve kaçınmalar</Text>
-                        <Text style={styles.bodyText}>Öncelikli kas ilk etapta set artırmaz; ilgili egzersizleri günün başına alır.</Text>
+                        <Text style={styles.bodyText}>Önce geniş bölgeyi seç; istersen alt odağı netleştir. Sevilmeyen hareketleri virgülle ayırırsan öneri havuzundan düşer.</Text>
+                        <Text style={styles.inlineLabel}>Eksik bölge</Text>
                         <View style={styles.priorityGrid}>
-                            {PRIORITIES.map((item) => (
-                                <TouchableOpacity key={item.key} style={[styles.priorityChip, priority === item.key && styles.priorityChipActive]} onPress={() => setPriority(priority === item.key ? null : item.key)}>
-                                    <Text style={[styles.priorityText, priority === item.key && styles.priorityTextActive]}>{item.label}</Text>
+                            {PRIORITY_GROUPS.map((group) => (
+                                <TouchableOpacity
+                                    key={group.key}
+                                    style={[styles.priorityChip, priorityGroup === group.key && styles.priorityChipActive]}
+                                    onPress={() => {
+                                        if (priorityGroup === group.key) {
+                                            setPriorityGroup(null);
+                                            setPriority(null);
+                                            return;
+                                        }
+                                        setPriorityGroup(group.key);
+                                        setPriority(group.patterns[0]);
+                                    }}
+                                >
+                                    <Text style={[styles.priorityText, priorityGroup === group.key && styles.priorityTextActive]}>{group.label}</Text>
                                 </TouchableOpacity>
                             ))}
                         </View>
+                        {selectedPriorityGroup && selectedPriorityGroup.patterns.length > 1 && (
+                            <>
+                                <Text style={styles.inlineLabel}>Alt odak</Text>
+                                <View style={styles.priorityGrid}>
+                                    {selectedPriorityGroup.patterns.map((pattern) => (
+                                        <TouchableOpacity
+                                            key={pattern}
+                                            style={[styles.priorityChip, priority === pattern && styles.priorityChipActive]}
+                                            onPress={() => setPriority(pattern)}
+                                        >
+                                            <Text style={[styles.priorityText, priority === pattern && styles.priorityTextActive]}>
+                                                {PRIORITIES.find((item) => item.key === pattern)?.label || PATTERN_LABELS[pattern]}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            </>
+                        )}
                         <TextInput value={avoidNote} onChangeText={setAvoidNote} placeholder="Kaçındığın/sevmediğin hareket varsa yaz" placeholderTextColor={colors.textMuted} style={styles.input} />
                     </View>
                 );
@@ -399,7 +280,7 @@ export default function PremiumProgramWizardScreen() {
                         {uniquePatterns.map((pattern) => (
                             <View key={pattern} style={styles.exercisePicker}>
                                 <Text style={styles.patternLabel}>{PATTERN_LABELS[pattern]}</Text>
-                                {EXERCISE_LIBRARY[pattern].map((exercise) => (
+                                {getAvailableExercises(pattern, avoidNote).map((exercise) => (
                                     <TouchableOpacity
                                         key={exercise}
                                         style={[styles.exerciseOption, resolveExercise(pattern) === exercise && styles.exerciseOptionActive]}
@@ -416,11 +297,13 @@ export default function PremiumProgramWizardScreen() {
                 return (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Özet ve oluştur</Text>
-                        <Text style={styles.bodyText}>{programName} programı {frequency} günlük frekansla oluşturulacak. RIR hedefi: {targetRir(level)}.</Text>
+                        <Text style={styles.bodyText}>{programName} programı haftada {frequency} antrenman günü ve dinlenme günleriyle oluşturulacak. RIR hedefi: {targetRir(level)}.</Text>
                         {workoutDays.map((day) => (
                             <View key={day.label} style={styles.summaryDay}>
                                 <Text style={styles.summaryDayTitle}>{day.label}</Text>
-                                <Text style={styles.summaryDayText}>{day.patterns.map((pattern) => resolveExercise(pattern)).join(", ")}</Text>
+                                <Text style={styles.summaryDayText}>
+                                    {day.isRestDay ? "Dinlenme günü" : day.patterns.map((pattern) => resolveExercise(pattern)).join(", ")}
+                                </Text>
                             </View>
                         ))}
                         <TouchableOpacity style={styles.primaryBtn} disabled={saving} onPress={() => saveProgram(true)}>
@@ -657,6 +540,39 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         fontSize: fontSize.sm,
+    },
+    inlineLabel: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        marginTop: spacing.xs,
+    },
+    durationGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    durationChip: {
+        minHeight: 40,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    durationChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    durationText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    durationTextActive: {
+        color: colors.accent,
     },
     priorityGrid: {
         flexDirection: "row",
