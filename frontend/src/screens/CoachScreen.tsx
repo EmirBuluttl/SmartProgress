@@ -7,6 +7,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useAuth } from "../store/AuthContext";
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
+import { coachApi } from "../services/api";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
 
@@ -25,6 +26,27 @@ export default function CoachScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const isFree = tier === "free";
     const isCoachPlus = tier === "coach_plus";
+    const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
+    const [reportLoading, setReportLoading] = React.useState(false);
+
+    React.useEffect(() => {
+        let mounted = true;
+        const loadReport = async () => {
+            setReportLoading(true);
+            try {
+                const response = await coachApi.weeklyReport();
+                if (mounted) setWeeklyReport(response.data?.data || null);
+            } catch (error) {
+                if (mounted) setWeeklyReport(null);
+            } finally {
+                if (mounted) setReportLoading(false);
+            }
+        };
+        loadReport();
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     return (
         <ScrollView
@@ -113,6 +135,37 @@ export default function CoachScreen() {
                     description="Yeterli log varsa haftanın en iyi progress'i, takipteki hareketler ve gelecek hedefler."
                     colors={colors}
                 />
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Haftalık rapor</Text>
+                <View style={styles.reportCard}>
+                    <View style={styles.reportTopRow}>
+                        <Text style={styles.reportTitle}>{reportLoading ? "Rapor hazırlanıyor" : "Bu hafta"}</Text>
+                        <View style={styles.statusPill}>
+                            <Text style={styles.statusText}>Beta</Text>
+                        </View>
+                    </View>
+                    <Text style={styles.panelText}>
+                        {weeklyReport?.summary || "Yeterli log oluşunca bu alan progress, takip ve müdahale sinyallerini gösterecek."}
+                    </Text>
+                    {!!weeklyReport && (
+                        <View style={styles.reportStats}>
+                            <View style={styles.reportStat}>
+                                <Text style={styles.reportStatValue}>{weeklyReport.workoutCount ?? 0}</Text>
+                                <Text style={styles.reportStatLabel}>Antrenman</Text>
+                            </View>
+                            <View style={styles.reportStat}>
+                                <Text style={styles.reportStatValue}>{weeklyReport.progressCount ?? 0}</Text>
+                                <Text style={styles.reportStatLabel}>Progress</Text>
+                            </View>
+                            <View style={styles.reportStat}>
+                                <Text style={styles.reportStatValue}>{weeklyReport.watchCount ?? 0}</Text>
+                                <Text style={styles.reportStatLabel}>Takip</Text>
+                            </View>
+                        </View>
+                    )}
+                </View>
             </View>
 
             <View style={styles.compareSection}>
@@ -399,5 +452,47 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.sm,
         lineHeight: 20,
+    },
+    reportCard: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+        gap: spacing.md,
+    },
+    reportTopRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.md,
+    },
+    reportTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    reportStats: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    reportStat: {
+        flex: 1,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.md,
+        gap: spacing.xs,
+    },
+    reportStatValue: {
+        color: colors.text,
+        fontSize: fontSize.lg,
+        fontWeight: fontWeight.heavy,
+    },
+    reportStatLabel: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
     },
 });

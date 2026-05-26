@@ -232,6 +232,10 @@ export const notificationApi = {
     clear: () => api.delete("/notifications"),
 };
 
+export const coachApi = {
+    weeklyReport: (params?: { date?: string }) => api.get("/coach/weekly-report", { params }),
+};
+
 export const profileApi = {
     getPublicProfile: (userId: string) => api.get(`/profiles/${userId}`),
 };
