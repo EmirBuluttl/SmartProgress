@@ -55,6 +55,8 @@ export interface AuthResponse {
         avatarUrl: string | null;
         role: string;
         settings: unknown;
+        subscriptionTier: string;
+        subscriptionStatus: string;
     };
 }
 
@@ -177,6 +179,8 @@ export class AuthService {
                 avatarUrl: user.avatarUrl,
                 role: user.role,
                 settings: user.settings,
+                subscriptionTier: user.subscriptionTier,
+                subscriptionStatus: user.subscriptionStatus,
             },
         };
     }
@@ -218,6 +222,8 @@ export class AuthService {
                 avatarUrl: user.avatarUrl,
                 role: user.role,
                 settings: user.settings,
+                subscriptionTier: user.subscriptionTier,
+                subscriptionStatus: user.subscriptionStatus,
             },
         };
     }
@@ -242,6 +248,8 @@ export class AuthService {
             avatarUrl: user.avatarUrl,
             role: user.role,
             settings: user.settings,
+            subscriptionTier: user.subscriptionTier,
+            subscriptionStatus: user.subscriptionStatus,
         };
     }
 
@@ -275,6 +283,8 @@ export class AuthService {
             avatarUrl: updated.avatarUrl,
             role: updated.role,
             settings: updated.settings,
+            subscriptionTier: updated.subscriptionTier,
+            subscriptionStatus: updated.subscriptionStatus,
         };
     }
 

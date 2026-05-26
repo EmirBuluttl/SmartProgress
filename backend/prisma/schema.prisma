@@ -25,6 +25,8 @@ model User {
   nickname     String?  @map("nickname")
   avatarUrl    String?  @map("avatar_url")
   settings     Json?    @db.JsonB
+  subscriptionTier   SubscriptionTier   @default(FREE) @map("subscription_tier")
+  subscriptionStatus SubscriptionStatus @default(INACTIVE) @map("subscription_status")
   passwordResetTokenHash String?   @map("password_reset_token_hash")
   passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
   role         Role     @default(ATHLETE)
@@ -38,8 +40,46 @@ model User {
   bodyMeasurements BodyMeasurement[]
   nutritionLogs NutritionLog[]
   notifications Notification[]
+  aiUsageEvents AiUsageEvent[]
+  coachWeeklyReports CoachWeeklyReport[]
 
   @@map("users")
+}
+
+model CoachWeeklyReport {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  weekStart  DateTime @map("week_start") @db.Date
+  sourceHash String?  @map("source_hash")
+  status     String   @default("ready")
+  data       Json     @db.JsonB
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, weekStart])
+  @@index([userId, weekStart])
+  @@map("coach_weekly_reports")
+}
+
+model AiUsageEvent {
+  id                  String   @id @default(uuid()) @db.Uuid
+  userId              String   @map("user_id") @db.Uuid
+  feature             String
+  provider            String?
+  model               String?
+  inputTokens         Int      @default(0) @map("input_tokens")
+  outputTokens        Int      @default(0) @map("output_tokens")
+  estimatedCostMicros Int      @default(0) @map("estimated_cost_micros")
+  metadata            Json?    @db.JsonB
+  createdAt           DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([feature])
+  @@map("ai_usage_events")
 }
 
 model Notification {
@@ -109,6 +149,18 @@ enum Role {
   ATHLETE
   COACH
   ADMIN
+}
+
+enum SubscriptionTier {
+  FREE
+  PRO
+  COACH_PLUS
+}
+
+enum SubscriptionStatus {
+  ACTIVE
+  INACTIVE
+  TRIAL
 }
 
 // ─────────────────────────────────────────────
