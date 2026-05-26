@@ -94,7 +94,7 @@ function draftFromStage(stage?: CardioStage | null): DraftValues {
 }
 
 function metricChanged(stage: CardioStage, draft: DraftValues): boolean {
-    const keys: (keyof DraftValues)[] = ["speed", "incline", "resistance", "rpm", "distance", "steps", "calories"];
+    const keys: (keyof DraftValues)[] = ["speed", "incline", "resistance", "rpm", "distance", "steps"];
     return keys.some((key) => {
         const current = (stage as any)[key];
         const next = toNumber(draft[key]);

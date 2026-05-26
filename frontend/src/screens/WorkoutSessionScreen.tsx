@@ -327,6 +327,8 @@ export default function WorkoutSessionScreen() {
     const inputRefs = useRef<Record<string, TextInput | null>>({});
     const webScrollRef = useRef<ScrollView | null>(null);
     const pendingExitActionRef = useRef<any>(null);
+    const freeWorkoutNameConfirmedRef = useRef(false);
+    const freeWorkoutNameOverrideRef = useRef<string | null>(null);
 
     const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe") => {
         let nextKey = "";
@@ -1094,7 +1096,14 @@ export default function WorkoutSessionScreen() {
             return;
         }
 
-        if (route.params?.mode === "free" && !freeWorkoutNameConfirmed) {
+        if (route.params?.mode === "free" && freeWorkoutNameConfirmedRef.current) {
+            currentSession = {
+                ...currentSession,
+                title: freeWorkoutNameOverrideRef.current || "Serbest Antrenman",
+            };
+        }
+
+        if (route.params?.mode === "free" && !freeWorkoutNameConfirmedRef.current && !freeWorkoutNameConfirmed) {
             setFreeWorkoutNameDraft(currentSession.title && currentSession.title !== "Serbest Antrenman" ? currentSession.title : "");
             setFreeWorkoutNameModalVisible(true);
             return;
@@ -1227,9 +1236,12 @@ export default function WorkoutSessionScreen() {
         });
     };
 
-    const confirmFreeWorkoutName = () => {
-        const name = freeWorkoutNameDraft.trim();
-        updateSession((prev) => ({ ...prev, title: name || "Serbest Antrenman" }));
+    const confirmFreeWorkoutName = (override?: string) => {
+        const name = (override ?? freeWorkoutNameDraft).trim();
+        const nextTitle = name || "Serbest Antrenman";
+        freeWorkoutNameConfirmedRef.current = true;
+        freeWorkoutNameOverrideRef.current = nextTitle;
+        updateSession((prev) => ({ ...prev, title: nextTitle }));
         setFreeWorkoutNameConfirmed(true);
         setFreeWorkoutNameModalVisible(false);
         setTimeout(() => {
@@ -1846,13 +1858,12 @@ export default function WorkoutSessionScreen() {
                             <TouchableOpacity
                                 style={styles.modalSecondaryBtn}
                                 onPress={() => {
-                                    setFreeWorkoutNameDraft("");
-                                    confirmFreeWorkoutName();
+                                    confirmFreeWorkoutName("");
                                 }}
                             >
                                 <Text style={styles.modalSecondaryText}>İsimsiz Kaydet</Text>
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.modalPrimaryBtn} onPress={confirmFreeWorkoutName}>
+                            <TouchableOpacity style={styles.modalPrimaryBtn} onPress={() => confirmFreeWorkoutName()}>
                                 <Text style={styles.modalPrimaryText}>Kaydet</Text>
                             </TouchableOpacity>
                         </View>
