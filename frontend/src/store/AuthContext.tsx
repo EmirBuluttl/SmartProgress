@@ -16,6 +16,8 @@ interface User {
     profileImage?: string;
     avatarUrl?: string | null;
     role: string;
+    subscriptionTier?: "FREE" | "PRO" | "COACH_PLUS" | "free" | "pro" | "coach_plus";
+    subscriptionStatus?: "ACTIVE" | "INACTIVE" | "TRIAL" | "active" | "inactive" | "trial";
     settings: {
         is_auto_suggest_enabled: boolean;
         remember_reps_enabled?: boolean;

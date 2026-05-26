@@ -11,6 +11,7 @@ import { useTheme } from "../hooks/ThemeContext";
 
 import HomeScreen from "../screens/HomeScreen";
 import MyProgressScreen from "../screens/MyProgressScreen";
+import CoachScreen from "../screens/CoachScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 
 const Tab = createBottomTabNavigator();
@@ -20,6 +21,7 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 const TAB_ICONS: Record<string, { focused: IoniconsName; unfocused: IoniconsName }> = {
     Home: { focused: "home", unfocused: "home-outline" },
     MyProgress: { focused: "analytics", unfocused: "analytics-outline" },
+    Coach: { focused: "pulse", unfocused: "pulse-outline" },
     Profile: { focused: "person", unfocused: "person-outline" },
 };
 
@@ -53,6 +55,11 @@ export default function TabNavigator() {
                 name="MyProgress"
                 component={MyProgressScreen}
                 options={{ tabBarLabel: "MyProgress" }}
+            />
+            <Tab.Screen
+                name="Coach"
+                component={CoachScreen}
+                options={{ tabBarLabel: "Koç" }}
             />
             <Tab.Screen
                 name="Profile"

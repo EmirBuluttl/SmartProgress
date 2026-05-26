@@ -25,6 +25,7 @@ import BodyMeasurementsScreen from "../screens/BodyMeasurementsScreen";
 import NutritionScreen from "../screens/NutritionScreen";
 import PublicProfileScreen from "../screens/PublicProfileScreen";
 import CardioSessionScreen from "../screens/CardioSessionScreen";
+import PremiumProgramWizardScreen from "../screens/PremiumProgramWizardScreen";
 
 // ─── Types ───────────────────────────────────
 
@@ -93,6 +94,7 @@ export type RootStackParamList = {
     BodyMeasurements: undefined;
     Nutrition: undefined;
     PublicProfile: { userId: string };
+    PremiumProgramWizard: undefined;
 };
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
@@ -196,6 +198,11 @@ function AppNavigator() {
                 name="PublicProfile"
                 component={PublicProfileScreen}
                 options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="PremiumProgramWizard"
+                component={PremiumProgramWizardScreen}
+                options={{ animation: "slide_from_bottom", presentation: "fullScreenModal" }}
             />
         </AppStack.Navigator>
     );
