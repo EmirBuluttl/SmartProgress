@@ -23,7 +23,7 @@ const sandbox = {
 };
 vm.runInNewContext(transpiled.outputText, sandbox, { filename: enginePath });
 
-const { compareExerciseHistory, normalizeRirValue, parseRepRange } = sandbox.exports;
+const { compareExerciseHistory, normalizeRirValue, parseRepRange, resolveCoachSetLoad } = sandbox.exports;
 
 function entry(index, best) {
     return {
@@ -49,10 +49,32 @@ function expectSignal(name, bestSets, expected) {
     }
 }
 
+function expectJsonEqual(actual, expected, message) {
+    assert.equal(JSON.stringify(actual), JSON.stringify(expected), message);
+}
+
 assert.equal(normalizeRirValue("1-2"), 1.5, "RIR range should normalize by average");
 assert.equal(normalizeRirValue("2,5"), 2.5, "Comma decimal RIR should parse");
 assert.equal(JSON.stringify(parseRepRange("4-8")), JSON.stringify({ min: 4, max: 8 }), "Rep range should parse");
 assert.equal(JSON.stringify(parseRepRange("12")), JSON.stringify({ min: 12, max: 12 }), "Single rep target should parse");
+expectJsonEqual(resolveCoachSetLoad({ weight: 100, weightMode: "kg" }), {
+    weight: 100,
+    weightMode: "kg",
+    bodyWeight: null,
+    externalWeight: null,
+}, "KG sets should keep logged load");
+expectJsonEqual(resolveCoachSetLoad({ weight: 82, weightMode: "bodyweight" }), {
+    weight: 82,
+    weightMode: "bodyweight",
+    bodyWeight: 82,
+    externalWeight: null,
+}, "Bodyweight sets should use bodyweight from weight fallback");
+expectJsonEqual(resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 12.5 }), {
+    weight: 94.5,
+    weightMode: "bodyweight",
+    bodyWeight: 82,
+    externalWeight: 12.5,
+}, "Weighted bodyweight sets should compare BW plus external load");
 
 expectSignal("baseline first log", [
     { weight: 80, reps: 4, rir: "1-2" },

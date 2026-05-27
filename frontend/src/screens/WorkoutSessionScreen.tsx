@@ -954,10 +954,10 @@ export default function WorkoutSessionScreen() {
                 setBodyWeightModal({ exerciseId, setId: set.id });
                 return;
             }
-            updateSetPatch(exerciseId, set.id, { weightMode, weight: measuredWeight });
+            updateSetPatch(exerciseId, set.id, { weightMode, weight: measuredWeight, bodyWeight: measuredWeight });
             return;
         }
-        updateSetPatch(exerciseId, set.id, { weightMode });
+        updateSetPatch(exerciseId, set.id, { weightMode, bodyWeight: undefined, externalWeight: undefined });
     }, [latestBodyWeight, loadLatestBodyWeight, updateSetPatch]);
 
     const saveBodyWeightForSet = useCallback(async () => {
@@ -996,6 +996,7 @@ export default function WorkoutSessionScreen() {
         updateSetPatch(bodyWeightModal.exerciseId, bodyWeightModal.setId, {
             weightMode: "bodyweight",
             weight: parsed,
+            bodyWeight: parsed,
         });
         setBodyWeightModal(null);
         setBodyWeightDraft("");

@@ -44,6 +44,8 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
                         reps: s.reps,
                         weight: s.weight,
                         weightMode: s.weightMode ?? "kg",
+                        bodyWeight: s.bodyWeight,
+                        externalWeight: s.externalWeight,
                         effortMode: s.effortMode ?? "reps",
                         durationSeconds: s.durationSeconds ?? 0,
                         unit: s.unit,

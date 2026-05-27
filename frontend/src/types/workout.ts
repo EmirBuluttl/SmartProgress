@@ -9,6 +9,8 @@ export interface WorkoutSet {
     id: string;
     weight: number;
     weightMode?: "kg" | "bodyweight";
+    bodyWeight?: number;
+    externalWeight?: number;
     reps: number;
     effortMode?: "reps" | "duration";
     durationSeconds?: number;
@@ -161,6 +163,8 @@ export interface SyncWorkoutPayload {
                 reps: number;
                 weight: number;
                 weightMode?: "kg" | "bodyweight";
+                bodyWeight?: number;
+                externalWeight?: number;
                 effortMode?: "reps" | "duration";
                 durationSeconds?: number;
                 unit: "kg" | "lbs";

@@ -2,6 +2,9 @@ type BestSet = {
     weight: number;
     reps: number;
     rir?: number | string | null;
+    weightMode?: string | null;
+    bodyWeight?: number | null;
+    externalWeight?: number | null;
 };
 
 export type CoachExerciseAnalysis = {
@@ -38,6 +41,13 @@ function formatBestSet(set?: BestSet | null) {
     const rirText = set.rir !== null && set.rir !== undefined && String(set.rir).trim()
         ? `, RIR ${set.rir}`
         : "";
+    if (set.weightMode === "bodyweight") {
+        const external = Number(set.externalWeight || 0);
+        const loadText = external > 0
+            ? `BW + ${external} kg`
+            : `BW${set.bodyWeight ? ` (${set.bodyWeight} kg)` : ""}`;
+        return `${loadText} x ${set.reps}${rirText}`;
+    }
     return `${set.weight} kg x ${set.reps}${rirText}`;
 }
 

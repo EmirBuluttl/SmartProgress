@@ -3,7 +3,7 @@ import { createHash } from "crypto";
 import prisma from "../config/prisma";
 import { coachInsightService } from "./coachInsight.service";
 import { coachNarrationService } from "./coachNarration.service";
-import { compareExerciseHistory, type CoachBestSet, type CoachExerciseHistoryEntry } from "./coachSignalEngine";
+import { compareExerciseHistory, resolveCoachSetLoad, type CoachBestSet, type CoachExerciseHistoryEntry } from "./coachSignalEngine";
 
 function startOfIsoWeek(date = new Date()) {
     const copy = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -36,7 +36,7 @@ function bestWorkingSet(exercise: any): CoachBestSet | null {
     const logged = sets
         .filter((set: any) => !set?.isWarmup && set?.analysisExcluded !== true && set?.effortMode !== "duration")
         .map((set: any) => ({
-            weight: toNumber(set?.weight),
+            ...resolveCoachSetLoad(set),
             reps: toNumber(set?.reps),
             rir: set?.rir,
             targetReps: set?.targetReps,

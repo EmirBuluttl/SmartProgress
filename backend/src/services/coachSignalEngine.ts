@@ -3,7 +3,40 @@ export type CoachBestSet = {
     reps: number;
     rir?: number | string | null;
     targetReps?: string | null;
+    weightMode?: "kg" | "bodyweight" | string | null;
+    bodyWeight?: number | null;
+    externalWeight?: number | null;
 };
+
+function toNumber(value: unknown): number {
+    if (value === null || value === undefined || value === "") return 0;
+    const parsed = Number(String(value).replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+export function resolveCoachSetLoad(set: any): Pick<CoachBestSet, "weight" | "weightMode" | "bodyWeight" | "externalWeight"> {
+    const weightMode = set?.weightMode === "bodyweight" ? "bodyweight" : "kg";
+    const loggedWeight = toNumber(set?.weight);
+    const bodyWeight = toNumber(set?.bodyWeight ?? set?.bodyweight ?? set?.body_weight ?? set?.measuredBodyWeight);
+    const externalWeight = toNumber(set?.externalWeight ?? set?.externalLoad ?? set?.additionalWeight ?? set?.addedWeight);
+
+    if (weightMode === "bodyweight") {
+        const resolvedBodyWeight = bodyWeight > 0 ? bodyWeight : loggedWeight;
+        return {
+            weight: Math.max(0, resolvedBodyWeight + externalWeight),
+            weightMode,
+            bodyWeight: resolvedBodyWeight > 0 ? resolvedBodyWeight : null,
+            externalWeight: externalWeight > 0 ? externalWeight : null,
+        };
+    }
+
+    return {
+        weight: Math.max(0, loggedWeight),
+        weightMode,
+        bodyWeight: null,
+        externalWeight: null,
+    };
+}
 
 export type CoachExerciseHistoryEntry = {
     logId: string;

@@ -30,6 +30,8 @@ const workoutSetSchema = z.object({
     reps: coerceInt.pipe(z.number().int().min(0)),
     weight: coerceNumber.pipe(z.number().nonnegative()),
     weightMode: z.enum(["kg", "bodyweight"]).optional(),
+    bodyWeight: coerceNumber.pipe(z.number().nonnegative()).optional(),
+    externalWeight: coerceNumber.pipe(z.number().nonnegative()).optional(),
     effortMode: z.enum(["reps", "duration"]).optional(),
     durationSeconds: coerceInt.pipe(z.number().int().min(0)).optional(),
     unit: z.enum(["kg", "lbs"]).default("kg"),
@@ -260,6 +262,13 @@ function normalizeWorkoutData(data: any) {
 
                     normalizedSet.weightMode = set?.weightMode === "bodyweight" ? "bodyweight" : "kg";
                     normalizedSet.weight = Math.max(0, toNumber(set?.weight));
+                    if (normalizedSet.weightMode === "bodyweight") {
+                        normalizedSet.bodyWeight = Math.max(0, toNumber(set?.bodyWeight));
+                        normalizedSet.externalWeight = Math.max(0, toNumber(set?.externalWeight));
+                    } else {
+                        delete normalizedSet.bodyWeight;
+                        delete normalizedSet.externalWeight;
+                    }
 
                     normalizedSet.effortMode = set?.effortMode === "duration" ? "duration" : "reps";
                     normalizedSet.durationSeconds = Math.max(0, Math.floor(toNumber(set?.durationSeconds)));
