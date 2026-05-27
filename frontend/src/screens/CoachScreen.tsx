@@ -244,7 +244,7 @@ export default function CoachScreen() {
                 </View>
             </View>
 
-            {isCoachPlus && (
+            {isCoachPlus ? (
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>AI Koç Sorusu</Text>
                     <View style={styles.askCard}>
@@ -317,6 +317,35 @@ export default function CoachScreen() {
                                 ))}
                             </View>
                         )}
+                    </View>
+                </View>
+            ) : (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Coach+ AI</Text>
+                    <View style={styles.lockedCoachCard}>
+                        <View style={styles.lockedIcon}>
+                            <Ionicons name="lock-closed-outline" size={22} color={colors.accent} />
+                        </View>
+                        <View style={styles.lockedCopy}>
+                            <Text style={styles.reportTitle}>AI soru hakkı Coach+ ile açılır</Text>
+                            <Text style={styles.panelText}>
+                                Coach+ katmanında aylık 50 kontrollü AI soru hakkı, haftalık rapora bağlı cevaplar ve bütçe korumalı yanıt sistemi olacak.
+                            </Text>
+                            <View style={styles.lockedFeatures}>
+                                <View style={styles.planItem}>
+                                    <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
+                                    <Text style={styles.planItemText}>Program ve log bağlamına göre cevap</Text>
+                                </View>
+                                <View style={styles.planItem}>
+                                    <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
+                                    <Text style={styles.planItemText}>Otomatik değişiklik yok, karar kullanıcıda</Text>
+                                </View>
+                                <View style={styles.planItem}>
+                                    <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
+                                    <Text style={styles.planItemText}>Aylık 50 soru ve maliyet limiti</Text>
+                                </View>
+                            </View>
+                        </View>
                     </View>
                 </View>
             )}
@@ -654,6 +683,32 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
+    },
+    lockedCoachCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+    },
+    lockedIcon: {
+        width: 42,
+        height: 42,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.accentMuted,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    lockedCopy: {
+        flex: 1,
+        gap: spacing.sm,
+    },
+    lockedFeatures: {
+        gap: spacing.sm,
+        marginTop: spacing.xs,
     },
     messageHistory: {
         gap: spacing.sm,
