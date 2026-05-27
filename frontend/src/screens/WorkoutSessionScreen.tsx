@@ -225,6 +225,40 @@ function normalizeProgramData(raw: any): ProgramData | null {
     return null;
 }
 
+type TrackingMode = "none" | "rpe" | "rir" | "both";
+
+function modeFromFlags(hasRPE: boolean, hasRIR: boolean): TrackingMode {
+    if (hasRPE && hasRIR) return "both";
+    if (hasRPE) return "rpe";
+    if (hasRIR) return "rir";
+    return "none";
+}
+
+function inferTrackingModeFromExercises(exercises: any[] = []): TrackingMode {
+    let hasRPE = false;
+    let hasRIR = false;
+
+    for (const exercise of exercises) {
+        if (exercise?.targetRPE) hasRPE = true;
+        if (exercise?.targetRIR) hasRIR = true;
+        const sets = Array.isArray(exercise?.targetSets)
+            ? exercise.targetSets
+            : Array.isArray(exercise?.sets)
+                ? exercise.sets
+                : [];
+        for (const set of sets) {
+            if (set?.targetRPE) hasRPE = true;
+            if (set?.targetRIR) hasRIR = true;
+        }
+    }
+
+    return modeFromFlags(hasRPE, hasRIR);
+}
+
+function inferTrackingModeFromSession(session: WorkoutSession): TrackingMode {
+    return inferTrackingModeFromExercises(session.exercises);
+}
+
 function normalizeExerciseNameForLookup(name: unknown): string {
     return String(name || "").trim().toLowerCase();
 }
@@ -491,6 +525,7 @@ export default function WorkoutSessionScreen() {
                 const saved = await restoreActiveSession();
                 if (saved) {
                     setSession(saved);
+                    setRpeMode(inferTrackingModeFromSession(saved));
                     setElapsed(getElapsedSeconds(saved));
                     setStartBlockedModalVisible(true);
                 } else {
@@ -513,6 +548,7 @@ export default function WorkoutSessionScreen() {
                 const saved = await restoreActiveSession();
                 if (saved) {
                     setSession(saved);
+                    setRpeMode(inferTrackingModeFromSession(saved));
                     setElapsed(getElapsedSeconds(saved));
                     setStartBlockedModalVisible(true);
                     setRestored(true);
@@ -565,6 +601,7 @@ export default function WorkoutSessionScreen() {
                 const templateExercises: any[] = isCycle
                     ? (days![dayIndex % days!.length]?.exercises ?? [])
                     : ((normalized as any).exercises ?? []);
+                const programTrackingMode = inferTrackingModeFromExercises(templateExercises);
 
                 if (templateExercises.length > 0) {
                     const dayLabel = isCycle
@@ -635,6 +672,7 @@ export default function WorkoutSessionScreen() {
                         dayIndex,
                     };
                     setSession(newSession);
+                    setRpeMode(programTrackingMode);
                     setElapsed(0);
                     await saveActiveSession(newSession);
                 } else {
@@ -650,6 +688,7 @@ export default function WorkoutSessionScreen() {
                 const saved = await restoreActiveSession();
                 if (saved) {
                     setSession(saved);
+                    setRpeMode(inferTrackingModeFromSession(saved));
                     setElapsed(getElapsedSeconds(saved));
                 } else {
                     // No valid session to restore and no program params
