@@ -214,7 +214,9 @@ export default function CoachScreen() {
                     <Text style={styles.eyebrow}>{isCoachPlus ? "AI KOÇ" : "AKILLI KOÇ"}</Text>
                     <Text style={styles.title}>Koç</Text>
                     <Text style={styles.subtitle}>
-                        SmartProgress yakında loglarını, programını ve toparlanmanı birlikte okuyup sıradaki en mantıklı adımı gösterecek.
+                        {isFree
+                            ? "SmartProgress loglarını, programını ve toparlanmanı birlikte okuyup sıradaki en mantıklı adımı gösterecek."
+                            : "Logların, programın ve toparlanma sinyallerin üzerinden sıradaki en mantıklı adımı takip et."}
                     </Text>
                 </View>
             </View>
@@ -243,27 +245,37 @@ export default function CoachScreen() {
                     </TouchableOpacity>
                 </View>
             ) : (
-                <View style={styles.teaserPanel}>
+                <View style={styles.activeHero}>
                     <View style={styles.panelTopRow}>
-                        <View>
+                        <View style={styles.activeHeroCopy}>
                             <Text style={styles.panelLabel}>{isCoachPlus ? "Coach+ erişimi" : "Pro erişimi"}</Text>
-                            <Text style={styles.panelTitle}>Koç altyapısı hazırlanıyor</Text>
+                            <Text style={styles.panelTitle}>Koç takibi aktif</Text>
                         </View>
                         <View style={styles.statusPill}>
                             <Text style={styles.statusText}>Aktif</Text>
                         </View>
                     </View>
                     <Text style={styles.panelText}>
-                        Bu alan premium wizard, haftalık raporlar ve bekleyen koç kararları için ana merkez olacak.
+                        Haftalık raporun, kalıcı sinyallerin ve program wizard'ın buradan yönetilir. Koç otomatik değişiklik yapmaz; yakalar, açıklar ve aksiyon önerir.
                     </Text>
-                    <TouchableOpacity
-                        style={styles.primaryButton}
-                        activeOpacity={0.85}
-                        onPress={() => navigation.navigate("PremiumProgramWizard")}
-                    >
-                        <Ionicons name="map-outline" size={18} color={colors.background} />
-                        <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Ac</Text>
-                    </TouchableOpacity>
+                    <View style={styles.activeHeroActions}>
+                        <TouchableOpacity
+                            style={[styles.primaryButton, styles.heroPrimaryButton]}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate("PremiumProgramWizard")}
+                        >
+                            <Ionicons name="map-outline" size={18} color={colors.background} />
+                            <Text style={styles.primaryButtonText}>Akıllı Program Wizard'ı Aç</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.heroSecondaryButton}
+                            activeOpacity={0.85}
+                            onPress={() => navigation.navigate("CoachWeeklyReport")}
+                        >
+                            <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+                            <Text style={styles.heroSecondaryText}>Haftalık Rapor</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             )}
 
@@ -305,27 +317,51 @@ export default function CoachScreen() {
                 </View>
             )}
 
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Neler gelecek?</Text>
-                <FeatureRow
-                    icon="map-outline"
-                    title="Kişisel program wizard"
-                    description="Seviye, frekans, ağrı durumu ve öncelikli kaslarına göre program kurulum akışı."
-                    colors={colors}
-                />
-                <FeatureRow
-                    icon="trending-up-outline"
-                    title="Progress ve plato takibi"
-                    description="Kilo, tekrar, RIR ve log düzenine göre takipte veya müdahale adayı olan hareketler."
-                    colors={colors}
-                />
-                <FeatureRow
-                    icon="document-text-outline"
-                    title="Haftalık koç raporu"
-                    description="Yeterli log varsa haftanın en iyi progress'i, takipteki hareketler ve gelecek hedefler."
-                    colors={colors}
-                />
-            </View>
+            {isFree ? (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Neler gelecek?</Text>
+                    <FeatureRow
+                        icon="map-outline"
+                        title="Kişisel program wizard"
+                        description="Seviye, frekans, ağrı durumu ve öncelikli kaslarına göre program kurulum akışı."
+                        colors={colors}
+                    />
+                    <FeatureRow
+                        icon="trending-up-outline"
+                        title="Progress ve plato takibi"
+                        description="Kilo, tekrar, RIR ve log düzenine göre takipte veya müdahale adayı olan hareketler."
+                        colors={colors}
+                    />
+                    <FeatureRow
+                        icon="document-text-outline"
+                        title="Haftalık koç raporu"
+                        description="Yeterli log varsa haftanın en iyi progress'i, takipteki hareketler ve gelecek hedefler."
+                        colors={colors}
+                    />
+                </View>
+            ) : (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>Koç akışı</Text>
+                    <FeatureRow
+                        icon="analytics-outline"
+                        title="Logları oku"
+                        description="Çalışma setlerinden en iyi performansı çıkarır; ısınma ve süre setlerini progress hesabına karıştırmaz."
+                        colors={colors}
+                    />
+                    <FeatureRow
+                        icon="git-compare-outline"
+                        title="Önceki seansla kıyasla"
+                        description="Ağırlık, tekrar ve RIR sinyalini hareket bazlı okuyup progress, düşüş veya plato adayını ayırır."
+                        colors={colors}
+                    />
+                    <FeatureRow
+                        icon="construct-outline"
+                        title="Aksiyon öner"
+                        description="RIR rahatlatma, hacim azaltma veya set artırma adaylarını kullanıcı onayına bırakır."
+                        colors={colors}
+                    />
+                </View>
+            )}
 
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Haftalık rapor</Text>
@@ -750,6 +786,47 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
         padding: spacing.xl,
         gap: spacing.md,
+    },
+    activeHero: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight || colors.border,
+        padding: spacing.xl,
+        gap: spacing.md,
+    },
+    activeHeroCopy: {
+        flex: 1,
+    },
+    activeHeroActions: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+        alignItems: "center",
+    },
+    heroPrimaryButton: {
+        flex: 1,
+        minWidth: 190,
+    },
+    heroSecondaryButton: {
+        flex: 1,
+        minWidth: 150,
+        minHeight: 48,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.sm,
+        paddingHorizontal: spacing.lg,
+        marginTop: spacing.xs,
+    },
+    heroSecondaryText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     panelTopRow: {
         flexDirection: "row",
