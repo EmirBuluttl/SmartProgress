@@ -9,6 +9,7 @@ export type CoachExerciseAnalysis = {
     decision: string;
     reason: string;
     flags?: string[];
+    interventionAdvice?: string | null;
     currentBest?: BestSet | null;
     previousBest?: BestSet | null;
 };
@@ -19,6 +20,7 @@ export type CoachNarrationInput = {
     watchCount: number;
     plateauCount?: number;
     regressionCount?: number;
+    interventionCount?: number;
     exerciseAnalyses: CoachExerciseAnalysis[];
 };
 
@@ -49,6 +51,7 @@ export class CoachNarrationService {
         const watchItems = input.exerciseAnalyses.filter((item) => item.decision === "watch");
         const plateauItems = input.exerciseAnalyses.filter((item) => item.flags?.includes("plateau_candidate"));
         const regressionItems = input.exerciseAnalyses.filter((item) => item.flags?.includes("single_session_regression"));
+        const interventionItems = input.exerciseAnalyses.filter((item) => item.interventionAdvice);
         const baselineItems = input.exerciseAnalyses.filter((item) => item.decision === "baseline");
         const inconsistentItems = input.exerciseAnalyses.filter((item) => item.decision === "inconsistent_data");
 
@@ -86,6 +89,9 @@ export class CoachNarrationService {
         if (plateauItems.length > 0) {
             nextActions.push(`${plateauItems.slice(0, 3).map((item) => item.exerciseName).join(", ")} için plato sinyali var; RIR, dinlenme ve hacim kararını takip et.`);
         }
+        if (interventionItems.length > 0) {
+            nextActions.push(`${interventionItems[0].exerciseName}: ${interventionItems[0].interventionAdvice}`);
+        }
         if (baselineItems.length > 0 && progressItems.length === 0) {
             nextActions.push("Yeni baz alınan hareketlerde bir sonraki log karşılaştırma için daha anlamlı olacak.");
         }
@@ -104,7 +110,7 @@ export class CoachNarrationService {
         return {
             mode: "rule_based",
             headline,
-            summary: `${input.workoutCount} antrenman içinde ${input.progressCount} progress, ${input.plateauCount || 0} plato adayı ve ${input.regressionCount || 0} gerileme sinyali bulundu.`,
+            summary: `${input.workoutCount} antrenman içinde ${input.progressCount} progress, ${input.plateauCount || 0} plato adayı, ${input.regressionCount || 0} gerileme ve ${input.interventionCount || 0} müdahale adayı bulundu.`,
             highlights: highlights.length > 0 ? highlights : ["Bu hafta belirgin progress sinyali yok; baz ve takip verileri oluşuyor."],
             nextActions: nextActions.length > 0 ? nextActions : ["Bir sonraki antrenmanda aynı log disiplinini sürdür."],
             cautions,

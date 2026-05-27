@@ -14,6 +14,9 @@ const formatBestSet = (set?: any) => {
 
 const getMeta = (item: any, colors: any) => {
     const flags = Array.isArray(item?.flags) ? item.flags : [];
+    if (flags.includes("rir_adjustment_candidate")) return { label: "RIR ayarı", icon: "speedometer-outline" as const, color: colors.warning || "#F5A524" };
+    if (flags.includes("volume_reduce_candidate")) return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning || "#F5A524" };
+    if (flags.includes("volume_increase_candidate")) return { label: "Set artır", icon: "add-circle-outline" as const, color: colors.accent };
     if (flags.includes("single_session_regression")) return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
     if (flags.includes("plateau_candidate")) return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
     if (item?.decision === "progress") return { label: "Progress", icon: "trending-up-outline" as const, color: colors.accent };
@@ -70,6 +73,9 @@ export default function CoachWeeklyReportScreen() {
                                 </View>
                                 <Text style={styles.signalMeta}>{formatBestSet(item.previousBest)} {"->"} {formatBestSet(item.currentBest)}</Text>
                                 <Text style={styles.signalReason}>{item.reason}</Text>
+                                {!!item.interventionAdvice && (
+                                    <Text style={styles.interventionText}>{item.interventionAdvice}</Text>
+                                )}
                             </View>
                         </View>
                     );
@@ -105,6 +111,7 @@ export default function CoachWeeklyReportScreen() {
                             <Stat label="Progress" value={report?.progressCount ?? 0} styles={styles} />
                             <Stat label="Plato" value={report?.plateauCount ?? 0} styles={styles} />
                             <Stat label="Düşüş" value={report?.regressionCount ?? 0} styles={styles} />
+                            <Stat label="Müdahale" value={report?.interventionCount ?? 0} styles={styles} />
                         </View>
                     </View>
 
@@ -198,6 +205,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     signalBadge: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
     signalMeta: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
     signalReason: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20 },
+    interventionText: { color: colors.accent, fontSize: fontSize.sm, lineHeight: 20, fontWeight: fontWeight.semibold },
     loadingCard: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.md,

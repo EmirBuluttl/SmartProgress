@@ -90,6 +90,7 @@ function compareExerciseHistory(entries: ExerciseHistoryEntry[]) {
             decision: "inconsistent_data",
             reason: "Bu hafta gecerli set verisi yok.",
             flags: ["missing_current_best"],
+            interventionAdvice: null,
             currentBest: null,
             previousBest: null,
         };
@@ -100,6 +101,7 @@ function compareExerciseHistory(entries: ExerciseHistoryEntry[]) {
             decision: "baseline",
             reason: "Bu hareket icin kiyaslanacak onceki log yok.",
             flags: ["baseline"],
+            interventionAdvice: null,
             currentBest: latest.best,
             previousBest: null,
         };
@@ -108,6 +110,8 @@ function compareExerciseHistory(entries: ExerciseHistoryEntry[]) {
     const isSameAsPrevious = latest.best.weight === previous.best.weight && latest.best.reps === previous.best.reps;
     const isRegression = latest.best.weight < previous.best.weight ||
         (latest.best.weight === previous.best.weight && latest.best.reps < previous.best.reps);
+    const isStrongProgress = latest.best.weight > previous.best.weight ||
+        (latest.best.weight === previous.best.weight && latest.best.reps >= previous.best.reps + 2);
     if (isRegression) flags.push("single_session_regression");
     if (isSameAsPrevious) flags.push("same_as_previous");
 
@@ -123,9 +127,29 @@ function compareExerciseHistory(entries: ExerciseHistoryEntry[]) {
                 const rir = normalizeRirValue(set.rir);
                 return rir !== null && rir <= 1.25;
             });
-            if (lowRir) flags.push("low_rir");
+            if (lowRir) {
+                flags.push("low_rir");
+                flags.push("rir_adjustment_candidate");
+            } else {
+                flags.push("volume_reduce_candidate");
+            }
+        }
+
+        const previousHadProgress = previous.best.weight > beforePrevious.best.weight ||
+            (previous.best.weight === beforePrevious.best.weight && previous.best.reps > beforePrevious.best.reps);
+        if (comparison.decision === "progress" && previousHadProgress && isStrongProgress) {
+            flags.push("progress_streak");
+            flags.push("volume_increase_candidate");
         }
     }
+
+    const interventionAdvice = flags.includes("rir_adjustment_candidate")
+        ? "Önce RIR hedefini biraz rahatlatmayı düşün; hacim azaltımı ikinci adım olsun."
+        : flags.includes("volume_reduce_candidate")
+            ? "RIR zaten düşük görünmüyorsa bu hareket için hacim azaltımı aday olabilir."
+            : flags.includes("volume_increase_candidate")
+                ? "Üst üste güçlü progress var; aynı kalite sürerse kullanıcı onayıyla set artırımı düşünülebilir."
+                : null;
 
     if (comparison.decision === "watch" && flags.includes("plateau_candidate")) {
         return {
@@ -134,6 +158,7 @@ function compareExerciseHistory(entries: ExerciseHistoryEntry[]) {
                 ? "Son 3 sessionda progress yok ve RIR dusuk. Once RIR hedefini rahatlatmak gerekebilir."
                 : "Son 3 sessionda net progress yok. Plato adayi olarak takip edilmeli.",
             flags,
+            interventionAdvice,
             currentBest: latest.best,
             previousBest: previous.best,
         };
@@ -142,6 +167,7 @@ function compareExerciseHistory(entries: ExerciseHistoryEntry[]) {
     return {
         ...comparison,
         flags,
+        interventionAdvice,
         currentBest: latest.best,
         previousBest: previous.best,
     };
@@ -154,6 +180,9 @@ function hashWorkoutSources(logs: { id: string; updatedAt: Date }[]) {
 }
 
 function insightTypeForAnalysis(analysis: { decision: string; flags: string[] }) {
+    if (analysis.flags.includes("rir_adjustment_candidate")) return "RIR_ADJUSTMENT_CANDIDATE";
+    if (analysis.flags.includes("volume_reduce_candidate")) return "VOLUME_REDUCE_CANDIDATE";
+    if (analysis.flags.includes("volume_increase_candidate")) return "VOLUME_INCREASE_CANDIDATE";
     if (analysis.flags.includes("single_session_regression")) return "REGRESSION_DETECTED";
     if (analysis.flags.includes("plateau_candidate")) return "PLATEAU_CANDIDATE";
     if (analysis.decision === "progress") return "PROGRESS_DETECTED";
@@ -256,6 +285,7 @@ export class CoachReportService {
                 decision: comparison.decision,
                 reason: comparison.reason,
                 flags: comparison.flags,
+                interventionAdvice: comparison.interventionAdvice,
                 currentBest: comparison.currentBest,
                 previousBest: comparison.previousBest,
                 sourceLogId: latest.logId,
@@ -267,12 +297,18 @@ export class CoachReportService {
         const watchCount = exerciseAnalyses.filter((item) => item.decision === "watch").length;
         const plateauCount = exerciseAnalyses.filter((item) => item.flags.includes("plateau_candidate")).length;
         const regressionCount = exerciseAnalyses.filter((item) => item.flags.includes("single_session_regression")).length;
+        const interventionCount = exerciseAnalyses.filter((item) =>
+            item.flags.includes("rir_adjustment_candidate") ||
+            item.flags.includes("volume_reduce_candidate") ||
+            item.flags.includes("volume_increase_candidate"),
+        ).length;
         const coachNarration = coachNarrationService.buildWeeklyNarration({
             workoutCount: weekLogs.length,
             progressCount,
             watchCount,
             plateauCount,
             regressionCount,
+            interventionCount,
             exerciseAnalyses,
         });
         const data = {
@@ -284,11 +320,12 @@ export class CoachReportService {
             watchCount,
             plateauCount,
             regressionCount,
+            interventionCount,
             exerciseAnalyses,
             coachNarration,
             summary: weekLogs.length === 0
                 ? "Bu hafta rapor üretmek için log yok."
-                : `${weekLogs.length} antrenman loglandı. ${progressCount} progress, ${plateauCount} plato adayı, ${regressionCount} gerileme sinyali var.`,
+                : `${weekLogs.length} antrenman loglandı. ${progressCount} progress, ${plateauCount} plato adayı, ${regressionCount} gerileme, ${interventionCount} müdahale adayı var.`,
         };
 
         await coachInsightService.upsertMany(exerciseAnalyses.flatMap((analysis) => {
@@ -301,14 +338,15 @@ export class CoachReportService {
                 decision: analysis.decision,
                 reason: analysis.reason,
                 flags: analysis.flags,
+                metadata: {
+                    weekEnd: weekEnd.toISOString(),
+                    interventionAdvice: analysis.interventionAdvice,
+                },
                 currentBest: analysis.currentBest as Prisma.InputJsonValue,
                 previousBest: analysis.previousBest as Prisma.InputJsonValue,
                 sourceLogId: analysis.sourceLogId,
                 signalDate: analysis.signalDate,
                 weekStart,
-                metadata: {
-                    weekEnd: weekEnd.toISOString(),
-                },
             };
         }));
 

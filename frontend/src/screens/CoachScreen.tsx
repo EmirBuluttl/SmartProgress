@@ -42,6 +42,15 @@ const getDecisionMeta = (item: any, colors: any) => {
 };
 
 const getInsightMeta = (type: string, colors: any) => {
+    if (type === "RIR_ADJUSTMENT_CANDIDATE") {
+        return { label: "RIR ayarı", icon: "speedometer-outline" as const, color: colors.warning || "#F5A524" };
+    }
+    if (type === "VOLUME_REDUCE_CANDIDATE") {
+        return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning || "#F5A524" };
+    }
+    if (type === "VOLUME_INCREASE_CANDIDATE") {
+        return { label: "Set artır", icon: "add-circle-outline" as const, color: colors.accent };
+    }
     if (type === "REGRESSION_DETECTED") {
         return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
     }
@@ -358,6 +367,9 @@ export default function CoachScreen() {
                                                         {formatBestSet(item.previousBest)} {"->"} {formatBestSet(item.currentBest)}
                                                     </Text>
                                                     <Text style={styles.signalReason}>{item.reason}</Text>
+                                                    {!!item.interventionAdvice && (
+                                                        <Text style={styles.interventionText}>{item.interventionAdvice}</Text>
+                                                    )}
                                                 </View>
                                             </View>
                                         );
@@ -401,6 +413,9 @@ export default function CoachScreen() {
                                             {formatBestSet(insight.previousBest)} {"->"} {formatBestSet(insight.currentBest)}
                                         </Text>
                                         <Text style={styles.signalReason}>{insight.reason}</Text>
+                                        {!!insight.metadata?.interventionAdvice && (
+                                            <Text style={styles.interventionText}>{insight.metadata.interventionAdvice}</Text>
+                                        )}
                                         <Text style={styles.answerMeta}>{formatInsightDate(insight.signalDate)}</Text>
                                     </View>
                                 </View>
@@ -1062,6 +1077,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.xs,
         lineHeight: 18,
+    },
+    interventionText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+        fontWeight: fontWeight.semibold,
     },
     secondaryActionBtn: {
         minHeight: 46,
