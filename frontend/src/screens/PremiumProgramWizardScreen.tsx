@@ -96,9 +96,17 @@ export default function PremiumProgramWizardScreen() {
         setStep((current) => Math.min(current + 1, 7));
     };
 
-    const goBack = () => {
-        if (createdProgramId) {
+    const returnToCoach = () => {
+        if (navigation.canGoBack()) {
             navigation.goBack();
+            return;
+        }
+        (navigation as any).navigate("MainTabs", { screen: "Coach" });
+    };
+
+    const goBack = () => {
+        if (createdProgramId || step === 0) {
+            returnToCoach();
             return;
         }
         setStep((current) => Math.max(current - 1, 0));
@@ -141,7 +149,7 @@ export default function PremiumProgramWizardScreen() {
                     <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate("ProgramList")}>
                         <Text style={styles.primaryText}>Kütüphaneye Git</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.goBack()}>
+                    <TouchableOpacity style={styles.secondaryBtn} onPress={returnToCoach}>
                         <Text style={styles.secondaryText}>Koç'a Dön</Text>
                     </TouchableOpacity>
                 </View>

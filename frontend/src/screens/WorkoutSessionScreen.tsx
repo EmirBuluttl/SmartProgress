@@ -1501,7 +1501,7 @@ export default function WorkoutSessionScreen() {
                                             : "—"
                                     }
                                     placeholderTextColor={colors.accentDark}
-                                    keyboardType="default"
+                                    keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
                                     selectionColor={colors.accent}
                                 />
                             </View>
@@ -1706,7 +1706,7 @@ export default function WorkoutSessionScreen() {
                                             : "—"
                                     }
                                     placeholderTextColor={colors.accentDark}
-                                    keyboardType="default"
+                                    keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
                                     selectionColor={colors.accent}
                                 />
                             </View>

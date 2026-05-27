@@ -68,8 +68,13 @@ export function clampRir(value: unknown, reps: unknown): number | undefined {
 
 export function normalizeRirLogValue(value: unknown, reps: unknown): number | string | undefined {
     if (value === null || value === undefined || value === "") return undefined;
-    const raw = String(value).trim().replace(/,/g, ".").replace(/[–—]/g, "-");
+    let raw = String(value).trim().replace(/,/g, ".").replace(/[–—]/g, "-");
     if (!raw) return undefined;
+    if (/^\d{2}$/.test(raw)) {
+        const left = Number(raw[0]);
+        const right = Number(raw[1]);
+        if (Math.abs(right - left) === 1) raw = `${left}-${right}`;
+    }
 
     const maxReps = Math.max(0, Math.floor(toNumber(reps)));
     const rangeMatch = raw.match(/^(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)$/);
