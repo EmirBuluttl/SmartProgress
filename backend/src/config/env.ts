@@ -25,4 +25,12 @@ export const env = {
     PASSWORD_RESET_FROM_EMAIL: process.env.PASSWORD_RESET_FROM_EMAIL || "SmartProgress <noreply@smartprogress.online>",
     RESEND_API_KEY: process.env.RESEND_API_KEY || "",
     BREVO_API_KEY: process.env.BREVO_API_KEY || "",
+
+    // AI provider
+    AI_PROVIDER: process.env.AI_PROVIDER || "mock",
+    OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
+    OPENAI_MODEL: process.env.OPENAI_MODEL || "gpt-4.1-mini",
+    AI_INPUT_COST_MICROS_PER_1K: parseInt(process.env.AI_INPUT_COST_MICROS_PER_1K || "1000", 10),
+    AI_OUTPUT_COST_MICROS_PER_1K: parseInt(process.env.AI_OUTPUT_COST_MICROS_PER_1K || "4000", 10),
+    AI_DEFAULT_MAX_OUTPUT_TOKENS: parseInt(process.env.AI_DEFAULT_MAX_OUTPUT_TOKENS || "500", 10),
 } as const;
