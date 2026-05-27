@@ -28,6 +28,7 @@ export default function CoachScreen() {
     const isCoachPlus = tier === "coach_plus";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
     const [reportLoading, setReportLoading] = React.useState(false);
+    const coachNarration = weeklyReport?.coachNarration;
 
     React.useEffect(() => {
         let mounted = true;
@@ -150,20 +151,43 @@ export default function CoachScreen() {
                         {weeklyReport?.summary || "Yeterli log oluşunca bu alan progress, takip ve müdahale sinyallerini gösterecek."}
                     </Text>
                     {!!weeklyReport && (
-                        <View style={styles.reportStats}>
-                            <View style={styles.reportStat}>
-                                <Text style={styles.reportStatValue}>{weeklyReport.workoutCount ?? 0}</Text>
-                                <Text style={styles.reportStatLabel}>Antrenman</Text>
+                        <>
+                            <View style={styles.reportStats}>
+                                <View style={styles.reportStat}>
+                                    <Text style={styles.reportStatValue}>{weeklyReport.workoutCount ?? 0}</Text>
+                                    <Text style={styles.reportStatLabel}>Antrenman</Text>
+                                </View>
+                                <View style={styles.reportStat}>
+                                    <Text style={styles.reportStatValue}>{weeklyReport.progressCount ?? 0}</Text>
+                                    <Text style={styles.reportStatLabel}>Progress</Text>
+                                </View>
+                                <View style={styles.reportStat}>
+                                    <Text style={styles.reportStatValue}>{weeklyReport.watchCount ?? 0}</Text>
+                                    <Text style={styles.reportStatLabel}>Takip</Text>
+                                </View>
                             </View>
-                            <View style={styles.reportStat}>
-                                <Text style={styles.reportStatValue}>{weeklyReport.progressCount ?? 0}</Text>
-                                <Text style={styles.reportStatLabel}>Progress</Text>
-                            </View>
-                            <View style={styles.reportStat}>
-                                <Text style={styles.reportStatValue}>{weeklyReport.watchCount ?? 0}</Text>
-                                <Text style={styles.reportStatLabel}>Takip</Text>
-                            </View>
-                        </View>
+                            {!!coachNarration && (
+                                <View style={styles.narrationBox}>
+                                    <View style={styles.narrationHeader}>
+                                        <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
+                                        <Text style={styles.narrationTitle}>{coachNarration.headline}</Text>
+                                    </View>
+                                    <Text style={styles.narrationSummary}>{coachNarration.summary}</Text>
+                                    {(coachNarration.highlights || []).slice(0, 3).map((item: string) => (
+                                        <View key={`highlight-${item}`} style={styles.narrationItem}>
+                                            <Ionicons name="checkmark-circle-outline" size={16} color={colors.accent} />
+                                            <Text style={styles.narrationItemText}>{item}</Text>
+                                        </View>
+                                    ))}
+                                    {(coachNarration.nextActions || []).slice(0, 2).map((item: string) => (
+                                        <View key={`action-${item}`} style={styles.narrationItem}>
+                                            <Ionicons name="arrow-forward-circle-outline" size={16} color={colors.textMuted} />
+                                            <Text style={styles.narrationItemText}>{item}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                        </>
                     )}
                 </View>
             </View>
@@ -494,5 +518,40 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
+    },
+    narrationBox: {
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    narrationHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    narrationTitle: {
+        flex: 1,
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    narrationSummary: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
+    narrationItem: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+    },
+    narrationItemText: {
+        flex: 1,
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
     },
 });

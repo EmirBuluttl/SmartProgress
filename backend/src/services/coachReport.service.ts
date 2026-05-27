@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { createHash } from "crypto";
 import prisma from "../config/prisma";
+import { coachNarrationService } from "./coachNarration.service";
 
 function startOfIsoWeek(date = new Date()) {
     const copy = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -167,6 +168,12 @@ export class CoachReportService {
 
         const progressCount = exerciseAnalyses.filter((item) => item.decision === "progress").length;
         const watchCount = exerciseAnalyses.filter((item) => item.decision === "watch").length;
+        const coachNarration = coachNarrationService.buildWeeklyNarration({
+            workoutCount: weekLogs.length,
+            progressCount,
+            watchCount,
+            exerciseAnalyses,
+        });
         const data = {
             weekStart: weekStart.toISOString(),
             weekEnd: weekEnd.toISOString(),
@@ -175,6 +182,7 @@ export class CoachReportService {
             progressCount,
             watchCount,
             exerciseAnalyses,
+            coachNarration,
             summary: weekLogs.length === 0
                 ? "Bu hafta rapor üretmek için log yok."
                 : `${weekLogs.length} antrenman loglandı. ${progressCount} harekette progress, ${watchCount} harekette takip sinyali var.`,
