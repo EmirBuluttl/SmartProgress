@@ -77,18 +77,21 @@ export class CoachController {
                 },
             });
 
-            const message = await coachAiMessageService.create({
-                userId,
-                question: parsed.question,
-                answer: result.text,
-                source: result.source,
-                reason: result.reason,
-                metadata: {
-                    usage: result.usage,
-                    budget: result.budget,
-                    quota: result.quota,
-                },
-            });
+            const shouldPersistMessage = result.reason !== "feature_limit_denied" && result.reason !== "budget_denied";
+            const message = shouldPersistMessage
+                ? await coachAiMessageService.create({
+                    userId,
+                    question: parsed.question,
+                    answer: result.text,
+                    source: result.source,
+                    reason: result.reason,
+                    metadata: {
+                        usage: result.usage,
+                        budget: result.budget,
+                        quota: result.quota,
+                    },
+                })
+                : null;
 
             res.status(200).json({ ...result, message });
         } catch (error) {
