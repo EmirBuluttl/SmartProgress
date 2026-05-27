@@ -28,6 +28,7 @@ export default function CoachScreen() {
     const isCoachPlus = tier === "coach_plus";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
     const [aiStatus, setAiStatus] = React.useState<any | null>(null);
+    const [aiMessages, setAiMessages] = React.useState<any[]>([]);
     const [coachQuestion, setCoachQuestion] = React.useState("");
     const [coachAnswer, setCoachAnswer] = React.useState<any | null>(null);
     const [reportLoading, setReportLoading] = React.useState(false);
@@ -47,6 +48,16 @@ export default function CoachScreen() {
         }
     }, [isCoachPlus]);
 
+    const loadAiMessages = React.useCallback(async () => {
+        if (!isCoachPlus) return;
+        try {
+            const response = await coachApi.aiMessages({ limit: 5 });
+            setAiMessages(Array.isArray(response.data?.data) ? response.data.data : []);
+        } catch (error) {
+            setAiMessages([]);
+        }
+    }, [isCoachPlus]);
+
     React.useEffect(() => {
         let mounted = true;
         const loadReport = async () => {
@@ -62,10 +73,11 @@ export default function CoachScreen() {
         };
         loadReport();
         loadAiStatus();
+        loadAiMessages();
         return () => {
             mounted = false;
         };
-    }, [loadAiStatus]);
+    }, [loadAiMessages, loadAiStatus]);
 
     const handleAskCoach = async () => {
         const question = coachQuestion.trim();
@@ -77,6 +89,7 @@ export default function CoachScreen() {
             setCoachAnswer(response.data || null);
             setCoachQuestion("");
             loadAiStatus();
+            loadAiMessages();
         } catch (error) {
             setCoachAnswer({
                 text: "Koç cevabı şu an alınamadı. Biraz sonra tekrar deneyebilirsin.",
@@ -292,6 +305,17 @@ export default function CoachScreen() {
                             <Text style={styles.answerMeta}>
                                 Kalan soru: {coachChatRemaining}. Tahmini kalan AI bütçesi: ${((aiStatus.remainingMicros || 0) / 1000000).toFixed(2)}
                             </Text>
+                        )}
+                        {aiMessages.length > 0 && (
+                            <View style={styles.messageHistory}>
+                                <Text style={styles.reportTitle}>Son sorular</Text>
+                                {aiMessages.slice(0, 5).map((message) => (
+                                    <View key={message.id} style={styles.messageItem}>
+                                        <Text style={styles.messageQuestion}>{message.question}</Text>
+                                        <Text style={styles.messageAnswer} numberOfLines={3}>{message.answer}</Text>
+                                    </View>
+                                ))}
+                            </View>
                         )}
                     </View>
                 </View>
@@ -630,6 +654,29 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
+    },
+    messageHistory: {
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    messageItem: {
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        gap: spacing.xs,
+    },
+    messageQuestion: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        lineHeight: 20,
+    },
+    messageAnswer: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
     },
     reportTopRow: {
         flexDirection: "row",

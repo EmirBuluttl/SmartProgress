@@ -42,6 +42,7 @@ model User {
   notifications Notification[]
   aiUsageEvents AiUsageEvent[]
   coachWeeklyReports CoachWeeklyReport[]
+  coachAiMessages CoachAiMessage[]
 
   @@map("users")
 }
@@ -80,6 +81,22 @@ model AiUsageEvent {
   @@index([userId, createdAt])
   @@index([feature])
   @@map("ai_usage_events")
+}
+
+model CoachAiMessage {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  question  String
+  answer    String
+  source    String
+  reason    String?
+  metadata  Json?    @db.JsonB
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@map("coach_ai_messages")
 }
 
 model Notification {

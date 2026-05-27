@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from "express";
 import { z } from "zod";
 import { aiProviderService, SMART_PROGRESS_COACH_INSTRUCTIONS } from "../services/aiProvider.service";
 import { aiUsageService } from "../services/aiUsage.service";
+import { coachAiMessageService } from "../services/coachAiMessage.service";
 import { coachReportService } from "../services/coachReport.service";
 
 const askCoachSchema = z.object({
@@ -76,7 +77,31 @@ export class CoachController {
                 },
             });
 
-            res.status(200).json(result);
+            const message = await coachAiMessageService.create({
+                userId,
+                question: parsed.question,
+                answer: result.text,
+                source: result.source,
+                reason: result.reason,
+                metadata: {
+                    usage: result.usage,
+                    budget: result.budget,
+                    quota: result.quota,
+                },
+            });
+
+            res.status(200).json({ ...result, message });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async aiMessages(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 30);
+            const messages = await coachAiMessageService.listForUser(userId, limit);
+            res.status(200).json({ data: messages });
         } catch (error) {
             next(error);
         }
