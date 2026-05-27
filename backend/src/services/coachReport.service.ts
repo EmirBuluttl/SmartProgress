@@ -1,6 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { createHash } from "crypto";
 import prisma from "../config/prisma";
+import { coachInsightService } from "./coachInsight.service";
 import { coachNarrationService } from "./coachNarration.service";
 
 function startOfIsoWeek(date = new Date()) {
@@ -148,8 +149,15 @@ function compareExerciseHistory(entries: ExerciseHistoryEntry[]) {
 
 function hashWorkoutSources(logs: { id: string; updatedAt: Date }[]) {
     return createHash("sha256")
-        .update(["coach-report-v2", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
+        .update(["coach-report-v3", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
         .digest("hex");
+}
+
+function insightTypeForAnalysis(analysis: { decision: string; flags: string[] }) {
+    if (analysis.flags.includes("single_session_regression")) return "REGRESSION_DETECTED";
+    if (analysis.flags.includes("plateau_candidate")) return "PLATEAU_CANDIDATE";
+    if (analysis.decision === "progress") return "PROGRESS_DETECTED";
+    return null;
 }
 
 export class CoachReportService {
@@ -250,6 +258,8 @@ export class CoachReportService {
                 flags: comparison.flags,
                 currentBest: comparison.currentBest,
                 previousBest: comparison.previousBest,
+                sourceLogId: latest.logId,
+                signalDate: latest.logDate,
             };
         });
 
@@ -280,6 +290,27 @@ export class CoachReportService {
                 ? "Bu hafta rapor üretmek için log yok."
                 : `${weekLogs.length} antrenman loglandı. ${progressCount} progress, ${plateauCount} plato adayı, ${regressionCount} gerileme sinyali var.`,
         };
+
+        await coachInsightService.upsertMany(exerciseAnalyses.flatMap((analysis) => {
+            const type = insightTypeForAnalysis(analysis);
+            if (!type) return [];
+            return {
+                userId,
+                type,
+                exerciseName: analysis.exerciseName,
+                decision: analysis.decision,
+                reason: analysis.reason,
+                flags: analysis.flags,
+                currentBest: analysis.currentBest as Prisma.InputJsonValue,
+                previousBest: analysis.previousBest as Prisma.InputJsonValue,
+                sourceLogId: analysis.sourceLogId,
+                signalDate: analysis.signalDate,
+                weekStart,
+                metadata: {
+                    weekEnd: weekEnd.toISOString(),
+                },
+            };
+        }));
 
         return this.upsertWeeklyReport({
             userId,

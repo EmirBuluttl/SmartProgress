@@ -3,6 +3,7 @@ import { z } from "zod";
 import { aiProviderService, SMART_PROGRESS_COACH_INSTRUCTIONS } from "../services/aiProvider.service";
 import { aiUsageService } from "../services/aiUsage.service";
 import { coachAiMessageService } from "../services/coachAiMessage.service";
+import { coachInsightService } from "../services/coachInsight.service";
 import { coachReportService } from "../services/coachReport.service";
 
 const askCoachSchema = z.object({
@@ -93,6 +94,17 @@ export class CoachController {
                     remaining: Math.max(0, coachChatLimit - coachChatUsed),
                 },
             });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async insights(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
+            const insights = await coachInsightService.listForUser(userId, limit);
+            res.status(200).json({ data: insights });
         } catch (error) {
             next(error);
         }

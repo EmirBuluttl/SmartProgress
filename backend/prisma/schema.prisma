@@ -43,6 +43,7 @@ model User {
   aiUsageEvents AiUsageEvent[]
   coachWeeklyReports CoachWeeklyReport[]
   coachAiMessages CoachAiMessage[]
+  coachInsights CoachInsight[]
 
   @@map("users")
 }
@@ -97,6 +98,30 @@ model CoachAiMessage {
 
   @@index([userId, createdAt])
   @@map("coach_ai_messages")
+}
+
+model CoachInsight {
+  id           String   @id @default(uuid()) @db.Uuid
+  userId       String   @map("user_id") @db.Uuid
+  type         String
+  exerciseName String  @map("exercise_name")
+  decision     String
+  reason       String
+  flags        Json?   @db.JsonB
+  currentBest  Json?   @map("current_best") @db.JsonB
+  previousBest Json?   @map("previous_best") @db.JsonB
+  sourceLogId  String  @map("source_log_id") @db.Uuid
+  signalDate   DateTime @map("signal_date") @db.Date
+  weekStart    DateTime @map("week_start") @db.Date
+  metadata     Json?   @db.JsonB
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, type, exerciseName, sourceLogId])
+  @@index([userId, signalDate])
+  @@index([userId, type])
+  @@map("coach_insights")
 }
 
 model Notification {
