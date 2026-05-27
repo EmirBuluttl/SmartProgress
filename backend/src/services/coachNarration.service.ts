@@ -8,6 +8,7 @@ export type CoachExerciseAnalysis = {
     exerciseName: string;
     decision: string;
     reason: string;
+    flags?: string[];
     currentBest?: BestSet | null;
     previousBest?: BestSet | null;
 };
@@ -16,6 +17,8 @@ export type CoachNarrationInput = {
     workoutCount: number;
     progressCount: number;
     watchCount: number;
+    plateauCount?: number;
+    regressionCount?: number;
     exerciseAnalyses: CoachExerciseAnalysis[];
 };
 
@@ -44,6 +47,8 @@ export class CoachNarrationService {
     buildWeeklyNarration(input: CoachNarrationInput): CoachNarration {
         const progressItems = input.exerciseAnalyses.filter((item) => item.decision === "progress");
         const watchItems = input.exerciseAnalyses.filter((item) => item.decision === "watch");
+        const plateauItems = input.exerciseAnalyses.filter((item) => item.flags?.includes("plateau_candidate"));
+        const regressionItems = input.exerciseAnalyses.filter((item) => item.flags?.includes("single_session_regression"));
         const baselineItems = input.exerciseAnalyses.filter((item) => item.decision === "baseline");
         const inconsistentItems = input.exerciseAnalyses.filter((item) => item.decision === "inconsistent_data");
 
@@ -78,6 +83,9 @@ export class CoachNarrationService {
         if (watchItems.length > 0) {
             nextActions.push(`${watchItems.slice(0, 3).map((item) => item.exerciseName).join(", ")} hareketlerini bir sonraki sessionda tekrar izle.`);
         }
+        if (plateauItems.length > 0) {
+            nextActions.push(`${plateauItems.slice(0, 3).map((item) => item.exerciseName).join(", ")} için plato sinyali var; RIR, dinlenme ve hacim kararını takip et.`);
+        }
         if (baselineItems.length > 0 && progressItems.length === 0) {
             nextActions.push("Yeni baz alınan hareketlerde bir sonraki log karşılaştırma için daha anlamlı olacak.");
         }
@@ -86,6 +94,9 @@ export class CoachNarrationService {
         if (watchItems.length >= 3) {
             cautions.push("Birden fazla hareket takipte. Uyku, beslenme, dinlenme ve RIR tutarlılığını kontrol etmek iyi olur.");
         }
+        if (regressionItems.length > 0) {
+            cautions.push(`${regressionItems.slice(0, 3).map((item) => item.exerciseName).join(", ")} için önceki loga göre kg veya tekrar düşüşü var.`);
+        }
         if (inconsistentItems.length > 0) {
             cautions.push(`${inconsistentItems.length} hareket veri tutarsızlığı yüzünden koç kararına dahil edilmedi.`);
         }
@@ -93,7 +104,7 @@ export class CoachNarrationService {
         return {
             mode: "rule_based",
             headline,
-            summary: `${input.workoutCount} antrenman içinde ${input.progressCount} progress ve ${input.watchCount} takip sinyali bulundu.`,
+            summary: `${input.workoutCount} antrenman içinde ${input.progressCount} progress, ${input.plateauCount || 0} plato adayı ve ${input.regressionCount || 0} gerileme sinyali bulundu.`,
             highlights: highlights.length > 0 ? highlights : ["Bu hafta belirgin progress sinyali yok; baz ve takip verileri oluşuyor."],
             nextActions: nextActions.length > 0 ? nextActions : ["Bir sonraki antrenmanda aynı log disiplinini sürdür."],
             cautions,

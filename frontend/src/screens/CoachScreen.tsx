@@ -217,6 +217,14 @@ export default function CoachScreen() {
                                     <Text style={styles.reportStatValue}>{weeklyReport.watchCount ?? 0}</Text>
                                     <Text style={styles.reportStatLabel}>Takip</Text>
                                 </View>
+                                <View style={styles.reportStat}>
+                                    <Text style={styles.reportStatValue}>{weeklyReport.plateauCount ?? 0}</Text>
+                                    <Text style={styles.reportStatLabel}>Plato</Text>
+                                </View>
+                                <View style={styles.reportStat}>
+                                    <Text style={styles.reportStatValue}>{weeklyReport.regressionCount ?? 0}</Text>
+                                    <Text style={styles.reportStatLabel}>Düşüş</Text>
+                                </View>
                             </View>
                             {!!coachNarration && (
                                 <View style={styles.narrationBox}>
@@ -746,10 +754,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     reportStats: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: spacing.sm,
     },
     reportStat: {
         flex: 1,
+        minWidth: 92,
         borderRadius: borderRadius.sm,
         backgroundColor: colors.background,
         borderWidth: 1,
