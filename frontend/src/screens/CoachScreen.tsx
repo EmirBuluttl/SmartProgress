@@ -106,6 +106,26 @@ export default function CoachScreen() {
         };
         return [...exerciseAnalyses].sort((a, b) => score(b) - score(a)).slice(0, 5);
     }, [exerciseAnalyses]);
+    const progressSignals = React.useMemo(
+        () => exerciseAnalyses.filter((item: any) => item?.decision === "progress"),
+        [exerciseAnalyses],
+    );
+    const interventionSignals = React.useMemo(
+        () => exerciseAnalyses.filter((item: any) => {
+            const flags = Array.isArray(item?.flags) ? item.flags : [];
+            return flags.includes("rir_adjustment_candidate") ||
+                flags.includes("volume_reduce_candidate") ||
+                flags.includes("volume_increase_candidate");
+        }),
+        [exerciseAnalyses],
+    );
+    const attentionSignals = React.useMemo(
+        () => exerciseAnalyses.filter((item: any) => {
+            const flags = Array.isArray(item?.flags) ? item.flags : [];
+            return flags.includes("plateau_candidate") || flags.includes("single_session_regression");
+        }),
+        [exerciseAnalyses],
+    );
 
     const loadAiStatus = React.useCallback(async () => {
         if (!isCoachPlus) return;
@@ -244,6 +264,44 @@ export default function CoachScreen() {
                         <Ionicons name="map-outline" size={18} color={colors.background} />
                         <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Ac</Text>
                     </TouchableOpacity>
+                </View>
+            )}
+
+            {!isFree && (
+                <View style={styles.section}>
+                    <View style={styles.dashboardHeader}>
+                        <View>
+                            <Text style={styles.sectionTitle}>Koç merkezi</Text>
+                            <Text style={styles.dashboardSubtitle}>Bu hafta yakalanan sinyaller ve sıradaki aksiyonlar</Text>
+                        </View>
+                        <View style={styles.coachStatusBadge}>
+                            <MaterialCommunityIcons name="brain" size={16} color={colors.background} />
+                            <Text style={styles.coachStatusText}>Aktif</Text>
+                        </View>
+                    </View>
+                    <View style={styles.metricGrid}>
+                        <MetricTile
+                            icon="trending-up-outline"
+                            label="Progress"
+                            value={weeklyReport?.progressCount ?? progressSignals.length}
+                            color={PROGRESS_GREEN}
+                            colors={colors}
+                        />
+                        <MetricTile
+                            icon="alert-circle-outline"
+                            label="Dikkat"
+                            value={(weeklyReport?.plateauCount ?? 0) + (weeklyReport?.regressionCount ?? 0) || attentionSignals.length}
+                            color={colors.warning || "#F5A524"}
+                            colors={colors}
+                        />
+                        <MetricTile
+                            icon="construct-outline"
+                            label="Aksiyon"
+                            value={weeklyReport?.interventionCount ?? interventionSignals.length}
+                            color={colors.accent}
+                            colors={colors}
+                        />
+                    </View>
                 </View>
             )}
 
@@ -561,6 +619,31 @@ export default function CoachScreen() {
     );
 }
 
+function MetricTile({
+    icon,
+    label,
+    value,
+    color,
+    colors,
+}: {
+    icon: React.ComponentProps<typeof Ionicons>["name"];
+    label: string;
+    value: number;
+    color: string;
+    colors: any;
+}) {
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    return (
+        <View style={styles.metricTile}>
+            <View style={[styles.metricIcon, { backgroundColor: `${color}1A`, borderColor: color }]}>
+                <Ionicons name={icon} size={18} color={color} />
+            </View>
+            <Text style={styles.metricValue}>{value}</Text>
+            <Text style={styles.metricLabel}>{label}</Text>
+        </View>
+    );
+}
+
 function FeatureRow({
     icon,
     title,
@@ -731,6 +814,64 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.text,
         fontSize: fontSize.lg,
         fontWeight: fontWeight.bold,
+    },
+    dashboardHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.md,
+    },
+    dashboardSubtitle: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        lineHeight: 17,
+        marginTop: spacing.xs,
+    },
+    coachStatusBadge: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accent,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+    },
+    coachStatusText: {
+        color: colors.background,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    metricGrid: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    metricTile: {
+        flex: 1,
+        minHeight: 108,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        padding: spacing.md,
+        justifyContent: "space-between",
+    },
+    metricIcon: {
+        width: 34,
+        height: 34,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    metricValue: {
+        color: colors.text,
+        fontSize: fontSize.xxl,
+        fontWeight: fontWeight.heavy,
+    },
+    metricLabel: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
     },
     featureRow: {
         flexDirection: "row",

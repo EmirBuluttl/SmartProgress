@@ -54,6 +54,11 @@ export default function CoachWeeklyReportScreen() {
     const progressItems = analyses.filter((item: any) => item.decision === "progress");
     const plateauItems = analyses.filter((item: any) => item.flags?.includes("plateau_candidate"));
     const regressionItems = analyses.filter((item: any) => item.flags?.includes("single_session_regression"));
+    const interventionItems = analyses.filter((item: any) =>
+        item.flags?.includes("rir_adjustment_candidate") ||
+        item.flags?.includes("volume_reduce_candidate") ||
+        item.flags?.includes("volume_increase_candidate"),
+    );
     const watchItems = analyses.filter((item: any) => item.decision === "watch" && !item.flags?.includes("plateau_candidate") && !item.flags?.includes("single_session_regression"));
 
     const renderGroup = (title: string, items: any[]) => {
@@ -106,7 +111,15 @@ export default function CoachWeeklyReportScreen() {
             ) : (
                 <>
                     <View style={styles.heroCard}>
-                        <Text style={styles.heroTitle}>{report?.coachNarration?.headline || "Bu haftanın özeti"}</Text>
+                        <View style={styles.heroTopRow}>
+                            <View style={styles.reportMark}>
+                                <Ionicons name="sparkles-outline" size={20} color={colors.background} />
+                            </View>
+                            <View style={styles.heroCopy}>
+                                <Text style={styles.eyebrow}>WEEKLY INTELLIGENCE</Text>
+                                <Text style={styles.heroTitle}>{report?.coachNarration?.headline || "Bu haftanın özeti"}</Text>
+                            </View>
+                        </View>
                         <Text style={styles.heroText}>{report?.coachNarration?.summary || report?.summary || "Bu hafta için rapor verisi yok."}</Text>
                         <View style={styles.statGrid}>
                             <Stat label="Antrenman" value={report?.workoutCount ?? 0} styles={styles} />
@@ -115,8 +128,20 @@ export default function CoachWeeklyReportScreen() {
                             <Stat label="Düşüş" value={report?.regressionCount ?? 0} styles={styles} />
                             <Stat label="Müdahale" value={report?.interventionCount ?? 0} styles={styles} />
                         </View>
+                        {!!report?.coachNarration?.nextActions?.length && (
+                            <View style={styles.actionPanel}>
+                                <Text style={styles.actionPanelTitle}>Sıradaki koç aksiyonları</Text>
+                                {report.coachNarration.nextActions.slice(0, 3).map((item: string) => (
+                                    <View key={item} style={styles.actionRow}>
+                                        <Ionicons name="arrow-forward-circle-outline" size={17} color={colors.accent} />
+                                        <Text style={styles.actionText}>{item}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
                     </View>
 
+                    {renderGroup("Müdahale adayları", interventionItems)}
                     {renderGroup("Progress yakalanan hareketler", progressItems)}
                     {renderGroup("Plato adayları", plateauItems)}
                     {renderGroup("Düşüş sinyalleri", regressionItems)}
@@ -167,6 +192,23 @@ const createStyles = (colors: any) => StyleSheet.create({
         padding: spacing.xl,
         gap: spacing.md,
     },
+    heroTopRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    reportMark: {
+        width: 44,
+        height: 44,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    heroCopy: {
+        flex: 1,
+        gap: spacing.xs,
+    },
     heroTitle: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
     heroText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 21 },
     statGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
@@ -182,6 +224,30 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     statValue: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
     statLabel: { color: colors.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+    actionPanel: {
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    actionPanelTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    actionRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+    },
+    actionText: {
+        flex: 1,
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
     group: { gap: spacing.md },
     groupTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
     signalCard: {
