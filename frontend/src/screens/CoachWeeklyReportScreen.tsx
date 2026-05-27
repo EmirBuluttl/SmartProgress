@@ -69,6 +69,9 @@ export default function CoachWeeklyReportScreen() {
         item.flags?.includes("volume_increase_candidate"),
     );
     const watchItems = analyses.filter((item: any) => item.decision === "watch" && !item.flags?.includes("plateau_candidate") && !item.flags?.includes("single_session_regression"));
+    const prioritySignal = interventionItems[0] || regressionItems[0] || plateauItems[0] || progressItems[0] || null;
+    const priorityMeta = prioritySignal ? getMeta(prioritySignal, colors) : null;
+    const reportCautions = Array.isArray(report?.coachNarration?.cautions) ? report.coachNarration.cautions : [];
 
     const renderGroup = (title: string, items: any[]) => {
         if (items.length === 0) return null;
@@ -137,12 +140,38 @@ export default function CoachWeeklyReportScreen() {
                             <Stat label="Düşüş" value={report?.regressionCount ?? 0} styles={styles} />
                             <Stat label="Müdahale" value={report?.interventionCount ?? 0} styles={styles} />
                         </View>
+                        {prioritySignal && priorityMeta && (
+                            <View style={styles.priorityPanel}>
+                                <View style={[styles.priorityIcon, { backgroundColor: `${priorityMeta.color}22` }]}>
+                                    <Ionicons name={priorityMeta.icon} size={20} color={priorityMeta.color} />
+                                </View>
+                                <View style={styles.priorityCopy}>
+                                    <Text style={styles.priorityEyebrow}>Öncelikli koç kararı</Text>
+                                    <Text style={styles.priorityTitle}>{prioritySignal.exerciseName} · {priorityMeta.label}</Text>
+                                    <Text style={styles.priorityMetaText}>
+                                        {formatBestSet(prioritySignal.previousBest)} {"->"} {formatBestSet(prioritySignal.currentBest)}
+                                    </Text>
+                                    <Text style={styles.priorityReason}>{prioritySignal.interventionAdvice || prioritySignal.reason}</Text>
+                                </View>
+                            </View>
+                        )}
                         {!!report?.coachNarration?.nextActions?.length && (
                             <View style={styles.actionPanel}>
                                 <Text style={styles.actionPanelTitle}>Sıradaki koç aksiyonları</Text>
                                 {report.coachNarration.nextActions.slice(0, 3).map((item: string) => (
                                     <View key={item} style={styles.actionRow}>
                                         <Ionicons name="arrow-forward-circle-outline" size={17} color={colors.accent} />
+                                        <Text style={styles.actionText}>{item}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
+                        {reportCautions.length > 0 && (
+                            <View style={styles.cautionPanel}>
+                                <Text style={styles.actionPanelTitle}>Dikkat notları</Text>
+                                {reportCautions.slice(0, 3).map((item: string) => (
+                                    <View key={item} style={styles.actionRow}>
+                                        <Ionicons name="alert-circle-outline" size={17} color={colors.warning || "#F5A524"} />
                                         <Text style={styles.actionText}>{item}</Text>
                                     </View>
                                 ))}
@@ -233,10 +262,58 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     statValue: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
     statLabel: { color: colors.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+    priorityPanel: {
+        flexDirection: "row",
+        gap: spacing.md,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+        padding: spacing.md,
+    },
+    priorityIcon: {
+        width: 42,
+        height: 42,
+        borderRadius: borderRadius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    priorityCopy: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    priorityEyebrow: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    priorityTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    priorityMetaText: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    priorityReason: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
     actionPanel: {
         borderRadius: borderRadius.sm,
         borderWidth: 1,
         borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    cautionPanel: {
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.warning || "#F5A524",
         backgroundColor: colors.background,
         padding: spacing.md,
         gap: spacing.sm,

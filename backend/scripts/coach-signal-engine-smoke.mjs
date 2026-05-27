@@ -97,6 +97,21 @@ expectSignal("weight progress", [
     decision: "progress",
 });
 
+expectSignal("weight progress beats small rep drop", [
+    { weight: 80, reps: 8, rir: 2 },
+    { weight: 82.5, reps: 7, rir: 2 },
+], {
+    decision: "progress",
+    absentFlags: ["single_session_regression"],
+});
+
+expectSignal("weighted bodyweight progress", [
+    { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 0 }), reps: 6, rir: "1-2" },
+    { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 5 }), reps: 6, rir: "1-2" },
+], {
+    decision: "progress",
+});
+
 expectSignal("upper rep target reached", [
     { weight: 80, reps: 7, rir: "1-2", targetReps: "4-8" },
     { weight: 80, reps: 8, rir: "1-2", targetReps: "4-8" },
@@ -124,6 +139,14 @@ expectSignal("single session reps regression", [
 expectSignal("single session weight regression", [
     { weight: 80, reps: 8, rir: 2 },
     { weight: 77.5, reps: 8, rir: 2 },
+], {
+    decision: "watch",
+    flags: ["single_session_regression"],
+});
+
+expectSignal("lower weight with more reps is still watch", [
+    { weight: 80, reps: 8, rir: 2 },
+    { weight: 77.5, reps: 10, rir: 2 },
 ], {
     decision: "watch",
     flags: ["single_session_regression"],
