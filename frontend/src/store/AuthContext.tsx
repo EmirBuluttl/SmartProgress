@@ -22,6 +22,10 @@ interface User {
         is_auto_suggest_enabled: boolean;
         remember_reps_enabled?: boolean;
         profile_visibility?: "public" | "private";
+        onboarding_profile?: Record<string, any>;
+        onboardingProfile?: Record<string, any>;
+        coach_profile?: Record<string, any>;
+        coachProfile?: Record<string, any>;
     } | null;
 }
 

@@ -8,6 +8,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { parseApiError, programApi } from "../services/api";
+import { useAuth } from "../store/AuthContext";
 import {
     buildCoachProgramData,
     COACH_GOALS as GOALS,
@@ -32,17 +33,47 @@ import {
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 
+const normalizeLevel = (value: unknown): Level => {
+    const text = String(value || "").toLowerCase();
+    if (text === "beginner" || text === "intermediate" || text === "advanced") return text;
+    return "intermediate";
+};
+
+const normalizeGoal = (value: unknown): Goal => {
+    const text = String(value || "").toLowerCase();
+    if (text === "muscle" || text === "strength" || text === "fat_loss" || text === "general") return text;
+    if (text === "fitness" || text === "performance") return "general";
+    return "muscle";
+};
+
+const normalizeFrequency = (value: unknown) => {
+    const parsed = Number(value);
+    if (!Number.isFinite(parsed)) return 4;
+    return Math.min(6, Math.max(2, Math.round(parsed)));
+};
+
+const getCoachProfileFromSettings = (settings: any) => {
+    if (!settings || typeof settings !== "object") return null;
+    return settings.coach_profile ||
+        settings.coachProfile ||
+        settings.onboarding_profile ||
+        settings.onboardingProfile ||
+        null;
+};
+
 export default function PremiumProgramWizardScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+    const { user } = useAuth();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const coachProfile = React.useMemo(() => getCoachProfileFromSettings(user?.settings), [user?.settings]);
 
     const [step, setStep] = React.useState(0);
-    const [level, setLevel] = React.useState<Level>("intermediate");
-    const [frequency, setFrequency] = React.useState(4);
+    const [level, setLevel] = React.useState<Level>(() => normalizeLevel(coachProfile?.experienceLevel || coachProfile?.level));
+    const [frequency, setFrequency] = React.useState(() => normalizeFrequency(coachProfile?.weeklyFrequency || coachProfile?.frequency));
     const [hasPain, setHasPain] = React.useState<"no" | "yes">("no");
     const [painNote, setPainNote] = React.useState("");
-    const [goal, setGoal] = React.useState<Goal>("muscle");
+    const [goal, setGoal] = React.useState<Goal>(() => normalizeGoal(coachProfile?.workoutGoal || coachProfile?.goal));
     const [equipment, setEquipment] = React.useState("");
     const [sessionMinutes, setSessionMinutes] = React.useState("");
     const [priorityGroup, setPriorityGroup] = React.useState<string | null>(null);
@@ -53,6 +84,20 @@ export default function PremiumProgramWizardScreen() {
     const [saving, setSaving] = React.useState(false);
     const [createdProgramId, setCreatedProgramId] = React.useState<string | null>(null);
     const [notice, setNotice] = React.useState<string | null>(null);
+    const [profileApplied, setProfileApplied] = React.useState(false);
+
+    React.useEffect(() => {
+        if (!coachProfile || profileApplied) return;
+        setLevel(normalizeLevel(coachProfile.experienceLevel || coachProfile.level));
+        setFrequency(normalizeFrequency(coachProfile.weeklyFrequency || coachProfile.frequency));
+        setGoal(normalizeGoal(coachProfile.workoutGoal || coachProfile.goal));
+        if (coachProfile.hasPain === true || coachProfile.injuryNote || coachProfile.painNote) {
+            setHasPain("yes");
+            setPainNote(String(coachProfile.injuryNote || coachProfile.painNote || ""));
+        }
+        setProfileApplied(true);
+        setNotice("Onboarding/profil bilgilerinden başlangıç ayarlarını doldurdum. İstersen her adımı yine değiştirebilirsin.");
+    }, [coachProfile, profileApplied]);
 
     React.useEffect(() => {
         const recommended = defaultSplitForFrequency(frequency);
