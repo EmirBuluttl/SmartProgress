@@ -39,12 +39,37 @@ const getMeta = (type: string, colors: any) => {
     return { label: "Sinyal", icon: "pulse-outline" as const, color: colors.textSecondary };
 };
 
+const FILTERS = [
+    { key: "all", label: "Tümü" },
+    { key: "progress", label: "Progress" },
+    { key: "action", label: "Müdahale" },
+    { key: "plateau", label: "Plato" },
+    { key: "regression", label: "Düşüş" },
+] as const;
+
+type InsightFilter = typeof FILTERS[number]["key"];
+
+function matchesFilter(insight: any, filter: InsightFilter) {
+    if (filter === "all") return true;
+    if (filter === "progress") return insight.type === "PROGRESS_DETECTED" || insight.type === "WEIGHT_INCREASE_CANDIDATE";
+    if (filter === "action") {
+        return insight.type === "RIR_ADJUSTMENT_CANDIDATE" ||
+            insight.type === "VOLUME_REDUCE_CANDIDATE" ||
+            insight.type === "VOLUME_INCREASE_CANDIDATE" ||
+            insight.type === "WEIGHT_INCREASE_CANDIDATE";
+    }
+    if (filter === "plateau") return insight.type === "PLATEAU_CANDIDATE";
+    if (filter === "regression") return insight.type === "REGRESSION_DETECTED";
+    return true;
+}
+
 export default function CoachInsightHistoryScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [loading, setLoading] = React.useState(true);
     const [insights, setInsights] = React.useState<any[]>([]);
+    const [activeFilter, setActiveFilter] = React.useState<InsightFilter>("all");
 
     React.useEffect(() => {
         let mounted = true;
@@ -63,6 +88,10 @@ export default function CoachInsightHistoryScreen() {
         };
     }, []);
 
+    const filteredInsights = insights.filter((insight) => matchesFilter(insight, activeFilter));
+    const actionCount = insights.filter((insight) => matchesFilter(insight, "action")).length;
+    const progressCount = insights.filter((insight) => matchesFilter(insight, "progress")).length;
+
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
             <View style={styles.header}>
@@ -75,6 +104,43 @@ export default function CoachInsightHistoryScreen() {
                 </View>
             </View>
 
+            {!loading && insights.length > 0 && (
+                <View style={styles.overviewCard}>
+                    <View style={styles.overviewItem}>
+                        <Text style={styles.overviewValue}>{insights.length}</Text>
+                        <Text style={styles.overviewLabel}>Toplam sinyal</Text>
+                    </View>
+                    <View style={styles.overviewDivider} />
+                    <View style={styles.overviewItem}>
+                        <Text style={[styles.overviewValue, { color: PROGRESS_GREEN }]}>{progressCount}</Text>
+                        <Text style={styles.overviewLabel}>Progress</Text>
+                    </View>
+                    <View style={styles.overviewDivider} />
+                    <View style={styles.overviewItem}>
+                        <Text style={[styles.overviewValue, { color: colors.accent }]}>{actionCount}</Text>
+                        <Text style={styles.overviewLabel}>Aksiyon</Text>
+                    </View>
+                </View>
+            )}
+
+            {!loading && insights.length > 0 && (
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                    {FILTERS.map((filter) => {
+                        const isActive = activeFilter === filter.key;
+                        return (
+                            <TouchableOpacity
+                                key={filter.key}
+                                style={[styles.filterChip, isActive && styles.filterChipActive]}
+                                onPress={() => setActiveFilter(filter.key)}
+                                activeOpacity={0.82}
+                            >
+                                <Text style={[styles.filterText, isActive && styles.filterTextActive]}>{filter.label}</Text>
+                            </TouchableOpacity>
+                        );
+                    })}
+                </ScrollView>
+            )}
+
             {loading ? (
                 <View style={styles.emptyCard}>
                     <ActivityIndicator color={colors.accent} />
@@ -86,9 +152,15 @@ export default function CoachInsightHistoryScreen() {
                     <Text style={styles.emptyTitle}>Henüz sinyal yok</Text>
                     <Text style={styles.emptyText}>Benzer hareketlerde birkaç log biriktikçe koç hafızası burada oluşacak.</Text>
                 </View>
+            ) : filteredInsights.length === 0 ? (
+                <View style={styles.emptyCard}>
+                    <Ionicons name="filter-outline" size={22} color={colors.textMuted} />
+                    <Text style={styles.emptyTitle}>Bu filtrede sinyal yok</Text>
+                    <Text style={styles.emptyText}>Başka bir filtre seçerek koç hafızasındaki diğer sinyallere bakabilirsin.</Text>
+                </View>
             ) : (
                 <View style={styles.list}>
-                    {insights.map((insight) => {
+                    {filteredInsights.map((insight) => {
                         const meta = getMeta(insight.type, colors);
                         return (
                             <View key={insight.id} style={styles.card}>
@@ -155,6 +227,60 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     list: {
         gap: spacing.md,
+    },
+    overviewCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.md,
+        marginBottom: spacing.md,
+    },
+    overviewItem: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    overviewValue: {
+        color: colors.text,
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.heavy,
+    },
+    overviewLabel: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    overviewDivider: {
+        width: 1,
+        height: 36,
+        backgroundColor: colors.border,
+        marginHorizontal: spacing.md,
+    },
+    filterRow: {
+        gap: spacing.sm,
+        paddingBottom: spacing.md,
+    },
+    filterChip: {
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+    },
+    filterChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    filterText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    filterTextActive: {
+        color: colors.accent,
     },
     card: {
         backgroundColor: colors.surface,
