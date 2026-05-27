@@ -26,6 +26,7 @@ import NutritionScreen from "../screens/NutritionScreen";
 import PublicProfileScreen from "../screens/PublicProfileScreen";
 import CardioSessionScreen from "../screens/CardioSessionScreen";
 import PremiumProgramWizardScreen from "../screens/PremiumProgramWizardScreen";
+import CoachWeeklyReportScreen from "../screens/CoachWeeklyReportScreen";
 
 // ─── Types ───────────────────────────────────
 
@@ -95,6 +96,7 @@ export type RootStackParamList = {
     Nutrition: undefined;
     PublicProfile: { userId: string };
     PremiumProgramWizard: undefined;
+    CoachWeeklyReport: undefined;
 };
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
@@ -203,6 +205,11 @@ function AppNavigator() {
                 name="PremiumProgramWizard"
                 component={PremiumProgramWizardScreen}
                 options={{ animation: "slide_from_bottom", presentation: "fullScreenModal" }}
+            />
+            <AppStack.Screen
+                name="CoachWeeklyReport"
+                component={CoachWeeklyReportScreen}
+                options={{ animation: "slide_from_right" }}
             />
         </AppStack.Navigator>
     );

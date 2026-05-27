@@ -364,6 +364,14 @@ export default function CoachScreen() {
                                     })}
                                 </View>
                             )}
+                            <TouchableOpacity
+                                style={styles.secondaryActionBtn}
+                                activeOpacity={0.85}
+                                onPress={() => navigation.navigate("CoachWeeklyReport")}
+                            >
+                                <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+                                <Text style={styles.secondaryActionText}>Detaylı haftalık raporu aç</Text>
+                            </TouchableOpacity>
                         </>
                     )}
                 </View>
@@ -1054,6 +1062,23 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.xs,
         lineHeight: 18,
+    },
+    secondaryActionBtn: {
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.sm,
+        paddingHorizontal: spacing.md,
+    },
+    secondaryActionText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     timelineCard: {
         backgroundColor: colors.surface,
