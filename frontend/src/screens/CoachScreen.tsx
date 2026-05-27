@@ -1,6 +1,6 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
@@ -10,6 +10,7 @@ import { RootStackParamList } from "../navigation/RootNavigator";
 import { coachApi } from "../services/api";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
+const PROGRESS_GREEN = "#22C55E";
 
 const getSubscriptionTier = (user: any): SubscriptionTier => {
     const directTier = String(user?.subscriptionTier || "").toLowerCase();
@@ -33,7 +34,7 @@ const getDecisionMeta = (item: any, colors: any) => {
         return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
     }
     if (item?.decision === "progress") {
-        return { label: "Progress", icon: "trending-up-outline" as const, color: colors.accent };
+        return { label: "Progress", icon: "trending-up-outline" as const, color: PROGRESS_GREEN };
     }
     if (item?.decision === "baseline") {
         return { label: "Baz veri", icon: "flag-outline" as const, color: colors.textMuted };
@@ -49,7 +50,7 @@ const getInsightMeta = (type: string, colors: any) => {
         return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning || "#F5A524" };
     }
     if (type === "VOLUME_INCREASE_CANDIDATE") {
-        return { label: "Set artır", icon: "add-circle-outline" as const, color: colors.accent };
+        return { label: "Set artır", icon: "add-circle-outline" as const, color: PROGRESS_GREEN };
     }
     if (type === "REGRESSION_DETECTED") {
         return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
@@ -58,7 +59,7 @@ const getInsightMeta = (type: string, colors: any) => {
         return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
     }
     if (type === "PROGRESS_DETECTED") {
-        return { label: "Progress", icon: "trending-up-outline" as const, color: colors.accent };
+        return { label: "Progress", icon: "trending-up-outline" as const, color: PROGRESS_GREEN };
     }
     return { label: "Sinyal", icon: "pulse-outline" as const, color: colors.textSecondary };
 };
@@ -187,7 +188,7 @@ export default function CoachScreen() {
         >
             <View style={styles.header}>
                 <View style={styles.iconBadge}>
-                    <Ionicons name="pulse" size={28} color={colors.background} />
+                    <MaterialCommunityIcons name="brain" size={30} color={colors.background} />
                 </View>
                 <View style={styles.headerCopy}>
                     <Text style={styles.eyebrow}>{isCoachPlus ? "AI KOÇ" : "AKILLI KOÇ"}</Text>
@@ -283,7 +284,7 @@ export default function CoachScreen() {
                     {!!weeklyReport && (
                         <View style={styles.coachBrief}>
                             <View style={styles.coachBriefIcon}>
-                                <Ionicons name="pulse-outline" size={22} color={colors.background} />
+                                <MaterialCommunityIcons name="brain" size={22} color={colors.background} />
                             </View>
                             <View style={styles.coachBriefCopy}>
                                 <Text style={styles.coachBriefLabel}>Koç okuması</Text>

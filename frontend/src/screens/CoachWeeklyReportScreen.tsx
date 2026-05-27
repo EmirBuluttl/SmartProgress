@@ -6,6 +6,8 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { coachApi } from "../services/api";
 
+const PROGRESS_GREEN = "#22C55E";
+
 const formatBestSet = (set?: any) => {
     if (!set) return "Baz yok";
     const rir = set.rir !== null && set.rir !== undefined && String(set.rir).trim() ? ` · RIR ${set.rir}` : "";
@@ -16,10 +18,10 @@ const getMeta = (item: any, colors: any) => {
     const flags = Array.isArray(item?.flags) ? item.flags : [];
     if (flags.includes("rir_adjustment_candidate")) return { label: "RIR ayarı", icon: "speedometer-outline" as const, color: colors.warning || "#F5A524" };
     if (flags.includes("volume_reduce_candidate")) return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning || "#F5A524" };
-    if (flags.includes("volume_increase_candidate")) return { label: "Set artır", icon: "add-circle-outline" as const, color: colors.accent };
+    if (flags.includes("volume_increase_candidate")) return { label: "Set artır", icon: "add-circle-outline" as const, color: PROGRESS_GREEN };
     if (flags.includes("single_session_regression")) return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
     if (flags.includes("plateau_candidate")) return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
-    if (item?.decision === "progress") return { label: "Progress", icon: "trending-up-outline" as const, color: colors.accent };
+    if (item?.decision === "progress") return { label: "Progress", icon: "trending-up-outline" as const, color: PROGRESS_GREEN };
     if (item?.decision === "baseline") return { label: "Baz veri", icon: "flag-outline" as const, color: colors.textMuted };
     return { label: "Takip", icon: "eye-outline" as const, color: colors.textSecondary };
 };
