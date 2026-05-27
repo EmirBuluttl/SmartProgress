@@ -49,6 +49,7 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
                         unit: s.unit,
                         rpe: s.rpe !== undefined && s.rpe !== "" ? clampRpe(s.rpe) : undefined,
                         rir: normalizeRirLogValue((s as any).rir, s.reps),
+                        targetReps: s.targetReps,
                         analysisExcluded: s.analysisExcluded === true ? true : undefined,
                         analysisWarning: s.analysisWarning,
                         isWarmup: s.isWarmup ?? false,

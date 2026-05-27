@@ -166,6 +166,7 @@ export interface SyncWorkoutPayload {
                 unit: "kg" | "lbs";
                 rpe?: number | string;
                 rir?: number | string;
+                targetReps?: string;
                 analysisExcluded?: boolean;
                 analysisWarning?: string;
                 isWarmup?: boolean;

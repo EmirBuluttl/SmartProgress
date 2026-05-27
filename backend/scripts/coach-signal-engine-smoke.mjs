@@ -23,7 +23,7 @@ const sandbox = {
 };
 vm.runInNewContext(transpiled.outputText, sandbox, { filename: enginePath });
 
-const { compareExerciseHistory, normalizeRirValue } = sandbox.exports;
+const { compareExerciseHistory, normalizeRirValue, parseRepRange } = sandbox.exports;
 
 function entry(index, best) {
     return {
@@ -51,6 +51,8 @@ function expectSignal(name, bestSets, expected) {
 
 assert.equal(normalizeRirValue("1-2"), 1.5, "RIR range should normalize by average");
 assert.equal(normalizeRirValue("2,5"), 2.5, "Comma decimal RIR should parse");
+assert.equal(JSON.stringify(parseRepRange("4-8")), JSON.stringify({ min: 4, max: 8 }), "Rep range should parse");
+assert.equal(JSON.stringify(parseRepRange("12")), JSON.stringify({ min: 12, max: 12 }), "Single rep target should parse");
 
 expectSignal("baseline first log", [
     { weight: 80, reps: 4, rir: "1-2" },
@@ -71,6 +73,22 @@ expectSignal("weight progress", [
     { weight: 82.5, reps: 8, rir: 2 },
 ], {
     decision: "progress",
+});
+
+expectSignal("upper rep target reached", [
+    { weight: 80, reps: 7, rir: "1-2", targetReps: "4-8" },
+    { weight: 80, reps: 8, rir: "1-2", targetReps: "4-8" },
+], {
+    decision: "progress",
+    flags: ["upper_rep_target_reached", "weight_increase_candidate"],
+});
+
+expectSignal("below upper rep target no weight increase", [
+    { weight: 80, reps: 6, rir: "1-2", targetReps: "4-8" },
+    { weight: 80, reps: 7, rir: "1-2", targetReps: "4-8" },
+], {
+    decision: "progress",
+    absentFlags: ["upper_rep_target_reached", "weight_increase_candidate"],
 });
 
 expectSignal("single session reps regression", [

@@ -39,6 +39,7 @@ function bestWorkingSet(exercise: any): CoachBestSet | null {
             weight: toNumber(set?.weight),
             reps: toNumber(set?.reps),
             rir: set?.rir,
+            targetReps: set?.targetReps,
         }))
         .filter((set: CoachBestSet) => set.weight > 0 || set.reps > 0);
     if (logged.length === 0) return null;
@@ -54,6 +55,7 @@ function hashWorkoutSources(logs: { id: string; updatedAt: Date }[]) {
 function insightTypeForAnalysis(analysis: { decision: string; flags: string[] }) {
     if (analysis.flags.includes("rir_adjustment_candidate")) return "RIR_ADJUSTMENT_CANDIDATE";
     if (analysis.flags.includes("volume_reduce_candidate")) return "VOLUME_REDUCE_CANDIDATE";
+    if (analysis.flags.includes("weight_increase_candidate")) return "WEIGHT_INCREASE_CANDIDATE";
     if (analysis.flags.includes("volume_increase_candidate")) return "VOLUME_INCREASE_CANDIDATE";
     if (analysis.flags.includes("single_session_regression")) return "REGRESSION_DETECTED";
     if (analysis.flags.includes("plateau_candidate")) return "PLATEAU_CANDIDATE";

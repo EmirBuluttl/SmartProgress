@@ -2,6 +2,7 @@ export type CoachBestSet = {
     weight: number;
     reps: number;
     rir?: number | string | null;
+    targetReps?: string | null;
 };
 
 export type CoachExerciseHistoryEntry = {
@@ -30,6 +31,28 @@ export function normalizeRirValue(value: unknown): number | null {
     }
     const parsed = Number(text);
     return Number.isFinite(parsed) ? parsed : null;
+}
+
+export function parseRepRange(value: unknown): { min: number; max: number } | null {
+    if (value === null || value === undefined || value === "") return null;
+    const text = String(value).replace(",", ".").replace(/[–—]/g, "-").trim();
+    if (!text) return null;
+
+    const rangeMatch = text.match(/(\d+(?:\.\d+)?)\s*-\s*(\d+(?:\.\d+)?)/);
+    if (rangeMatch) {
+        const left = Number(rangeMatch[1]);
+        const right = Number(rangeMatch[2]);
+        if (!Number.isFinite(left) || !Number.isFinite(right)) return null;
+        return {
+            min: Math.floor(Math.min(left, right)),
+            max: Math.floor(Math.max(left, right)),
+        };
+    }
+
+    const single = Number(text.match(/\d+(?:\.\d+)?/)?.[0]);
+    if (!Number.isFinite(single)) return null;
+    const reps = Math.floor(single);
+    return { min: reps, max: reps };
 }
 
 export function compareBestSets(previous: CoachBestSet | null, current: CoachBestSet | null) {
@@ -75,8 +98,14 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
         (latest.best.weight === previous.best.weight && latest.best.reps < previous.best.reps);
     const isStrongProgress = latest.best.weight > previous.best.weight ||
         (latest.best.weight === previous.best.weight && latest.best.reps >= previous.best.reps + 2);
+    const repRange = parseRepRange(latest.best.targetReps || previous.best.targetReps);
+    const reachedUpperRepTarget = !!repRange && latest.best.reps >= repRange.max && latest.best.weight >= previous.best.weight;
     if (isRegression) flags.push("single_session_regression");
     if (isSameAsPrevious) flags.push("same_as_previous");
+    if (reachedUpperRepTarget && latest.best.weight > 0) {
+        flags.push("upper_rep_target_reached");
+        flags.push("weight_increase_candidate");
+    }
 
     if (beforePrevious) {
         const previousWasStalledOrDown = previous.best.weight < beforePrevious.best.weight ||
@@ -110,9 +139,11 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
         ? "Önce RIR hedefini biraz rahatlatmayı düşün; hacim azaltımı ikinci adım olsun."
         : flags.includes("volume_reduce_candidate")
             ? "RIR zaten düşük görünmüyorsa bu hareket için hacim azaltımı aday olabilir."
-            : flags.includes("volume_increase_candidate")
-                ? "Üst üste güçlü progress var; aynı kalite sürerse kullanıcı onayıyla set artırımı düşünülebilir."
-                : null;
+            : flags.includes("weight_increase_candidate")
+                ? "Program tekrar aralığının üst sınırına ulaşıldı. Sonraki sessionda form bozulmadan minimum ağırlık artışı denenebilir."
+                : flags.includes("volume_increase_candidate")
+                    ? "Üst üste güçlü progress var; aynı kalite sürerse kullanıcı onayıyla set artırımı düşünülebilir."
+                    : null;
 
     if (comparison.decision === "watch" && flags.includes("plateau_candidate")) {
         return {

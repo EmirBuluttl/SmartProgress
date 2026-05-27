@@ -18,6 +18,7 @@ const getMeta = (item: any, colors: any) => {
     const flags = Array.isArray(item?.flags) ? item.flags : [];
     if (flags.includes("rir_adjustment_candidate")) return { label: "RIR ayarı", icon: "speedometer-outline" as const, color: colors.warning || "#F5A524" };
     if (flags.includes("volume_reduce_candidate")) return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning || "#F5A524" };
+    if (flags.includes("weight_increase_candidate")) return { label: "Ağırlık artır", icon: "barbell-outline" as const, color: PROGRESS_GREEN };
     if (flags.includes("volume_increase_candidate")) return { label: "Set artır", icon: "add-circle-outline" as const, color: PROGRESS_GREEN };
     if (flags.includes("single_session_regression")) return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
     if (flags.includes("plateau_candidate")) return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
@@ -57,6 +58,7 @@ export default function CoachWeeklyReportScreen() {
     const interventionItems = analyses.filter((item: any) =>
         item.flags?.includes("rir_adjustment_candidate") ||
         item.flags?.includes("volume_reduce_candidate") ||
+        item.flags?.includes("weight_increase_candidate") ||
         item.flags?.includes("volume_increase_candidate"),
     );
     const watchItems = analyses.filter((item: any) => item.decision === "watch" && !item.flags?.includes("plateau_candidate") && !item.flags?.includes("single_session_regression"));

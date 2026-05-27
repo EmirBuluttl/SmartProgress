@@ -49,6 +49,9 @@ const getInsightMeta = (type: string, colors: any) => {
     if (type === "VOLUME_REDUCE_CANDIDATE") {
         return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning || "#F5A524" };
     }
+    if (type === "WEIGHT_INCREASE_CANDIDATE") {
+        return { label: "Ağırlık artır", icon: "barbell-outline" as const, color: PROGRESS_GREEN };
+    }
     if (type === "VOLUME_INCREASE_CANDIDATE") {
         return { label: "Set artır", icon: "add-circle-outline" as const, color: PROGRESS_GREEN };
     }
