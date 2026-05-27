@@ -627,21 +627,48 @@ export default function CoachScreen() {
             )}
 
             <View style={styles.compareSection}>
-                <Text style={styles.sectionTitle}>Paket farkı</Text>
+                <View style={styles.dashboardHeader}>
+                    <View>
+                        <Text style={styles.sectionTitle}>Paket farkı</Text>
+                        <Text style={styles.dashboardSubtitle}>Koç motoru ayrı, AI sohbet katmanı ayrı değer üretir.</Text>
+                    </View>
+                </View>
                 <View style={styles.planGrid}>
                     <PlanCard
                         title="Pro"
-                        subtitle="Akıllı Koç"
-                        items={["Program analizi", "Haftalık rapor", "Bekleyen kararlar"]}
+                        subtitle="Akıllı Koç Motoru"
+                        badge="Rule engine"
+                        icon="analytics-outline"
+                        items={[
+                            "Program wizard ve kişisel split kurulumu",
+                            "Haftalık progress, plato ve düşüş raporu",
+                            "RIR, hacim azaltma ve set artırma adayları",
+                            "Otomatik değişiklik yok; karar kullanıcıda",
+                        ]}
                         colors={colors}
+                        active={tier === "pro"}
                     />
                     <PlanCard
                         title="Coach+"
-                        subtitle="AI Koç"
-                        items={["Pro özellikleri", "AI soru hakkı", "Detaylı açıklamalar"]}
+                        subtitle="AI Koç Katmanı"
+                        badge="50 soru / ay"
+                        icon="sparkles-outline"
+                        items={[
+                            "Pro içindeki tüm koç motoru özellikleri",
+                            "Log ve rapor bağlamına göre AI cevapları",
+                            "Bütçe korumalı, kontrollü soru hakkı",
+                            "Daha açıklayıcı haftalık yorum ve yönlendirme",
+                        ]}
                         colors={colors}
+                        active={isCoachPlus}
                         highlighted
                     />
+                </View>
+                <View style={styles.pricingNote}>
+                    <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
+                    <Text style={styles.noteText}>
+                        Ödeme açılmadan önce bu ayrımı manuel erişimle test ediyoruz. Böylece fiyatlandırmadan önce maliyet, kullanım ve gerçek değer algısını ölçebiliriz.
+                    </Text>
                 </View>
             </View>
 
@@ -708,21 +735,44 @@ function FeatureRow({
 function PlanCard({
     title,
     subtitle,
+    badge,
+    icon,
     items,
     colors,
+    active = false,
     highlighted = false,
 }: {
     title: string;
     subtitle: string;
+    badge: string;
+    icon: React.ComponentProps<typeof Ionicons>["name"];
     items: string[];
     colors: any;
+    active?: boolean;
     highlighted?: boolean;
 }) {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     return (
         <View style={[styles.planCard, highlighted && styles.planCardHighlighted]}>
-            <Text style={styles.planTitle}>{title}</Text>
-            <Text style={styles.planSubtitle}>{subtitle}</Text>
+            <View style={styles.planHeader}>
+                <View style={[styles.planIcon, highlighted && styles.planIconHighlighted]}>
+                    <Ionicons name={icon} size={19} color={highlighted ? colors.background : colors.accent} />
+                </View>
+                <View style={styles.planHeaderCopy}>
+                    <Text style={styles.planTitle}>{title}</Text>
+                    <Text style={styles.planSubtitle}>{subtitle}</Text>
+                </View>
+            </View>
+            <View style={styles.planBadgeRow}>
+                <View style={[styles.planBadge, highlighted && styles.planBadgeHighlighted]}>
+                    <Text style={[styles.planBadgeText, highlighted && styles.planBadgeTextHighlighted]}>{badge}</Text>
+                </View>
+                {active && (
+                    <View style={styles.activePlanBadge}>
+                        <Text style={styles.activePlanText}>Aktif</Text>
+                    </View>
+                )}
+            </View>
             <View style={styles.planItems}>
                 {items.map((item) => (
                     <View key={item} style={styles.planItem}>
@@ -982,20 +1032,44 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     planGrid: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: spacing.md,
     },
     planCard: {
         flex: 1,
+        minWidth: 260,
         backgroundColor: colors.surface,
         borderRadius: borderRadius.md,
         borderWidth: 1,
         borderColor: colors.border,
-        padding: spacing.md,
-        gap: spacing.sm,
+        padding: spacing.lg,
+        gap: spacing.md,
     },
     planCardHighlighted: {
         borderColor: colors.accent,
         backgroundColor: colors.accentMuted,
+    },
+    planHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    planIcon: {
+        width: 40,
+        height: 40,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    planIconHighlighted: {
+        backgroundColor: colors.accent,
+    },
+    planHeaderCopy: {
+        flex: 1,
+        gap: spacing.xs,
     },
     planTitle: {
         color: colors.text,
@@ -1006,6 +1080,44 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
+    },
+    planBadgeRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    planBadge: {
+        alignSelf: "flex-start",
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+    },
+    planBadgeHighlighted: {
+        borderColor: colors.accent,
+        backgroundColor: colors.background,
+    },
+    planBadgeText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    planBadgeTextHighlighted: {
+        color: colors.accent,
+    },
+    activePlanBadge: {
+        alignSelf: "flex-start",
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accent,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+    },
+    activePlanText: {
+        color: colors.background,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
     },
     planItems: {
         gap: spacing.sm,
@@ -1037,6 +1149,16 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.sm,
         lineHeight: 20,
+    },
+    pricingNote: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
     },
     coachBrief: {
         flexDirection: "row",
