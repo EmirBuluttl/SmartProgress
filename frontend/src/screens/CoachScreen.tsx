@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -27,8 +27,22 @@ export default function CoachScreen() {
     const isFree = tier === "free";
     const isCoachPlus = tier === "coach_plus";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
+    const [aiStatus, setAiStatus] = React.useState<any | null>(null);
+    const [coachQuestion, setCoachQuestion] = React.useState("");
+    const [coachAnswer, setCoachAnswer] = React.useState<any | null>(null);
     const [reportLoading, setReportLoading] = React.useState(false);
+    const [askLoading, setAskLoading] = React.useState(false);
     const coachNarration = weeklyReport?.coachNarration;
+
+    const loadAiStatus = React.useCallback(async () => {
+        if (!isCoachPlus) return;
+        try {
+            const response = await coachApi.aiStatus();
+            setAiStatus(response.data || null);
+        } catch (error) {
+            setAiStatus(null);
+        }
+    }, [isCoachPlus]);
 
     React.useEffect(() => {
         let mounted = true;
@@ -44,10 +58,32 @@ export default function CoachScreen() {
             }
         };
         loadReport();
+        loadAiStatus();
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [loadAiStatus]);
+
+    const handleAskCoach = async () => {
+        const question = coachQuestion.trim();
+        if (!question || askLoading) return;
+        setAskLoading(true);
+        setCoachAnswer(null);
+        try {
+            const response = await coachApi.ask({ question });
+            setCoachAnswer(response.data || null);
+            setCoachQuestion("");
+            loadAiStatus();
+        } catch (error) {
+            setCoachAnswer({
+                text: "Koç cevabı şu an alınamadı. Biraz sonra tekrar deneyebilirsin.",
+                source: "fallback",
+                reason: "provider_error",
+            });
+        } finally {
+            setAskLoading(false);
+        }
+    };
 
     return (
         <ScrollView
@@ -191,6 +227,67 @@ export default function CoachScreen() {
                     )}
                 </View>
             </View>
+
+            {isCoachPlus && (
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>AI Koç Sorusu</Text>
+                    <View style={styles.askCard}>
+                        <View style={styles.reportTopRow}>
+                            <View style={styles.askHeaderCopy}>
+                                <Text style={styles.reportTitle}>Coach+ soru hakkı</Text>
+                                <Text style={styles.panelText}>
+                                    Kısa ve loglarına bağlı sorular sor. Bütçe dolarsa sistem güvenli fallback cevaba döner.
+                                </Text>
+                            </View>
+                            {!!aiStatus && (
+                                <View style={styles.statusPill}>
+                                    <Text style={styles.statusText}>
+                                        ${((aiStatus.remainingMicros || 0) / 1000000).toFixed(2)}
+                                    </Text>
+                                </View>
+                            )}
+                        </View>
+                        <TextInput
+                            style={styles.askInput}
+                            value={coachQuestion}
+                            onChangeText={setCoachQuestion}
+                            placeholder="Örn: Bu hafta takipteki hareketler için ne yapmalıyım?"
+                            placeholderTextColor={colors.textMuted}
+                            multiline
+                            maxLength={1200}
+                        />
+                        <TouchableOpacity
+                            style={[styles.primaryButton, (!coachQuestion.trim() || askLoading) && styles.disabledButton]}
+                            activeOpacity={0.85}
+                            disabled={!coachQuestion.trim() || askLoading}
+                            onPress={handleAskCoach}
+                        >
+                            <Ionicons name="send-outline" size={18} color={colors.background} />
+                            <Text style={styles.primaryButtonText}>{askLoading ? "Soruluyor" : "Koça Sor"}</Text>
+                        </TouchableOpacity>
+                        {!!coachAnswer && (
+                            <View style={styles.answerBox}>
+                                <View style={styles.narrationHeader}>
+                                    <Ionicons
+                                        name={coachAnswer.source === "openai" ? "sparkles-outline" : "shield-checkmark-outline"}
+                                        size={18}
+                                        color={colors.accent}
+                                    />
+                                    <Text style={styles.narrationTitle}>
+                                        {coachAnswer.source === "openai" ? "AI Koç cevabı" : "Güvenli koç cevabı"}
+                                    </Text>
+                                </View>
+                                <Text style={styles.narrationSummary}>{coachAnswer.text}</Text>
+                                {!!coachAnswer.reason && (
+                                    <Text style={styles.answerMeta}>
+                                        Kaynak: {coachAnswer.reason === "budget_denied" ? "Bütçe koruması" : coachAnswer.reason === "provider_disabled" ? "Mock mod" : "Fallback"}
+                                    </Text>
+                                )}
+                            </View>
+                        )}
+                    </View>
+                </View>
+            )}
 
             <View style={styles.compareSection}>
                 <Text style={styles.sectionTitle}>Paket farkı</Text>
@@ -378,6 +475,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
     },
+    disabledButton: {
+        opacity: 0.55,
+    },
     section: {
         gap: spacing.md,
     },
@@ -484,6 +584,44 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
         padding: spacing.lg,
         gap: spacing.md,
+    },
+    askCard: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+        gap: spacing.md,
+    },
+    askHeaderCopy: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    askInput: {
+        minHeight: 98,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        color: colors.text,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+        fontSize: fontSize.sm,
+        textAlignVertical: "top",
+        lineHeight: 20,
+    },
+    answerBox: {
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    answerMeta: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
     },
     reportTopRow: {
         flexDirection: "row",
