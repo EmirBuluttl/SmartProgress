@@ -498,7 +498,9 @@ export default function CoachScreen() {
                 <View style={styles.section}>
                     <View style={styles.reportTopRow}>
                         <Text style={styles.sectionTitle}>Son koç sinyalleri</Text>
-                        <Text style={styles.answerMeta}>Kalıcı hafıza</Text>
+                        <TouchableOpacity onPress={() => navigation.navigate("CoachInsightHistory")} activeOpacity={0.82}>
+                            <Text style={[styles.answerMeta, { color: colors.accent }]}>Tümünü gör</Text>
+                        </TouchableOpacity>
                     </View>
                     <View style={styles.timelineCard}>
                         {coachInsights.slice(0, 8).map((insight, index) => {
