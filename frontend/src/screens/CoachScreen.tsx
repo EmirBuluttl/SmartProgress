@@ -41,6 +41,26 @@ const getDecisionMeta = (item: any, colors: any) => {
     return { label: "Takip", icon: "eye-outline" as const, color: colors.textSecondary };
 };
 
+const getInsightMeta = (type: string, colors: any) => {
+    if (type === "REGRESSION_DETECTED") {
+        return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
+    }
+    if (type === "PLATEAU_CANDIDATE") {
+        return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
+    }
+    if (type === "PROGRESS_DETECTED") {
+        return { label: "Progress", icon: "trending-up-outline" as const, color: colors.accent };
+    }
+    return { label: "Sinyal", icon: "pulse-outline" as const, color: colors.textSecondary };
+};
+
+const formatInsightDate = (value?: string) => {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
+};
+
 export default function CoachScreen() {
     const { user } = useAuth();
     const { colors } = useTheme();
@@ -50,6 +70,7 @@ export default function CoachScreen() {
     const isFree = tier === "free";
     const isCoachPlus = tier === "coach_plus";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
+    const [coachInsights, setCoachInsights] = React.useState<any[]>([]);
     const [aiStatus, setAiStatus] = React.useState<any | null>(null);
     const [aiMessages, setAiMessages] = React.useState<any[]>([]);
     const [coachQuestion, setCoachQuestion] = React.useState("");
@@ -96,6 +117,15 @@ export default function CoachScreen() {
         }
     }, [isCoachPlus]);
 
+    const loadCoachInsights = React.useCallback(async () => {
+        try {
+            const response = await coachApi.insights({ limit: 12 });
+            setCoachInsights(Array.isArray(response.data?.data) ? response.data.data : []);
+        } catch (error) {
+            setCoachInsights([]);
+        }
+    }, []);
+
     React.useEffect(() => {
         let mounted = true;
         const loadReport = async () => {
@@ -110,12 +140,13 @@ export default function CoachScreen() {
             }
         };
         loadReport();
+        loadCoachInsights();
         loadAiStatus();
         loadAiMessages();
         return () => {
             mounted = false;
         };
-    }, [loadAiMessages, loadAiStatus]);
+    }, [loadAiMessages, loadAiStatus, loadCoachInsights]);
 
     const handleAskCoach = async () => {
         const question = coachQuestion.trim();
@@ -337,6 +368,39 @@ export default function CoachScreen() {
                     )}
                 </View>
             </View>
+
+            {coachInsights.length > 0 && (
+                <View style={styles.section}>
+                    <View style={styles.reportTopRow}>
+                        <Text style={styles.sectionTitle}>Son koç sinyalleri</Text>
+                        <Text style={styles.answerMeta}>Kalıcı hafıza</Text>
+                    </View>
+                    <View style={styles.timelineCard}>
+                        {coachInsights.slice(0, 8).map((insight, index) => {
+                            const meta = getInsightMeta(insight.type, colors);
+                            return (
+                                <View key={insight.id} style={styles.timelineItem}>
+                                    <View style={styles.timelineRail}>
+                                        <View style={[styles.timelineDot, { backgroundColor: meta.color }]} />
+                                        {index < Math.min(coachInsights.length, 8) - 1 && <View style={styles.timelineLine} />}
+                                    </View>
+                                    <View style={styles.timelineBody}>
+                                        <View style={styles.signalTitleRow}>
+                                            <Text style={styles.signalTitle}>{insight.exerciseName}</Text>
+                                            <Text style={[styles.signalBadge, { color: meta.color }]}>{meta.label}</Text>
+                                        </View>
+                                        <Text style={styles.signalMeta}>
+                                            {formatBestSet(insight.previousBest)} {"->"} {formatBestSet(insight.currentBest)}
+                                        </Text>
+                                        <Text style={styles.signalReason}>{insight.reason}</Text>
+                                        <Text style={styles.answerMeta}>{formatInsightDate(insight.signalDate)}</Text>
+                                    </View>
+                                </View>
+                            );
+                        })}
+                    </View>
+                </View>
+            )}
 
             {isCoachPlus ? (
                 <View style={styles.section}>
@@ -990,5 +1054,43 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.xs,
         lineHeight: 18,
+    },
+    timelineCard: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+        gap: spacing.md,
+    },
+    timelineItem: {
+        flexDirection: "row",
+        alignItems: "stretch",
+        gap: spacing.md,
+    },
+    timelineRail: {
+        width: 18,
+        alignItems: "center",
+    },
+    timelineDot: {
+        width: 12,
+        height: 12,
+        borderRadius: 6,
+        marginTop: 4,
+    },
+    timelineLine: {
+        flex: 1,
+        width: 1,
+        backgroundColor: colors.border,
+        marginTop: spacing.xs,
+    },
+    timelineBody: {
+        flex: 1,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.md,
+        gap: spacing.xs,
     },
 });
