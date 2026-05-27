@@ -18,6 +18,29 @@ const getSubscriptionTier = (user: any): SubscriptionTier => {
     return tier === "pro" || tier === "coach_plus" ? tier : "free";
 };
 
+const formatBestSet = (set?: any) => {
+    if (!set) return "Baz yok";
+    const rir = set.rir !== null && set.rir !== undefined && String(set.rir).trim() ? ` · RIR ${set.rir}` : "";
+    return `${set.weight ?? 0} kg x ${set.reps ?? 0}${rir}`;
+};
+
+const getDecisionMeta = (item: any, colors: any) => {
+    const flags = Array.isArray(item?.flags) ? item.flags : [];
+    if (flags.includes("single_session_regression")) {
+        return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
+    }
+    if (flags.includes("plateau_candidate")) {
+        return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
+    }
+    if (item?.decision === "progress") {
+        return { label: "Progress", icon: "trending-up-outline" as const, color: colors.accent };
+    }
+    if (item?.decision === "baseline") {
+        return { label: "Baz veri", icon: "flag-outline" as const, color: colors.textMuted };
+    }
+    return { label: "Takip", icon: "eye-outline" as const, color: colors.textSecondary };
+};
+
 export default function CoachScreen() {
     const { user } = useAuth();
     const { colors } = useTheme();
@@ -37,6 +60,21 @@ export default function CoachScreen() {
     const coachChatLimit = aiStatus?.coachChat?.limit || 0;
     const coachChatUsed = aiStatus?.coachChat?.used || 0;
     const coachChatRemaining = aiStatus?.coachChat?.remaining || 0;
+    const exerciseAnalyses = React.useMemo(
+        () => Array.isArray(weeklyReport?.exerciseAnalyses) ? weeklyReport.exerciseAnalyses : [],
+        [weeklyReport],
+    );
+    const prioritySignals = React.useMemo(() => {
+        const score = (item: any) => {
+            const flags = Array.isArray(item?.flags) ? item.flags : [];
+            if (flags.includes("single_session_regression")) return 4;
+            if (flags.includes("plateau_candidate")) return 3;
+            if (item?.decision === "progress") return 2;
+            if (item?.decision === "watch") return 1;
+            return 0;
+        };
+        return [...exerciseAnalyses].sort((a, b) => score(b) - score(a)).slice(0, 5);
+    }, [exerciseAnalyses]);
 
     const loadAiStatus = React.useCallback(async () => {
         if (!isCoachPlus) return;
@@ -203,6 +241,20 @@ export default function CoachScreen() {
                         {weeklyReport?.summary || "Yeterli log oluşunca bu alan progress, takip ve müdahale sinyallerini gösterecek."}
                     </Text>
                     {!!weeklyReport && (
+                        <View style={styles.coachBrief}>
+                            <View style={styles.coachBriefIcon}>
+                                <Ionicons name="pulse-outline" size={22} color={colors.background} />
+                            </View>
+                            <View style={styles.coachBriefCopy}>
+                                <Text style={styles.coachBriefLabel}>Koç okuması</Text>
+                                <Text style={styles.coachBriefTitle}>{coachNarration?.headline || "Sinyaller analiz edildi"}</Text>
+                                <Text style={styles.coachBriefText}>
+                                    Progress, plato ve düşüş yakalandığında aşağıda hareket bazlı sebebiyle birlikte görünür.
+                                </Text>
+                            </View>
+                        </View>
+                    )}
+                    {!!weeklyReport && (
                         <>
                             <View style={styles.reportStats}>
                                 <View style={styles.reportStat}>
@@ -245,6 +297,40 @@ export default function CoachScreen() {
                                             <Text style={styles.narrationItemText}>{item}</Text>
                                         </View>
                                     ))}
+                                    {(coachNarration.cautions || []).slice(0, 2).map((item: string) => (
+                                        <View key={`caution-${item}`} style={styles.narrationItem}>
+                                            <Ionicons name="warning-outline" size={16} color={colors.warning || colors.accent} />
+                                            <Text style={styles.narrationItemText}>{item}</Text>
+                                        </View>
+                                    ))}
+                                </View>
+                            )}
+                            {prioritySignals.length > 0 && (
+                                <View style={styles.signalStack}>
+                                    <View style={styles.signalHeader}>
+                                        <Text style={styles.reportTitle}>Koçun yakaladığı sinyaller</Text>
+                                        <Text style={styles.answerMeta}>Öncelik sırasıyla</Text>
+                                    </View>
+                                    {prioritySignals.map((item: any, index: number) => {
+                                        const meta = getDecisionMeta(item, colors);
+                                        return (
+                                            <View key={`${item.exerciseName}-${index}`} style={styles.signalCard}>
+                                                <View style={[styles.signalIcon, { borderColor: meta.color, backgroundColor: `${meta.color}1A` }]}>
+                                                    <Ionicons name={meta.icon} size={18} color={meta.color} />
+                                                </View>
+                                                <View style={styles.signalCopy}>
+                                                    <View style={styles.signalTitleRow}>
+                                                        <Text style={styles.signalTitle}>{item.exerciseName}</Text>
+                                                        <Text style={[styles.signalBadge, { color: meta.color }]}>{meta.label}</Text>
+                                                    </View>
+                                                    <Text style={styles.signalMeta}>
+                                                        {formatBestSet(item.previousBest)} {"->"} {formatBestSet(item.currentBest)}
+                                                    </Text>
+                                                    <Text style={styles.signalReason}>{item.reason}</Text>
+                                                </View>
+                                            </View>
+                                        );
+                                    })}
                                 </View>
                             )}
                         </>
@@ -646,6 +732,43 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.sm,
         lineHeight: 20,
     },
+    coachBrief: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.md,
+    },
+    coachBriefIcon: {
+        width: 42,
+        height: 42,
+        borderRadius: borderRadius.sm,
+        backgroundColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    coachBriefCopy: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    coachBriefLabel: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    coachBriefTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    coachBriefText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+    },
     reportCard: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.md,
@@ -808,6 +931,62 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     narrationItemText: {
         flex: 1,
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+    },
+    signalStack: {
+        gap: spacing.sm,
+    },
+    signalHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.md,
+    },
+    signalCard: {
+        flexDirection: "row",
+        gap: spacing.md,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+    },
+    signalIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    signalCopy: {
+        flex: 1,
+        gap: spacing.xs,
+    },
+    signalTitleRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.sm,
+    },
+    signalTitle: {
+        flex: 1,
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    signalBadge: {
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    signalMeta: {
+        color: colors.text,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    signalReason: {
         color: colors.textSecondary,
         fontSize: fontSize.xs,
         lineHeight: 18,

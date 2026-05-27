@@ -10,6 +10,53 @@ const askCoachSchema = z.object({
     context: z.record(z.unknown()).optional(),
 });
 
+function formatBestSet(set?: any) {
+    if (!set) return "önceki veri yok";
+    const rirText = set.rir !== null && set.rir !== undefined && String(set.rir).trim()
+        ? `, RIR ${set.rir}`
+        : "";
+    return `${set.weight || 0} kg x ${set.reps || 0}${rirText}`;
+}
+
+function buildRuleBasedCoachAnswer(question: string, reportData: any) {
+    const analyses = Array.isArray(reportData?.exerciseAnalyses) ? reportData.exerciseAnalyses : [];
+    const progressItems = analyses.filter((item: any) => item.decision === "progress");
+    const plateauItems = analyses.filter((item: any) => item.flags?.includes("plateau_candidate"));
+    const regressionItems = analyses.filter((item: any) => item.flags?.includes("single_session_regression"));
+    const watchItems = analyses.filter((item: any) => item.decision === "watch");
+
+    if (analyses.length === 0) {
+        return "Bu soruya net koç cevabı verebilmem için bu haftadan en az birkaç geçerli çalışma seti logu gerekiyor. Şimdilik hedefin: aynı hareket isimleriyle kg, tekrar ve mümkünse RIR loglarını tutarlı girmek.";
+    }
+
+    const lines = [
+        `Sorunu gördüm: "${question}". Bu cevap güvenli rule-based koç cevabı; programı otomatik değiştirmiyorum.`,
+    ];
+
+    if (progressItems.length > 0) {
+        const item = progressItems[0];
+        lines.push(`En net pozitif sinyal ${item.exerciseName}: ${formatBestSet(item.previousBest)} -> ${formatBestSet(item.currentBest)}. Burada aynı form standardını koruyarak mevcut ilerleme yoluna devam et.`);
+    }
+
+    if (plateauItems.length > 0) {
+        const names = plateauItems.slice(0, 3).map((item: any) => item.exerciseName).join(", ");
+        lines.push(`${names} için plato adayı sinyali var. Bir sonraki aynı sessionda RIR hedefini, dinlenme süreni ve set kalitesini özellikle kontrol et; tekrar aynı kalırsa hacim veya RIR ayarı kullanıcı onayıyla gündeme alınmalı.`);
+    }
+
+    if (regressionItems.length > 0) {
+        const item = regressionItems[0];
+        lines.push(`${item.exerciseName} önceki logun gerisine düşmüş: ${formatBestSet(item.previousBest)} -> ${formatBestSet(item.currentBest)}. Bu tek başına panik sebebi değil; uyku, beslenme, stres ve önceki set yorgunluğunu not alıp bir sonraki logda tekrar doğrula.`);
+    }
+
+    if (progressItems.length === 0 && plateauItems.length === 0 && regressionItems.length === 0 && watchItems.length > 0) {
+        const names = watchItems.slice(0, 3).map((item: any) => item.exerciseName).join(", ");
+        lines.push(`${names} takipte. Henüz sert müdahale değil; sonraki sessionda aynı hareketlerde kg/tekrar/RIR tutarlılığını görmemiz lazım.`);
+    }
+
+    lines.push("Kısa aksiyon: sıradaki benzer antrenmanda önce formu sabitle, sonra aynı kg ile +1 tekrar veya uygun minimum kg artışı dene. RIR 0-1 çok sık geliyorsa toparlanmayı bozabilir.");
+    return lines.join("\n\n");
+}
+
 export class CoachController {
     async weeklyReport(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
@@ -57,9 +104,7 @@ export class CoachController {
             const parsed = askCoachSchema.parse(req.body);
             const report = await coachReportService.generateWeeklyReport(userId);
             const reportData = report.data as any;
-            const fallbackText = reportData?.coachNarration?.summary
-                || reportData?.summary
-                || "Koç cevabı için önce birkaç antrenman logu oluşturman gerekiyor.";
+            const fallbackText = buildRuleBasedCoachAnswer(parsed.question, reportData);
 
             const result = await aiProviderService.generateText({
                 userId,
