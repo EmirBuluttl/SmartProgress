@@ -5,7 +5,7 @@
 import React from "react";
 import { StyleSheet, Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { fontSize, fontWeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 
@@ -21,7 +21,6 @@ type IoniconsName = React.ComponentProps<typeof Ionicons>["name"];
 const TAB_ICONS: Record<string, { focused: IoniconsName; unfocused: IoniconsName }> = {
     Home: { focused: "home", unfocused: "home-outline" },
     MyProgress: { focused: "analytics", unfocused: "analytics-outline" },
-    Coach: { focused: "pulse", unfocused: "pulse-outline" },
     Profile: { focused: "person", unfocused: "person-outline" },
 };
 
@@ -40,6 +39,9 @@ export default function TabNavigator() {
                 tabBarItemStyle: styles.tabBarItem,
                 tabBarIconStyle: styles.tabBarIcon,
                 tabBarIcon: ({ focused, color, size }) => {
+                    if (route.name === "Coach") {
+                        return <MaterialCommunityIcons name="brain" size={size + (focused ? 2 : 0)} color={color} />;
+                    }
                     const icons = TAB_ICONS[route.name];
                     const iconName = focused ? icons.focused : icons.unfocused;
                     return <Ionicons name={iconName} size={size} color={color} />;
