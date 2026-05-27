@@ -32,36 +32,60 @@ function buildRuleBasedCoachAnswer(question: string, reportData: any) {
     const plateauItems = analyses.filter((item: any) => item.flags?.includes("plateau_candidate"));
     const regressionItems = analyses.filter((item: any) => item.flags?.includes("single_session_regression"));
     const watchItems = analyses.filter((item: any) => item.decision === "watch");
+    const weightIncreaseItems = analyses.filter((item: any) => item.flags?.includes("weight_increase_candidate"));
+    const rirAdjustmentItems = analyses.filter((item: any) => item.flags?.includes("rir_adjustment_candidate"));
+    const volumeReduceItems = analyses.filter((item: any) => item.flags?.includes("volume_reduce_candidate"));
+    const volumeIncreaseItems = analyses.filter((item: any) => item.flags?.includes("volume_increase_candidate"));
 
     if (analyses.length === 0) {
-        return "Bu soruya net koç cevabı verebilmem için bu haftadan en az birkaç geçerli çalışma seti logu gerekiyor. Şimdilik hedefin: aynı hareket isimleriyle kg, tekrar ve mümkünse RIR loglarını tutarlı girmek.";
+        return [
+            `Sorun: ${question}`,
+            "Karar: Bu hafta yorumlanabilir çalışma seti yok. Koç kararını tahminle değil, log verisiyle vereceğim.",
+            "Aksiyon: Bir sonraki antrenmanda aynı hareket isimleriyle kg, tekrar ve mümkünse RIR logla. En az 2 benzer session sonrası net progress/plato sinyali üretebilirim.",
+        ].join("\n\n");
     }
 
     const lines = [
-        `Sorunu gördüm: "${question}". Bu cevap güvenli rule-based koç cevabı; programı otomatik değiştirmiyorum.`,
+        `Sorun: ${question}`,
+        `Veri özeti: ${reportData?.workoutCount || 0} antrenman, ${progressItems.length} progress, ${plateauItems.length} plato adayı, ${regressionItems.length} gerileme sinyali.`,
+        "Karar: Programı otomatik değiştirmiyorum; aşağıdaki aksiyonlar kullanıcı onayıyla uygulanmalı.",
     ];
 
-    if (progressItems.length > 0) {
+    if (weightIncreaseItems.length > 0) {
+        const item = weightIncreaseItems[0];
+        lines.push(`Ağırlık artırma adayı: ${item.exerciseName} ${formatBestSet(item.previousBest)} -> ${formatBestSet(item.currentBest)}. Tekrar aralığının üst sınırına ulaştığın için sonraki benzer sessionda form bozulmadan minimum kg artışı dene.`);
+    } else if (progressItems.length > 0) {
         const item = progressItems[0];
-        lines.push(`En net pozitif sinyal ${item.exerciseName}: ${formatBestSet(item.previousBest)} -> ${formatBestSet(item.currentBest)}. Burada aynı form standardını koruyarak mevcut ilerleme yoluna devam et.`);
+        lines.push(`En net pozitif sinyal: ${item.exerciseName} ${formatBestSet(item.previousBest)} -> ${formatBestSet(item.currentBest)}. Aynı form standardını koru; henüz ekstra set eklemek zorunda değilsin.`);
     }
 
-    if (plateauItems.length > 0) {
+    if (rirAdjustmentItems.length > 0) {
+        const item = rirAdjustmentItems[0];
+        lines.push(`RIR müdahale adayı: ${item.exerciseName}. Son 3 benzer logda progress yok ve RIR düşük görünüyor. İlk öneri hacim kısmak değil; hedef RIR'ı biraz rahatlatıp toparlanmayı test etmek.`);
+    } else if (volumeReduceItems.length > 0) {
+        const item = volumeReduceItems[0];
+        lines.push(`Hacim azaltma adayı: ${item.exerciseName}. RIR düşük görünmeden plato oluşmuş; kullanıcı onayıyla bu hareketten 1 çalışma seti azaltma test edilebilir.`);
+    } else if (plateauItems.length > 0) {
         const names = plateauItems.slice(0, 3).map((item: any) => item.exerciseName).join(", ");
-        lines.push(`${names} için plato adayı sinyali var. Bir sonraki aynı sessionda RIR hedefini, dinlenme süreni ve set kalitesini özellikle kontrol et; tekrar aynı kalırsa hacim veya RIR ayarı kullanıcı onayıyla gündeme alınmalı.`);
+        lines.push(`Takip edilmesi gereken plato adayları: ${names}. Bir sonraki aynı sessionda dinlenme süresi, set odağı ve RIR tutarlılığını özellikle izle.`);
+    }
+
+    if (volumeIncreaseItems.length > 0) {
+        const item = volumeIncreaseItems[0];
+        lines.push(`Set artırma adayı: ${item.exerciseName}. Üst üste güçlü progress var; bu sinyal devam ederse kullanıcı onayıyla 1 set eklemek mantıklı olabilir.`);
     }
 
     if (regressionItems.length > 0) {
         const item = regressionItems[0];
-        lines.push(`${item.exerciseName} önceki logun gerisine düşmüş: ${formatBestSet(item.previousBest)} -> ${formatBestSet(item.currentBest)}. Bu tek başına panik sebebi değil; uyku, beslenme, stres ve önceki set yorgunluğunu not alıp bir sonraki logda tekrar doğrula.`);
+        lines.push(`Gerileme sinyali: ${item.exerciseName} ${formatBestSet(item.previousBest)} -> ${formatBestSet(item.currentBest)}. Tek log panik sebebi değil; uyku, beslenme, stres ve önceki set yorgunluğunu not alıp sonraki benzer logda doğrula.`);
     }
 
     if (progressItems.length === 0 && plateauItems.length === 0 && regressionItems.length === 0 && watchItems.length > 0) {
         const names = watchItems.slice(0, 3).map((item: any) => item.exerciseName).join(", ");
-        lines.push(`${names} takipte. Henüz sert müdahale değil; sonraki sessionda aynı hareketlerde kg/tekrar/RIR tutarlılığını görmemiz lazım.`);
+        lines.push(`Takipte: ${names}. Henüz sert müdahale yok; sonraki sessionda aynı hareketlerde kg/tekrar/RIR tutarlılığını görmemiz lazım.`);
     }
 
-    lines.push("Kısa aksiyon: sıradaki benzer antrenmanda önce formu sabitle, sonra aynı kg ile +1 tekrar veya uygun minimum kg artışı dene. RIR 0-1 çok sık geliyorsa toparlanmayı bozabilir.");
+    lines.push("Kısa aksiyon: Sıradaki benzer antrenmanda önce formu ve dinlenmeyi sabitle. Sonra ya aynı kg ile +1 tekrar, ya da üst tekrar sınırına ulaştıysan minimum kg artışı dene. RIR 0-1 çok sık geliyorsa toparlanmayı bozabilir.");
     return lines.join("\n\n");
 }
 
