@@ -118,6 +118,75 @@ function hasLoggedSetData(set: WorkoutSet): boolean {
         Number(set.rpe) > 0;
 }
 
+function toWorkoutNumber(value: unknown): number {
+    if (value === null || value === undefined || value === "") return 0;
+    const parsed = Number(String(value).replace(",", "."));
+    return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function averageRir(value: unknown): number | null {
+    if (value === null || value === undefined || value === "") return null;
+    const text = String(value).replace(",", ".").replace(/[–—]/g, "-").trim();
+    if (!text) return null;
+    if (text.includes("-")) {
+        const parts = text.split("-").map((part) => Number(part.trim())).filter(Number.isFinite);
+        if (parts.length > 0) return parts.reduce((sum, part) => sum + part, 0) / parts.length;
+    }
+    const parsed = Number(text);
+    return Number.isFinite(parsed) ? parsed : null;
+}
+
+function getSetQualityWarning(set: WorkoutSet): string | null {
+    if (!hasLoggedSetData(set) || set.isWarmup) return null;
+
+    const weight = toWorkoutNumber(set.weight);
+    const reps = Math.floor(toWorkoutNumber(set.reps));
+    const rpe = toWorkoutNumber(set.rpe);
+    const rir = averageRir((set as any).rir);
+    const duration = toWorkoutNumber(set.durationSeconds);
+
+    if (set.effortMode === "duration") {
+        if (duration > 3600) return "Süre 60 dakikanın üstünde görünüyor.";
+        if (weight > 500) return "Ağırlık 500 kg üstünde görünüyor.";
+        return null;
+    }
+
+    if (weight > 500) return "Ağırlık 500 kg üstünde görünüyor.";
+    if (reps > 100) return "Tekrar 100 üstünde görünüyor.";
+    if (weight > 0 && reps <= 0) return "Ağırlık var ama tekrar yok.";
+    if (rpe > 0 && rir !== null) {
+        if (rpe >= 9 && rir >= 3) return "RPE yüksek ama RIR da yüksek girilmiş.";
+        if (rpe <= 6 && rir <= 1) return "RPE düşük ama RIR çok düşük girilmiş.";
+    }
+    return null;
+}
+
+function prepareSessionForCoachAnalysis(session: WorkoutSession) {
+    const warnings: string[] = [];
+    const nextSession: WorkoutSession = {
+        ...session,
+        exercises: session.exercises.map((exercise) => ({
+            ...exercise,
+            sets: exercise.sets.map((set, index) => {
+                const warning = getSetQualityWarning(set);
+                if (!warning) {
+                    if (!set.analysisExcluded && !set.analysisWarning) return set;
+                    const { analysisExcluded, analysisWarning, ...cleanSet } = set;
+                    return cleanSet;
+                }
+                warnings.push(`${exercise.name} · Set ${index + 1}: ${warning}`);
+                return {
+                    ...set,
+                    analysisExcluded: true,
+                    analysisWarning: warning,
+                };
+            }),
+        })),
+    };
+
+    return { session: nextSession, warnings };
+}
+
 function hasLoggedCardioData(session: WorkoutSession): boolean {
     return !!session.activeCardioStage || (session.cardioBlocks || []).some((block) =>
         Number(block.totalDuration) > 0 ||
@@ -333,6 +402,8 @@ export default function WorkoutSessionScreen() {
     const [rpeMode, setRpeMode] = useState<"none" | "rpe" | "rir" | "both">("none");
     const [recentlyAddedExerciseId, setRecentlyAddedExerciseId] = useState<string | null>(null);
     const [emptyFinishModalVisible, setEmptyFinishModalVisible] = useState(false);
+    const [qualityModalVisible, setQualityModalVisible] = useState(false);
+    const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
     const [exitModalVisible, setExitModalVisible] = useState(false);
     const [exitModalHasData, setExitModalHasData] = useState(false);
     const [addExerciseModalVisible, setAddExerciseModalVisible] = useState(false);
@@ -363,6 +434,7 @@ export default function WorkoutSessionScreen() {
     const pendingExitActionRef = useRef<any>(null);
     const freeWorkoutNameConfirmedRef = useRef(false);
     const freeWorkoutNameOverrideRef = useRef<string | null>(null);
+    const qualityCheckedSessionRef = useRef<WorkoutSession | null>(null);
 
     const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe") => {
         let nextKey = "";
@@ -1111,10 +1183,10 @@ export default function WorkoutSessionScreen() {
 
     // ─── Finish Workout ──────────────────────
 
-    const finishWorkout = async () => {
+    const finishWorkout = async (qualityCheckedSession?: WorkoutSession) => {
         if (finishingRef.current) return;
 
-        let currentSession = closeActiveCardioIfNeeded(materializeSessionInputs());
+        let currentSession = qualityCheckedSession || closeActiveCardioIfNeeded(materializeSessionInputs());
         if (currentSession !== session) {
             setSession(currentSession);
             await saveActiveSession({ ...currentSession, totalDuration: elapsed });
@@ -1133,6 +1205,16 @@ export default function WorkoutSessionScreen() {
         if (validExercises.length === 0 && validCardioBlocks.length === 0) {
             setEmptyFinishModalVisible(true);
             return;
+        }
+
+        if (!qualityCheckedSession) {
+            const quality = prepareSessionForCoachAnalysis(currentSession);
+            if (quality.warnings.length > 0) {
+                qualityCheckedSessionRef.current = quality.session;
+                setQualityWarnings(quality.warnings);
+                setQualityModalVisible(true);
+                return;
+            }
         }
 
         if (route.params?.mode === "free" && freeWorkoutNameConfirmedRef.current) {
@@ -1251,6 +1333,16 @@ export default function WorkoutSessionScreen() {
     const confirmEmptyWorkoutCancel = async () => {
         setEmptyFinishModalVisible(false);
         await discardWorkout();
+    };
+
+    const continueWithQualityWarnings = async () => {
+        const nextSession = qualityCheckedSessionRef.current;
+        qualityCheckedSessionRef.current = null;
+        setQualityModalVisible(false);
+        setQualityWarnings([]);
+        if (nextSession) {
+            await finishWorkout(nextSession);
+        }
     };
 
 
@@ -1831,6 +1923,22 @@ export default function WorkoutSessionScreen() {
                 onPrimary={confirmEmptyWorkoutCancel}
                 onSecondary={() => setEmptyFinishModalVisible(false)}
                 onDismiss={() => setEmptyFinishModalVisible(false)}
+            />
+            <ActionConfirmModal
+                visible={qualityModalVisible}
+                title="Koç analizi için şüpheli veri"
+                message={`Bazı setler kaydedilecek ama koç analizine dahil edilmeyecek:\n\n${qualityWarnings.slice(0, 4).join("\n")}${qualityWarnings.length > 4 ? `\n+${qualityWarnings.length - 4} set daha` : ""}`}
+                primaryLabel="Böyle Kaydet"
+                secondaryLabel="Düzenle"
+                onPrimary={continueWithQualityWarnings}
+                onSecondary={() => {
+                    qualityCheckedSessionRef.current = null;
+                    setQualityModalVisible(false);
+                }}
+                onDismiss={() => {
+                    qualityCheckedSessionRef.current = null;
+                    setQualityModalVisible(false);
+                }}
             />
             <ActionConfirmModal
                 visible={exitModalVisible}

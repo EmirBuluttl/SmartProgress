@@ -15,6 +15,8 @@ export interface WorkoutSet {
     unit: "kg" | "lbs";
     rpe?: number | string; // Rate of Perceived Exertion (1-10)
     rir?: number | string; // Reps in reserve
+    analysisExcluded?: boolean; // true when set is kept in log but ignored by coach analysis
+    analysisWarning?: string;
     completed: boolean;
     isWarmup?: boolean;    // warmup set flag
     targetReps?: string;   // from program template
@@ -164,6 +166,8 @@ export interface SyncWorkoutPayload {
                 unit: "kg" | "lbs";
                 rpe?: number | string;
                 rir?: number | string;
+                analysisExcluded?: boolean;
+                analysisWarning?: string;
                 isWarmup?: boolean;
             }[];
         }[];

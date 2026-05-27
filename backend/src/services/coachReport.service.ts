@@ -34,7 +34,7 @@ function normalizeExerciseName(name: unknown): string {
 function bestWorkingSet(exercise: any): CoachBestSet | null {
     const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
     const logged = sets
-        .filter((set: any) => !set?.isWarmup && set?.effortMode !== "duration")
+        .filter((set: any) => !set?.isWarmup && set?.analysisExcluded !== true && set?.effortMode !== "duration")
         .map((set: any) => ({
             weight: toNumber(set?.weight),
             reps: toNumber(set?.reps),
