@@ -24,9 +24,11 @@ export class CoachController {
     async aiStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const userId = req.user!.userId;
-            const [usage, budgetMicros] = await Promise.all([
+            const [usage, budgetMicros, coachChatUsed, coachChatLimit] = await Promise.all([
                 aiUsageService.getMonthlyUsage(userId),
                 aiUsageService.getMonthlyBudget(userId),
+                aiUsageService.getMonthlyFeatureUsage(userId, "coach_chat"),
+                aiUsageService.getMonthlyFeatureLimit(userId, "coach_chat"),
             ]);
             res.status(200).json({
                 monthStart: usage.monthStart,
@@ -37,6 +39,11 @@ export class CoachController {
                 usedMicros: usage.estimatedCostMicros,
                 budgetMicros,
                 remainingMicros: Math.max(0, budgetMicros - usage.estimatedCostMicros),
+                coachChat: {
+                    used: coachChatUsed,
+                    limit: coachChatLimit,
+                    remaining: Math.max(0, coachChatLimit - coachChatUsed),
+                },
             });
         } catch (error) {
             next(error);

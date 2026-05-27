@@ -33,6 +33,9 @@ export default function CoachScreen() {
     const [reportLoading, setReportLoading] = React.useState(false);
     const [askLoading, setAskLoading] = React.useState(false);
     const coachNarration = weeklyReport?.coachNarration;
+    const coachChatLimit = aiStatus?.coachChat?.limit || 0;
+    const coachChatUsed = aiStatus?.coachChat?.used || 0;
+    const coachChatRemaining = aiStatus?.coachChat?.remaining || 0;
 
     const loadAiStatus = React.useCallback(async () => {
         if (!isCoachPlus) return;
@@ -242,7 +245,7 @@ export default function CoachScreen() {
                             {!!aiStatus && (
                                 <View style={styles.statusPill}>
                                     <Text style={styles.statusText}>
-                                        ${((aiStatus.remainingMicros || 0) / 1000000).toFixed(2)}
+                                        {coachChatUsed}/{coachChatLimit || 50}
                                     </Text>
                                 </View>
                             )}
@@ -280,10 +283,15 @@ export default function CoachScreen() {
                                 <Text style={styles.narrationSummary}>{coachAnswer.text}</Text>
                                 {!!coachAnswer.reason && (
                                     <Text style={styles.answerMeta}>
-                                        Kaynak: {coachAnswer.reason === "budget_denied" ? "Bütçe koruması" : coachAnswer.reason === "provider_disabled" ? "Mock mod" : "Fallback"}
+                                        Kaynak: {coachAnswer.reason === "feature_limit_denied" ? "Soru hakkı" : coachAnswer.reason === "budget_denied" ? "Bütçe koruması" : coachAnswer.reason === "provider_disabled" ? "Mock mod" : "Fallback"}
                                     </Text>
                                 )}
                             </View>
+                        )}
+                        {!!aiStatus && (
+                            <Text style={styles.answerMeta}>
+                                Kalan soru: {coachChatRemaining}. Tahmini kalan AI bütçesi: ${((aiStatus.remainingMicros || 0) / 1000000).toFixed(2)}
+                            </Text>
                         )}
                     </View>
                 </View>

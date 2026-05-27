@@ -9,6 +9,14 @@ const MONTHLY_BUDGET_MICROS: Record<string, number> = {
     COACH_PLUS: 3 * MICROS_PER_USD,
 };
 
+const MONTHLY_FEATURE_LIMITS: Record<string, Partial<Record<string, number>>> = {
+    FREE: {},
+    PRO: {},
+    COACH_PLUS: {
+        coach_chat: 50,
+    },
+};
+
 type RecordAiUsageInput = {
     userId: string;
     feature: "coach_chat" | "weekly_report" | "program_explanation" | string;
@@ -60,14 +68,38 @@ export class AiUsageService {
         };
     }
 
-    async getMonthlyBudget(userId: string) {
+    async getMonthlyFeatureUsage(userId: string, feature: string, now = new Date()) {
+        const { start, end } = monthRange(now);
+        return prisma.aiUsageEvent.count({
+            where: {
+                userId,
+                feature,
+                createdAt: {
+                    gte: start,
+                    lt: end,
+                },
+            },
+        });
+    }
+
+    async getUserSubscription(userId: string) {
         const user = await prisma.user.findUnique({
             where: { id: userId },
             select: { subscriptionTier: true, subscriptionStatus: true },
         });
         const tier = user?.subscriptionTier || "FREE";
         const isActive = user?.subscriptionStatus === "ACTIVE" || user?.subscriptionStatus === "TRIAL";
+        return { tier, isActive };
+    }
+
+    async getMonthlyBudget(userId: string) {
+        const { tier, isActive } = await this.getUserSubscription(userId);
         return isActive ? MONTHLY_BUDGET_MICROS[tier] || 0 : 0;
+    }
+
+    async getMonthlyFeatureLimit(userId: string, feature: string) {
+        const { tier, isActive } = await this.getUserSubscription(userId);
+        return isActive ? MONTHLY_FEATURE_LIMITS[tier]?.[feature] || 0 : 0;
     }
 
     async canConsume(userId: string, estimatedCostMicros: number) {
@@ -82,6 +114,20 @@ export class AiUsageService {
             usedMicros: usage.estimatedCostMicros,
             remainingMicros: Math.max(0, budgetMicros - usage.estimatedCostMicros),
             nextCostMicros: nextCost,
+        };
+    }
+
+    async canUseFeature(userId: string, feature: string) {
+        const [usedCount, limit] = await Promise.all([
+            this.getMonthlyFeatureUsage(userId, feature),
+            this.getMonthlyFeatureLimit(userId, feature),
+        ]);
+        return {
+            allowed: limit > 0 && usedCount < limit,
+            usedCount,
+            limit,
+            remainingCount: Math.max(0, limit - usedCount),
+            nextCount: usedCount + 1,
         };
     }
 

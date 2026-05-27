@@ -17,7 +17,7 @@ type GenerateTextInput = {
 type GenerateTextResult = {
     text: string;
     source: "openai" | "fallback";
-    reason?: "provider_disabled" | "budget_denied" | "provider_error";
+    reason?: "provider_disabled" | "budget_denied" | "provider_error" | "feature_limit_denied";
     model?: string;
     usage: {
         estimatedInputTokens: number;
@@ -32,6 +32,12 @@ type GenerateTextResult = {
         usedMicros: number;
         remainingMicros: number;
         nextCostMicros: number;
+    };
+    quota?: {
+        limit: number;
+        usedCount: number;
+        remainingCount: number;
+        nextCount: number;
     };
 };
 
@@ -85,13 +91,33 @@ export class AiProviderService {
 
     async generateText(input: GenerateTextInput): Promise<GenerateTextResult> {
         const estimate = this.estimateRequest(input);
-        const budget = await aiUsageService.canConsume(input.userId, estimate.estimatedCostMicros);
+        const [featureQuota, budget] = await Promise.all([
+            aiUsageService.canUseFeature(input.userId, input.feature),
+            aiUsageService.canConsume(input.userId, estimate.estimatedCostMicros),
+        ]);
+        const quotaSnapshot = {
+            limit: featureQuota.limit,
+            usedCount: featureQuota.usedCount,
+            remainingCount: featureQuota.remainingCount,
+            nextCount: featureQuota.nextCount,
+        };
         const budgetSnapshot = {
             budgetMicros: budget.budgetMicros,
             usedMicros: budget.usedMicros,
             remainingMicros: budget.remainingMicros,
             nextCostMicros: budget.nextCostMicros,
         };
+
+        if (!featureQuota.allowed) {
+            return {
+                text: "Bu ayki AI koç soru hakkın doldu. Rule-based haftalık rapor ve program wizard yine kullanılabilir.",
+                source: "fallback",
+                reason: "feature_limit_denied",
+                usage: estimate,
+                budget: budgetSnapshot,
+                quota: quotaSnapshot,
+            };
+        }
 
         if (!budget.allowed) {
             return {
@@ -100,11 +126,22 @@ export class AiProviderService {
                 reason: "budget_denied",
                 usage: estimate,
                 budget: budgetSnapshot,
+                quota: quotaSnapshot,
             };
         }
 
         const provider = env.AI_PROVIDER.toLowerCase();
         if (provider !== "openai" || !env.OPENAI_API_KEY) {
+            await aiUsageService.recordUsage({
+                userId: input.userId,
+                feature: input.feature,
+                provider: "mock",
+                model: "rule-based-fallback",
+                inputTokens: estimate.estimatedInputTokens,
+                outputTokens: 0,
+                estimatedCostMicros: 0,
+                metadata: input.metadata,
+            });
             return {
                 text: input.fallbackText,
                 source: "fallback",
@@ -112,6 +149,7 @@ export class AiProviderService {
                 model: env.OPENAI_MODEL,
                 usage: estimate,
                 budget: budgetSnapshot,
+                quota: quotaSnapshot,
             };
         }
 
@@ -163,6 +201,7 @@ export class AiProviderService {
                     actualCostMicros,
                 },
                 budget: budgetSnapshot,
+                quota: quotaSnapshot,
             };
         } catch (error) {
             console.error("[AiProviderService] provider call failed:", error);
@@ -173,6 +212,7 @@ export class AiProviderService {
                 model: env.OPENAI_MODEL,
                 usage: estimate,
                 budget: budgetSnapshot,
+                quota: quotaSnapshot,
             };
         }
     }
