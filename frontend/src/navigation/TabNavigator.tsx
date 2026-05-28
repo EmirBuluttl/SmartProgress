@@ -1,11 +1,16 @@
 // ─────────────────────────────────────────────
 // TabNavigator — Bottom Tab Navigation
-// Custom dark gym-themed styling
+// Custom dark gym-themed styling + spring icons
 // ─────────────────────────────────────────────
-import React from "react";
+import React, { useEffect } from "react";
 import { StyleSheet, Platform } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import Animated, {
+    useSharedValue,
+    withSpring,
+    useAnimatedStyle,
+} from "react-native-reanimated";
 import { fontSize, fontWeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 
@@ -24,6 +29,26 @@ const TAB_ICONS: Record<string, { focused: IoniconsName; unfocused: IoniconsName
     Profile: { focused: "person", unfocused: "person-outline" },
 };
 
+const SPRING = { damping: 12, stiffness: 300, mass: 0.8 };
+
+// ── Ayrı komponent — hook kuralları için zorunlu ──
+function AnimatedTabIcon({ focused, children }: {
+    focused: boolean;
+    children: React.ReactNode;
+}) {
+    const scale = useSharedValue(1);
+
+    useEffect(() => {
+        scale.value = withSpring(focused ? 1.2 : 1.0, SPRING);
+    }, [focused]);
+
+    const animStyle = useAnimatedStyle(() => ({
+        transform: [{ scale: scale.value }],
+    }));
+
+    return <Animated.View style={animStyle}>{children}</Animated.View>;
+}
+
 export default function TabNavigator() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -40,11 +65,23 @@ export default function TabNavigator() {
                 tabBarIconStyle: styles.tabBarIcon,
                 tabBarIcon: ({ focused, color, size }) => {
                     if (route.name === "Coach") {
-                        return <MaterialCommunityIcons name="brain" size={size + (focused ? 2 : 0)} color={color} />;
+                        return (
+                            <AnimatedTabIcon focused={focused}>
+                                <MaterialCommunityIcons
+                                    name="brain"
+                                    size={size}
+                                    color={color}
+                                />
+                            </AnimatedTabIcon>
+                        );
                     }
                     const icons = TAB_ICONS[route.name];
                     const iconName = focused ? icons.focused : icons.unfocused;
-                    return <Ionicons name={iconName} size={size} color={color} />;
+                    return (
+                        <AnimatedTabIcon focused={focused}>
+                            <Ionicons name={iconName} size={size} color={color} />
+                        </AnimatedTabIcon>
+                    );
                 },
             })}
         >
