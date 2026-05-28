@@ -3,7 +3,7 @@ import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
+import { borderRadius, fontSize, fontWeight, lineHeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { coachApi } from "../services/api";
 
@@ -273,7 +273,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         gap: spacing.xs,
     },
     heroTitle: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
-    heroText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 21 },
+    heroText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: lineHeight.sm },
     statGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     statCard: {
         flex: 1,
@@ -325,7 +325,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     priorityReason: {
         color: colors.textSecondary,
         fontSize: fontSize.sm,
-        lineHeight: 20,
+        lineHeight: lineHeight.sm,
     },
     actionPanel: {
         borderRadius: borderRadius.sm,
@@ -357,7 +357,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
         color: colors.textSecondary,
         fontSize: fontSize.sm,
-        lineHeight: 20,
+        lineHeight: lineHeight.sm,
     },
     group: { gap: spacing.md },
     groupTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
@@ -383,8 +383,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     signalTitle: { flex: 1, color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     signalBadge: { fontSize: fontSize.xs, fontWeight: fontWeight.bold },
     signalMeta: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
-    signalReason: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20 },
-    interventionText: { color: colors.accent, fontSize: fontSize.sm, lineHeight: 20, fontWeight: fontWeight.semibold },
+    signalReason: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: lineHeight.sm },
+    interventionText: { color: colors.accent, fontSize: fontSize.sm, lineHeight: lineHeight.sm, fontWeight: fontWeight.semibold },
     recommendationPill: {
         alignSelf: "flex-start",
         flexDirection: "row",

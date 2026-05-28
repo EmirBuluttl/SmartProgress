@@ -23,7 +23,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
+import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { workoutApi, programApi, authApi, notificationApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
@@ -949,7 +949,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     notificationItemMessage: {
         color: colors.textSecondary,
         fontSize: fontSize.sm,
-        lineHeight: 19,
+        lineHeight: lineHeight.sm,
     },
     notificationAction: {
         color: colors.accent,
@@ -1038,7 +1038,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: spacing.sm,
     },
     todayProgDesc: {
-        fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: 20,
+        fontSize: fontSize.sm, color: colors.textSecondary, lineHeight: lineHeight.sm,
     },
     todayHint: {
         fontSize: fontSize.sm, color: colors.textSecondary,
@@ -1228,7 +1228,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     programDesc: {
         fontSize: fontSize.sm, color: colors.textSecondary,
-        marginBottom: spacing.xs, lineHeight: 20,
+        marginBottom: spacing.xs, lineHeight: lineHeight.sm,
     },
     inlineCreateBtn: {
         flexDirection: "row",

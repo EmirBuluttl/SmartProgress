@@ -4,7 +4,7 @@ import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
-import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
+import { borderRadius, fontSize, fontWeight, lineHeight, spacing } from "../constants/theme";
 import { useAuth } from "../store/AuthContext";
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
@@ -841,7 +841,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     subtitle: {
         color: colors.textSecondary,
         fontSize: fontSize.sm,
-        lineHeight: 20,
+        lineHeight: lineHeight.sm,
     },
     teaserPanel: {
         backgroundColor: colors.surface,
@@ -924,7 +924,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     panelText: {
         color: colors.textSecondary,
         fontSize: fontSize.sm,
-        lineHeight: 21,
+        lineHeight: lineHeight.sm,
     },
     primaryButton: {
         minHeight: 48,
@@ -965,7 +965,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     dashboardSubtitle: {
         color: colors.textMuted,
         fontSize: fontSize.xs,
-        lineHeight: 17,
+        lineHeight: lineHeight.sm,
         marginTop: spacing.xs,
     },
     coachStatusBadge: {
@@ -1042,7 +1042,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     featureDescription: {
         color: colors.textSecondary,
         fontSize: fontSize.sm,
-        lineHeight: 20,
+        lineHeight: lineHeight.sm,
     },
     planGrid: {
         flexDirection: "row",
@@ -1146,7 +1146,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
         color: colors.textSecondary,
         fontSize: fontSize.xs,
-        lineHeight: 16,
+        lineHeight: lineHeight.sm,
     },
     noteBox: {
         flexDirection: "row",
@@ -1162,7 +1162,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
         color: colors.textSecondary,
         fontSize: fontSize.sm,
-        lineHeight: 20,
+        lineHeight: lineHeight.sm,
     },
     pricingNote: {
         flexDirection: "row",
@@ -1209,7 +1209,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     coachBriefText: {
         color: colors.textSecondary,
         fontSize: fontSize.xs,
-        lineHeight: 18,
+        lineHeight: lineHeight.sm,
     },
     reportCard: {
         backgroundColor: colors.surface,
@@ -1242,7 +1242,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingVertical: spacing.md,
         fontSize: fontSize.sm,
         textAlignVertical: "top",
-        lineHeight: 20,
+        lineHeight: lineHeight.sm,
     },
     answerBox: {
         borderRadius: borderRadius.sm,
@@ -1299,12 +1299,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.text,
         fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
-        lineHeight: 20,
+        lineHeight: lineHeight.sm,
     },
     messageAnswer: {
         color: colors.textSecondary,
         fontSize: fontSize.xs,
-        lineHeight: 18,
+        lineHeight: lineHeight.sm,
     },
     reportTopRow: {
         flexDirection: "row",
@@ -1364,7 +1364,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     narrationSummary: {
         color: colors.textSecondary,
         fontSize: fontSize.sm,
-        lineHeight: 20,
+        lineHeight: lineHeight.sm,
     },
     narrationItem: {
         flexDirection: "row",
@@ -1375,7 +1375,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
         color: colors.textSecondary,
         fontSize: fontSize.xs,
-        lineHeight: 18,
+        lineHeight: lineHeight.sm,
     },
     signalStack: {
         gap: spacing.sm,
@@ -1431,12 +1431,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     signalReason: {
         color: colors.textSecondary,
         fontSize: fontSize.xs,
-        lineHeight: 18,
+        lineHeight: lineHeight.sm,
     },
     interventionText: {
         color: colors.accent,
         fontSize: fontSize.xs,
-        lineHeight: 18,
+        lineHeight: lineHeight.sm,
         fontWeight: fontWeight.semibold,
     },
     secondaryActionBtn: {

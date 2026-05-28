@@ -14,6 +14,9 @@ export const colors = {
     accent: "#CCFF00",
     accentDark: "#A3CC00",
     accentMuted: "rgba(204, 255, 0, 0.15)",
+    accentFill: "rgba(204, 255, 0, 0.05)",
+    accentSubtle: "rgba(204, 255, 0, 0.08)",
+    accentBorder: "rgba(204, 255, 0, 0.20)",
 
     // Text
     text: "#FFFFFF",
@@ -24,6 +27,8 @@ export const colors = {
     success: "#22C55E",
     warning: "#F59E0B",
     error: "#EF4444",
+    errorSubtle: "rgba(239, 68, 68, 0.08)",
+    errorBorder: "rgba(239, 68, 68, 0.20)",
     info: "#3B82F6",
 
     // Border
@@ -60,6 +65,7 @@ export const fontSize = {
     lg: 17,
     xl: 20,
     xxl: 26,
+    display: 30,
     xxxl: 32,
     hero: 40,
 } as const;
@@ -71,3 +77,10 @@ export const fontWeight = {
     bold: "700" as const,
     heavy: "800" as const,
 };
+
+export const lineHeight = {
+    sm: 20,
+    md: 24,
+    lg: 28,
+    xl: 32,
+} as const;
