@@ -50,8 +50,16 @@ export type CoachExerciseSignal = {
     reason: string;
     flags: string[];
     interventionAdvice: string | null;
+    recommendation: CoachRecommendation | null;
     currentBest: CoachBestSet | null;
     previousBest: CoachBestSet | null;
+};
+
+export type CoachRecommendation = {
+    type: "relax_rir" | "reduce_volume" | "increase_weight" | "increase_volume";
+    label: string;
+    message: string;
+    requiresUserApproval: boolean;
 };
 
 export function normalizeRirValue(value: unknown): number | null {
@@ -97,6 +105,42 @@ export function compareBestSets(previous: CoachBestSet | null, current: CoachBes
     return { decision: "watch", reason: "Son log önceki logun gerisinde veya karma sinyal var." };
 }
 
+export function buildCoachRecommendation(flags: string[]): CoachRecommendation | null {
+    if (flags.includes("rir_adjustment_candidate")) {
+        return {
+            type: "relax_rir",
+            label: "RIR hedefini rahatlat",
+            message: "Önce RIR hedefini biraz rahatlatmayı düşün; hacim azaltımı ikinci adım olsun.",
+            requiresUserApproval: true,
+        };
+    }
+    if (flags.includes("volume_reduce_candidate")) {
+        return {
+            type: "reduce_volume",
+            label: "Hacmi azaltmayı değerlendir",
+            message: "RIR zaten düşük görünmüyorsa bu hareket için 1 çalışma seti azaltımı aday olabilir.",
+            requiresUserApproval: true,
+        };
+    }
+    if (flags.includes("weight_increase_candidate")) {
+        return {
+            type: "increase_weight",
+            label: "Minimum ağırlık artışı dene",
+            message: "Program tekrar aralığının üst sınırına ulaşıldı. Sonraki sessionda form bozulmadan minimum ağırlık artışı denenebilir.",
+            requiresUserApproval: true,
+        };
+    }
+    if (flags.includes("volume_increase_candidate")) {
+        return {
+            type: "increase_volume",
+            label: "Set artırmayı değerlendir",
+            message: "Üst üste güçlü progress var; aynı kalite sürerse kullanıcı onayıyla 1 set artırımı düşünülebilir.",
+            requiresUserApproval: true,
+        };
+    }
+    return null;
+}
+
 export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): CoachExerciseSignal {
     const latest = entries[entries.length - 1];
     const previous = entries[entries.length - 2];
@@ -110,6 +154,7 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
             reason: "Bu hafta gecerli set verisi yok.",
             flags: ["missing_current_best"],
             interventionAdvice: null,
+            recommendation: null,
             currentBest: null,
             previousBest: null,
         };
@@ -121,6 +166,7 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
             reason: "Bu hareket icin kiyaslanacak onceki log yok.",
             flags: ["baseline"],
             interventionAdvice: null,
+            recommendation: null,
             currentBest: latest.best,
             previousBest: null,
         };
@@ -168,15 +214,8 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
         }
     }
 
-    const interventionAdvice = flags.includes("rir_adjustment_candidate")
-        ? "Önce RIR hedefini biraz rahatlatmayı düşün; hacim azaltımı ikinci adım olsun."
-        : flags.includes("volume_reduce_candidate")
-            ? "RIR zaten düşük görünmüyorsa bu hareket için hacim azaltımı aday olabilir."
-            : flags.includes("weight_increase_candidate")
-                ? "Program tekrar aralığının üst sınırına ulaşıldı. Sonraki sessionda form bozulmadan minimum ağırlık artışı denenebilir."
-                : flags.includes("volume_increase_candidate")
-                    ? "Üst üste güçlü progress var; aynı kalite sürerse kullanıcı onayıyla set artırımı düşünülebilir."
-                    : null;
+    const recommendation = buildCoachRecommendation(flags);
+    const interventionAdvice = recommendation?.message || null;
 
     if (comparison.decision === "watch" && flags.includes("plateau_candidate")) {
         return {
@@ -186,6 +225,7 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
                 : "Son 3 sessionda net progress yok. Plato adayi olarak takip edilmeli.",
             flags,
             interventionAdvice,
+            recommendation,
             currentBest: latest.best,
             previousBest: previous.best,
         };
@@ -195,6 +235,7 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
         ...comparison,
         flags,
         interventionAdvice,
+        recommendation,
         currentBest: latest.best,
         previousBest: previous.best,
     };

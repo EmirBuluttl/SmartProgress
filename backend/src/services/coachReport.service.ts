@@ -160,6 +160,7 @@ export class CoachReportService {
                 reason: comparison.reason,
                 flags: comparison.flags,
                 interventionAdvice: comparison.interventionAdvice,
+                recommendation: comparison.recommendation,
                 currentBest: comparison.currentBest,
                 previousBest: comparison.previousBest,
                 sourceLogId: latest.logId,
@@ -215,6 +216,7 @@ export class CoachReportService {
                 metadata: {
                     weekEnd: weekEnd.toISOString(),
                     interventionAdvice: analysis.interventionAdvice,
+                    recommendation: analysis.recommendation,
                 },
                 currentBest: analysis.currentBest as Prisma.InputJsonValue,
                 previousBest: analysis.previousBest as Prisma.InputJsonValue,

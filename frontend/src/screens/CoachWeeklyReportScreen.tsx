@@ -97,6 +97,15 @@ export default function CoachWeeklyReportScreen() {
                                 </View>
                                 <Text style={styles.signalMeta}>{formatBestSet(item.previousBest)} {"->"} {formatBestSet(item.currentBest)}</Text>
                                 <Text style={styles.signalReason}>{item.reason}</Text>
+                                {!!item.recommendation && (
+                                    <View style={styles.recommendationPill}>
+                                        <Ionicons name="checkmark-circle-outline" size={15} color={colors.accent} />
+                                        <Text style={styles.recommendationText}>
+                                            {item.recommendation.label}
+                                            {item.recommendation.requiresUserApproval ? " · Onay gerekli" : ""}
+                                        </Text>
+                                    </View>
+                                )}
                                 {!!item.interventionAdvice && (
                                     <Text style={styles.interventionText}>{item.interventionAdvice}</Text>
                                 )}
@@ -157,6 +166,15 @@ export default function CoachWeeklyReportScreen() {
                                         {formatBestSet(prioritySignal.previousBest)} {"->"} {formatBestSet(prioritySignal.currentBest)}
                                     </Text>
                                     <Text style={styles.priorityReason}>{prioritySignal.interventionAdvice || prioritySignal.reason}</Text>
+                                    {!!prioritySignal.recommendation && (
+                                        <View style={styles.recommendationPill}>
+                                            <Ionicons name="checkmark-circle-outline" size={15} color={colors.accent} />
+                                            <Text style={styles.recommendationText}>
+                                                {prioritySignal.recommendation.label}
+                                                {prioritySignal.recommendation.requiresUserApproval ? " · Onay gerekli" : ""}
+                                            </Text>
+                                        </View>
+                                    )}
                                 </View>
                             </View>
                         )}
@@ -365,6 +383,23 @@ const createStyles = (colors: any) => StyleSheet.create({
     signalMeta: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
     signalReason: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20 },
     interventionText: { color: colors.accent, fontSize: fontSize.sm, lineHeight: 20, fontWeight: fontWeight.semibold },
+    recommendationPill: {
+        alignSelf: "flex-start",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+    },
+    recommendationText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
     loadingCard: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.md,

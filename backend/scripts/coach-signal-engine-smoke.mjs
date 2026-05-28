@@ -47,6 +47,13 @@ function expectSignal(name, bestSets, expected) {
     for (const flag of expected.absentFlags || []) {
         assert.ok(!signal.flags.includes(flag), `${name}: unexpected flag ${flag}`);
     }
+    if (expected.recommendationType) {
+        assert.equal(signal.recommendation?.type, expected.recommendationType, `${name}: recommendation type`);
+        assert.equal(signal.recommendation?.requiresUserApproval, true, `${name}: recommendation approval`);
+    }
+    if (expected.noRecommendation) {
+        assert.equal(signal.recommendation, null, `${name}: recommendation should be empty`);
+    }
 }
 
 function runScenarioMatrix(scenarios) {
@@ -127,7 +134,11 @@ runScenarioMatrix([
             { weight: 80, reps: 7, rir: "1-2", targetReps: "4-8" },
             { weight: 80, reps: 8, rir: "1-2", targetReps: "4-8" },
         ],
-        expected: { decision: "progress", flags: ["upper_rep_target_reached", "weight_increase_candidate"] },
+        expected: {
+            decision: "progress",
+            flags: ["upper_rep_target_reached", "weight_increase_candidate"],
+            recommendationType: "increase_weight",
+        },
     },
     {
         name: "below upper rep target no weight increase",
@@ -172,6 +183,7 @@ runScenarioMatrix([
             decision: "watch",
             flags: ["plateau_candidate", "low_rir", "rir_adjustment_candidate"],
             absentFlags: ["volume_reduce_candidate"],
+            recommendationType: "relax_rir",
         },
     },
     {
@@ -185,6 +197,7 @@ runScenarioMatrix([
             decision: "watch",
             flags: ["plateau_candidate", "low_rir", "rir_adjustment_candidate"],
             absentFlags: ["volume_reduce_candidate"],
+            recommendationType: "relax_rir",
         },
     },
     {
@@ -198,6 +211,7 @@ runScenarioMatrix([
             decision: "watch",
             flags: ["plateau_candidate", "volume_reduce_candidate"],
             absentFlags: ["low_rir", "rir_adjustment_candidate"],
+            recommendationType: "reduce_volume",
         },
     },
     {
@@ -207,7 +221,11 @@ runScenarioMatrix([
             { weight: 80, reps: 9, rir: 2 },
             { weight: 80, reps: 11, rir: 2 },
         ],
-        expected: { decision: "progress", flags: ["progress_streak", "volume_increase_candidate"] },
+        expected: {
+            decision: "progress",
+            flags: ["progress_streak", "volume_increase_candidate"],
+            recommendationType: "increase_volume",
+        },
     },
     {
         name: "small progress streak no volume increase",
@@ -229,6 +247,7 @@ runScenarioMatrix([
             decision: "watch",
             flags: ["same_as_previous"],
             absentFlags: ["plateau_candidate", "volume_reduce_candidate", "rir_adjustment_candidate"],
+            noRecommendation: true,
         },
     },
 ]);
