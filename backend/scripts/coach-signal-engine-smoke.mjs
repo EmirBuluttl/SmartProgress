@@ -49,6 +49,13 @@ function expectSignal(name, bestSets, expected) {
     }
 }
 
+function runScenarioMatrix(scenarios) {
+    for (const scenario of scenarios) {
+        expectSignal(scenario.name, scenario.bestSets, scenario.expected);
+    }
+    console.log(`Coach scenario matrix passed (${scenarios.length} scenarios)`);
+}
+
 function expectJsonEqual(actual, expected, message) {
     assert.equal(JSON.stringify(actual), JSON.stringify(expected), message);
 }
@@ -76,138 +83,154 @@ expectJsonEqual(resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, 
     externalWeight: 12.5,
 }, "Weighted bodyweight sets should compare BW plus external load");
 
-expectSignal("baseline first log", [
-    { weight: 80, reps: 4, rir: "1-2" },
-], {
-    decision: "baseline",
-    flags: ["baseline"],
-});
-
-expectSignal("same weight reps progress", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 80, reps: 9, rir: 2 },
-], {
-    decision: "progress",
-});
-
-expectSignal("weight progress", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 82.5, reps: 8, rir: 2 },
-], {
-    decision: "progress",
-});
-
-expectSignal("weight progress beats small rep drop", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 82.5, reps: 7, rir: 2 },
-], {
-    decision: "progress",
-    absentFlags: ["single_session_regression"],
-});
-
-expectSignal("weighted bodyweight progress", [
-    { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 0 }), reps: 6, rir: "1-2" },
-    { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 5 }), reps: 6, rir: "1-2" },
-], {
-    decision: "progress",
-});
-
-expectSignal("upper rep target reached", [
-    { weight: 80, reps: 7, rir: "1-2", targetReps: "4-8" },
-    { weight: 80, reps: 8, rir: "1-2", targetReps: "4-8" },
-], {
-    decision: "progress",
-    flags: ["upper_rep_target_reached", "weight_increase_candidate"],
-});
-
-expectSignal("below upper rep target no weight increase", [
-    { weight: 80, reps: 6, rir: "1-2", targetReps: "4-8" },
-    { weight: 80, reps: 7, rir: "1-2", targetReps: "4-8" },
-], {
-    decision: "progress",
-    absentFlags: ["upper_rep_target_reached", "weight_increase_candidate"],
-});
-
-expectSignal("single session reps regression", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 80, reps: 7, rir: 2 },
-], {
-    decision: "watch",
-    flags: ["single_session_regression"],
-});
-
-expectSignal("single session weight regression", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 77.5, reps: 8, rir: 2 },
-], {
-    decision: "watch",
-    flags: ["single_session_regression"],
-});
-
-expectSignal("lower weight with more reps is still watch", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 77.5, reps: 10, rir: 2 },
-], {
-    decision: "watch",
-    flags: ["single_session_regression"],
-});
-
-expectSignal("plateau with low rir", [
-    { weight: 80, reps: 8, rir: 1 },
-    { weight: 80, reps: 8, rir: 1 },
-    { weight: 80, reps: 8, rir: 1 },
-], {
-    decision: "watch",
-    flags: ["plateau_candidate", "low_rir", "rir_adjustment_candidate"],
-    absentFlags: ["volume_reduce_candidate"],
-});
-
-expectSignal("plateau with rir range one to two", [
-    { weight: 80, reps: 8, rir: "1-2" },
-    { weight: 80, reps: 8, rir: "1-2" },
-    { weight: 80, reps: 8, rir: "1-2" },
-], {
-    decision: "watch",
-    flags: ["plateau_candidate", "low_rir", "rir_adjustment_candidate"],
-    absentFlags: ["volume_reduce_candidate"],
-});
-
-expectSignal("plateau with relaxed rir", [
-    { weight: 80, reps: 8, rir: 3 },
-    { weight: 80, reps: 8, rir: 3 },
-    { weight: 80, reps: 8, rir: 3 },
-], {
-    decision: "watch",
-    flags: ["plateau_candidate", "volume_reduce_candidate"],
-    absentFlags: ["low_rir", "rir_adjustment_candidate"],
-});
-
-expectSignal("strong progress streak volume increase", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 80, reps: 9, rir: 2 },
-    { weight: 80, reps: 11, rir: 2 },
-], {
-    decision: "progress",
-    flags: ["progress_streak", "volume_increase_candidate"],
-});
-
-expectSignal("small progress streak no volume increase", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 80, reps: 9, rir: 2 },
-    { weight: 80, reps: 10, rir: 2 },
-], {
-    decision: "progress",
-    absentFlags: ["volume_increase_candidate"],
-});
-
-expectSignal("progress then one stall is not plateau yet", [
-    { weight: 80, reps: 8, rir: 2 },
-    { weight: 80, reps: 9, rir: 2 },
-    { weight: 80, reps: 9, rir: 2 },
-], {
-    decision: "watch",
-    flags: ["same_as_previous"],
-    absentFlags: ["plateau_candidate", "volume_reduce_candidate", "rir_adjustment_candidate"],
-});
+runScenarioMatrix([
+    {
+        name: "baseline first log",
+        bestSets: [{ weight: 80, reps: 4, rir: "1-2" }],
+        expected: { decision: "baseline", flags: ["baseline"] },
+    },
+    {
+        name: "same weight reps progress",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 80, reps: 9, rir: 2 },
+        ],
+        expected: { decision: "progress" },
+    },
+    {
+        name: "weight progress",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 82.5, reps: 8, rir: 2 },
+        ],
+        expected: { decision: "progress" },
+    },
+    {
+        name: "weight progress beats small rep drop",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 82.5, reps: 7, rir: 2 },
+        ],
+        expected: { decision: "progress", absentFlags: ["single_session_regression"] },
+    },
+    {
+        name: "weighted bodyweight progress",
+        bestSets: [
+            { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 0 }), reps: 6, rir: "1-2" },
+            { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 5 }), reps: 6, rir: "1-2" },
+        ],
+        expected: { decision: "progress" },
+    },
+    {
+        name: "upper rep target reached",
+        bestSets: [
+            { weight: 80, reps: 7, rir: "1-2", targetReps: "4-8" },
+            { weight: 80, reps: 8, rir: "1-2", targetReps: "4-8" },
+        ],
+        expected: { decision: "progress", flags: ["upper_rep_target_reached", "weight_increase_candidate"] },
+    },
+    {
+        name: "below upper rep target no weight increase",
+        bestSets: [
+            { weight: 80, reps: 6, rir: "1-2", targetReps: "4-8" },
+            { weight: 80, reps: 7, rir: "1-2", targetReps: "4-8" },
+        ],
+        expected: { decision: "progress", absentFlags: ["upper_rep_target_reached", "weight_increase_candidate"] },
+    },
+    {
+        name: "single session reps regression",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 80, reps: 7, rir: 2 },
+        ],
+        expected: { decision: "watch", flags: ["single_session_regression"] },
+    },
+    {
+        name: "single session weight regression",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 77.5, reps: 8, rir: 2 },
+        ],
+        expected: { decision: "watch", flags: ["single_session_regression"] },
+    },
+    {
+        name: "lower weight with more reps is still watch",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 77.5, reps: 10, rir: 2 },
+        ],
+        expected: { decision: "watch", flags: ["single_session_regression"] },
+    },
+    {
+        name: "plateau with low rir",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 1 },
+            { weight: 80, reps: 8, rir: 1 },
+            { weight: 80, reps: 8, rir: 1 },
+        ],
+        expected: {
+            decision: "watch",
+            flags: ["plateau_candidate", "low_rir", "rir_adjustment_candidate"],
+            absentFlags: ["volume_reduce_candidate"],
+        },
+    },
+    {
+        name: "plateau with rir range one to two",
+        bestSets: [
+            { weight: 80, reps: 8, rir: "1-2" },
+            { weight: 80, reps: 8, rir: "1-2" },
+            { weight: 80, reps: 8, rir: "1-2" },
+        ],
+        expected: {
+            decision: "watch",
+            flags: ["plateau_candidate", "low_rir", "rir_adjustment_candidate"],
+            absentFlags: ["volume_reduce_candidate"],
+        },
+    },
+    {
+        name: "plateau with relaxed rir",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 3 },
+            { weight: 80, reps: 8, rir: 3 },
+            { weight: 80, reps: 8, rir: 3 },
+        ],
+        expected: {
+            decision: "watch",
+            flags: ["plateau_candidate", "volume_reduce_candidate"],
+            absentFlags: ["low_rir", "rir_adjustment_candidate"],
+        },
+    },
+    {
+        name: "strong progress streak volume increase",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 80, reps: 9, rir: 2 },
+            { weight: 80, reps: 11, rir: 2 },
+        ],
+        expected: { decision: "progress", flags: ["progress_streak", "volume_increase_candidate"] },
+    },
+    {
+        name: "small progress streak no volume increase",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 80, reps: 9, rir: 2 },
+            { weight: 80, reps: 10, rir: 2 },
+        ],
+        expected: { decision: "progress", absentFlags: ["volume_increase_candidate"] },
+    },
+    {
+        name: "progress then one stall is not plateau yet",
+        bestSets: [
+            { weight: 80, reps: 8, rir: 2 },
+            { weight: 80, reps: 9, rir: 2 },
+            { weight: 80, reps: 9, rir: 2 },
+        ],
+        expected: {
+            decision: "watch",
+            flags: ["same_as_previous"],
+            absentFlags: ["plateau_candidate", "volume_reduce_candidate", "rir_adjustment_candidate"],
+        },
+    },
+]);
 
 console.log("Coach signal smoke scenarios passed");
