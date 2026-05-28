@@ -1018,7 +1018,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     todayBadge: {
         backgroundColor: colors.accentMuted,
-        paddingHorizontal: spacing.sm, paddingVertical: 2,
+        paddingHorizontal: spacing.sm, paddingVertical: spacing.xs,
         borderRadius: borderRadius.sm,
     },
     todayBadgeText: { fontSize: fontSize.xs, fontWeight: fontWeight.bold, color: colors.accent },
@@ -1072,7 +1072,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     freqBadge: {
         flexDirection: "row", alignItems: "center",
         backgroundColor: colors.accentMuted,
-        paddingHorizontal: spacing.sm, paddingVertical: 3,
+        paddingHorizontal: spacing.sm, paddingVertical: spacing.xs,
         borderRadius: borderRadius.full, gap: spacing.xs,
     },
     freqBadgeText: { fontSize: fontSize.xs, color: colors.accent, fontWeight: fontWeight.bold },

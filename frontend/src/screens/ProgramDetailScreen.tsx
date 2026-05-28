@@ -856,14 +856,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.surfaceElevated,
         borderRadius: borderRadius.sm,
         paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
+        paddingVertical: spacing.xs,
         gap: 4,
     },
     restBadgeText: { fontSize: fontSize.xs, color: colors.textMuted },
 
     // Exercises
     exerciseList: { marginTop: spacing.sm, paddingLeft: 36 },
-    exerciseRow: { flexDirection: "row", alignItems: "center", paddingVertical: 3, gap: spacing.xs },
+    exerciseRow: { flexDirection: "row", alignItems: "center", paddingVertical: spacing.xs, gap: spacing.xs },
     exerciseDot: { fontSize: 10, color: colors.textMuted },
     exerciseName: { flex: 1, fontSize: fontSize.sm, color: colors.textSecondary },
     exerciseSets: { fontSize: fontSize.xs, color: colors.textMuted },
