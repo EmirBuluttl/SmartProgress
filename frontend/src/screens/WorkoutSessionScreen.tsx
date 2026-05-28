@@ -239,6 +239,15 @@ function closeActiveCardioIfNeeded(session: WorkoutSession): WorkoutSession {
     };
 }
 
+function isWorkoutSessionLike(value: unknown): value is WorkoutSession {
+    const candidate = value as Partial<WorkoutSession> | null | undefined;
+    return !!candidate &&
+        typeof candidate === "object" &&
+        typeof candidate.id === "string" &&
+        typeof candidate.startedAt === "string" &&
+        Array.isArray(candidate.exercises);
+}
+
 function hasLoggedWorkoutData(session: WorkoutSession): boolean {
     return hasLoggedCardioData(session) || session.exercises.some((exercise) =>
         exercise.name.trim().length > 0 &&
@@ -1045,9 +1054,9 @@ export default function WorkoutSessionScreen() {
 
     const openAddExerciseModal = useCallback(() => {
         setNewExerciseName("");
-        setNewExerciseIndex(session.exercises.length);
+        setNewExerciseIndex(Array.isArray(session.exercises) ? session.exercises.length : 0);
         setAddExerciseModalVisible(true);
-    }, [session.exercises.length]);
+    }, [session.exercises]);
 
     const addExerciseAtSelectedPosition = useCallback(() => {
         const newEx: WorkoutExercise = {
@@ -1187,7 +1196,8 @@ export default function WorkoutSessionScreen() {
     const finishWorkout = async (qualityCheckedSession?: WorkoutSession) => {
         if (finishingRef.current) return;
 
-        let currentSession = qualityCheckedSession || closeActiveCardioIfNeeded(materializeSessionInputs());
+        const trustedQualitySession = isWorkoutSessionLike(qualityCheckedSession) ? qualityCheckedSession : undefined;
+        let currentSession = trustedQualitySession || closeActiveCardioIfNeeded(materializeSessionInputs());
         if (currentSession !== session) {
             setSession(currentSession);
             await saveActiveSession({ ...currentSession, totalDuration: elapsed });
@@ -1208,7 +1218,7 @@ export default function WorkoutSessionScreen() {
             return;
         }
 
-        if (!qualityCheckedSession) {
+        if (!trustedQualitySession) {
             const quality = prepareSessionForCoachAnalysis(currentSession);
             if (quality.warnings.length > 0) {
                 qualityCheckedSessionRef.current = quality.session;
@@ -1481,7 +1491,7 @@ export default function WorkoutSessionScreen() {
             </TouchableOpacity>
             <AccentButton
                 title="Antrenmanı Bitir"
-                onPress={finishWorkout}
+                onPress={() => finishWorkout()}
                 loading={finishing}
                 style={styles.finishBtn}
             />

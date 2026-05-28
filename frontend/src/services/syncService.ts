@@ -311,9 +311,14 @@ function normalizeActiveSession(rawSession: any): WorkoutSession | null {
  * Save the active workout session to AsyncStorage (crash protection).
  */
 export async function saveActiveSession(session: WorkoutSession): Promise<void> {
+    const normalized = normalizeActiveSession(session);
+    if (!normalized) {
+        console.warn("[SyncService] Invalid active session skipped");
+        return;
+    }
     await AsyncStorage.setItem(
         STORAGE_KEYS.ACTIVE_SESSION,
-        JSON.stringify(session),
+        JSON.stringify(normalized),
     );
 }
 
