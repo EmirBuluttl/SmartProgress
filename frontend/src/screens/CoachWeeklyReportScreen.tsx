@@ -59,16 +59,21 @@ export default function CoachWeeklyReportScreen() {
     }, []);
 
     const analyses = Array.isArray(report?.exerciseAnalyses) ? report.exerciseAnalyses : [];
-    const progressItems = analyses.filter((item: any) => item.decision === "progress");
-    const plateauItems = analyses.filter((item: any) => item.flags?.includes("plateau_candidate"));
-    const regressionItems = analyses.filter((item: any) => item.flags?.includes("single_session_regression"));
-    const interventionItems = analyses.filter((item: any) =>
+    const isIntervention = (item: any) =>
         item.flags?.includes("rir_adjustment_candidate") ||
         item.flags?.includes("volume_reduce_candidate") ||
         item.flags?.includes("weight_increase_candidate") ||
-        item.flags?.includes("volume_increase_candidate"),
+        item.flags?.includes("volume_increase_candidate");
+    const interventionItems = analyses.filter(isIntervention);
+    const progressItems = analyses.filter((item: any) => item.decision === "progress" && !isIntervention(item));
+    const plateauItems = analyses.filter((item: any) => item.flags?.includes("plateau_candidate") && !isIntervention(item));
+    const regressionItems = analyses.filter((item: any) => item.flags?.includes("single_session_regression") && !isIntervention(item));
+    const watchItems = analyses.filter((item: any) =>
+        item.decision === "watch" &&
+        !isIntervention(item) &&
+        !item.flags?.includes("plateau_candidate") &&
+        !item.flags?.includes("single_session_regression"),
     );
-    const watchItems = analyses.filter((item: any) => item.decision === "watch" && !item.flags?.includes("plateau_candidate") && !item.flags?.includes("single_session_regression"));
     const prioritySignal = interventionItems[0] || regressionItems[0] || plateauItems[0] || progressItems[0] || null;
     const priorityMeta = prioritySignal ? getMeta(prioritySignal, colors) : null;
     const reportCautions = Array.isArray(report?.coachNarration?.cautions) ? report.coachNarration.cautions : [];
