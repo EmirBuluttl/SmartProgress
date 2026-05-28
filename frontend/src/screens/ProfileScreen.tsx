@@ -18,11 +18,11 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
-import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
+import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { workoutApi, programApi, authApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import { isCycleProgram } from "../types/workout";
@@ -32,13 +32,6 @@ import SectionHeader from "../components/SectionHeader";
 import AccentButton from "../components/AccentButton";
 import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
-
-const AVAILABLE_COLORS = [
-    "#CCFF00", // Default Lime
-    "#00F0FF", // Cyan
-    "#FF0055", // Neon Pink
-    "#FFB800", // Gold/Orange
-    "#B026FF", // Purple
 
 const AVAILABLE_COLORS = [
     "#CCFF00", // Default Lime
