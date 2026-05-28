@@ -1,10 +1,10 @@
-import React, { useEffect } from "react";
-import { Animated, StyleSheet, View, ViewStyle } from "react-native";
+import React, { useEffect, useRef } from "react";
+import { Animated, View, ViewStyle } from "react-native";
 import { useTheme } from "../hooks/ThemeContext";
-import { borderRadius } from "../constants/theme";
+import { borderRadius as br_ } from "../constants/theme";
 
 interface SkeletonCardProps {
-    width?: number | string;
+    width?: number | string;   // ✅ düzeltildi
     height?: number;
     borderRadius?: number;
     style?: ViewStyle;
@@ -13,14 +13,14 @@ interface SkeletonCardProps {
 export default function SkeletonCard({
     width = "100%",
     height = 80,
-    borderRadius: br = borderRadius.md,
+    borderRadius = br_.md,
     style,
 }: SkeletonCardProps) {
     const { colors } = useTheme();
-    const shimmer = new Animated.Value(0);
+    const shimmer = useRef(new Animated.Value(0)).current;
 
     useEffect(() => {
-        Animated.loop(
+        const anim = Animated.loop(
             Animated.sequence([
                 Animated.timing(shimmer, {
                     toValue: 1,
@@ -33,38 +33,39 @@ export default function SkeletonCard({
                     useNativeDriver: true,
                 }),
             ])
-        ).start();
+        );
+        anim.start();
+        return () => anim.stop();
     }, []);
 
     const opacity = shimmer.interpolate({
         inputRange: [0, 1],
-        outputRange: [0.25, 0.55],
+        outputRange: [0.2, 0.5],
     });
 
     return (
         <Animated.View
             style={[
                 {
-                    width,
+                    width: width as any,
                     height,
-                    borderRadius: br,
+                    borderRadius,
                     backgroundColor: colors.surface,
-                    opacity,
                 },
+                { opacity },
                 style,
             ]}
         />
     );
 }
 
-// ── Hazır kompozisyonlar ──────────────────────
-export function SkeletonRow() {
+export function SkeletonRow({ style }: { style?: ViewStyle }) {
     return (
-        <View style={sk.row}>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: 12 }}>
             <SkeletonCard width={44} height={44} borderRadius={22} />
-            <View style={sk.col}>
-                <SkeletonCard width="70%" height={14} borderRadius={6} />
-                <SkeletonCard width="45%" height={12} borderRadius={6} style={{ marginTop: 8 }} />
+            <View style={{ flex: 1, gap: 8 }}>
+                <SkeletonCard width="65%" height={13} borderRadius={6} />
+                <SkeletonCard width="45%" height={11} borderRadius={6} />
             </View>
         </View>
     );
@@ -79,8 +80,3 @@ export function SkeletonList({ count = 3 }: { count?: number }) {
         </View>
     );
 }
-
-const sk = StyleSheet.create({
-    row: { flexDirection: "row", alignItems: "center", gap: 12 },
-    col: { flex: 1, gap: 0 },
-});
