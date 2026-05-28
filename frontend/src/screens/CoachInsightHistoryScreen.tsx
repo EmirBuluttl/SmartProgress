@@ -48,6 +48,13 @@ const FILTERS = [
 ] as const;
 
 type InsightFilter = typeof FILTERS[number]["key"];
+type RecommendationDecision = "accepted" | "rejected" | "follow";
+
+const DECISION_LABELS: Record<RecommendationDecision, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
+    accepted: { label: "Uygulanacak", icon: "checkmark-circle-outline" },
+    follow: { label: "Takipte", icon: "eye-outline" },
+    rejected: { label: "Reddedildi", icon: "close-circle-outline" },
+};
 
 function matchesFilter(insight: any, filter: InsightFilter) {
     if (filter === "all") return true;
@@ -70,6 +77,7 @@ export default function CoachInsightHistoryScreen() {
     const [loading, setLoading] = React.useState(true);
     const [insights, setInsights] = React.useState<any[]>([]);
     const [activeFilter, setActiveFilter] = React.useState<InsightFilter>("all");
+    const [updatingInsightId, setUpdatingInsightId] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         let mounted = true;
@@ -91,6 +99,21 @@ export default function CoachInsightHistoryScreen() {
     const filteredInsights = insights.filter((insight) => matchesFilter(insight, activeFilter));
     const actionCount = insights.filter((insight) => matchesFilter(insight, "action")).length;
     const progressCount = insights.filter((insight) => matchesFilter(insight, "progress")).length;
+
+    const updateRecommendationDecision = React.useCallback(async (insightId: string, decision: RecommendationDecision) => {
+        setUpdatingInsightId(insightId);
+        try {
+            const response = await coachApi.updateInsightRecommendation(insightId, { decision });
+            const updatedInsight = response.data?.data;
+            if (updatedInsight) {
+                setInsights((prev) => prev.map((item) => item.id === insightId ? updatedInsight : item));
+            }
+        } catch (error) {
+            console.warn("[CoachInsightHistory] Could not update recommendation decision", error);
+        } finally {
+            setUpdatingInsightId(null);
+        }
+    }, []);
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={styles.content}>
@@ -162,6 +185,10 @@ export default function CoachInsightHistoryScreen() {
                 <View style={styles.list}>
                     {filteredInsights.map((insight) => {
                         const meta = getMeta(insight.type, colors);
+                        const recommendation = insight.metadata?.recommendation;
+                        const recommendationDecision = insight.metadata?.recommendationDecision?.decision as RecommendationDecision | undefined;
+                        const decisionMeta = recommendationDecision ? DECISION_LABELS[recommendationDecision] : null;
+                        const isUpdating = updatingInsightId === insight.id;
                         return (
                             <View key={insight.id} style={styles.card}>
                                 <View style={styles.cardHeader}>
@@ -180,6 +207,55 @@ export default function CoachInsightHistoryScreen() {
                                 <Text style={styles.reason}>{insight.reason}</Text>
                                 {!!insight.metadata?.interventionAdvice && (
                                     <Text style={styles.advice}>{insight.metadata.interventionAdvice}</Text>
+                                )}
+                                {!!recommendation && (
+                                    <View style={styles.recommendationBox}>
+                                        <View style={styles.recommendationHeader}>
+                                            <View style={styles.recommendationTitleRow}>
+                                                <Ionicons name="sparkles-outline" size={15} color={colors.accent} />
+                                                <Text style={styles.recommendationTitle}>{recommendation.label || "Koç önerisi"}</Text>
+                                            </View>
+                                            {!!decisionMeta && (
+                                                <View style={styles.decisionPill}>
+                                                    <Ionicons name={decisionMeta.icon} size={13} color={colors.accent} />
+                                                    <Text style={styles.decisionText}>{decisionMeta.label}</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                        {!!recommendation.message && (
+                                            <Text style={styles.recommendationMessage}>{recommendation.message}</Text>
+                                        )}
+                                        {!recommendationDecision && (
+                                            <View style={styles.recommendationActions}>
+                                                <TouchableOpacity
+                                                    style={[styles.recommendationBtn, styles.recommendationBtnPrimary]}
+                                                    onPress={() => updateRecommendationDecision(insight.id, "accepted")}
+                                                    disabled={isUpdating}
+                                                    activeOpacity={0.82}
+                                                >
+                                                    {isUpdating ? <ActivityIndicator size="small" color={colors.background} /> : (
+                                                        <Text style={styles.recommendationBtnPrimaryText}>Uygula</Text>
+                                                    )}
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={styles.recommendationBtn}
+                                                    onPress={() => updateRecommendationDecision(insight.id, "follow")}
+                                                    disabled={isUpdating}
+                                                    activeOpacity={0.82}
+                                                >
+                                                    <Text style={styles.recommendationBtnText}>Takip et</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={styles.recommendationBtn}
+                                                    onPress={() => updateRecommendationDecision(insight.id, "rejected")}
+                                                    disabled={isUpdating}
+                                                    activeOpacity={0.82}
+                                                >
+                                                    <Text style={styles.recommendationBtnText}>Reddet</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
+                                    </View>
                                 )}
                             </View>
                         );
@@ -330,6 +406,81 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.accent,
         fontSize: fontSize.sm,
         lineHeight: 20,
+    },
+    recommendationBox: {
+        backgroundColor: colors.accentMuted,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    recommendationHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.sm,
+    },
+    recommendationTitleRow: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    recommendationTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    recommendationMessage: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
+    recommendationActions: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    recommendationBtn: {
+        minHeight: 34,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: spacing.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surface,
+    },
+    recommendationBtnPrimary: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accent,
+    },
+    recommendationBtnText: {
+        color: colors.text,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    recommendationBtnPrimaryText: {
+        color: colors.background,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    decisionPill: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        backgroundColor: colors.surface,
+    },
+    decisionText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
     },
     emptyCard: {
         backgroundColor: colors.surface,

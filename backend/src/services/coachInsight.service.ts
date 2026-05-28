@@ -16,44 +16,72 @@ export type CoachInsightInput = {
     metadata?: Prisma.InputJsonValue | null;
 };
 
+export type CoachRecommendationDecision = "accepted" | "rejected" | "follow";
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return !!value && typeof value === "object" && !Array.isArray(value);
+}
+
+function mergeMetadata(
+    current: Prisma.JsonValue | null | undefined,
+    next: Prisma.InputJsonValue | null | undefined,
+): Prisma.InputJsonValue | undefined {
+    const nextRecord = isRecord(next) ? next as Record<string, unknown> : null;
+    const currentRecord = isRecord(current) ? current as Record<string, unknown> : null;
+    const nextMetadata = nextRecord ? { ...nextRecord } : undefined;
+    if (!nextMetadata) return undefined;
+
+    if (currentRecord?.recommendationDecision && !nextMetadata.recommendationDecision) {
+        nextMetadata.recommendationDecision = currentRecord.recommendationDecision as Prisma.InputJsonValue;
+    }
+
+    return nextMetadata as Prisma.InputJsonValue;
+}
+
 export class CoachInsightService {
     async upsertMany(insights: CoachInsightInput[]) {
         if (insights.length === 0) return [];
 
-        return Promise.all(insights.map((insight) => prisma.coachInsight.upsert({
-            where: {
+        return Promise.all(insights.map(async (insight) => {
+            const where = {
                 userId_type_exerciseName_sourceLogId: {
                     userId: insight.userId,
                     type: insight.type,
                     exerciseName: insight.exerciseName,
                     sourceLogId: insight.sourceLogId,
                 },
-            },
-            create: {
-                userId: insight.userId,
-                type: insight.type,
-                exerciseName: insight.exerciseName,
-                decision: insight.decision,
-                reason: insight.reason,
-                flags: insight.flags || [],
-                currentBest: insight.currentBest || undefined,
-                previousBest: insight.previousBest || undefined,
-                sourceLogId: insight.sourceLogId,
-                signalDate: insight.signalDate,
-                weekStart: insight.weekStart,
-                metadata: insight.metadata || undefined,
-            },
-            update: {
-                decision: insight.decision,
-                reason: insight.reason,
-                flags: insight.flags || [],
-                currentBest: insight.currentBest || undefined,
-                previousBest: insight.previousBest || undefined,
-                signalDate: insight.signalDate,
-                weekStart: insight.weekStart,
-                metadata: insight.metadata || undefined,
-            },
-        })));
+            };
+            const current = await prisma.coachInsight.findUnique({ where });
+            const metadata = mergeMetadata(current?.metadata, insight.metadata);
+
+            return prisma.coachInsight.upsert({
+                where,
+                create: {
+                    userId: insight.userId,
+                    type: insight.type,
+                    exerciseName: insight.exerciseName,
+                    decision: insight.decision,
+                    reason: insight.reason,
+                    flags: insight.flags || [],
+                    currentBest: insight.currentBest || undefined,
+                    previousBest: insight.previousBest || undefined,
+                    sourceLogId: insight.sourceLogId,
+                    signalDate: insight.signalDate,
+                    weekStart: insight.weekStart,
+                    metadata,
+                },
+                update: {
+                    decision: insight.decision,
+                    reason: insight.reason,
+                    flags: insight.flags || [],
+                    currentBest: insight.currentBest || undefined,
+                    previousBest: insight.previousBest || undefined,
+                    signalDate: insight.signalDate,
+                    weekStart: insight.weekStart,
+                    metadata,
+                },
+            });
+        }));
     }
 
     async listForUser(userId: string, limit = 20) {
@@ -61,6 +89,24 @@ export class CoachInsightService {
             where: { userId },
             orderBy: { signalDate: "desc" },
             take: Math.min(Math.max(limit, 1), 50),
+        });
+    }
+
+    async updateRecommendationDecision(userId: string, insightId: string, decision: CoachRecommendationDecision) {
+        const insight = await prisma.coachInsight.findFirst({
+            where: { id: insightId, userId },
+        });
+        if (!insight) return null;
+
+        const metadata = isRecord(insight.metadata) ? { ...insight.metadata } : {};
+        metadata.recommendationDecision = {
+            decision,
+            decidedAt: new Date().toISOString(),
+        };
+
+        return prisma.coachInsight.update({
+            where: { id: insight.id },
+            data: { metadata: metadata as Prisma.InputJsonValue },
         });
     }
 }

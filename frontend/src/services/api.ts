@@ -235,6 +235,8 @@ export const notificationApi = {
 export const coachApi = {
     weeklyReport: (params?: { date?: string }) => api.get("/coach/weekly-report", { params }),
     insights: (params?: { limit?: number }) => api.get("/coach/insights", { params }),
+    updateInsightRecommendation: (insightId: string, payload: { decision: "accepted" | "rejected" | "follow" }) =>
+        api.patch(`/coach/insights/${insightId}/recommendation`, payload),
     aiStatus: () => api.get("/coach/ai-status"),
     aiMessages: (params?: { limit?: number }) => api.get("/coach/ai-messages", { params }),
     ask: (payload: { question: string; context?: Record<string, unknown> }) => api.post("/coach/ask", payload),

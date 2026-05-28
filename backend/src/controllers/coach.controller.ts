@@ -11,6 +11,10 @@ const askCoachSchema = z.object({
     context: z.record(z.unknown()).optional(),
 });
 
+const recommendationDecisionSchema = z.object({
+    decision: z.enum(["accepted", "rejected", "follow"]),
+});
+
 function formatBestSet(set?: any) {
     if (!set) return "önceki veri yok";
     const rirText = set.rir !== null && set.rir !== undefined && String(set.rir).trim()
@@ -136,6 +140,22 @@ export class CoachController {
             const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 50);
             const insights = await coachInsightService.listForUser(userId, limit);
             res.status(200).json({ data: insights });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async updateInsightRecommendation(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const insightId = String(req.params.insightId || "");
+            const parsed = recommendationDecisionSchema.parse(req.body);
+            const insight = await coachInsightService.updateRecommendationDecision(userId, insightId, parsed.decision);
+            if (!insight) {
+                res.status(404).json({ error: "Coach insight not found" });
+                return;
+            }
+            res.status(200).json({ data: insight });
         } catch (error) {
             next(error);
         }
