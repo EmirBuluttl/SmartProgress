@@ -126,7 +126,7 @@ export default function NutritionScreen() {
     return (
         <View style={styles.root}>
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton} activeOpacity={0.75}>
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Kalori ve Makro</Text>
@@ -182,7 +182,7 @@ export default function NutritionScreen() {
                             placeholderTextColor={colors.textMuted}
                             multiline
                         />
-                        <TouchableOpacity style={styles.saveButton} onPress={saveLog} disabled={saving}>
+                        <TouchableOpacity style={styles.saveButton} onPress={saveLog} disabled={saving} activeOpacity={0.75}>
                             <Text style={styles.saveButtonText}>{saving ? "Kaydediliyor..." : "Kaydet"}</Text>
                         </TouchableOpacity>
                     </GymCard>
@@ -195,6 +195,7 @@ export default function NutritionScreen() {
                                     key={key}
                                     style={[styles.segment, selectedField === key && styles.segmentActive]}
                                     onPress={() => setSelectedField(key)}
+                                    activeOpacity={0.75}
                                 >
                                     <Text style={[styles.segmentText, selectedField === key && styles.segmentTextActive]}>{label}</Text>
                                 </TouchableOpacity>

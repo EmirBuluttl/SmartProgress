@@ -9,6 +9,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
@@ -38,6 +39,7 @@ export default function WorkoutHistoryScreen() {
     const navigation = useNavigation();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
 
     const [workouts, setWorkouts] = useState<WorkoutItem[]>([]);
     const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -201,7 +203,7 @@ export default function WorkoutHistoryScreen() {
 
     return (
         <View style={styles.root}>
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.headerBtn}>
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
                 </Pressable>
@@ -299,7 +301,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "space-between",
-        paddingTop: 52,
+        paddingTop: spacing.md,
         paddingBottom: spacing.md,
         paddingHorizontal: spacing.lg,
         borderBottomWidth: 1,

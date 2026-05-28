@@ -13,6 +13,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { workoutApi } from "../services/api";
@@ -31,6 +32,7 @@ export default function RecordsScreen() {
     const navigation = useNavigation();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
 
     const [records, setRecords] = useState<PRRecord[]>([]);
     const [splitFilter, setSplitFilter] = useState("Tümü");
@@ -115,7 +117,7 @@ export default function RecordsScreen() {
     return (
         <View style={styles.container}>
             {/* Header */}
-            <View style={styles.header}>
+            <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
                 <TouchableOpacity
                     onPress={() => navigation.goBack()}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -173,7 +175,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         justifyContent: "space-between",
         paddingHorizontal: spacing.lg,
-        paddingTop: spacing.xxxl,
+        paddingTop: spacing.md,
         paddingBottom: spacing.md,
         backgroundColor: colors.surface,
         borderBottomWidth: 1,

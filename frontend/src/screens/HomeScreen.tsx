@@ -19,6 +19,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -47,6 +48,7 @@ export default function HomeScreen() {
     const navigation = useNavigation<HomeNav>();
     const { user, updateUser } = useAuth();
     const { colors } = useTheme();
+    const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     const [workouts, setWorkouts] = useState<any[]>([]);
@@ -252,7 +254,7 @@ export default function HomeScreen() {
         <ScrollView
             ref={scrollRef}
             style={styles.container}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
             showsVerticalScrollIndicator={false}
             onScroll={handleScroll}
             scrollEventThrottle={16}
@@ -816,7 +818,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: {
         paddingHorizontal: spacing.lg,
-        paddingTop: spacing.xxxl + spacing.xl,
+        paddingTop: spacing.lg,
         paddingBottom: spacing.xxxl,
     },
     header: {

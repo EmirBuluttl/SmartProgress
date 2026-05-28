@@ -20,6 +20,7 @@ import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { workoutApi, programApi, authApi } from "../services/api";
@@ -38,6 +39,13 @@ const AVAILABLE_COLORS = [
     "#FF0055", // Neon Pink
     "#FFB800", // Gold/Orange
     "#B026FF", // Purple
+
+const AVAILABLE_COLORS = [
+    "#CCFF00", // Default Lime
+    "#00F0FF", // Cyan
+    "#FF0055", // Neon Pink
+    "#FFB800", // Gold/Orange
+    "#B026FF", // Purple
     "#00FF66", // Green
 ];
 
@@ -45,6 +53,7 @@ export default function ProfileScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { user, logout, updateUser } = useAuth();
     const { colors, setAccentColor } = useTheme();
+    const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
 
@@ -203,7 +212,7 @@ export default function ProfileScreen() {
         <>
         <ScrollView
             style={styles.container}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
             showsVerticalScrollIndicator={false}
         >
             {/* ─── Profile Header ─── */}
@@ -776,7 +785,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     content: {
         paddingHorizontal: spacing.lg,
-        paddingTop: spacing.xxxl + spacing.xl,
+        paddingTop: spacing.lg,
         paddingBottom: spacing.xxxl,
     },
     profileHeader: {

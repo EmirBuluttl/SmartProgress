@@ -313,6 +313,7 @@ export default function ProgramDetailScreen() {
                 <TouchableOpacity
                     onPress={() => navigation.goBack()}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    activeOpacity={0.75}
                 >
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
@@ -328,6 +329,7 @@ export default function ProgramDetailScreen() {
                                 onPress={handleEdit}
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                                 style={s.headerIconBtn}
+                                activeOpacity={0.75}
                             >
                                 <Ionicons name="create-outline" size={20} color={colors.accent} />
                             </TouchableOpacity>
@@ -350,7 +352,7 @@ export default function ProgramDetailScreen() {
                     <TouchableOpacity
                         onPress={handleStartWorkout}
                         style={s.startBtn}
-                        activeOpacity={0.85}
+                        activeOpacity={0.75}
                     >
                         <Ionicons name="play" size={16} color={colors.background} />
                         <Text style={s.startBtnText}>Başlat</Text>
@@ -432,6 +434,7 @@ export default function ProgramDetailScreen() {
                                 style={s.starAction}
                                 onPress={toggleStar}
                                 disabled={socialBusy}
+                                activeOpacity={0.75}
                             >
                                 <Ionicons
                                     name={program.isStarredByMe ? "star" : "star-outline"}
@@ -456,6 +459,7 @@ export default function ProgramDetailScreen() {
                                 if (copied) navigation.replace("ProgramDetail", { programId: copied.id });
                             }}
                             disabled={socialBusy}
+                            activeOpacity={0.75}
                         >
                             <Ionicons name="library-outline" size={16} color={colors.background} />
                             <Text style={s.copyBtnText}>Kitaplığıma Ekle</Text>
@@ -473,6 +477,7 @@ export default function ProgramDetailScreen() {
                                 style={s.sourceUpdateBtn}
                                 onPress={syncFromSource}
                                 disabled={syncingSource}
+                                activeOpacity={0.75}
                             >
                                 <Text style={s.sourceUpdateBtnText}>{syncingSource ? "..." : "Güncelle"}</Text>
                             </TouchableOpacity>
@@ -497,6 +502,7 @@ export default function ProgramDetailScreen() {
                                 style={s.completeRestBtn}
                                 onPress={completeRestDay}
                                 disabled={restAdvancing}
+                                activeOpacity={0.75}
                             >
                                 <Text style={s.completeRestText}>{restAdvancing ? "..." : "Tamamla / Geç"}</Text>
                             </TouchableOpacity>
@@ -516,7 +522,7 @@ export default function ProgramDetailScreen() {
                             key={idx}
                             style={[s.dayCard, isCurrent && s.dayCardActive]}
                         >
-                            <TouchableOpacity onPress={() => handleDayTap(idx)}>
+                            <TouchableOpacity onPress={() => handleDayTap(idx)} activeOpacity={0.75}>
                             <View style={s.dayHeader}>
                                 <View
                                     style={[

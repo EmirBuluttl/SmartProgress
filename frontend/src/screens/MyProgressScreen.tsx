@@ -17,6 +17,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { bodyMeasurementApi, nutritionApi, workoutApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
@@ -46,6 +47,7 @@ export default function MyProgressScreen() {
     const { user } = useAuth();
     const { colors } = useTheme();
     const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled === true;
+    const insets = useSafeAreaInsets();
 
     const [filter, setFilter] = React.useState<TimeFilter>("1A");
     const [chartMetric, setChartMetric] = React.useState<ChartMetric>("progress:all");
@@ -218,7 +220,7 @@ export default function MyProgressScreen() {
         <>
             <ScrollView
                 style={styles.container}
-                contentContainerStyle={styles.content}
+                contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
                 showsVerticalScrollIndicator={false}
             >
                 {/* Page Title */}
@@ -464,7 +466,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     content: {
         paddingHorizontal: spacing.lg,
-        paddingTop: spacing.lg,
+        paddingTop: 0,
         paddingBottom: spacing.xxxl,
     },
     pageTitle: {

@@ -2,11 +2,12 @@ import React from "react";
 import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { coachApi } from "../services/api";
 
-const PROGRESS_GREEN = "#22C55E";
+
 
 const formatBestSet = (set?: any) => {
     if (!set) return "Baz yok";
@@ -23,13 +24,13 @@ const formatBestSet = (set?: any) => {
 
 const getMeta = (item: any, colors: any) => {
     const flags = Array.isArray(item?.flags) ? item.flags : [];
-    if (flags.includes("rir_adjustment_candidate")) return { label: "RIR ayarı", icon: "speedometer-outline" as const, color: colors.warning || "#F5A524" };
-    if (flags.includes("volume_reduce_candidate")) return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning || "#F5A524" };
-    if (flags.includes("weight_increase_candidate")) return { label: "Ağırlık artır", icon: "barbell-outline" as const, color: PROGRESS_GREEN };
-    if (flags.includes("volume_increase_candidate")) return { label: "Set artır", icon: "add-circle-outline" as const, color: PROGRESS_GREEN };
-    if (flags.includes("single_session_regression")) return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
-    if (flags.includes("plateau_candidate")) return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
-    if (item?.decision === "progress") return { label: "Progress", icon: "trending-up-outline" as const, color: PROGRESS_GREEN };
+    if (flags.includes("rir_adjustment_candidate")) return { label: "RIR ayarı", icon: "speedometer-outline" as const, color: colors.warning };
+    if (flags.includes("volume_reduce_candidate")) return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning };
+    if (flags.includes("weight_increase_candidate")) return { label: "Ağırlık artır", icon: "barbell-outline" as const, color: colors.success };
+    if (flags.includes("volume_increase_candidate")) return { label: "Set artır", icon: "add-circle-outline" as const, color: colors.success };
+    if (flags.includes("single_session_regression")) return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.error };
+    if (flags.includes("plateau_candidate")) return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning };
+    if (item?.decision === "progress") return { label: "Progress", icon: "trending-up-outline" as const, color: colors.success };
     if (item?.decision === "baseline") return { label: "Baz veri", icon: "flag-outline" as const, color: colors.textMuted };
     return { label: "Takip", icon: "eye-outline" as const, color: colors.textSecondary };
 };
@@ -37,6 +38,7 @@ const getMeta = (item: any, colors: any) => {
 export default function CoachWeeklyReportScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
+    const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [loading, setLoading] = React.useState(true);
     const [report, setReport] = React.useState<any | null>(null);
@@ -118,7 +120,7 @@ export default function CoachWeeklyReportScreen() {
     };
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]} showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
                     <Ionicons name="chevron-back" size={22} color={colors.text} />
@@ -194,7 +196,7 @@ export default function CoachWeeklyReportScreen() {
                                 <Text style={styles.actionPanelTitle}>Dikkat notları</Text>
                                 {reportCautions.slice(0, 3).map((item: string) => (
                                     <View key={item} style={styles.actionRow}>
-                                        <Ionicons name="alert-circle-outline" size={17} color={colors.warning || "#F5A524"} />
+                                        <Ionicons name="alert-circle-outline" size={17} color={colors.warning} />
                                         <Text style={styles.actionText}>{item}</Text>
                                     </View>
                                 ))}
@@ -230,7 +232,7 @@ function Stat({ label, value, styles }: { label: string; value: number; styles: 
 
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { paddingHorizontal: spacing.xl, paddingTop: 56, paddingBottom: 110, gap: spacing.xl },
+    content: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: 80, gap: spacing.xl },
     header: { flexDirection: "row", alignItems: "center", gap: spacing.md },
     backButton: {
         width: 42,
@@ -336,7 +338,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     cautionPanel: {
         borderRadius: borderRadius.sm,
         borderWidth: 1,
-        borderColor: colors.warning || "#F5A524",
+        borderColor: colors.warning,
         backgroundColor: colors.background,
         padding: spacing.md,
         gap: spacing.sm,

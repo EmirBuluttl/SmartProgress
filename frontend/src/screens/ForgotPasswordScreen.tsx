@@ -109,7 +109,7 @@ export default function ForgotPasswordScreen() {
         >
             <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.75}>
                         <Ionicons name="chevron-back" size={26} color={colors.text} />
                     </TouchableOpacity>
                     <Text style={styles.title}>Şifre Sıfırla</Text>
@@ -160,6 +160,7 @@ export default function ForgotPasswordScreen() {
                                 style={[styles.primaryBtn, requesting && styles.disabledBtn]}
                                 onPress={requestReset}
                                 disabled={requesting}
+                                activeOpacity={0.75}
                             >
                                 {requesting ? (
                                     <ActivityIndicator color={colors.background} />
@@ -167,7 +168,7 @@ export default function ForgotPasswordScreen() {
                                     <Text style={styles.primaryText}>Sıfırlama Bağlantısı Al</Text>
                                 )}
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("reset")}>
+                            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("reset")} activeOpacity={0.75}>
                                 <Text style={styles.secondaryText}>Kodum var</Text>
                             </TouchableOpacity>
                         </>
@@ -217,6 +218,7 @@ export default function ForgotPasswordScreen() {
                                 style={[styles.primaryBtn, resetting && styles.disabledBtn]}
                                 onPress={resetPassword}
                                 disabled={resetting}
+                                activeOpacity={0.75}
                             >
                                 {resetting ? (
                                     <ActivityIndicator color={colors.background} />
@@ -224,7 +226,7 @@ export default function ForgotPasswordScreen() {
                                     <Text style={styles.primaryText}>Şifreyi Güncelle</Text>
                                 )}
                             </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("request")}>
+                            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("request")} activeOpacity={0.75}>
                                 <Text style={styles.secondaryText}>E-posta adımına dön</Text>
                             </TouchableOpacity>
                         </>

@@ -2730,7 +2730,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         gap: spacing.md,
     },
     cardioSummaryTitle: {
-        color: colors.textPrimary,
+        color: colors.text,
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
     },

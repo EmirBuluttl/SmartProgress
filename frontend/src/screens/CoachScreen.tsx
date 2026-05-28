@@ -2,6 +2,7 @@ import React from "react";
 import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useAuth } from "../store/AuthContext";
@@ -10,7 +11,7 @@ import { RootStackParamList } from "../navigation/RootNavigator";
 import { coachApi } from "../services/api";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
-const PROGRESS_GREEN = "#22C55E";
+
 
 const getSubscriptionTier = (user: any): SubscriptionTier => {
     const directTier = String(user?.subscriptionTier || "").toLowerCase();
@@ -35,13 +36,13 @@ const formatBestSet = (set?: any) => {
 const getDecisionMeta = (item: any, colors: any) => {
     const flags = Array.isArray(item?.flags) ? item.flags : [];
     if (flags.includes("single_session_regression")) {
-        return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
+        return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.error };
     }
     if (flags.includes("plateau_candidate")) {
-        return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
+        return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning };
     }
     if (item?.decision === "progress") {
-        return { label: "Progress", icon: "trending-up-outline" as const, color: PROGRESS_GREEN };
+        return { label: "Progress", icon: "trending-up-outline" as const, color: colors.success };
     }
     if (item?.decision === "baseline") {
         return { label: "Baz veri", icon: "flag-outline" as const, color: colors.textMuted };
@@ -51,25 +52,25 @@ const getDecisionMeta = (item: any, colors: any) => {
 
 const getInsightMeta = (type: string, colors: any) => {
     if (type === "RIR_ADJUSTMENT_CANDIDATE") {
-        return { label: "RIR ayarı", icon: "speedometer-outline" as const, color: colors.warning || "#F5A524" };
+        return { label: "RIR ayarı", icon: "speedometer-outline" as const, color: colors.warning };
     }
     if (type === "VOLUME_REDUCE_CANDIDATE") {
-        return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning || "#F5A524" };
+        return { label: "Hacim azalt", icon: "remove-circle-outline" as const, color: colors.warning };
     }
     if (type === "WEIGHT_INCREASE_CANDIDATE") {
-        return { label: "Ağırlık artır", icon: "barbell-outline" as const, color: PROGRESS_GREEN };
+        return { label: "Ağırlık artır", icon: "barbell-outline" as const, color: colors.success };
     }
     if (type === "VOLUME_INCREASE_CANDIDATE") {
-        return { label: "Set artır", icon: "add-circle-outline" as const, color: PROGRESS_GREEN };
+        return { label: "Set artır", icon: "add-circle-outline" as const, color: colors.success };
     }
     if (type === "REGRESSION_DETECTED") {
-        return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.danger || "#FF4D4D" };
+        return { label: "Düşüş", icon: "arrow-down-circle-outline" as const, color: colors.error };
     }
     if (type === "PLATEAU_CANDIDATE") {
-        return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning || "#F5A524" };
+        return { label: "Plato adayı", icon: "alert-circle-outline" as const, color: colors.warning };
     }
     if (type === "PROGRESS_DETECTED") {
-        return { label: "Progress", icon: "trending-up-outline" as const, color: PROGRESS_GREEN };
+        return { label: "Progress", icon: "trending-up-outline" as const, color: colors.success };
     }
     return { label: "Sinyal", icon: "pulse-outline" as const, color: colors.textSecondary };
 };
@@ -87,6 +88,7 @@ export default function CoachScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const tier = getSubscriptionTier(user);
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const insets = useSafeAreaInsets();
     const isFree = tier === "free";
     const isCoachPlus = tier === "coach_plus";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
@@ -213,7 +215,7 @@ export default function CoachScreen() {
     return (
         <ScrollView
             style={styles.container}
-            contentContainerStyle={styles.content}
+            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]}
             showsVerticalScrollIndicator={false}
         >
             <View style={styles.header}>
@@ -306,14 +308,14 @@ export default function CoachScreen() {
                             icon="trending-up-outline"
                             label="Progress"
                             value={weeklyReport?.progressCount ?? progressSignals.length}
-                            color={PROGRESS_GREEN}
+                            color={colors.success}
                             colors={colors}
                         />
                         <MetricTile
                             icon="alert-circle-outline"
                             label="Dikkat"
                             value={(weeklyReport?.plateauCount ?? 0) + (weeklyReport?.regressionCount ?? 0) || attentionSignals.length}
-                            color={colors.warning || "#F5A524"}
+                            color={colors.warning}
                             colors={colors}
                         />
                         <MetricTile
@@ -804,8 +806,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     content: {
         paddingHorizontal: spacing.xl,
-        paddingTop: 56,
-        paddingBottom: 110,
+        paddingTop: spacing.lg,
+        paddingBottom: 80,
         gap: spacing.xl,
     },
     header: {

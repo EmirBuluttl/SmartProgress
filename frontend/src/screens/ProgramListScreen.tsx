@@ -82,13 +82,14 @@ export default function ProgramListScreen() {
         <View style={styles.root}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
+                <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} activeOpacity={0.75}>
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Programlarım</Text>
                 <TouchableOpacity
                     onPress={() => navigation.navigate("ProgramCreate")}
                     style={styles.iconBtn}
+                    activeOpacity={0.75}
                 >
                     <Ionicons name="add" size={28} color={colors.accent} />
                 </TouchableOpacity>
@@ -101,6 +102,7 @@ export default function ProgramListScreen() {
                     <TouchableOpacity
                         style={styles.createBtn}
                         onPress={() => navigation.navigate("ProgramCreate")}
+                        activeOpacity={0.75}
                     >
                         <Text style={styles.createBtnText}>Program Oluştur</Text>
                     </TouchableOpacity>
@@ -112,7 +114,7 @@ export default function ProgramListScreen() {
                     contentContainerStyle={styles.list}
                     renderItem={({ item }) => (
                         <TouchableOpacity
-                            activeOpacity={0.86}
+                        activeOpacity={0.75}
                             onPress={() => navigation.navigate("ProgramDetail", { programId: item.id })}
                         >
                         <GymCard elevated style={styles.card}>
@@ -150,6 +152,7 @@ export default function ProgramListScreen() {
                                 <TouchableOpacity
                                     style={[styles.followBtn, activeId === item.id && styles.followBtnActive]}
                                     onPress={() => toggleActiveProgram(item.id)}
+                                    activeOpacity={0.75}
                                 >
                                     <Ionicons
                                         name={activeId === item.id ? "bookmark" : "bookmark-outline"}
@@ -175,6 +178,7 @@ export default function ProgramListScreen() {
                                             programData: item.data,
                                         });
                                     }}
+                                    activeOpacity={0.75}
                                 >
                                     <Ionicons name="play" size={16} color={colors.background} />
                                     <Text style={styles.startBtnText}>Başlat</Text>
