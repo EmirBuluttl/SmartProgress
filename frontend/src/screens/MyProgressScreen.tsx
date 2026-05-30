@@ -611,7 +611,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     predictionBadge: {
         backgroundColor: colors.accentMuted,
         paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
+        paddingVertical: spacing.xs,
         borderRadius: borderRadius.sm,
     },
     predictionBadgeText: {

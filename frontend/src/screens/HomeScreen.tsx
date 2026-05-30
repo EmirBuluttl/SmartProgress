@@ -33,6 +33,7 @@ import AccentButton from "../components/AccentButton";
 import StatBadge from "../components/StatBadge";
 import SectionHeader from "../components/SectionHeader";
 import ActiveWorkoutBanner from "../components/ActiveWorkoutBanner";
+import { SkeletonList } from "../components/SkeletonCard";
 import { syncPendingWorkouts } from "../services/syncService";
 import { countProgressEvents } from "../utils/workoutMetrics";
 
@@ -182,8 +183,8 @@ export default function HomeScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
-                <ActivityIndicator size="large" color={colors.accent} />
+            <View style={[styles.container, { paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.lg }]}>
+                <SkeletonList count={4} />
             </View>
         );
     }

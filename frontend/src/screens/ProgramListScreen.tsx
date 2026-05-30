@@ -247,7 +247,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     libraryBadge: {
         backgroundColor: colors.surfaceElevated,
         paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
+        paddingVertical: spacing.xs,
         borderRadius: borderRadius.sm,
     },
     libraryText: {
@@ -258,7 +258,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     publicBadge: {
         backgroundColor: colors.accentMuted,
         paddingHorizontal: spacing.sm,
-        paddingVertical: 2,
+        paddingVertical: spacing.xs,
         borderRadius: borderRadius.sm,
         marginLeft: spacing.sm,
     },

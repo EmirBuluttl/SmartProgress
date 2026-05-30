@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { borderRadius, fontSize, fontWeight, lineHeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { coachApi } from "../services/api";
+import EmptyState from "../components/EmptyState";
 
 
 
@@ -136,6 +137,13 @@ export default function CoachWeeklyReportScreen() {
                     <ActivityIndicator color={colors.accent} />
                     <Text style={styles.mutedText}>Rapor hazırlanıyor</Text>
                 </View>
+            ) : !report ? (
+                <EmptyState
+                    icon="analytics-outline"
+                    title="Rapor bulunamadı"
+                    subtitle="Haftalık rapor oluşturulmak için yeterli antrenman verisi gerekiyor. Birkaç antrenman daha kaydet."
+                    style={{ minHeight: 300 }}
+                />
             ) : (
                 <>
                     <View style={styles.heroCard}>

@@ -1,16 +1,12 @@
 // ─────────────────────────────────────────────
 // TabNavigator — Bottom Tab Navigation
-// Custom dark gym-themed styling + spring icons
+// Custom dark gym-themed styling
+// Tab focused → Animated.spring scale (1→1.18)
 // ─────────────────────────────────────────────
-import React, { useEffect } from "react";
-import { StyleSheet, Platform } from "react-native";
+import React from "react";
+import { StyleSheet, Platform, Animated } from "react-native";
 import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import Animated, {
-    useSharedValue,
-    withSpring,
-    useAnimatedStyle,
-} from "react-native-reanimated";
 import { fontSize, fontWeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 
@@ -29,24 +25,59 @@ const TAB_ICONS: Record<string, { focused: IoniconsName; unfocused: IoniconsName
     Profile: { focused: "person", unfocused: "person-outline" },
 };
 
-const SPRING = { damping: 12, stiffness: 300, mass: 0.8 };
+// Per-tab animated scale value — lives outside component to persist across renders
+const tabScales: Record<string, Animated.Value> = {};
 
-// ── Ayrı komponent — hook kuralları için zorunlu ──
-function AnimatedTabIcon({ focused, children }: {
+function getTabScale(routeName: string): Animated.Value {
+    if (!tabScales[routeName]) {
+        tabScales[routeName] = new Animated.Value(1);
+    }
+    return tabScales[routeName];
+}
+
+function AnimatedTabIcon({
+    routeName,
+    focused,
+    color,
+    size,
+}: {
+    routeName: string;
     focused: boolean;
-    children: React.ReactNode;
+    color: string;
+    size: number;
 }) {
-    const scale = useSharedValue(1);
+    const scale = getTabScale(routeName);
 
-    useEffect(() => {
-        scale.value = withSpring(focused ? 1.2 : 1.0, SPRING);
-    }, [focused]);
+    React.useEffect(() => {
+        Animated.spring(scale, {
+            toValue: focused ? 1.18 : 1,
+            useNativeDriver: true,
+            damping: 15,
+            stiffness: 200,
+            mass: 1,
+        }).start();
+    }, [focused, scale]);
 
-    const animStyle = useAnimatedStyle(() => ({
-        transform: [{ scale: scale.value }],
-    }));
+    const icon =
+        routeName === "Coach" ? (
+            <MaterialCommunityIcons
+                name="brain"
+                size={size + (focused ? 2 : 0)}
+                color={color}
+            />
+        ) : (
+            <Ionicons
+                name={focused ? TAB_ICONS[routeName].focused : TAB_ICONS[routeName].unfocused}
+                size={size}
+                color={color}
+            />
+        );
 
-    return <Animated.View style={animStyle}>{children}</Animated.View>;
+    return (
+        <Animated.View style={{ transform: [{ scale }] }}>
+            {icon}
+        </Animated.View>
+    );
 }
 
 export default function TabNavigator() {
@@ -63,26 +94,14 @@ export default function TabNavigator() {
                 tabBarLabelStyle: styles.tabBarLabel,
                 tabBarItemStyle: styles.tabBarItem,
                 tabBarIconStyle: styles.tabBarIcon,
-                tabBarIcon: ({ focused, color, size }) => {
-                    if (route.name === "Coach") {
-                        return (
-                            <AnimatedTabIcon focused={focused}>
-                                <MaterialCommunityIcons
-                                    name="brain"
-                                    size={size}
-                                    color={color}
-                                />
-                            </AnimatedTabIcon>
-                        );
-                    }
-                    const icons = TAB_ICONS[route.name];
-                    const iconName = focused ? icons.focused : icons.unfocused;
-                    return (
-                        <AnimatedTabIcon focused={focused}>
-                            <Ionicons name={iconName} size={size} color={color} />
-                        </AnimatedTabIcon>
-                    );
-                },
+                tabBarIcon: ({ focused, color, size }) => (
+                    <AnimatedTabIcon
+                        routeName={route.name}
+                        focused={focused}
+                        color={color}
+                        size={size}
+                    />
+                ),
             })}
         >
             <Tab.Screen
