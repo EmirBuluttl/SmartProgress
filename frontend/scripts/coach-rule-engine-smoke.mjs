@@ -39,6 +39,14 @@ assertEqual(ul4, ["Upper A", "Lower A", "Dinlenme", "Upper B", "Lower B", "Dinle
 const backFocus = engine.getTrainingDays({ frequency: 4, split: "UL", priority: "shoulder_adduction" })[0].patterns.slice(0, 3);
 assertEqual(backFocus, ["shoulder_adduction", "shoulder_extension", "upper_back"], "Back focus priority cluster");
 
+const orderedFocus = engine.getTrainingDays({
+    frequency: 4,
+    split: "UL",
+    priority: null,
+    priorityOrder: ["shoulder_abduction", "horizontal_adduction", "elbow_extension"],
+})[0].patterns.slice(0, 4);
+assertEqual(orderedFocus, ["shoulder_abduction", "shoulder_flexion", "horizontal_adduction", "upper_chest"], "Ordered priority respects selected order and clusters");
+
 const chestOptions = engine.getAvailableExercises("horizontal_adduction", "Pec Deck").slice(0, 2);
 assertEqual(chestOptions, ["Smith Machine Bench Press", "Chest Press Machine"], "Avoided exercise is removed from recommendations");
 
@@ -56,5 +64,36 @@ const generated = engine.buildCoachProgramData({
 });
 assertEqual(generated.days.map((day) => day.isRestDay || false), [false, false, true, false, false, true], "Generated rest days");
 assertEqual(generated.days[0].exercises[0].name, "Smith Machine Bench Press", "Avoid note affects generated program");
+
+const fatLoss = engine.buildCoachProgramData({
+    frequency: 3,
+    split: "FB",
+    level: "beginner",
+    goal: "fat_loss",
+    hasPain: "no",
+});
+assertEqual(fatLoss.days[0].exercises[0].targetSets[1].targetReps, "8-10", "Fat loss beginner uses tighter 8-10 rep range");
+
+const strengthFocus = engine.buildCoachProgramData({
+    frequency: 4,
+    split: "UL",
+    level: "intermediate",
+    goal: "strength",
+    strengthFocus: "powerlifting",
+    hasPain: "no",
+});
+assertEqual(strengthFocus.days[0].exercises[0].targetSets[1].targetReps, "3-6", "Specific strength focus uses lower rep target");
+assertEqual(strengthFocus.days[0].exercises[0].targetSets[1].targetRIR, "1-2", "Specific strength focus uses higher RIR target");
+
+const kneePain = engine.buildCoachProgramData({
+    frequency: 4,
+    split: "UL",
+    level: "intermediate",
+    goal: "muscle",
+    hasPain: "yes",
+    painNote: "Sağ dizimde ağrı var",
+    includePainArea: "no",
+});
+assertEqual(kneePain.days[1].exercises.some((exercise) => exercise.targetPattern === "leg_press"), false, "Pain-limited patterns can be excluded");
 
 console.log("coach-rule-engine smoke tests passed");

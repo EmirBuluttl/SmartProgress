@@ -16,11 +16,14 @@ import {
     COACH_PATTERN_LABELS as PATTERN_LABELS,
     COACH_PRIORITY_GROUPS as PRIORITY_GROUPS,
     COACH_PRIORITIES as PRIORITIES,
+    COACH_SESSION_DURATIONS as SESSION_DURATIONS,
     COACH_SPLIT_PATTERNS as SPLIT_PATTERNS,
+    COACH_STRENGTH_FOCUS_OPTIONS as STRENGTH_FOCUS_OPTIONS,
     defaultSplitForFrequency,
     getAvailableExercises,
     getTrainingDays,
     getWorkoutDays,
+    inferPainLimitedPatterns,
     resolveCoachExerciseWithAvoidance,
     splitOptionsForFrequency,
     splitReason,
@@ -28,7 +31,9 @@ import {
     type CoachGoal as Goal,
     type CoachLevel as Level,
     type CoachPatternKey as PatternKey,
+    type CoachSessionDuration as SessionDuration,
     type CoachSplitType as SplitType,
+    type CoachStrengthFocus as StrengthFocus,
 } from "../services/coachRuleEngine";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
@@ -73,11 +78,16 @@ export default function PremiumProgramWizardScreen() {
     const [frequency, setFrequency] = React.useState(() => normalizeFrequency(coachProfile?.weeklyFrequency || coachProfile?.frequency));
     const [hasPain, setHasPain] = React.useState<"no" | "yes">("no");
     const [painNote, setPainNote] = React.useState("");
+    const [includePainArea, setIncludePainArea] = React.useState<"no" | "yes">("yes");
     const [goal, setGoal] = React.useState<Goal>(() => normalizeGoal(coachProfile?.workoutGoal || coachProfile?.goal));
-    const [equipment, setEquipment] = React.useState("");
-    const [sessionMinutes, setSessionMinutes] = React.useState("");
+    const [strengthFocus, setStrengthFocus] = React.useState<StrengthFocus>("overall");
+    const [hasEquipmentLimit, setHasEquipmentLimit] = React.useState<"no" | "yes">("no");
+    const [equipmentLimitNote, setEquipmentLimitNote] = React.useState("");
+    const [sessionDuration, setSessionDuration] = React.useState<SessionDuration>("60-90");
+    const [priorityMode, setPriorityMode] = React.useState<"simple" | "ordered">("simple");
     const [priorityGroup, setPriorityGroup] = React.useState<string | null>(null);
     const [priority, setPriority] = React.useState<PatternKey | null>(null);
+    const [priorityOrder, setPriorityOrder] = React.useState<PatternKey[]>([]);
     const [avoidNote, setAvoidNote] = React.useState("");
     const [split, setSplit] = React.useState<SplitType>("UL");
     const [selectedExercises, setSelectedExercises] = React.useState<Record<PatternKey, string>>({} as Record<PatternKey, string>);
@@ -106,13 +116,14 @@ export default function PremiumProgramWizardScreen() {
     }, [frequency, split]);
 
     const selectedSplit = SPLIT_PATTERNS[split];
-    const trainingDays = getTrainingDays({ frequency, split, priority });
-    const workoutDays = getWorkoutDays({ frequency, split, priority });
-
-    const uniquePatterns = Array.from(new Set(trainingDays.flatMap((day) => day.patterns)));
-
     const selectedPriorityGroup = PRIORITY_GROUPS.find((group) => group.key === priorityGroup) || null;
     const resolveExercise = (pattern: PatternKey) => resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote);
+    const painLimitedPatterns = React.useMemo(() => inferPainLimitedPatterns(painNote), [painNote]);
+    const activePriorityOrder = priorityMode === "ordered" ? priorityOrder : [];
+    const trainingDays = getTrainingDays({ frequency, split, priority, priorityOrder: activePriorityOrder });
+    const workoutDays = getWorkoutDays({ frequency, split, priority, priorityOrder: activePriorityOrder });
+
+    const uniquePatterns = Array.from(new Set(trainingDays.flatMap((day) => day.patterns)));
 
     const programName = `SmartProgress ${selectedSplit.label}`;
 
@@ -121,12 +132,16 @@ export default function PremiumProgramWizardScreen() {
         split,
         level,
         goal,
+        strengthFocus,
         hasPain,
         painNote,
-        equipment,
-        sessionMinutes,
-                        priority,
-                        avoidNote,
+        includePainArea,
+        hasEquipmentLimit,
+        equipmentLimitNote,
+        sessionDuration,
+        priority,
+        priorityOrder: activePriorityOrder,
+        avoidNote,
         selectedExercises,
     });
 
@@ -206,9 +221,16 @@ export default function PremiumProgramWizardScreen() {
                 return (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Seviyeni seç</Text>
-                        <Text style={styles.bodyText}>RIR ve hacim mantığı seviyene göre kurulacak.</Text>
+                        <Text style={styles.bodyText}>Hacim ve efor mantığı seviyene göre kurulacak.</Text>
                         {LEVELS.map((item) => (
-                            <OptionCard key={item.key} active={level === item.key} title={item.label} subtitle={`${item.desc} RIR ${item.rir}`} onPress={() => setLevel(item.key)} colors={colors} />
+                            <OptionCard
+                                key={item.key}
+                                active={level === item.key}
+                                title={item.label}
+                                subtitle={item.key === "advanced" ? item.desc : `${item.desc} RIR ${item.rir}`}
+                                onPress={() => setLevel(item.key)}
+                                colors={colors}
+                            />
                         ))}
                     </View>
                 );
@@ -235,14 +257,44 @@ export default function PremiumProgramWizardScreen() {
                         <OptionCard active={hasPain === "no"} title="Yok" subtitle="Normal program kurulumuna devam." onPress={() => setHasPain("no")} colors={colors} />
                         <OptionCard active={hasPain === "yes"} title="Var" subtitle="Kısa not ekle, öneriler buna göre temkinli olsun." onPress={() => setHasPain("yes")} colors={colors} />
                         {hasPain === "yes" && (
-                            <TextInput
-                                value={painNote}
-                                onChangeText={setPainNote}
-                                placeholder="Örn: Sağ dizimde squat sırasında ağrı oluyor"
-                                placeholderTextColor={colors.textMuted}
-                                style={styles.input}
-                                multiline
-                            />
+                            <>
+                                <TextInput
+                                    value={painNote}
+                                    onChangeText={setPainNote}
+                                    placeholder="Örn: Sağ dizimde squat sırasında ağrı oluyor"
+                                    placeholderTextColor={colors.textMuted}
+                                    style={styles.input}
+                                    multiline
+                                />
+                                <View style={styles.cautionBox}>
+                                    <Ionicons name="medical-outline" size={18} color={colors.warning || colors.accent} />
+                                    <Text style={styles.cautionText}>
+                                        Bu tıbbi öneri değildir. Doktor/fizyoterapist kısıtlaması varsa onu önceliklendir. Koç yalnızca program yükünü daha temkinli ayarlar.
+                                    </Text>
+                                </View>
+                                {painLimitedPatterns.length > 0 && (
+                                    <>
+                                        <Text style={styles.inlineLabel}>Eşleşen bölgeyi programa dahil edelim mi?</Text>
+                                        <Text style={styles.bodyText}>
+                                            Eşleşen paternler: {painLimitedPatterns.map((pattern) => PATTERN_LABELS[pattern]).join(", ")}
+                                        </Text>
+                                        <OptionCard
+                                            active={includePainArea === "yes"}
+                                            title="Evet, kontrollü dahil et"
+                                            subtitle="Daha yüksek RIR ve düşük riskli set hedefiyle programda kalır."
+                                            onPress={() => setIncludePainArea("yes")}
+                                            colors={colors}
+                                        />
+                                        <OptionCard
+                                            active={includePainArea === "no"}
+                                            title="Hayır, şimdilik çıkar"
+                                            subtitle="Eşleşen bölge bu program taslağından geçici olarak çıkarılır."
+                                            onPress={() => setIncludePainArea("no")}
+                                            colors={colors}
+                                        />
+                                    </>
+                                )}
+                            </>
                         )}
                     </View>
                 );
@@ -250,65 +302,150 @@ export default function PremiumProgramWizardScreen() {
                 return (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Hedef ve ortam</Text>
-                        <Text style={styles.bodyText}>Ekipman seçmezsen tam salon erişimi varsayacağız.</Text>
+                        <Text style={styles.bodyText}>Hedef program parametrelerini, süre ve ekipman bilgisi ise seçilecek hareketleri etkiler.</Text>
                         {GOALS.map((item) => (
                             <OptionCard key={item.key} active={goal === item.key} title={item.label} onPress={() => setGoal(item.key)} colors={colors} />
                         ))}
-                        <TextInput value={equipment} onChangeText={setEquipment} placeholder="Ekipman: boşsa tam salon varsayılır" placeholderTextColor={colors.textMuted} style={styles.input} />
-                        <Text style={styles.inlineLabel}>Session suresi</Text>
-                        <View style={styles.durationGrid}>
-                            {["45", "60", "75", "90"].map((minutes) => (
-                                <TouchableOpacity
-                                    key={minutes}
-                                    style={[styles.durationChip, sessionMinutes === minutes && styles.durationChipActive]}
-                                    onPress={() => setSessionMinutes(minutes)}
-                                >
-                                    <Text style={[styles.durationText, sessionMinutes === minutes && styles.durationTextActive]}>{minutes} dk</Text>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
+                        {goal === "strength" && (
+                            <>
+                                <Text style={styles.inlineLabel}>Güç odağı</Text>
+                                {STRENGTH_FOCUS_OPTIONS.map((item) => (
+                                    <OptionCard
+                                        key={item.key}
+                                        active={strengthFocus === item.key}
+                                        title={item.label}
+                                        subtitle={item.desc}
+                                        onPress={() => setStrengthFocus(item.key)}
+                                        colors={colors}
+                                    />
+                                ))}
+                            </>
+                        )}
+                        <Text style={styles.inlineLabel}>Session süresi</Text>
+                        {SESSION_DURATIONS.map((item) => (
+                            <OptionCard
+                                key={item.key}
+                                active={sessionDuration === item.key}
+                                title={item.label}
+                                subtitle={item.desc}
+                                onPress={() => setSessionDuration(item.key)}
+                                colors={colors}
+                            />
+                        ))}
+                        <Text style={styles.inlineLabel}>Ekipman erişimi sorunu yaşıyor musun?</Text>
+                        <OptionCard
+                            active={hasEquipmentLimit === "no"}
+                            title="Hayır, tam erişimim var"
+                            subtitle="Tam salon ekipmanı varsayılır."
+                            onPress={() => setHasEquipmentLimit("no")}
+                            colors={colors}
+                        />
+                        <OptionCard
+                            active={hasEquipmentLimit === "yes"}
+                            title="Evet, eksiklerim var"
+                            subtitle="Eksik ekipmanları yazarsan öneriler buna göre daralır."
+                            onPress={() => setHasEquipmentLimit("yes")}
+                            colors={colors}
+                        />
+                        {hasEquipmentLimit === "yes" && (
+                            <TextInput
+                                value={equipmentLimitNote}
+                                onChangeText={setEquipmentLimitNote}
+                                placeholder="Örn: Smith machine yok, cable yok, sadece dumbbell var"
+                                placeholderTextColor={colors.textMuted}
+                                style={styles.input}
+                                multiline
+                            />
+                        )}
                     </View>
                 );
             case 4:
                 return (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Öncelik ve kaçınmalar</Text>
-                        <Text style={styles.bodyText}>Önce geniş bölgeyi seç; istersen alt odağı netleştir. Sevilmeyen hareketleri virgülle ayırırsan öneri havuzundan düşer.</Text>
-                        <Text style={styles.inlineLabel}>Eksik bölge</Text>
-                        <View style={styles.priorityGrid}>
-                            {PRIORITY_GROUPS.map((group) => (
-                                <TouchableOpacity
-                                    key={group.key}
-                                    style={[styles.priorityChip, priorityGroup === group.key && styles.priorityChipActive]}
-                                    onPress={() => {
-                                        if (priorityGroup === group.key) {
-                                            setPriorityGroup(null);
-                                            setPriority(null);
-                                            return;
-                                        }
-                                        setPriorityGroup(group.key);
-                                        setPriority(group.patterns[0]);
-                                    }}
-                                >
-                                    <Text style={[styles.priorityText, priorityGroup === group.key && styles.priorityTextActive]}>{group.label}</Text>
-                                </TouchableOpacity>
-                            ))}
+                        <Text style={styles.bodyText}>Basit modda tek ana eksik bölge seçebilirsin. Detaylı modda kaslara sırayla dokunup program öncelik sırasını kurarsın.</Text>
+                        <View style={styles.segmentRow}>
+                            <TouchableOpacity style={[styles.segmentBtn, priorityMode === "simple" && styles.segmentBtnActive]} onPress={() => setPriorityMode("simple")}>
+                                <Text style={[styles.segmentText, priorityMode === "simple" && styles.segmentTextActive]}>Basit öncelik</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={[styles.segmentBtn, priorityMode === "ordered" && styles.segmentBtnActive]} onPress={() => setPriorityMode("ordered")}>
+                                <Text style={[styles.segmentText, priorityMode === "ordered" && styles.segmentTextActive]}>Öncelik sırası</Text>
+                            </TouchableOpacity>
                         </View>
-                        {selectedPriorityGroup && selectedPriorityGroup.patterns.length > 1 && (
+                        {priorityMode === "simple" ? (
                             <>
-                                <Text style={styles.inlineLabel}>Alt odak</Text>
+                                <Text style={styles.inlineLabel}>Eksik bölge</Text>
                                 <View style={styles.priorityGrid}>
-                                    {selectedPriorityGroup.patterns.map((pattern) => (
+                                    {PRIORITY_GROUPS.map((group) => (
                                         <TouchableOpacity
-                                            key={pattern}
-                                            style={[styles.priorityChip, priority === pattern && styles.priorityChipActive]}
-                                            onPress={() => setPriority(pattern)}
+                                            key={group.key}
+                                            style={[styles.priorityChip, priorityGroup === group.key && styles.priorityChipActive]}
+                                            onPress={() => {
+                                                if (priorityGroup === group.key) {
+                                                    setPriorityGroup(null);
+                                                    setPriority(null);
+                                                    return;
+                                                }
+                                                setPriorityGroup(group.key);
+                                                setPriority(group.patterns[0]);
+                                            }}
                                         >
-                                            <Text style={[styles.priorityText, priority === pattern && styles.priorityTextActive]}>
-                                                {PRIORITIES.find((item) => item.key === pattern)?.label || PATTERN_LABELS[pattern]}
-                                            </Text>
+                                            <Text style={[styles.priorityText, priorityGroup === group.key && styles.priorityTextActive]}>{group.label}</Text>
                                         </TouchableOpacity>
                                     ))}
+                                </View>
+                                {selectedPriorityGroup && selectedPriorityGroup.patterns.length > 1 && (
+                                    <>
+                                        <Text style={styles.inlineLabel}>Alt odak</Text>
+                                        <View style={styles.priorityGrid}>
+                                            {selectedPriorityGroup.patterns.map((pattern) => (
+                                                <TouchableOpacity
+                                                    key={pattern}
+                                                    style={[styles.priorityChip, priority === pattern && styles.priorityChipActive]}
+                                                    onPress={() => setPriority(pattern)}
+                                                >
+                                                    <Text style={[styles.priorityText, priority === pattern && styles.priorityTextActive]}>
+                                                        {PRIORITIES.find((item) => item.key === pattern)?.label || PATTERN_LABELS[pattern]}
+                                                    </Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </>
+                                )}
+                            </>
+                        ) : (
+                            <>
+                                <Text style={styles.inlineLabel}>Kas öncelik sırası</Text>
+                                <Text style={styles.bodyText}>Dokunduğun sıra korunur. Tekrar dokunursan listeden çıkar.</Text>
+                                {priorityOrder.length > 0 && (
+                                    <View style={styles.orderPreview}>
+                                        {priorityOrder.map((pattern, index) => (
+                                            <View key={pattern} style={styles.orderPill}>
+                                                <Text style={styles.orderPillText}>{index + 1}. {PATTERN_LABELS[pattern]}</Text>
+                                            </View>
+                                        ))}
+                                    </View>
+                                )}
+                                <View style={styles.priorityGrid}>
+                                    {PRIORITIES.map((item) => {
+                                        const selectedIndex = priorityOrder.indexOf(item.key);
+                                        const isSelected = selectedIndex >= 0;
+                                        return (
+                                            <TouchableOpacity
+                                                key={item.key}
+                                                style={[styles.priorityChip, isSelected && styles.priorityChipActive]}
+                                                onPress={() => {
+                                                    setPriorityOrder((current) => isSelected
+                                                        ? current.filter((pattern) => pattern !== item.key)
+                                                        : [...current, item.key]);
+                                                }}
+                                            >
+                                                <Text style={[styles.priorityText, isSelected && styles.priorityTextActive]}>
+                                                    {isSelected ? `${selectedIndex + 1}. ` : ""}{item.label}
+                                                </Text>
+                                            </TouchableOpacity>
+                                        );
+                                    })}
                                 </View>
                             </>
                         )}
@@ -350,7 +487,17 @@ export default function PremiumProgramWizardScreen() {
                 return (
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Özet ve oluştur</Text>
-                        <Text style={styles.bodyText}>{programName} programı haftada {frequency} antrenman günü ve dinlenme günleriyle oluşturulacak. RIR hedefi: {targetRir(level)}.</Text>
+                        <Text style={styles.bodyText}>
+                            {programName} programı haftada {frequency} antrenman günü ve dinlenme günleriyle oluşturulacak. Ana RIR hedefi: {targetRir(level)}.
+                        </Text>
+                        {goal === "fat_loss" && level !== "advanced" && (
+                            <Text style={styles.bodyText}>Yağ kaybına destek hedefi için çalışma setlerinde tekrar aralığı 8-10'a sabitlenir.</Text>
+                        )}
+                        {hasPain === "yes" && (
+                            <Text style={styles.bodyText}>
+                                Ağrı/sakatlık notu nedeniyle eşleşen paternlerde koç daha temkinli hedefler kullanır.
+                            </Text>
+                        )}
                         {workoutDays.map((day) => (
                             <View key={day.label} style={styles.summaryDay}>
                                 <Text style={styles.summaryDayTitle}>{day.label}</Text>
@@ -651,6 +798,71 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     priorityTextActive: {
         color: colors.accent,
+    },
+    segmentRow: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        padding: 4,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    segmentBtn: {
+        flex: 1,
+        minHeight: 42,
+        borderRadius: borderRadius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: spacing.sm,
+    },
+    segmentBtnActive: {
+        backgroundColor: colors.accent,
+    },
+    segmentText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    segmentTextActive: {
+        color: colors.background,
+    },
+    orderPreview: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    orderPill: {
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+    },
+    orderPillText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    cautionBox: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    cautionText: {
+        flex: 1,
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
     },
     exercisePicker: {
         gap: spacing.sm,

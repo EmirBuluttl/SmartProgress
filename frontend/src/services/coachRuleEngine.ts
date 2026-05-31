@@ -1,6 +1,8 @@
 export type CoachLevel = "beginner" | "intermediate" | "advanced";
 export type CoachSplitType = "FB" | "UL" | "AP" | "TL" | "PPL" | "PPLUL";
 export type CoachGoal = "muscle" | "strength" | "fat_loss" | "general";
+export type CoachStrengthFocus = "overall" | "powerlifting" | "streetlifting";
+export type CoachSessionDuration = "45-60" | "60-90" | "90+";
 
 export type CoachPatternKey =
     | "horizontal_adduction"
@@ -34,9 +36,13 @@ export type CoachProfileInput = {
     goal: CoachGoal;
     hasPain: "no" | "yes";
     painNote?: string;
-    equipment?: string;
-    sessionMinutes?: string;
+    includePainArea?: "no" | "yes";
+    hasEquipmentLimit?: "no" | "yes";
+    equipmentLimitNote?: string;
+    sessionDuration?: CoachSessionDuration;
+    strengthFocus?: CoachStrengthFocus;
     priority?: CoachPatternKey | null;
+    priorityOrder?: CoachPatternKey[];
     avoidNote?: string;
     avoidExercises?: string[];
     selectedExercises?: Partial<Record<CoachPatternKey, string>>;
@@ -53,6 +59,18 @@ export const COACH_GOALS: { key: CoachGoal; label: string }[] = [
     { key: "strength", label: "Güç artışı" },
     { key: "fat_loss", label: "Yağ kaybına destek" },
     { key: "general", label: "Genel progress" },
+];
+
+export const COACH_STRENGTH_FOCUS_OPTIONS: { key: CoachStrengthFocus; label: string; desc: string }[] = [
+    { key: "overall", label: "Genel kuvvet", desc: "Mevcut split içinde kontrollü güçlenme." },
+    { key: "powerlifting", label: "Powerlifting", desc: "Squat, bench ve deadlift odağı." },
+    { key: "streetlifting", label: "Streetlifting", desc: "Pull-up, dip ve vücut ağırlığı kuvveti odağı." },
+];
+
+export const COACH_SESSION_DURATIONS: { key: CoachSessionDuration; label: string; desc: string }[] = [
+    { key: "45-60", label: "45-60 dk", desc: "Daha kompakt ve sürdürülebilir akış." },
+    { key: "60-90", label: "60-90 dk", desc: "Standart hipertrofi/progress akışı." },
+    { key: "90+", label: "90+ dk", desc: "Daha geniş zaman, daha rahat dinlenme." },
 ];
 
 export const COACH_PRIORITIES: { key: CoachPatternKey; label: string }[] = [
@@ -213,6 +231,8 @@ export function targetRir(level: CoachLevel): string {
 }
 
 const PRIORITY_CLUSTERS: Partial<Record<CoachPatternKey, CoachPatternKey[]>> = {
+    shoulder_abduction: ["shoulder_abduction", "shoulder_flexion"],
+    shoulder_flexion: ["shoulder_flexion", "shoulder_abduction"],
     shoulder_adduction: ["shoulder_adduction", "shoulder_extension", "upper_back"],
     shoulder_extension: ["shoulder_extension", "shoulder_adduction", "upper_back"],
     upper_back: ["upper_back", "shoulder_extension", "shoulder_adduction"],
@@ -223,20 +243,52 @@ const PRIORITY_CLUSTERS: Partial<Record<CoachPatternKey, CoachPatternKey[]>> = {
     knee_flexion: ["knee_flexion", "hip_hinge", "leg_press", "knee_extension"],
 };
 
-export function reorderForPriority(patterns: CoachPatternKey[], priority: CoachPatternKey | null): CoachPatternKey[] {
-    if (!priority || !patterns.includes(priority)) return patterns;
-    const cluster = PRIORITY_CLUSTERS[priority] || [priority];
-    const prioritized = cluster.filter((pattern) => patterns.includes(pattern));
+export function buildPriorityOrder(priority: CoachPatternKey | null, priorityOrder: CoachPatternKey[] = []): CoachPatternKey[] {
+    const order = priorityOrder.length > 0 ? priorityOrder : (priority ? [priority] : []);
+    const expanded = order.flatMap((pattern) => PRIORITY_CLUSTERS[pattern] || [pattern]);
+    return Array.from(new Set(expanded));
+}
+
+export function reorderForPriority(
+    patterns: CoachPatternKey[],
+    priority: CoachPatternKey | null,
+    priorityOrder: CoachPatternKey[] = [],
+): CoachPatternKey[] {
+    const expandedOrder = buildPriorityOrder(priority, priorityOrder);
+    if (expandedOrder.length === 0) return patterns;
+    const prioritized = expandedOrder.filter((pattern) => patterns.includes(pattern));
     const remaining = patterns.filter((pattern) => !prioritized.includes(pattern));
     return [...prioritized, ...remaining];
 }
 
-export function makeTargetSets(level: CoachLevel) {
+function hasSpecificStrengthFocus(input: Pick<CoachProfileInput, "goal" | "strengthFocus">) {
+    return input.goal === "strength" && input.strengthFocus && input.strengthFocus !== "overall";
+}
+
+export function workingSetCountForInput(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus" | "hasPain">): number {
+    if (input.hasPain === "yes") return Math.min(workingSetCount(input.level), 2);
+    if (hasSpecificStrengthFocus(input)) return Math.min(workingSetCount(input.level) + 1, 3);
+    return workingSetCount(input.level);
+}
+
+export function targetRepsForInput(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus">): string {
+    if (input.goal === "fat_loss" && input.level !== "advanced") return "8-10";
+    if (hasSpecificStrengthFocus(input)) return "3-6";
+    return targetReps(input.level);
+}
+
+export function targetRirForInput(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus" | "hasPain">): string {
+    if (input.hasPain === "yes") return "3-4";
+    if (hasSpecificStrengthFocus(input)) return input.level === "beginner" ? "2-3" : "1-2";
+    return targetRir(input.level);
+}
+
+export function makeTargetSets(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus" | "hasPain">) {
     return [
         { targetReps: "3-5", targetRIR: "3-4", isWarmup: true },
-        ...Array.from({ length: workingSetCount(level) }, () => ({
-            targetReps: targetReps(level),
-            targetRIR: targetRir(level),
+        ...Array.from({ length: workingSetCountForInput(input) }, () => ({
+            targetReps: targetRepsForInput(input),
+            targetRIR: targetRirForInput(input),
             isWarmup: false,
         })),
     ];
@@ -250,14 +302,14 @@ function restDay(label = "Dinlenme"): CoachPlanDay {
     return { label, isRestDay: true, patterns: [] };
 }
 
-export function getTrainingDays(input: Pick<CoachProfileInput, "frequency" | "split" | "priority">): CoachPlanDay[] {
+export function getTrainingDays(input: Pick<CoachProfileInput, "frequency" | "split" | "priority" | "priorityOrder">): CoachPlanDay[] {
     return COACH_SPLIT_PATTERNS[input.split].days.slice(0, input.frequency).map((day) => ({
         ...day,
-        patterns: reorderForPriority(day.patterns, input.priority || null),
+        patterns: reorderForPriority(day.patterns, input.priority || null, input.priorityOrder || []),
     }));
 }
 
-export function getWorkoutDays(input: Pick<CoachProfileInput, "frequency" | "split" | "priority">): CoachPlanDay[] {
+export function getWorkoutDays(input: Pick<CoachProfileInput, "frequency" | "split" | "priority" | "priorityOrder">): CoachPlanDay[] {
     const trainingDays = getTrainingDays(input);
 
     if (input.frequency === 2) {
@@ -322,8 +374,33 @@ export function resolveCoachExerciseWithAvoidance(
     return selected && available.includes(selected) ? selected : available[0];
 }
 
+export function inferPainLimitedPatterns(painNote?: string): CoachPatternKey[] {
+    const text = normalizeText(painNote || "");
+    if (!text) return [];
+
+    const patterns = new Set<CoachPatternKey>();
+    if (/(diz|knee|bacak|leg|quad|quadriceps|patella)/i.test(text)) {
+        ["leg_press", "knee_extension", "knee_flexion", "hip_hinge", "calf_raise"].forEach((pattern) => patterns.add(pattern as CoachPatternKey));
+    }
+    if (/(omuz|shoulder|rotator|kolumu kald|press)/i.test(text)) {
+        ["shoulder_abduction", "shoulder_flexion", "upper_chest", "horizontal_adduction"].forEach((pattern) => patterns.add(pattern as CoachPatternKey));
+    }
+    if (/(bel|sirt|sırt|back|腰|deadlift|hinge)/i.test(text)) {
+        ["hip_hinge", "shoulder_extension", "shoulder_adduction", "upper_back"].forEach((pattern) => patterns.add(pattern as CoachPatternKey));
+    }
+    if (/(dirsek|elbow|bilek|wrist)/i.test(text)) {
+        ["elbow_flexion", "elbow_extension", "reverse_curl"].forEach((pattern) => patterns.add(pattern as CoachPatternKey));
+    }
+    return Array.from(patterns);
+}
+
 export function buildCoachProgramData(input: CoachProfileInput) {
     const workoutDays = getWorkoutDays(input);
+    const painLimitedPatterns = input.hasPain === "yes" ? inferPainLimitedPatterns(input.painNote) : [];
+    const shouldExcludePainPatterns = input.hasPain === "yes" && input.includePainArea === "no";
+    const equipmentText = input.hasEquipmentLimit === "yes" && input.equipmentLimitNote?.trim()
+        ? input.equipmentLimitNote.trim()
+        : "Tam salon erişimi varsayıldı";
     return {
         frequency: input.frequency,
         splitType: input.split,
@@ -331,22 +408,34 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         coachProfile: {
             level: input.level,
             goal: input.goal,
+            strengthFocus: input.strengthFocus || "overall",
             painStatus: input.hasPain,
             painNote: input.painNote?.trim() || undefined,
-            equipment: input.equipment?.trim() || "Tam salon varsayıldı",
-            sessionMinutes: input.sessionMinutes?.trim() || undefined,
+            includePainArea: input.includePainArea || "yes",
+            painLimitedPatterns,
+            equipment: equipmentText,
+            sessionDuration: input.sessionDuration || "60-90",
             priorityPattern: input.priority || null,
+            priorityOrder: input.priorityOrder || [],
             avoidNote: input.avoidNote?.trim() || undefined,
         },
         days: workoutDays.map((day) => ({
             label: day.label,
             isRestDay: !!day.isRestDay,
-            exercises: day.isRestDay ? [] : day.patterns.map((pattern) => ({
+            exercises: day.isRestDay ? [] : day.patterns
+                .filter((pattern) => !shouldExcludePainPatterns || !painLimitedPatterns.includes(pattern))
+                .map((pattern) => ({
                 id: makeCoachId("exercise"),
                 name: resolveCoachExerciseWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises),
                 targetPattern: pattern,
                 targetMuscle: COACH_PATTERN_LABELS[pattern],
-                targetSets: makeTargetSets(input.level),
+                riskAdjusted: painLimitedPatterns.includes(pattern),
+                targetSets: makeTargetSets({
+                    level: input.level,
+                    goal: input.goal,
+                    strengthFocus: input.strengthFocus,
+                    hasPain: painLimitedPatterns.includes(pattern) ? "yes" : "no",
+                }),
             })),
         })),
     };
