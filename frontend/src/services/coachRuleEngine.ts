@@ -50,6 +50,13 @@ export type CoachProfileInput = {
     selectedExercises?: Partial<Record<CoachPatternKey, string>>;
 };
 
+type ExerciseSelectionOptions = {
+    hasEquipmentLimit?: "no" | "yes";
+    equipmentLimitNote?: string;
+    painNote?: string;
+    preferPainSafe?: boolean;
+};
+
 export const COACH_LEVELS: { key: CoachLevel; label: string; desc: string; rir: string }[] = [
     { key: "beginner", label: "Başlangıç", desc: "Form, düzen ve güvenli progress.", rir: "2-3" },
     { key: "intermediate", label: "Orta", desc: "Düşük hacim, tükenişe yakın kaliteli set.", rir: "0-1" },
@@ -349,16 +356,116 @@ function matchesAvoidedExercise(exercise: ExerciseLibraryItem, avoided: string[]
     ));
 }
 
-export function getExercisesForPattern(pattern: CoachPatternKey, avoidNote?: string, avoidExercises: string[] = []) {
-    const avoided = parseAvoidedExercises(avoidNote, avoidExercises);
-    const candidates = EXERCISE_LIBRARY.filter((exercise) => exercise.pattern === pattern);
-    if (avoided.length === 0) return candidates;
-    const filtered = candidates.filter((exercise) => !matchesAvoidedExercise(exercise, avoided));
+function inferUnavailableEquipment(note?: string): string[] {
+    const raw = String(note || "").toLocaleLowerCase("tr-TR");
+    const text = `${raw} ${normalizeExerciseText(note || "")}`;
+    if (!text) return [];
+    const hasNegative = /(yok|yoktur|bulunmuyor|erisim yok|erişim yok|eksik|olmuyor|istemiyorum)/i.test(text);
+    if (!hasNegative) return [];
+
+    const unavailable = new Set<string>();
+    const matchers: { key: string; regex: RegExp; also?: string[] }[] = [
+        { key: "smith", regex: /(smith)/i },
+        { key: "cable", regex: /(cable|kablo)/i },
+        { key: "barbell", regex: /(barbell|halter|serbest bar)/i },
+        { key: "dumbbell", regex: /(dumbbell|dambıl|dambil|db)/i },
+        { key: "machine", regex: /(makine|makineler|machine ekipman|machines)/i, also: ["leg_press"] },
+        { key: "leg_press", regex: /(leg press|legpress|bacak press)/i },
+        { key: "bench", regex: /(bench|sehpa)/i },
+    ];
+    matchers.forEach((item) => {
+        if (!item.regex.test(text)) return;
+        unavailable.add(item.key);
+        item.also?.forEach((also) => unavailable.add(also));
+    });
+    return Array.from(unavailable);
+}
+
+function inferAllowedEquipment(note?: string): string[] {
+    const raw = String(note || "").toLocaleLowerCase("tr-TR");
+    const text = `${raw} ${normalizeExerciseText(note || "")}`;
+    if (!/(sadece|yalnizca|yalnızca|only)/i.test(text)) return [];
+    const allowed = new Set<string>(["bodyweight"]);
+    if (/(dumbbell|dambıl|dambil|db)/i.test(text)) {
+        allowed.add("dumbbell");
+        allowed.add("bench");
+    }
+    if (/(barbell|halter|serbest bar)/i.test(text)) {
+        allowed.add("barbell");
+        allowed.add("bench");
+    }
+    if (/(cable|kablo)/i.test(text)) allowed.add("cable");
+    if (/(smith)/i.test(text)) {
+        allowed.add("smith");
+        allowed.add("bench");
+    }
+    if (/(machine|makine)/i.test(text)) {
+        allowed.add("machine");
+        allowed.add("leg_press");
+    }
+    if (/(leg press|legpress|bacak press)/i.test(text)) allowed.add("leg_press");
+    if (/(bench|sehpa)/i.test(text)) allowed.add("bench");
+    return Array.from(allowed);
+}
+
+export function inferPainContraindicationTags(painNote?: string) {
+    const text = normalizeExerciseText(painNote || "");
+    const tags = new Set<string>();
+    if (/(diz|knee|patella)/i.test(text)) tags.add("knee_pain_sensitive");
+    if (/(omuz|shoulder|rotator|kolumu kald|press)/i.test(text)) tags.add("shoulder_pain_sensitive");
+    if (/(bel|sirt|sırt|back|deadlift|hinge)/i.test(text)) tags.add("low_back_sensitive");
+    if (/(dirsek|elbow)/i.test(text)) tags.add("elbow_pain_sensitive");
+    if (/(bilek|wrist)/i.test(text)) tags.add("wrist_pain_sensitive");
+    if (/(kalça|kalca|hip)/i.test(text)) tags.add("hip_pain_sensitive");
+    if (/(hamstring|arka bacak)/i.test(text)) tags.add("hamstring_sensitive");
+    if (/(ayak bileği|ayak bilegi|ankle)/i.test(text)) tags.add("ankle_pain_sensitive");
+    return Array.from(tags);
+}
+
+function applyEquipmentFilter(candidates: ExerciseLibraryItem[], options?: ExerciseSelectionOptions) {
+    if (options?.hasEquipmentLimit !== "yes") return candidates;
+    const unavailable = inferUnavailableEquipment(options.equipmentLimitNote);
+    const allowed = inferAllowedEquipment(options.equipmentLimitNote);
+    let filtered = candidates;
+    if (allowed.length > 0) {
+        filtered = filtered.filter((exercise) => exercise.equipment.every((item) => allowed.includes(item)));
+    }
+    if (unavailable.length > 0) {
+        filtered = filtered.filter((exercise) => exercise.equipment.every((item) => !unavailable.includes(item)));
+    }
     return filtered.length > 0 ? filtered : candidates;
 }
 
-export function getAvailableExercises(pattern: CoachPatternKey, avoidNote?: string, avoidExercises: string[] = []) {
-    return getExercisesForPattern(pattern, avoidNote, avoidExercises).map((exercise) => exercise.name);
+function applyPainSafetyFilter(candidates: ExerciseLibraryItem[], options?: ExerciseSelectionOptions) {
+    if (!options?.preferPainSafe) return candidates;
+    const tags = inferPainContraindicationTags(options.painNote);
+    if (tags.length === 0) return candidates;
+    const filtered = candidates.filter((exercise) => !exercise.contraindicationTags.some((tag) => tags.includes(tag)));
+    return filtered.length > 0 ? filtered : candidates;
+}
+
+export function getExercisesForPattern(
+    pattern: CoachPatternKey,
+    avoidNote?: string,
+    avoidExercises: string[] = [],
+    options?: ExerciseSelectionOptions,
+) {
+    const avoided = parseAvoidedExercises(avoidNote, avoidExercises);
+    const candidates = EXERCISE_LIBRARY.filter((exercise) => exercise.pattern === pattern);
+    const equipmentFiltered = applyEquipmentFilter(candidates, options);
+    const painFiltered = applyPainSafetyFilter(equipmentFiltered, options);
+    if (avoided.length === 0) return painFiltered;
+    const filtered = painFiltered.filter((exercise) => !matchesAvoidedExercise(exercise, avoided));
+    return filtered.length > 0 ? filtered : painFiltered;
+}
+
+export function getAvailableExercises(
+    pattern: CoachPatternKey,
+    avoidNote?: string,
+    avoidExercises: string[] = [],
+    options?: ExerciseSelectionOptions,
+) {
+    return getExercisesForPattern(pattern, avoidNote, avoidExercises, options).map((exercise) => exercise.name);
 }
 
 export function resolveCoachExerciseWithAvoidance(
@@ -366,8 +473,9 @@ export function resolveCoachExerciseWithAvoidance(
     selectedExercises?: Partial<Record<CoachPatternKey, string>>,
     avoidNote?: string,
     avoidExercises: string[] = [],
+    options?: ExerciseSelectionOptions,
 ) {
-    const available = getAvailableExercises(pattern, avoidNote, avoidExercises);
+    const available = getAvailableExercises(pattern, avoidNote, avoidExercises, options);
     const selected = selectedExercises?.[pattern];
     return selected && available.includes(selected) ? selected : available[0];
 }
@@ -377,8 +485,9 @@ export function resolveCoachExerciseItemWithAvoidance(
     selectedExercises?: Partial<Record<CoachPatternKey, string>>,
     avoidNote?: string,
     avoidExercises: string[] = [],
+    options?: ExerciseSelectionOptions,
 ) {
-    const available = getExercisesForPattern(pattern, avoidNote, avoidExercises);
+    const available = getExercisesForPattern(pattern, avoidNote, avoidExercises, options);
     const selected = selectedExercises?.[pattern];
     const selectedExercise = available.find((exercise) =>
         exercise.name === selected ||
@@ -415,6 +524,12 @@ export function buildCoachProgramData(input: CoachProfileInput) {
     const equipmentText = input.hasEquipmentLimit === "yes" && input.equipmentLimitNote?.trim()
         ? input.equipmentLimitNote.trim()
         : "Tam salon erişimi varsayıldı";
+    const selectionOptions: ExerciseSelectionOptions = {
+        hasEquipmentLimit: input.hasEquipmentLimit,
+        equipmentLimitNote: input.equipmentLimitNote,
+        painNote: input.painNote,
+        preferPainSafe: input.hasPain === "yes",
+    };
     return {
         frequency: input.frequency,
         splitType: input.split,
@@ -439,7 +554,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
             exercises: day.isRestDay ? [] : day.patterns
                 .filter((pattern) => !shouldExcludePainPatterns || !painLimitedPatterns.includes(pattern))
                 .map((pattern) => {
-                    const exercise = resolveCoachExerciseItemWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises);
+                    const exercise = resolveCoachExerciseItemWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises, selectionOptions);
                     return {
                         id: makeCoachId("exercise"),
                         exerciseId: exercise.id,

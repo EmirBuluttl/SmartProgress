@@ -127,8 +127,15 @@ export default function PremiumProgramWizardScreen() {
 
     const selectedSplit = SPLIT_PATTERNS[split];
     const selectedPriorityGroup = PRIORITY_GROUPS.find((group) => group.key === priorityGroup) || null;
-    const resolveExercise = (pattern: PatternKey) => resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote);
     const painLimitedPatterns = React.useMemo(() => inferPainLimitedPatterns(painNote), [painNote]);
+    const exerciseSelectionOptions = React.useMemo(() => ({
+        hasEquipmentLimit,
+        equipmentLimitNote,
+        painNote,
+        preferPainSafe: hasPain === "yes",
+    }), [equipmentLimitNote, hasEquipmentLimit, hasPain, painNote]);
+    const resolveExercise = (pattern: PatternKey) =>
+        resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote, [], exerciseSelectionOptions);
     const activePriorityOrder = priorityMode === "ordered" ? priorityOrder : [];
     const trainingDays = getTrainingDays({ frequency, split, priority, priorityOrder: activePriorityOrder });
     const workoutDays = getWorkoutDays({ frequency, split, priority, priorityOrder: activePriorityOrder });
@@ -495,7 +502,7 @@ export default function PremiumProgramWizardScreen() {
                         {uniquePatterns.map((pattern) => (
                             <View key={pattern} style={styles.exercisePicker}>
                                 <Text style={styles.patternLabel}>{PATTERN_LABELS[pattern]}</Text>
-                                {getAvailableExercises(pattern, avoidNote).map((exercise) => (
+                                {getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions).map((exercise) => (
                                     <TouchableOpacity
                                         key={exercise}
                                         style={[styles.exerciseOption, resolveExercise(pattern) === exercise && styles.exerciseOptionActive]}

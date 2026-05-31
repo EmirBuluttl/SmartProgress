@@ -64,6 +64,18 @@ assertEqual(chestOptions, ["Smith Machine Bench Press", "Chest Press Machine"], 
 const chestOptionsAlias = engine.getAvailableExercises("horizontal_adduction", "pecdeck").slice(0, 2);
 assertEqual(chestOptionsAlias, ["Smith Machine Bench Press", "Chest Press Machine"], "Avoided exercise alias is removed from recommendations");
 
+const noSmithChestOptions = engine.getAvailableExercises("horizontal_adduction", "", [], {
+    hasEquipmentLimit: "yes",
+    equipmentLimitNote: "Smith machine yok",
+}).slice(0, 2);
+assertEqual(noSmithChestOptions, ["Pec Deck", "Chest Press Machine"], "Unavailable equipment is removed from recommendations");
+
+const dumbbellOnlyChestOptions = engine.getAvailableExercises("horizontal_adduction", "", [], {
+    hasEquipmentLimit: "yes",
+    equipmentLimitNote: "Sadece dumbbell var",
+});
+assertEqual(dumbbellOnlyChestOptions, ["Dumbbell Press", "Dumbbell Fly"], "Only-equipment note narrows recommendations");
+
 assertEqual(engine.COACH_PATTERN_LABELS.leg_press, "Vastuslar (ön bacak)", "Leg press target label");
 assertEqual(engine.COACH_PATTERN_LABELS.hip_hinge, "Hamstring/Glute", "Hip hinge target label");
 
