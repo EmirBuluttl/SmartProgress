@@ -47,6 +47,7 @@ import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
 import { summarizeCardioBlocks } from "../utils/cardio";
+import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
 
 // ─── Constants ───────────────────────────────
 
@@ -425,6 +426,7 @@ export default function WorkoutSessionScreen() {
     const [exitModalHasData, setExitModalHasData] = useState(false);
     const [addExerciseModalVisible, setAddExerciseModalVisible] = useState(false);
     const [newExerciseName, setNewExerciseName] = useState("");
+    const [newExerciseLibraryItem, setNewExerciseLibraryItem] = useState<ExerciseLibraryItem | null>(null);
     const [newExerciseIndex, setNewExerciseIndex] = useState(0);
     const [noteModalVisible, setNoteModalVisible] = useState(false);
     const [noteDraft, setNoteDraft] = useState("");
@@ -958,6 +960,36 @@ export default function WorkoutSessionScreen() {
         [updateSession],
     );
 
+    const exerciseLibraryResults = React.useMemo(() => {
+        const query = newExerciseName.trim().toLocaleLowerCase("tr-TR");
+        const filtered = query
+            ? EXERCISE_LIBRARY.filter((item) => {
+                const search = [
+                    item.name,
+                    item.pattern,
+                    ...item.aliases,
+                    ...item.primaryMuscles,
+                    ...item.secondaryMuscles,
+                    ...item.equipment,
+                ].join(" ").toLocaleLowerCase("tr-TR");
+                return search.includes(query);
+            })
+            : EXERCISE_LIBRARY;
+        return [...filtered]
+            .sort((a, b) => Number(b.beginnerFriendly) - Number(a.beginnerFriendly))
+            .slice(0, 8);
+    }, [newExerciseName]);
+
+    const selectExerciseFromLibrary = useCallback((item: ExerciseLibraryItem) => {
+        setNewExerciseLibraryItem(item);
+        setNewExerciseName(item.name);
+    }, []);
+
+    const handleNewExerciseNameChange = useCallback((text: string) => {
+        setNewExerciseName(text);
+        setNewExerciseLibraryItem((current) => current?.name === text ? current : null);
+    }, []);
+
     const setWeightMode = useCallback(async (exerciseId: string, set: WorkoutSet, weightMode: "kg" | "bodyweight") => {
         const key = cacheKey(exerciseId, set.id, "weight");
         setTextCache((prev) => {
@@ -1063,6 +1095,7 @@ export default function WorkoutSessionScreen() {
 
     const openAddExerciseModal = useCallback(() => {
         setNewExerciseName("");
+        setNewExerciseLibraryItem(null);
         setNewExerciseIndex(Array.isArray(session.exercises) ? session.exercises.length : 0);
         setAddExerciseModalVisible(true);
     }, [session.exercises]);
@@ -1070,6 +1103,7 @@ export default function WorkoutSessionScreen() {
     const addExerciseAtSelectedPosition = useCallback(() => {
         const newEx: WorkoutExercise = {
             id: uid(),
+            exerciseId: newExerciseLibraryItem?.id,
             name: newExerciseName.trim(),
             isCustom: true,
             sets: [
@@ -1084,6 +1118,7 @@ export default function WorkoutSessionScreen() {
         });
         setAddExerciseModalVisible(false);
         setNewExerciseName("");
+        setNewExerciseLibraryItem(null);
         setRecentlyAddedExerciseId(newEx.id);
         requestAnimationFrame(() => {
             webScrollRef.current?.scrollTo({
@@ -1091,7 +1126,7 @@ export default function WorkoutSessionScreen() {
                 animated: true,
             });
         });
-    }, [newExerciseIndex, newExerciseName, session.exercises.length, updateSession]);
+    }, [newExerciseIndex, newExerciseLibraryItem, newExerciseName, session.exercises.length, updateSession]);
 
     const removeExercise = useCallback((exerciseId: string) => {
         updateSession((prev) => ({
@@ -2281,12 +2316,55 @@ export default function WorkoutSessionScreen() {
                         <TextInput
                             style={styles.addExerciseInput}
                             value={newExerciseName}
-                            onChangeText={setNewExerciseName}
+                            onChangeText={handleNewExerciseNameChange}
                             placeholder="Hareket adı"
                             placeholderTextColor={colors.textMuted}
                             selectionColor={colors.accent}
                             autoFocus
                         />
+                        {newExerciseLibraryItem && (
+                            <View style={styles.exerciseLibrarySelected}>
+                                <Ionicons name="checkmark-circle-outline" size={15} color={colors.accent} />
+                                <Text style={styles.exerciseLibrarySelectedText}>Kutuphaneden secildi</Text>
+                            </View>
+                        )}
+                        <Text style={styles.addExerciseSectionLabel}>Kutuphaneden sec</Text>
+                        <ScrollView
+                            style={styles.exerciseLibraryList}
+                            contentContainerStyle={styles.exerciseLibraryListContent}
+                            nestedScrollEnabled
+                            keyboardShouldPersistTaps="handled"
+                        >
+                            {exerciseLibraryResults.map((item) => {
+                                const selected = newExerciseLibraryItem?.id === item.id;
+                                return (
+                                    <TouchableOpacity
+                                        key={item.id}
+                                        style={[
+                                            styles.exerciseLibraryCard,
+                                            selected && styles.exerciseLibraryCardActive,
+                                        ]}
+                                        activeOpacity={0.84}
+                                        onPress={() => selectExerciseFromLibrary(item)}
+                                    >
+                                        <View style={styles.exerciseLibraryCardTop}>
+                                            <View style={styles.exerciseLibraryIcon}>
+                                                <Ionicons name="barbell-outline" size={17} color={colors.accent} />
+                                            </View>
+                                            <View style={{ flex: 1 }}>
+                                                <Text style={styles.exerciseLibraryName}>{item.name}</Text>
+                                                <Text style={styles.exerciseLibraryMeta} numberOfLines={1}>
+                                                    {[...item.primaryMuscles, ...item.equipment].slice(0, 4).join(" · ")}
+                                                </Text>
+                                            </View>
+                                        </View>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                            {exerciseLibraryResults.length === 0 && (
+                                <Text style={styles.exerciseLibraryEmpty}>Sonuc yok. Hareketi serbest yazabilirsin.</Text>
+                            )}
+                        </ScrollView>
                         <Text style={styles.addExerciseSectionLabel}>Konum</Text>
                         <ScrollView
                             horizontal
@@ -2856,6 +2934,71 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.md,
         marginBottom: spacing.md,
+    },
+    exerciseLibrarySelected: {
+        alignSelf: "flex-start",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+        marginTop: -spacing.sm,
+        marginBottom: spacing.md,
+    },
+    exerciseLibrarySelectedText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    exerciseLibraryList: {
+        maxHeight: 230,
+        marginBottom: spacing.md,
+    },
+    exerciseLibraryListContent: {
+        gap: spacing.sm,
+        paddingBottom: spacing.xs,
+    },
+    exerciseLibraryCard: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        padding: spacing.sm,
+    },
+    exerciseLibraryCardActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    exerciseLibraryCardTop: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    exerciseLibraryIcon: {
+        width: 34,
+        height: 34,
+        borderRadius: borderRadius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceLight,
+    },
+    exerciseLibraryName: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    exerciseLibraryMeta: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        marginTop: 2,
+    },
+    exerciseLibraryEmpty: {
+        color: colors.textMuted,
+        fontSize: fontSize.sm,
+        textAlign: "center",
+        paddingVertical: spacing.md,
     },
     sessionNoteInput: {
         minHeight: 132,
