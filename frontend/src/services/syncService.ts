@@ -37,6 +37,7 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
         notes: session.notes?.trim() || undefined,
         data: {
             exercises: session.exercises.map((ex) => ({
+                exerciseId: ex.exerciseId,
                 name: ex.name,
                 sets: ex.sets
                     .filter((s) => s.weight > 0 || s.reps > 0 || (s.durationSeconds ?? 0) > 0)

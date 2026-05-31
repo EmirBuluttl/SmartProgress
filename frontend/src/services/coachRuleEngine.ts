@@ -1,3 +1,5 @@
+import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+
 export type CoachLevel = "beginner" | "intermediate" | "advanced";
 export type CoachSplitType = "FB" | "UL" | "AP" | "TL" | "PPL" | "PPLUL";
 export type CoachGoal = "muscle" | "strength" | "fat_loss" | "general";
@@ -114,25 +116,11 @@ export const COACH_PATTERN_LABELS: Record<CoachPatternKey, string> = {
     calf_raise: "Calf",
 };
 
-export const COACH_EXERCISE_LIBRARY: Record<CoachPatternKey, string[]> = {
-    horizontal_adduction: ["Pec Deck", "Smith Machine Bench Press", "Chest Press Machine", "Bench Press"],
-    upper_chest: ["Incline Smith Machine Chest Press", "Seated Low to High Fly", "Incline Dumbbell Press"],
-    shoulder_flexion: ["Machine Shoulder Press", "Seated Barbell Shoulder Press", "Dumbbell Shoulder Press"],
-    shoulder_extension: ["Close Grip Pulldown", "Chest Supported Close Grip Row", "Narrow Grip Pull Up"],
-    shoulder_adduction: ["Wide Grip Pulldown", "Wide Grip Pull Up"],
-    upper_back: ["Chest Supported Upper Back Row", "Upper Back Row"],
-    shoulder_abduction: ["Starting Hip Cable Lateral Raise", "Machine Lateral Raise", "Seated Dumbbell Lateral Raise"],
-    elbow_extension: ["Single Arm Triceps Extension", "Triceps Extension"],
-    elbow_flexion: ["Preacher Curl", "Cable Bayesian Curl", "Cable Curl"],
-    reverse_curl: ["Reverse Cable Curl", "Reverse Barbell Curl"],
-    knee_extension: ["Leg Extension", "Sissy Squat"],
-    leg_press: ["Leg Press", "Squat", "Hack Squat"],
-    hip_hinge: ["Romanian Deadlift", "Stiff Leg Deadlift", "Hyper Extension"],
-    knee_flexion: ["Seated Leg Curl", "Leg Curl"],
-    hip_adduction: ["Adductor Machine", "Cable Leg Adduction"],
-    spinal_flexion: ["Weighted Ab Crunch", "Cable Crunch", "Elbow Supported Knee Raise"],
-    calf_raise: ["Straight Leg Calf Raise", "Bent Knee Calf Raise"],
-};
+export const COACH_EXERCISE_LIBRARY: Record<CoachPatternKey, string[]> = EXERCISE_LIBRARY.reduce((acc, exercise) => {
+    const pattern = exercise.pattern as CoachPatternKey;
+    acc[pattern] = [...(acc[pattern] || []), exercise.name];
+    return acc;
+}, {} as Record<CoachPatternKey, string[]>);
 
 export const COACH_SPLIT_PATTERNS: Record<CoachSplitType, { label: string; days: { label: string; patterns: CoachPatternKey[] }[] }> = {
     FB: {
@@ -335,7 +323,7 @@ export function resolveCoachExercise(pattern: CoachPatternKey, selectedExercises
     return selectedExercises?.[pattern] || COACH_EXERCISE_LIBRARY[pattern][0];
 }
 
-function normalizeText(value: string) {
+export function normalizeExerciseText(value: string) {
     return value.toLocaleLowerCase("tr-TR").replace(/[^a-z0-9ığüşöç\s]/gi, " ").replace(/\s+/g, " ").trim();
 }
 
@@ -344,23 +332,33 @@ export function parseAvoidedExercises(avoidNote?: string, avoidExercises: string
         .split(/[,;\n]/)
         .map((item) => item.trim())
         .filter(Boolean);
-    return Array.from(new Set([...avoidExercises, ...noteItems].map(normalizeText).filter(Boolean)));
+    return Array.from(new Set([...avoidExercises, ...noteItems].map(normalizeExerciseText).filter(Boolean)));
+}
+
+function exerciseSearchTerms(exercise: ExerciseLibraryItem) {
+    return [exercise.name, exercise.id, ...exercise.aliases].map(normalizeExerciseText).filter(Boolean);
+}
+
+function matchesAvoidedExercise(exercise: ExerciseLibraryItem, avoided: string[]) {
+    if (avoided.length === 0) return false;
+    const terms = exerciseSearchTerms(exercise);
+    return avoided.some((avoidedExercise) => terms.some((term) =>
+        term === avoidedExercise ||
+        term.includes(avoidedExercise) ||
+        avoidedExercise.includes(term),
+    ));
+}
+
+export function getExercisesForPattern(pattern: CoachPatternKey, avoidNote?: string, avoidExercises: string[] = []) {
+    const avoided = parseAvoidedExercises(avoidNote, avoidExercises);
+    const candidates = EXERCISE_LIBRARY.filter((exercise) => exercise.pattern === pattern);
+    if (avoided.length === 0) return candidates;
+    const filtered = candidates.filter((exercise) => !matchesAvoidedExercise(exercise, avoided));
+    return filtered.length > 0 ? filtered : candidates;
 }
 
 export function getAvailableExercises(pattern: CoachPatternKey, avoidNote?: string, avoidExercises: string[] = []) {
-    const avoided = parseAvoidedExercises(avoidNote, avoidExercises);
-    if (avoided.length === 0) return COACH_EXERCISE_LIBRARY[pattern];
-
-    const filtered = COACH_EXERCISE_LIBRARY[pattern].filter((exercise) => {
-        const normalizedExercise = normalizeText(exercise);
-        return !avoided.some((avoidedExercise) =>
-            normalizedExercise === avoidedExercise ||
-            normalizedExercise.includes(avoidedExercise) ||
-            avoidedExercise.includes(normalizedExercise),
-        );
-    });
-
-    return filtered.length > 0 ? filtered : COACH_EXERCISE_LIBRARY[pattern];
+    return getExercisesForPattern(pattern, avoidNote, avoidExercises).map((exercise) => exercise.name);
 }
 
 export function resolveCoachExerciseWithAvoidance(
@@ -374,8 +372,24 @@ export function resolveCoachExerciseWithAvoidance(
     return selected && available.includes(selected) ? selected : available[0];
 }
 
+export function resolveCoachExerciseItemWithAvoidance(
+    pattern: CoachPatternKey,
+    selectedExercises?: Partial<Record<CoachPatternKey, string>>,
+    avoidNote?: string,
+    avoidExercises: string[] = [],
+) {
+    const available = getExercisesForPattern(pattern, avoidNote, avoidExercises);
+    const selected = selectedExercises?.[pattern];
+    const selectedExercise = available.find((exercise) =>
+        exercise.name === selected ||
+        exercise.id === selected ||
+        exerciseSearchTerms(exercise).includes(normalizeExerciseText(String(selected || ""))),
+    );
+    return selectedExercise || available[0];
+}
+
 export function inferPainLimitedPatterns(painNote?: string): CoachPatternKey[] {
-    const text = normalizeText(painNote || "");
+    const text = normalizeExerciseText(painNote || "");
     if (!text) return [];
 
     const patterns = new Set<CoachPatternKey>();
@@ -424,19 +438,25 @@ export function buildCoachProgramData(input: CoachProfileInput) {
             isRestDay: !!day.isRestDay,
             exercises: day.isRestDay ? [] : day.patterns
                 .filter((pattern) => !shouldExcludePainPatterns || !painLimitedPatterns.includes(pattern))
-                .map((pattern) => ({
-                id: makeCoachId("exercise"),
-                name: resolveCoachExerciseWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises),
-                targetPattern: pattern,
-                targetMuscle: COACH_PATTERN_LABELS[pattern],
-                riskAdjusted: painLimitedPatterns.includes(pattern),
-                targetSets: makeTargetSets({
-                    level: input.level,
-                    goal: input.goal,
-                    strengthFocus: input.strengthFocus,
-                    hasPain: painLimitedPatterns.includes(pattern) ? "yes" : "no",
+                .map((pattern) => {
+                    const exercise = resolveCoachExerciseItemWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises);
+                    return {
+                        id: makeCoachId("exercise"),
+                        exerciseId: exercise.id,
+                        name: exercise.name,
+                        targetPattern: pattern,
+                        targetMuscle: COACH_PATTERN_LABELS[pattern],
+                        primaryMuscles: exercise.primaryMuscles,
+                        equipment: exercise.equipment,
+                        riskAdjusted: painLimitedPatterns.includes(pattern),
+                        targetSets: makeTargetSets({
+                            level: input.level,
+                            goal: input.goal,
+                            strengthFocus: input.strengthFocus,
+                            hasPain: painLimitedPatterns.includes(pattern) ? "yes" : "no",
+                        }),
+                    };
                 }),
-            })),
         })),
     };
 }

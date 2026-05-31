@@ -5,22 +5,33 @@ import ts from "typescript";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sourcePath = path.resolve(__dirname, "../src/services/coachRuleEngine.ts");
-const source = fs.readFileSync(sourcePath, "utf8");
-const compiled = ts.transpileModule(source, {
-    compilerOptions: {
-        module: ts.ModuleKind.CommonJS,
-        target: ts.ScriptTarget.ES2020,
-        esModuleInterop: true,
-    },
-});
+const exerciseLibraryPath = path.resolve(__dirname, "../src/data/exerciseLibrary.ts");
 
-const module = { exports: {} };
-const run = new Function("exports", "module", "require", compiled.outputText);
-run(module.exports, module, () => {
-    throw new Error("coachRuleEngine smoke test should not require external modules");
-});
+function compileModule(filePath) {
+    const source = fs.readFileSync(filePath, "utf8");
+    return ts.transpileModule(source, {
+        compilerOptions: {
+            module: ts.ModuleKind.CommonJS,
+            target: ts.ScriptTarget.ES2020,
+            esModuleInterop: true,
+        },
+    }).outputText;
+}
 
-const engine = module.exports;
+const moduleCache = new Map();
+function loadModule(filePath) {
+    if (moduleCache.has(filePath)) return moduleCache.get(filePath).exports;
+    const module = { exports: {} };
+    moduleCache.set(filePath, module);
+    const run = new Function("exports", "module", "require", compileModule(filePath));
+    run(module.exports, module, (request) => {
+        if (request === "../data/exerciseLibrary") return loadModule(exerciseLibraryPath);
+        throw new Error(`coachRuleEngine smoke test should not require external module: ${request}`);
+    });
+    return module.exports;
+}
+
+const engine = loadModule(sourcePath);
 
 function assertEqual(actual, expected, label) {
     const actualText = JSON.stringify(actual);
@@ -50,6 +61,9 @@ assertEqual(orderedFocus, ["shoulder_abduction", "shoulder_flexion", "horizontal
 const chestOptions = engine.getAvailableExercises("horizontal_adduction", "Pec Deck").slice(0, 2);
 assertEqual(chestOptions, ["Smith Machine Bench Press", "Chest Press Machine"], "Avoided exercise is removed from recommendations");
 
+const chestOptionsAlias = engine.getAvailableExercises("horizontal_adduction", "pecdeck").slice(0, 2);
+assertEqual(chestOptionsAlias, ["Smith Machine Bench Press", "Chest Press Machine"], "Avoided exercise alias is removed from recommendations");
+
 assertEqual(engine.COACH_PATTERN_LABELS.leg_press, "Vastuslar (ön bacak)", "Leg press target label");
 assertEqual(engine.COACH_PATTERN_LABELS.hip_hinge, "Hamstring/Glute", "Hip hinge target label");
 
@@ -64,6 +78,7 @@ const generated = engine.buildCoachProgramData({
 });
 assertEqual(generated.days.map((day) => day.isRestDay || false), [false, false, true, false, false, true], "Generated rest days");
 assertEqual(generated.days[0].exercises[0].name, "Smith Machine Bench Press", "Avoid note affects generated program");
+assertEqual(generated.days[0].exercises[0].exerciseId, "smith_bench_press", "Generated program keeps canonical exercise id");
 
 const fatLoss = engine.buildCoachProgramData({
     frequency: 3,

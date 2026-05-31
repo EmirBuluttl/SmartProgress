@@ -28,6 +28,7 @@ import CardioSessionScreen from "../screens/CardioSessionScreen";
 import PremiumProgramWizardScreen from "../screens/PremiumProgramWizardScreen";
 import CoachWeeklyReportScreen from "../screens/CoachWeeklyReportScreen";
 import CoachInsightHistoryScreen from "../screens/CoachInsightHistoryScreen";
+import ExerciseLibraryScreen from "../screens/ExerciseLibraryScreen";
 
 // ─── Types ───────────────────────────────────
 
@@ -99,6 +100,7 @@ export type RootStackParamList = {
     PremiumProgramWizard: undefined;
     CoachWeeklyReport: undefined;
     CoachInsightHistory: undefined;
+    ExerciseLibrary: undefined;
 };
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
@@ -216,6 +218,11 @@ function AppNavigator() {
             <AppStack.Screen
                 name="CoachInsightHistory"
                 component={CoachInsightHistoryScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="ExerciseLibrary"
+                component={ExerciseLibraryScreen}
                 options={{ animation: "slide_from_right" }}
             />
         </AppStack.Navigator>

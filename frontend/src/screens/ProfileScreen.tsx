@@ -344,6 +344,25 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    activeOpacity={0.75}
+                    onPress={() => navigation.navigate("ExerciseLibrary")}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="library-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Egzersiz Kütüphanesi</Text>
+                            <Text style={styles.settingDesc}>Kas grubu, ekipman ve seviye bazlı hareket rehberi</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.settingDivider} />
+
                 <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>

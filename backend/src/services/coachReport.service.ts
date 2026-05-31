@@ -31,6 +31,12 @@ function normalizeExerciseName(name: unknown): string {
     return String(name || "").trim().toLowerCase();
 }
 
+function exerciseHistoryKey(exercise: any): string {
+    const exerciseId = String(exercise?.exerciseId || "").trim();
+    if (exerciseId) return `id:${exerciseId}`;
+    return normalizeExerciseName(exercise?.name);
+}
+
 function bestWorkingSet(exercise: any): CoachBestSet | null {
     const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
     const logged = sets
@@ -135,7 +141,7 @@ export class CoachReportService {
         for (const log of chronologicalAnalysisLogs) {
             const exercises = Array.isArray((log.data as any)?.exercises) ? (log.data as any).exercises : [];
             for (const exercise of exercises) {
-                const key = normalizeExerciseName(exercise?.name);
+                const key = exerciseHistoryKey(exercise);
                 if (!key) continue;
                 const best = bestWorkingSet(exercise);
                 if (!best) continue;

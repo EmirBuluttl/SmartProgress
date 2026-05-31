@@ -41,6 +41,7 @@ export interface TargetSet {
 
 export interface TargetExercise {
     id: string;
+    exerciseId?: string;
     name: string;
     targetSets: TargetSet[];
 }
@@ -49,6 +50,7 @@ export interface TargetExercise {
 
 export interface WorkoutExercise {
     id: string;
+    exerciseId?: string;
     name: string;
     sets: WorkoutSet[];
     isCustom?: boolean;    // true for manually added exercises (editable name, add set)
@@ -158,6 +160,7 @@ export interface SyncWorkoutPayload {
     notes?: string;
     data: {
         exercises: {
+            exerciseId?: string;
             name: string;
             sets: {
                 reps: number;

@@ -41,6 +41,7 @@ const workoutSetSchema = z.object({
 });
 
 const workoutExerciseSchema = z.object({
+    exerciseId: z.string().max(120).optional(),
     name: z.string().min(1, "Exercise name is required"),
     sets: z.array(workoutSetSchema).min(1, "At least one set is required"),
 });

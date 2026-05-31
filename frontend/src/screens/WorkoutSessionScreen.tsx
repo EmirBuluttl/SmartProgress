@@ -341,6 +341,14 @@ function normalizeExerciseNameForLookup(name: unknown): string {
     return String(name || "").trim().toLowerCase();
 }
 
+function exerciseLookupKeys(exercise: any): string[] {
+    const keys = [
+        exercise?.exerciseId ? `id:${String(exercise.exerciseId).trim()}` : "",
+        normalizeExerciseNameForLookup(exercise?.name),
+    ].filter(Boolean);
+    return Array.from(new Set(keys));
+}
+
 function buildPreviousWeightLookup(workouts: any[]): Map<string, number[]> {
     const lookup = new Map<string, number[]>();
     const newestFirst = [...workouts].sort(
@@ -350,8 +358,8 @@ function buildPreviousWeightLookup(workouts: any[]): Map<string, number[]> {
     newestFirst.forEach((workout) => {
         const exercises = Array.isArray(workout?.data?.exercises) ? workout.data.exercises : [];
         exercises.forEach((exercise: any) => {
-            const key = normalizeExerciseNameForLookup(exercise?.name);
-            if (!key || lookup.has(key)) return;
+            const keys = exerciseLookupKeys(exercise).filter((key) => !lookup.has(key));
+            if (keys.length === 0) return;
 
             const weights = (Array.isArray(exercise?.sets) ? exercise.sets : [])
                 .filter((set: any) => !set?.isWarmup)
@@ -359,7 +367,7 @@ function buildPreviousWeightLookup(workouts: any[]): Map<string, number[]> {
                 .filter((weight: number) => Number.isFinite(weight) && weight > 0);
 
             if (weights.length > 0) {
-                lookup.set(key, weights);
+                keys.forEach((key) => lookup.set(key, weights));
             }
         });
     });
@@ -376,8 +384,8 @@ function buildPreviousRepsLookup(workouts: any[]): Map<string, number[]> {
     newestFirst.forEach((workout) => {
         const exercises = Array.isArray(workout?.data?.exercises) ? workout.data.exercises : [];
         exercises.forEach((exercise: any) => {
-            const key = normalizeExerciseNameForLookup(exercise?.name);
-            if (!key || lookup.has(key)) return;
+            const keys = exerciseLookupKeys(exercise).filter((key) => !lookup.has(key));
+            if (keys.length === 0) return;
 
             const reps = (Array.isArray(exercise?.sets) ? exercise.sets : [])
                 .filter((set: any) => !set?.isWarmup)
@@ -385,7 +393,7 @@ function buildPreviousRepsLookup(workouts: any[]): Map<string, number[]> {
                 .filter((rep: number) => Number.isFinite(rep) && rep > 0);
 
             if (reps.length > 0) {
-                lookup.set(key, reps);
+                keys.forEach((key) => lookup.set(key, reps));
             }
         });
     });
@@ -706,13 +714,14 @@ export default function WorkoutSessionScreen() {
                     const newExercises: WorkoutExercise[] = templateExercises.map((templateEx: any) => {
                         const targetSet = templateEx.targetSets?.[0] ?? templateEx.sets?.[0];
                         const exercisePreviousWeights =
-                            previousWeights.get(normalizeExerciseNameForLookup(templateEx.name)) || [];
+                            exerciseLookupKeys(templateEx).map((key) => previousWeights.get(key)).find(Boolean) || [];
                         const exercisePreviousReps =
-                            previousReps.get(normalizeExerciseNameForLookup(templateEx.name)) || [];
+                            exerciseLookupKeys(templateEx).map((key) => previousReps.get(key)).find(Boolean) || [];
                         let workingSetIndex = 0;
                         let repsSetIndex = 0;
                         return {
                             id: uid(),
+                            exerciseId: templateEx.exerciseId,
                             name: templateEx.name,
                             targetReps: targetSet?.targetReps,
                             targetWeight: targetSet?.targetWeight,
