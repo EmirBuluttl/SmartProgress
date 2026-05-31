@@ -33,6 +33,47 @@ function difficultyLabel(value: ExerciseLibraryItem["difficulty"]) {
     return "Orta";
 }
 
+function guidePoints(exercise: ExerciseLibraryItem) {
+    const points: string[] = [];
+    if (exercise.beginnerFriendly) points.push("Formu ogrenmek veya hareket hissini oturtmak icin iyi bir secimdir.");
+    if (exercise.tags.includes("stable") || exercise.tags.includes("guided")) points.push("Stabil oldugu icin kilo/tekrar takibi daha tutarli olur.");
+    if (exercise.tags.includes("compound")) points.push("Ana hareket olarak kullanilabilir; toparlanma ve teknik standardi takip edilmeli.");
+    if (exercise.tags.includes("isolation")) points.push("Eksik bolgeyi tamamlamak veya hedef kas hissini artirmak icin uygundur.");
+    if (exercise.tags.includes("strength")) points.push("Guc artisi takibinde anlamli olabilir; ego lift yerine tekrar edilebilir form onceliklidir.");
+    if (exercise.equipment.includes("bodyweight")) points.push("Vucut agirligi hareketlerinde gerekirse external load/bodyweight ayrimiyla loglamak daha dogru olur.");
+    return points.length > 0 ? points : ["Programdaki hedef kas paternine uyuyorsa kontrollu sekilde kullanilabilir."];
+}
+
+function cautionPoints(exercise: ExerciseLibraryItem) {
+    const labels: Record<string, string> = {
+        shoulder_pain_sensitive: "Omuz agrisi veya rotator cuff hassasiyeti varsa dikkatli kullan.",
+        elbow_pain_sensitive: "Dirsek hassasiyeti varsa yuk ve tutus acisini temkinli sec.",
+        wrist_pain_sensitive: "Bilek hassasiyeti varsa tutus ve agirlik secimini kontrol et.",
+        knee_pain_sensitive: "Diz agrisi varsa hareket araligi ve tempo kontrollu olmali.",
+        low_back_sensitive: "Bel hassasiyeti varsa govde pozisyonu ve yorgunluk birikimi takip edilmeli.",
+        hip_pain_sensitive: "Kalca hassasiyeti varsa agri olusturan araliktan kac.",
+        hamstring_sensitive: "Hamstring hassasiyeti varsa gerilimi kademeli arttir.",
+        ankle_pain_sensitive: "Ayak bilegi hassasiyeti varsa kontrollu aralik kullan.",
+    };
+    const cautions = exercise.contraindicationTags.map((tag) => labels[tag]).filter(Boolean);
+    if (exercise.difficulty === "advanced") cautions.push("Yeni baslayanlar icin ilk tercih olmamali; teknik standardi yuksek ister.");
+    return cautions.length > 0 ? cautions : ["Bilinen agri yoksa normal program akisi icinde takip edilebilir."];
+}
+
+function trackingPoints(exercise: ExerciseLibraryItem) {
+    const points = [
+        "Isinma setlerini progress hesabina dahil etme; calisma setlerini tutarli logla.",
+        "Ayni hareketi farkli isimlerle yazmak yerine kutuphaneden secmek analiz kalitesini arttirir.",
+    ];
+    if (exercise.tags.includes("cable") || exercise.equipment.includes("machine")) {
+        points.push("Makine/kablo istasyonu degisirse kilo karsilastirmasinda temkinli ol.");
+    }
+    if (exercise.equipment.includes("bodyweight")) {
+        points.push("BW veya external load degisirse bunu logda net ayir.");
+    }
+    return points;
+}
+
 export default function ExerciseLibraryScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
@@ -129,9 +170,17 @@ export default function ExerciseLibraryScreen() {
                                 </View>
 
                                 <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                                    <View style={styles.quickInfoGrid}>
+                                        <InfoPill label="Seviye" value={difficultyLabel(selected.difficulty)} styles={styles} />
+                                        <InfoPill label="Ekipman" value={selected.equipment.slice(0, 2).join(", ")} styles={styles} />
+                                        <InfoPill label="Patern" value={COACH_PATTERN_LABELS[selected.pattern as CoachPatternKey] || selected.pattern} styles={styles} />
+                                    </View>
                                     <DetailBlock title="Hedef kaslar" items={[...selected.primaryMuscles, ...selected.secondaryMuscles]} styles={styles} />
+                                    <DetailBlock title="Ne zaman secilmeli" items={guidePoints(selected)} styles={styles} />
                                     <DetailBlock title="Nasıl yapılır" items={selected.instructions} styles={styles} />
                                     <DetailBlock title="Sık hatalar" items={selected.commonMistakes} styles={styles} warning />
+                                    <DetailBlock title="Kim dikkat etmeli" items={cautionPoints(selected)} styles={styles} warning />
+                                    <DetailBlock title="Takip notlari" items={trackingPoints(selected)} styles={styles} />
                                     <View style={styles.noteBox}>
                                         <Ionicons name="bulb-outline" size={18} color={colors.accent} />
                                         <Text style={styles.noteText}>{selected.coachNotes}</Text>
@@ -160,6 +209,16 @@ function DetailBlock({ title, items, styles, warning = false }: { title: string;
                     <Text style={styles.detailText}>{item}</Text>
                 </View>
             ))}
+        </View>
+    );
+}
+
+function InfoPill({ label, value, styles }: { label: string; value: string; styles: any }) {
+    if (!value) return null;
+    return (
+        <View style={styles.infoPill}>
+            <Text style={styles.infoPillLabel}>{label}</Text>
+            <Text style={styles.infoPillValue} numberOfLines={1}>{value}</Text>
         </View>
     );
 }
@@ -255,6 +314,34 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
     },
     modalScroll: { maxHeight: 520 },
+    quickInfoGrid: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+        marginBottom: spacing.lg,
+    },
+    infoPill: {
+        flexGrow: 1,
+        minWidth: 128,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+    },
+    infoPillLabel: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+        textTransform: "uppercase",
+        marginBottom: 2,
+    },
+    infoPillValue: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
     detailBlock: { gap: spacing.sm, marginBottom: spacing.lg },
     detailTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     detailItem: { flexDirection: "row", alignItems: "flex-start", gap: spacing.sm },
