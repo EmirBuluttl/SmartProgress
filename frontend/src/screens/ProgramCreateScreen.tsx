@@ -31,6 +31,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import PrivacyModal from "../components/PrivacyModal";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
+import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -152,6 +153,7 @@ export default function ProgramCreateScreen() {
         currentIndex: number;
         target: string;
     } | null>(null);
+    const [libraryPicker, setLibraryPicker] = useState<{ exerciseId: string; query: string } | null>(null);
 
     // Pre-populate fields in edit mode
     useEffect(() => {
@@ -183,6 +185,7 @@ export default function ProgramCreateScreen() {
                     isRestDay: !!d.isRestDay,
                     exercises: (d.exercises || []).map((ex: any) => ({
                         id: ex.id || Math.random().toString(36).slice(2),
+                        exerciseId: ex.exerciseId,
                         name: ex.name || "",
                         targetSets: (ex.targetSets || []).map((s: any) => ({
                             targetReps: s.targetReps || "",
@@ -288,6 +291,43 @@ export default function ProgramCreateScreen() {
         );
     };
 
+    const libraryResults = React.useMemo(() => {
+        const query = safeString(libraryPicker?.query).toLocaleLowerCase("tr-TR");
+        const filtered = query
+            ? EXERCISE_LIBRARY.filter((item) => {
+                const search = [
+                    item.name,
+                    item.pattern,
+                    ...item.aliases,
+                    ...item.primaryMuscles,
+                    ...item.secondaryMuscles,
+                    ...item.equipment,
+                ].join(" ").toLocaleLowerCase("tr-TR");
+                return search.includes(query);
+            })
+            : EXERCISE_LIBRARY;
+        return [...filtered].sort((a, b) => Number(b.beginnerFriendly) - Number(a.beginnerFriendly));
+    }, [libraryPicker?.query]);
+
+    const applyLibraryExercise = (item: ExerciseLibraryItem) => {
+        if (!libraryPicker) return;
+        setDays((prev) =>
+            prev.map((d, i) =>
+                i === activeDayIdx
+                    ? {
+                        ...d,
+                        exercises: d.exercises.map((e) =>
+                            e.id === libraryPicker.exerciseId
+                                ? { ...e, exerciseId: item.id, name: item.name }
+                                : e,
+                        ),
+                    }
+                    : d,
+            ),
+        );
+        setLibraryPicker(null);
+    };
+
     const updateExerciseName = (exId: string, exName: string) => {
         setDays((prev) =>
             prev.map((d, i) =>
@@ -295,7 +335,15 @@ export default function ProgramCreateScreen() {
                     ? {
                         ...d,
                         exercises: d.exercises.map((e) =>
-                            e.id === exId ? { ...e, name: exName } : e
+                            e.id === exId
+                                ? {
+                                    ...e,
+                                    name: exName,
+                                    exerciseId: EXERCISE_LIBRARY.find((item) => item.id === e.exerciseId)?.name === exName
+                                        ? e.exerciseId
+                                        : undefined,
+                                }
+                                : e
                         ),
                     }
                     : d
@@ -596,6 +644,7 @@ export default function ProgramCreateScreen() {
                     isRestDay: !!d.isRestDay,
                     exercises: d.isRestDay ? [] : d.exercises.map((ex) => ({
                         id: ex.id,
+                        exerciseId: ex.exerciseId,
                         name: safeString(ex.name),
                         targetSets: ex.targetSets.map((s) => ({
                             targetReps: safeString(s.targetReps),
@@ -940,10 +989,23 @@ export default function ProgramCreateScreen() {
                                             value={exercise.name}
                                             onChangeText={(t) => updateExerciseName(exercise.id, t)}
                                         />
+                                        <TouchableOpacity
+                                            style={styles.libraryPickBtn}
+                                            onPress={() => setLibraryPicker({ exerciseId: exercise.id, query: exercise.name })}
+                                            accessibilityLabel="Egzersiz kutuphanesinden sec"
+                                        >
+                                            <Ionicons name="library-outline" size={20} color={colors.accent} />
+                                        </TouchableOpacity>
                                         <TouchableOpacity onPress={() => removeExercise(exercise.id)}>
                                             <Ionicons name="trash-outline" size={22} color={colors.error} />
                                         </TouchableOpacity>
                                     </View>
+                                    {exercise.exerciseId && (
+                                        <View style={styles.libraryLinkedBadge}>
+                                            <Ionicons name="checkmark-circle-outline" size={14} color={colors.accent} />
+                                            <Text style={styles.libraryLinkedText}>Kutuphaneden secildi</Text>
+                                        </View>
+                                    )}
 
                                     {(() => {
                                         let warmupCount = 0;
@@ -1101,6 +1163,64 @@ export default function ProgramCreateScreen() {
                                 <Text style={styles.reorderPrimaryText}>Taşı</Text>
                             </TouchableOpacity>
                         </View>
+                    </View>
+                </View>
+            </Modal>
+
+            <Modal
+                visible={!!libraryPicker}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setLibraryPicker(null)}
+            >
+                <View style={styles.libraryOverlay}>
+                    <View style={styles.libraryModal}>
+                        <View style={styles.libraryHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.libraryTitle}>Egzersiz kutuphanesi</Text>
+                                <Text style={styles.librarySubtitle}>Kutuphaneden secilen hareketler ileride daha tutarli takip edilir.</Text>
+                            </View>
+                            <TouchableOpacity style={styles.libraryCloseBtn} onPress={() => setLibraryPicker(null)}>
+                                <Ionicons name="close" size={20} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <TextInput
+                            style={styles.librarySearchInput}
+                            value={libraryPicker?.query ?? ""}
+                            onChangeText={(query) => setLibraryPicker((prev) => prev ? { ...prev, query } : prev)}
+                            placeholder="Hareket, kas veya ekipman ara"
+                            placeholderTextColor={colors.textMuted}
+                            autoFocus
+                        />
+                        <ScrollView style={styles.libraryList} showsVerticalScrollIndicator={false}>
+                            {libraryResults.map((item) => (
+                                <TouchableOpacity
+                                    key={item.id}
+                                    style={styles.libraryResultCard}
+                                    activeOpacity={0.84}
+                                    onPress={() => applyLibraryExercise(item)}
+                                >
+                                    <View style={styles.libraryResultTop}>
+                                        <View style={styles.libraryResultIcon}>
+                                            <Ionicons name="barbell-outline" size={18} color={colors.accent} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.libraryResultName}>{item.name}</Text>
+                                            <Text style={styles.libraryResultMeta}>
+                                                {[...item.primaryMuscles, ...item.equipment].slice(0, 4).join(" · ")}
+                                            </Text>
+                                        </View>
+                                        <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                                    </View>
+                                    <Text style={styles.libraryResultNote} numberOfLines={2}>{item.coachNotes}</Text>
+                                </TouchableOpacity>
+                            ))}
+                            {libraryResults.length === 0 && (
+                                <View style={styles.libraryEmpty}>
+                                    <Text style={styles.libraryEmptyText}>Sonuc bulunamadi. Istersen hareketi serbest yazabilirsin.</Text>
+                                </View>
+                            )}
+                        </ScrollView>
                     </View>
                 </View>
             </Modal>
@@ -1486,6 +1606,34 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingVertical: spacing.sm,
         marginRight: spacing.sm,
     },
+    libraryPickBtn: {
+        width: 38,
+        height: 38,
+        borderRadius: borderRadius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        marginRight: spacing.sm,
+    },
+    libraryLinkedBadge: {
+        alignSelf: "flex-start",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+        marginTop: -spacing.sm,
+        marginBottom: spacing.md,
+    },
+    libraryLinkedText: {
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+        color: colors.accent,
+    },
     // Sets
     setRow: {
         flexDirection: "row",
@@ -1640,6 +1788,110 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         color: colors.background,
+    },
+    libraryOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.68)",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: spacing.lg,
+    },
+    libraryModal: {
+        width: "100%",
+        maxWidth: 560,
+        maxHeight: "86%",
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+    },
+    libraryHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+        marginBottom: spacing.md,
+    },
+    libraryTitle: {
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.heavy,
+        color: colors.text,
+    },
+    librarySubtitle: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+        lineHeight: 20,
+        marginTop: 2,
+    },
+    libraryCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    librarySearchInput: {
+        minHeight: 48,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        color: colors.text,
+        paddingHorizontal: spacing.md,
+        fontSize: fontSize.md,
+        marginBottom: spacing.md,
+    },
+    libraryList: {
+        maxHeight: 520,
+    },
+    libraryResultCard: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        marginBottom: spacing.sm,
+        gap: spacing.sm,
+    },
+    libraryResultTop: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    libraryResultIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+    },
+    libraryResultName: {
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+        color: colors.text,
+    },
+    libraryResultMeta: {
+        fontSize: fontSize.xs,
+        color: colors.textMuted,
+        marginTop: 2,
+    },
+    libraryResultNote: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+        lineHeight: 19,
+    },
+    libraryEmpty: {
+        paddingVertical: spacing.xl,
+        alignItems: "center",
+    },
+    libraryEmptyText: {
+        fontSize: fontSize.sm,
+        color: colors.textMuted,
+        textAlign: "center",
     },
     splitOverlay: {
         flex: 1,
