@@ -45,6 +45,7 @@ export type RootStackParamList = {
                 label: string;
                 exercises: {
                     id: string;
+                    exerciseId?: string;
                     name: string;
                     targetSets: { targetReps: string; targetRPE?: string; targetRIR?: string; targetWeight?: string; isWarmup?: boolean }[];
                 }[];
@@ -86,6 +87,7 @@ export type RootStackParamList = {
             isRestDay?: boolean;
             exercises: {
                 id?: string;
+                exerciseId?: string;
                 name: string;
                 targetSets: { targetReps: string; targetRPE?: string; targetRIR?: string; targetWeight?: string; isWarmup?: boolean }[];
             }[];

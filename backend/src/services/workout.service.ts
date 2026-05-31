@@ -37,6 +37,9 @@ const workoutSetSchema = z.object({
     unit: z.enum(["kg", "lbs"]).default("kg"),
     rpe: z.union([z.number(), z.string()]).optional().nullable(),
     rir: z.union([z.number(), z.string()]).optional().nullable(),
+    targetReps: z.string().max(40).optional(),
+    analysisExcluded: z.boolean().optional(),
+    analysisWarning: z.string().max(500).optional(),
     isWarmup: z.boolean().optional(),
 });
 
