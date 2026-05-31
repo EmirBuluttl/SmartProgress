@@ -7,7 +7,7 @@ import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
-import { parseApiError, programApi } from "../services/api";
+import { authApi, parseApiError, programApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import {
     buildCoachProgramData,
@@ -66,9 +66,17 @@ const getCoachProfileFromSettings = (settings: any) => {
         null;
 };
 
+const hasActiveProAccess = (user: any) => {
+    const tier = String(user?.subscriptionTier || user?.settings?.subscriptionTier || "").toLowerCase();
+    const status = String(user?.subscriptionStatus || user?.settings?.subscriptionStatus || "").toLowerCase();
+    const expiresAt = user?.settings?.pro_trial_expires_at ? new Date(user.settings.pro_trial_expires_at) : null;
+    if (status === "trial" && expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) return false;
+    return (tier === "pro" || tier === "coach_plus") && (status === "active" || status === "trial");
+};
+
 export default function PremiumProgramWizardScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-    const { user } = useAuth();
+    const { user, updateUser } = useAuth();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const coachProfile = React.useMemo(() => getCoachProfileFromSettings(user?.settings), [user?.settings]);
@@ -95,6 +103,8 @@ export default function PremiumProgramWizardScreen() {
     const [createdProgramId, setCreatedProgramId] = React.useState<string | null>(null);
     const [notice, setNotice] = React.useState<string | null>(null);
     const [profileApplied, setProfileApplied] = React.useState(false);
+    const hasProAccess = hasActiveProAccess(user);
+    const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 2));
 
     React.useEffect(() => {
         if (!coachProfile || profileApplied) return;
@@ -173,6 +183,10 @@ export default function PremiumProgramWizardScreen() {
     };
 
     const saveProgram = async (activate: boolean) => {
+        if (!hasProAccess && freeWizardUsesRemaining <= 0) {
+            setNotice("Ücretsiz wizard hakkın dolmuş görünüyor. Pro üyelik aktif olduğunda sınırsız program kurabilirsin.");
+            return;
+        }
         setSaving(true);
         setNotice(null);
         try {
@@ -186,6 +200,15 @@ export default function PremiumProgramWizardScreen() {
             const programId = response.data?.id;
             if (activate && programId) {
                 await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, programId);
+            }
+            if (!hasProAccess) {
+                const nextUses = Math.max(0, freeWizardUsesRemaining - 1);
+                const updateResponse = await authApi.updateProfile({
+                    settings: { free_wizard_uses_remaining: nextUses },
+                });
+                if (updateResponse.data) {
+                    await updateUser(updateResponse.data);
+                }
             }
             setCreatedProgramId(programId || "created");
             setNotice(activate ? "Program oluşturuldu ve aktif takibe alındı." : "Program oluşturuldu ve kütüphanene eklendi.");
@@ -217,6 +240,8 @@ export default function PremiumProgramWizardScreen() {
         }
 
         switch (step) {
+            case -1:
+                return null;
             case 0:
                 return (
                     <View style={styles.card}>
@@ -533,8 +558,24 @@ export default function PremiumProgramWizardScreen() {
                 <View style={styles.hero}>
                     <Text style={styles.eyebrow}>AKILLI KOÇ WIZARD</Text>
                     <Text style={styles.title}>Programı birlikte kuralım</Text>
-                    <Text style={styles.subtitle}>Rule engine ilk taslağı oluşturur; kararları sen onaylarsın.</Text>
+                    <Text style={styles.subtitle}>
+                        Rule engine ilk taslağı oluşturur; kararları sen onaylarsın.
+                        {!hasProAccess ? ` Ücretsiz kalan wizard hakkı: ${freeWizardUsesRemaining}.` : ""}
+                    </Text>
                 </View>
+                {!hasProAccess && freeWizardUsesRemaining <= 0 ? (
+                    <View style={styles.card}>
+                        <Ionicons name="lock-closed-outline" size={24} color={colors.accent} />
+                        <Text style={styles.cardTitle}>Wizard hakkın doldu</Text>
+                        <Text style={styles.bodyText}>
+                            Ücretsiz iki deneme hakkı tamamlanmış. Pro üyelik aktif olduğunda kişisel program wizard'ını sınırsız kullanabilirsin.
+                        </Text>
+                        <TouchableOpacity style={styles.secondaryBtn} onPress={returnToCoach}>
+                            <Text style={styles.secondaryText}>Koç'a Dön</Text>
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <>
                 {notice && !createdProgramId && (
                     <View style={styles.notice}>
                         <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
@@ -542,9 +583,11 @@ export default function PremiumProgramWizardScreen() {
                     </View>
                 )}
                 {renderStep()}
+                    </>
+                )}
             </ScrollView>
 
-            {!createdProgramId && step < 7 && (
+            {!createdProgramId && step < 7 && (hasProAccess || freeWizardUsesRemaining > 0) && (
                 <View style={styles.footer}>
                     <TouchableOpacity style={styles.primaryBtn} onPress={goNext}>
                         <Text style={styles.primaryText}>Devam Et</Text>

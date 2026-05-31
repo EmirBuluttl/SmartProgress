@@ -85,8 +85,17 @@ export class AiUsageService {
     async getUserSubscription(userId: string) {
         const user = await prisma.user.findUnique({
             where: { id: userId },
-            select: { subscriptionTier: true, subscriptionStatus: true },
+            select: { subscriptionTier: true, subscriptionStatus: true, settings: true },
         });
+        const settings = user?.settings as Record<string, any> | null | undefined;
+        const expiresAt = settings?.pro_trial_expires_at ? new Date(settings.pro_trial_expires_at) : null;
+        const isExpiredTrial = user?.subscriptionStatus === "TRIAL" &&
+            expiresAt &&
+            Number.isFinite(expiresAt.getTime()) &&
+            expiresAt.getTime() < Date.now();
+        if (isExpiredTrial) {
+            return { tier: "FREE", isActive: false };
+        }
         const tier = user?.subscriptionTier || "FREE";
         const isActive = user?.subscriptionStatus === "ACTIVE" || user?.subscriptionStatus === "TRIAL";
         return { tier, isActive };

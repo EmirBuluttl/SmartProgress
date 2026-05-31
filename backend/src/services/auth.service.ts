@@ -68,12 +68,48 @@ const DEFAULT_USER_SETTINGS = {
     profile_visibility: "private",
 };
 
+const PRO_TRIAL_DAYS = 30;
+const FREE_WIZARD_USES = 2;
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
 const PASSWORD_RESET_MESSAGE =
     "Eğer bu e-posta ile kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi.";
 
 function hashResetToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function addDays(date: Date, days: number): Date {
+    return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function buildDefaultUserSettings() {
+    const startedAt = new Date();
+    const expiresAt = addDays(startedAt, PRO_TRIAL_DAYS);
+    return {
+        ...DEFAULT_USER_SETTINGS,
+        pro_trial_started_at: startedAt.toISOString(),
+        pro_trial_expires_at: expiresAt.toISOString(),
+        free_wizard_uses_remaining: FREE_WIZARD_USES,
+        coach_plus_beta: true,
+    };
+}
+
+function effectiveSubscription(user: { subscriptionTier: string; subscriptionStatus: string; settings: unknown }) {
+    const settings = user.settings as Record<string, any> | null;
+    const expiresAt = settings?.pro_trial_expires_at ? new Date(settings.pro_trial_expires_at) : null;
+    const isExpiredTrial = user.subscriptionStatus === "TRIAL" &&
+        expiresAt &&
+        Number.isFinite(expiresAt.getTime()) &&
+        expiresAt.getTime() < Date.now();
+
+    if (isExpiredTrial) {
+        return { subscriptionTier: "FREE", subscriptionStatus: "INACTIVE" };
+    }
+
+    return {
+        subscriptionTier: user.subscriptionTier,
+        subscriptionStatus: user.subscriptionStatus,
+    };
 }
 
 async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<boolean> {
@@ -162,8 +198,11 @@ export class AuthService {
             passwordHash,
             firstName: dto.firstName,
             lastName: dto.lastName,
-            settings: DEFAULT_USER_SETTINGS,
+            settings: buildDefaultUserSettings(),
+            subscriptionTier: "PRO",
+            subscriptionStatus: "TRIAL",
         });
+        const subscription = effectiveSubscription(user);
 
         // Generate JWT
         const token = this.generateToken(user.id, user.role);
@@ -179,8 +218,8 @@ export class AuthService {
                 avatarUrl: user.avatarUrl,
                 role: user.role,
                 settings: user.settings,
-                subscriptionTier: user.subscriptionTier,
-                subscriptionStatus: user.subscriptionStatus,
+                subscriptionTier: subscription.subscriptionTier,
+                subscriptionStatus: subscription.subscriptionStatus,
             },
         };
     }
@@ -210,6 +249,7 @@ export class AuthService {
 
         // Generate JWT
         const token = this.generateToken(user.id, user.role);
+        const subscription = effectiveSubscription(user);
 
         return {
             token,
@@ -222,8 +262,8 @@ export class AuthService {
                 avatarUrl: user.avatarUrl,
                 role: user.role,
                 settings: user.settings,
-                subscriptionTier: user.subscriptionTier,
-                subscriptionStatus: user.subscriptionStatus,
+                subscriptionTier: subscription.subscriptionTier,
+                subscriptionStatus: subscription.subscriptionStatus,
             },
         };
     }
@@ -239,6 +279,8 @@ export class AuthService {
             throw new UnauthorizedError("User account not found. Please log in again.");
         }
 
+        const subscription = effectiveSubscription(user);
+
         return {
             id: user.id,
             email: user.email,
@@ -248,8 +290,8 @@ export class AuthService {
             avatarUrl: user.avatarUrl,
             role: user.role,
             settings: user.settings,
-            subscriptionTier: user.subscriptionTier,
-            subscriptionStatus: user.subscriptionStatus,
+            subscriptionTier: subscription.subscriptionTier,
+            subscriptionStatus: subscription.subscriptionStatus,
         };
     }
 
@@ -273,6 +315,7 @@ export class AuthService {
         }
 
         const updated = await userRepository.updateById(userId, updateData);
+        const subscription = effectiveSubscription(updated);
 
         return {
             id: updated.id,
@@ -283,8 +326,8 @@ export class AuthService {
             avatarUrl: updated.avatarUrl,
             role: updated.role,
             settings: updated.settings,
-            subscriptionTier: updated.subscriptionTier,
-            subscriptionStatus: updated.subscriptionStatus,
+            subscriptionTier: subscription.subscriptionTier,
+            subscriptionStatus: subscription.subscriptionStatus,
         };
     }
 

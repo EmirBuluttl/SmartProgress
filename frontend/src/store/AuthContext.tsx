@@ -26,6 +26,10 @@ interface User {
         onboardingProfile?: Record<string, any>;
         coach_profile?: Record<string, any>;
         coachProfile?: Record<string, any>;
+        pro_trial_started_at?: string;
+        pro_trial_expires_at?: string;
+        free_wizard_uses_remaining?: number;
+        coach_plus_beta?: boolean;
     } | null;
 }
 

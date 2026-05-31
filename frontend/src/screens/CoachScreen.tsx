@@ -16,6 +16,14 @@ type SubscriptionTier = "free" | "pro" | "coach_plus";
 const getSubscriptionTier = (user: any): SubscriptionTier => {
     const directTier = String(user?.subscriptionTier || "").toLowerCase();
     const settingsTier = String(user?.settings?.subscriptionTier || "").toLowerCase();
+    const directStatus = String(user?.subscriptionStatus || "").toLowerCase();
+    const settingsStatus = String(user?.settings?.subscriptionStatus || "").toLowerCase();
+    const status = directStatus || settingsStatus;
+    const expiresAt = user?.settings?.pro_trial_expires_at ? new Date(user.settings.pro_trial_expires_at) : null;
+    if (status === "trial" && expiresAt && Number.isFinite(expiresAt.getTime()) && expiresAt.getTime() < Date.now()) {
+        return "free";
+    }
+    if (status && status !== "active" && status !== "trial") return "free";
     const tier = directTier || settingsTier;
     return tier === "pro" || tier === "coach_plus" ? tier : "free";
 };
@@ -100,6 +108,10 @@ export default function CoachScreen() {
     const [reportLoading, setReportLoading] = React.useState(false);
     const [askLoading, setAskLoading] = React.useState(false);
     const coachNarration = weeklyReport?.coachNarration;
+    const trialExpiresAt = user?.settings?.pro_trial_expires_at ? new Date(user.settings.pro_trial_expires_at) : null;
+    const trialDaysLeft = trialExpiresAt && Number.isFinite(trialExpiresAt.getTime())
+        ? Math.max(0, Math.ceil((trialExpiresAt.getTime() - Date.now()) / 86400000))
+        : null;
     const coachChatLimit = aiStatus?.coachChat?.limit || 0;
     const coachChatUsed = aiStatus?.coachChat?.used || 0;
     const coachChatRemaining = aiStatus?.coachChat?.remaining || 0;
@@ -237,15 +249,15 @@ export default function CoachScreen() {
                 <View style={styles.teaserPanel}>
                     <View style={styles.panelTopRow}>
                         <View>
-                            <Text style={styles.panelLabel}>Premium hazırlığı</Text>
-                            <Text style={styles.panelTitle}>Pro ve Coach+ yakında</Text>
+                            <Text style={styles.panelLabel}>Pro deneme</Text>
+                            <Text style={styles.panelTitle}>Akıllı koçu deneyebilirsin</Text>
                         </View>
                         <View style={styles.statusPill}>
-                            <Text style={styles.statusText}>Yakında</Text>
+                            <Text style={styles.statusText}>2 wizard hakkı</Text>
                         </View>
                     </View>
                     <Text style={styles.panelText}>
-                        İlk sürümde hedefimiz sohbet botu değil; programını takip eden, progress ve plato sinyallerini açıklayan kontrollü bir koç sistemi kurmak.
+                        Yeni hesaplarda Pro deneme süresi açık gelir. Deneme bittiyse de iki kez kişisel program wizard'ını kullanabilirsin; Coach+ AI soru-cevap katmanı beta olarak ayrı tutulur.
                     </Text>
                     <TouchableOpacity
                         style={styles.primaryButton}
@@ -260,11 +272,11 @@ export default function CoachScreen() {
                 <View style={styles.activeHero}>
                     <View style={styles.panelTopRow}>
                         <View style={styles.activeHeroCopy}>
-                            <Text style={styles.panelLabel}>{isCoachPlus ? "Coach+ erişimi" : "Pro erişimi"}</Text>
+                            <Text style={styles.panelLabel}>{isCoachPlus ? "Coach+ beta erişimi" : "Pro erişimi"}</Text>
                             <Text style={styles.panelTitle}>Koç takibi aktif</Text>
                         </View>
                         <View style={styles.statusPill}>
-                            <Text style={styles.statusText}>Aktif</Text>
+                            <Text style={styles.statusText}>{trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gün` : "Aktif"}</Text>
                         </View>
                     </View>
                     <Text style={styles.panelText}>
@@ -611,15 +623,15 @@ export default function CoachScreen() {
                 </View>
             ) : (
                 <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Coach+ AI</Text>
+                    <Text style={styles.sectionTitle}>Coach+ AI Beta</Text>
                     <View style={styles.lockedCoachCard}>
                         <View style={styles.lockedIcon}>
                             <Ionicons name="lock-closed-outline" size={22} color={colors.accent} />
                         </View>
                         <View style={styles.lockedCopy}>
-                            <Text style={styles.reportTitle}>AI soru hakkı Coach+ ile açılır</Text>
+                            <Text style={styles.reportTitle}>AI soru hakkı beta sürecinde</Text>
                             <Text style={styles.panelText}>
-                                Coach+ katmanında aylık 50 kontrollü AI soru hakkı, haftalık rapora bağlı cevaplar ve bütçe korumalı yanıt sistemi olacak.
+                                Coach+ katmanını şimdilik ürün olarak satmıyoruz. AI soru-cevap akışı yeterince olgunlaşana kadar beta ve kontrollü erişimle test edilecek.
                             </Text>
                             <View style={styles.lockedFeatures}>
                                 <View style={styles.planItem}>
@@ -632,7 +644,7 @@ export default function CoachScreen() {
                                 </View>
                                 <View style={styles.planItem}>
                                     <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
-                                    <Text style={styles.planItemText}>Aylık 50 soru ve maliyet limiti</Text>
+                                    <Text style={styles.planItemText}>Beta sürecinde kontrollü soru ve maliyet limiti</Text>
                                 </View>
                             </View>
                         </View>
@@ -665,13 +677,13 @@ export default function CoachScreen() {
                     <PlanCard
                         title="Coach+"
                         subtitle="AI Koç Katmanı"
-                        badge="50 soru / ay"
+                        badge="Beta"
                         icon="sparkles-outline"
                         items={[
                             "Pro içindeki tüm koç motoru özellikleri",
                             "Log ve rapor bağlamına göre AI cevapları",
-                            "Bütçe korumalı, kontrollü soru hakkı",
-                            "Daha açıklayıcı haftalık yorum ve yönlendirme",
+                            "Bütçe korumalı, kontrollü beta soru hakkı",
+                            "Olgunlaşınca ücretli katmana taşınacak sohbet deneyimi",
                         ]}
                         colors={colors}
                         active={isCoachPlus}
@@ -681,7 +693,7 @@ export default function CoachScreen() {
                 <View style={styles.pricingNote}>
                     <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
                     <Text style={styles.noteText}>
-                        Ödeme açılmadan önce bu ayrımı manuel erişimle test ediyoruz. Böylece fiyatlandırmadan önce maliyet, kullanım ve gerçek değer algısını ölçebiliriz.
+                        Pro koç motoru ürünleşmeye hazırlanır; Coach+ AI soru-cevap ise doğru kaliteye ulaşana kadar beta olarak test edilir.
                     </Text>
                 </View>
             </View>
