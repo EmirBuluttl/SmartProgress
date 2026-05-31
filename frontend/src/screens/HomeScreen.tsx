@@ -7,6 +7,7 @@ import {
     View,
     Text,
     ScrollView,
+    Animated,
     StyleSheet,
     FlatList,
     Dimensions,
@@ -34,6 +35,7 @@ import StatBadge from "../components/StatBadge";
 import SectionHeader from "../components/SectionHeader";
 import ActiveWorkoutBanner from "../components/ActiveWorkoutBanner";
 import { SkeletonList } from "../components/SkeletonCard";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 import { syncPendingWorkouts } from "../services/syncService";
 import { countProgressEvents } from "../utils/workoutMetrics";
 
@@ -51,6 +53,7 @@ export default function HomeScreen() {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter();
 
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [programs, setPrograms] = useState<any[]>([]);
@@ -252,9 +255,9 @@ export default function HomeScreen() {
 
     return (
         <>
-        <ScrollView
+        <Animated.ScrollView
             ref={scrollRef}
-            style={styles.container}
+            style={[styles.container, animStyle]}
             contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
             showsVerticalScrollIndicator={false}
             onScroll={handleScroll}
@@ -670,7 +673,7 @@ export default function HomeScreen() {
             )}
 
             <View style={{ height: spacing.xxxl }} />
-        </ScrollView>
+        </Animated.ScrollView>
         <Modal
             visible={notificationsVisible}
             transparent
