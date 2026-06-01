@@ -8,7 +8,6 @@ import {
     Text,
     StyleSheet,
     ScrollView,
-    TouchableOpacity,
     Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,6 +19,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import AccentButton from "../components/AccentButton";
 import NoticeModal from "../components/NoticeModal";
+import AnimatedPressable from "../components/AnimatedPressable";
 import { CARDIO_TYPE_LABELS, summarizeCardioBlock, summarizeCardioBlocks } from "../utils/cardio";
 
 type SummaryRoute = RouteProp<RootStackParamList, "WorkoutSummary">;
@@ -55,26 +55,68 @@ export default function WorkoutSummaryScreen() {
 
     const scaleAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
+    const sparkleAnim = useRef(new Animated.Value(0)).current;
+    const statAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
 
     useEffect(() => {
+        scaleAnim.setValue(0);
+        fadeAnim.setValue(0);
+        sparkleAnim.setValue(0);
+        statAnims.forEach((anim) => anim.setValue(0));
+
         Animated.sequence([
-            Animated.spring(scaleAnim, {
-                toValue: 1,
-                tension: 80,
-                friction: 6,
-                useNativeDriver: true,
-            }),
-            Animated.timing(fadeAnim, {
-                toValue: 1,
-                duration: 400,
-                useNativeDriver: true,
-            }),
+            Animated.parallel([
+                Animated.spring(scaleAnim, {
+                    toValue: 1,
+                    tension: 80,
+                    friction: 6,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(sparkleAnim, {
+                    toValue: 1,
+                    duration: 720,
+                    useNativeDriver: true,
+                }),
+            ]),
+            Animated.parallel([
+                Animated.timing(fadeAnim, {
+                    toValue: 1,
+                    duration: 360,
+                    useNativeDriver: true,
+                }),
+                Animated.stagger(
+                    70,
+                    statAnims.map((anim) =>
+                        Animated.spring(anim, {
+                            toValue: 1,
+                            tension: 70,
+                            friction: 8,
+                            useNativeDriver: true,
+                        })
+                    )
+                ),
+            ]),
         ]).start();
-    }, []);
+    }, [fadeAnim, scaleAnim, sparkleAnim, statAnims]);
 
     const handleGoHome = () => {
         navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
     };
+
+    const sparkleDots = [
+        { left: 0, top: 12, width: 6, height: 6, x: -18, y: -18 },
+        { right: -4, top: 20, width: 5, height: 5, x: 20, y: -14 },
+        { left: 18, bottom: 4, width: 4, height: 4, x: -14, y: 14 },
+        { right: 18, bottom: 0, width: 6, height: 6, x: 16, y: 16 },
+        { left: 46, top: -8, width: 4, height: 4, x: 0, y: -20 },
+    ];
+
+    const statItems = [
+        { icon: "barbell-outline" as const, value: Number(totalVolume || 0).toFixed(1), label: "Yük Skoru" },
+        { icon: "time-outline" as const, value: formatDuration(duration), label: "Süre" },
+        { icon: "flash-outline" as const, value: exerciseCount, label: "Egzersiz" },
+        { icon: "repeat-outline" as const, value: setCount, label: "Set" },
+    ];
 
     return (
         <ScrollView
@@ -86,6 +128,43 @@ export default function WorkoutSummaryScreen() {
             <Animated.View
                 style={[styles.trophyWrap, { transform: [{ scale: scaleAnim }] }]}
             >
+                <View pointerEvents="none" style={styles.sparkleLayer}>
+                    {sparkleDots.map((dot, index) => (
+                        <Animated.View
+                            key={`${dot.width}-${index}`}
+                            style={[
+                                styles.sparkleDot,
+                                dot,
+                                {
+                                    opacity: sparkleAnim.interpolate({
+                                        inputRange: [0, 0.22, 1],
+                                        outputRange: [0, 1, 0],
+                                    }),
+                                    transform: [
+                                        {
+                                            translateX: sparkleAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [0, dot.x],
+                                            }),
+                                        },
+                                        {
+                                            translateY: sparkleAnim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [0, dot.y],
+                                            }),
+                                        },
+                                        {
+                                            scale: sparkleAnim.interpolate({
+                                                inputRange: [0, 0.35, 1],
+                                                outputRange: [0.6, 1.15, 0.75],
+                                            }),
+                                        },
+                                    ],
+                                },
+                            ]}
+                        />
+                    ))}
+                </View>
                 <View style={styles.trophyCircle}>
                     <Ionicons name="trophy-outline" size={48} color={colors.accent} />
                 </View>
@@ -103,33 +182,42 @@ export default function WorkoutSummaryScreen() {
             </Animated.View>
 
             {/* ─── Stats Grid ─── */}
-            <Animated.View style={[styles.statsGrid, { opacity: fadeAnim }]}>
-                <GymCard elevated style={styles.statCard}>
-                    <Ionicons name="barbell-outline" size={24} color={colors.accent} />
-                    <Text style={styles.statValue}>
-                        {Number(totalVolume || 0).toFixed(1)}
-                    </Text>
-                    <Text style={styles.statLabel}>Yük Skoru</Text>
-                </GymCard>
-
-                <GymCard elevated style={styles.statCard}>
-                    <Ionicons name="time-outline" size={24} color={colors.accent} />
-                    <Text style={styles.statValue}>{formatDuration(duration)}</Text>
-                    <Text style={styles.statLabel}>Süre</Text>
-                </GymCard>
-
-                <GymCard elevated style={styles.statCard}>
-                    <Ionicons name="flash-outline" size={24} color={colors.accent} />
-                    <Text style={styles.statValue}>{exerciseCount}</Text>
-                    <Text style={styles.statLabel}>Egzersiz</Text>
-                </GymCard>
-
-                <GymCard elevated style={styles.statCard}>
-                    <Ionicons name="repeat-outline" size={24} color={colors.accent} />
-                    <Text style={styles.statValue}>{setCount}</Text>
-                    <Text style={styles.statLabel}>Set</Text>
-                </GymCard>
-            </Animated.View>
+            <View style={styles.statsGrid}>
+                {statItems.map((item, index) => {
+                    const anim = statAnims[index];
+                    return (
+                        <Animated.View
+                            key={item.label}
+                            style={[
+                                styles.statSlot,
+                                {
+                                    opacity: anim,
+                                    transform: [
+                                        {
+                                            translateY: anim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [14, 0],
+                                            }),
+                                        },
+                                        {
+                                            scale: anim.interpolate({
+                                                inputRange: [0, 1],
+                                                outputRange: [0.97, 1],
+                                            }),
+                                        },
+                                    ],
+                                },
+                            ]}
+                        >
+                            <GymCard elevated style={styles.statCard}>
+                                <Ionicons name={item.icon} size={24} color={colors.accent} />
+                                <Text style={styles.statValue}>{item.value}</Text>
+                                <Text style={styles.statLabel}>{item.label}</Text>
+                            </GymCard>
+                        </Animated.View>
+                    );
+                })}
+            </View>
 
             {/* ─── Next Day Preview ─── */}
             {nextDayLabel && (
@@ -149,14 +237,16 @@ export default function WorkoutSummaryScreen() {
 
             {trimmedNotes ? (
                 <Animated.View style={[styles.noteActionWrap, { opacity: fadeAnim }]}>
-                    <TouchableOpacity
-                        style={styles.noteActionBtn}
+                    <AnimatedPressable
+                        style={styles.noteActionPressable}
                         onPress={() => setNotesVisible(true)}
-                        activeOpacity={0.85}
+                        pressedScale={0.985}
                     >
-                        <Ionicons name="document-text-outline" size={18} color={colors.accent} />
-                        <Text style={styles.noteActionText}>Notları Görüntüle</Text>
-                    </TouchableOpacity>
+                        <View style={styles.noteActionBtn}>
+                            <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+                            <Text style={styles.noteActionText}>Notları Görüntüle</Text>
+                        </View>
+                    </AnimatedPressable>
                 </Animated.View>
             ) : null}
 
@@ -209,6 +299,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     trophyWrap: {
         marginBottom: spacing.xl,
+        position: "relative",
+    },
+    sparkleLayer: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 2,
+    },
+    sparkleDot: {
+        position: "absolute",
+        borderRadius: 999,
+        backgroundColor: colors.accent,
     },
     trophyCircle: {
         width: 100,
@@ -249,8 +349,11 @@ const createStyles = (colors: any) => StyleSheet.create({
         width: "100%",
         marginBottom: spacing.xl,
     },
-    statCard: {
+    statSlot: {
         width: "46%",
+    },
+    statCard: {
+        width: "100%",
         alignItems: "center",
         paddingVertical: spacing.lg,
         gap: spacing.xs,
@@ -296,6 +399,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     noteActionWrap: {
         width: "100%",
         marginBottom: spacing.lg,
+    },
+    noteActionPressable: {
+        width: "100%",
     },
     noteActionBtn: {
         flexDirection: "row",
