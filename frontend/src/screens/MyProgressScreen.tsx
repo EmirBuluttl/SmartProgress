@@ -79,8 +79,8 @@ export default function MyProgressScreen() {
         if (chartAnimationTimerRef.current) clearInterval(chartAnimationTimerRef.current);
         setAnimationProgress(0);
         
-        const duration = 500; // 500ms animasyon
-        const steps = 20;
+        const duration = 1800; // 1800ms animasyon (yavaş ve kararlı)
+        const steps = 60;
         const interval = duration / steps;
         let step = 0;
         
@@ -134,9 +134,22 @@ export default function MyProgressScreen() {
             }
         });
 
+        // Lock Y-axis scale to the final min & max of target dataset
+        const minVal = Math.min(...rawData);
+        const maxVal = Math.max(...rawData);
+
         return {
             labels: rawLabels,
-            datasets: [{ data: animatedDataPoints }],
+            datasets: [
+                {
+                    data: animatedDataPoints,
+                },
+                {
+                    data: rawData.map((_, i) => (i % 2 === 0 ? minVal : maxVal)),
+                    color: () => "transparent",
+                    withDots: false,
+                }
+            ],
         };
     }, [rawChartData, animationProgress]);
     const [prs, setPrs] = React.useState<any[]>([]);
