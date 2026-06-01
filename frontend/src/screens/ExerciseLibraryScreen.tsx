@@ -1,5 +1,5 @@
 import React from "react";
-import { Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Animated, Linking, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
@@ -8,6 +8,8 @@ import { getExerciseMetadata, riskLevelLabel, skillDemandLabel, stabilityLabel }
 import { displayExerciseTarget, displayMuscleGroup, MUSCLE_GROUPS, patternPurpose, relatedPatternsForExercise } from "../data/exerciseTaxonomy";
 import { useTheme } from "../hooks/ThemeContext";
 import { COACH_PATTERN_LABELS, type CoachPatternKey } from "../services/coachRuleEngine";
+import AnimatedPressable from "../components/AnimatedPressable";
+import PremiumModalSurface from "../components/PremiumModalSurface";
 
 const FILTERS = [
     { key: "all", label: "Tümü" },
@@ -149,6 +151,27 @@ export default function ExerciseLibraryScreen() {
     const [filterModalVisible, setFilterModalVisible] = React.useState(false);
     const [guideModalVisible, setGuideModalVisible] = React.useState(false);
     const [selected, setSelected] = React.useState<ExerciseLibraryItem | null>(null);
+    const headerAnim = React.useRef(new Animated.Value(0)).current;
+    const listAnim = React.useRef(new Animated.Value(0)).current;
+
+    React.useEffect(() => {
+        headerAnim.setValue(0);
+        listAnim.setValue(0);
+        Animated.stagger(90, [
+            Animated.spring(headerAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                speed: 22,
+                bounciness: 5,
+            }),
+            Animated.spring(listAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                speed: 22,
+                bounciness: 4,
+            }),
+        ]).start();
+    }, [headerAnim, listAnim]);
 
     const exercises = React.useMemo(() => {
         const regionPatterns = REGION_FILTERS.find((item) => item.key === region)?.patterns || [];
@@ -200,78 +223,104 @@ export default function ExerciseLibraryScreen() {
         );
     };
 
+    const headerMotionStyle = {
+        opacity: headerAnim,
+        transform: [
+            {
+                translateY: headerAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                }),
+            },
+        ],
+    };
+
+    const listMotionStyle = {
+        opacity: listAnim,
+        transform: [
+            {
+                translateY: listAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [16, 0],
+                }),
+            },
+        ],
+    };
+
     return (
         <>
             <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
-                <View style={styles.header}>
-                    <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-                        <Ionicons name="chevron-back" size={22} color={colors.text} />
-                    </TouchableOpacity>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.eyebrow}>REHBER</Text>
-                        <Text style={styles.title}>Egzersiz Kütüphanesi</Text>
-                        <Text style={styles.subtitle}>
-                            Hareketler SmartProgress paternlerine göre sınıflanır. Wizard da aynı kütüphaneden öneri üretir.
-                        </Text>
+                <Animated.View style={[styles.headerBlock, headerMotionStyle]}>
+                    <View style={styles.header}>
+                        <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
+                            <Ionicons name="chevron-back" size={22} color={colors.text} />
+                        </TouchableOpacity>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.eyebrow}>REHBER</Text>
+                            <Text style={styles.title}>Egzersiz Kütüphanesi</Text>
+                            <Text style={styles.subtitle}>
+                                Hareketler SmartProgress paternlerine göre sınıflanır. Wizard da aynı kütüphaneden öneri üretir.
+                            </Text>
+                        </View>
                     </View>
-                </View>
 
-                <View style={styles.searchPanel}>
-                    <View style={styles.searchBox}>
-                        <Ionicons name="search-outline" size={18} color={colors.textMuted} />
-                        <TextInput
-                            value={query}
-                            onChangeText={setQuery}
-                            placeholder="Hareket, kas veya ekipman ara"
-                            placeholderTextColor={colors.textMuted}
-                            style={styles.searchInput}
-                        />
+                    <View style={styles.searchPanel}>
+                        <View style={styles.searchBox}>
+                            <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+                            <TextInput
+                                value={query}
+                                onChangeText={setQuery}
+                                placeholder="Hareket, kas veya ekipman ara"
+                                placeholderTextColor={colors.textMuted}
+                                style={styles.searchInput}
+                            />
+                        </View>
+                        <TouchableOpacity style={styles.filterBtn} onPress={() => setFilterModalVisible(true)} activeOpacity={0.84}>
+                            <Ionicons name="options-outline" size={18} color={colors.accent} />
+                            <Text style={styles.filterBtnText}>Filtrele{activeFilterCount ? ` (${activeFilterCount})` : ""}</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.guideBtn} onPress={() => setGuideModalVisible(true)} activeOpacity={0.84}>
+                            <Ionicons name="body-outline" size={18} color={colors.accent} />
+                        </TouchableOpacity>
                     </View>
-                    <TouchableOpacity style={styles.filterBtn} onPress={() => setFilterModalVisible(true)} activeOpacity={0.84}>
-                        <Ionicons name="options-outline" size={18} color={colors.accent} />
-                        <Text style={styles.filterBtnText}>Filtrele{activeFilterCount ? ` (${activeFilterCount})` : ""}</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={styles.guideBtn} onPress={() => setGuideModalVisible(true)} activeOpacity={0.84}>
-                        <Ionicons name="body-outline" size={18} color={colors.accent} />
-                    </TouchableOpacity>
-                </View>
-                <Text style={styles.resultCount}>{exercises.length} hareket bulundu</Text>
+                    <Text style={styles.resultCount}>{exercises.length} hareket bulundu</Text>
+                </Animated.View>
 
-                <View style={styles.list}>
+                <Animated.View style={[styles.list, listMotionStyle]}>
                     {exercises.map((exercise) => (
-                        <TouchableOpacity
+                        <AnimatedPressable
                             key={exercise.id}
-                            style={styles.card}
-                            activeOpacity={0.84}
+                            style={styles.cardPressable}
+                            pressedScale={0.985}
                             onPress={() => setSelected(exercise)}
                         >
-                            <View style={styles.cardTop}>
-                                <View style={styles.iconBox}>
-                                    <Ionicons name="barbell-outline" size={19} color={colors.accent} />
+                            <View style={styles.card}>
+                                <View style={styles.cardTop}>
+                                    <View style={styles.iconBox}>
+                                        <Ionicons name="barbell-outline" size={19} color={colors.accent} />
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.exerciseName}>{exercise.name}</Text>
+                                        <Text style={styles.exerciseMeta}>
+                                            {displayExerciseTarget(exercise)} · {difficultyLabel(exercise.difficulty)}
+                                        </Text>
+                                    </View>
+                                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                                 </View>
-                                <View style={{ flex: 1 }}>
-                                    <Text style={styles.exerciseName}>{exercise.name}</Text>
-                                    <Text style={styles.exerciseMeta}>
-                                        {displayExerciseTarget(exercise)} · {difficultyLabel(exercise.difficulty)}
-                                    </Text>
+                                <View style={styles.badgeRow}>
+                                    {exercise.beginnerFriendly && <Text style={styles.badge}>Başlangıç dostu</Text>}
+                                    {exercise.equipment.slice(0, 2).map((equipment) => (
+                                        <Text key={equipment} style={styles.badge}>{equipmentLabel(equipment)}</Text>
+                                    ))}
                                 </View>
-                                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
+                                <Text style={styles.cardText} numberOfLines={2}>{exercise.coachNotes}</Text>
                             </View>
-                            <View style={styles.badgeRow}>
-                                {exercise.beginnerFriendly && <Text style={styles.badge}>Başlangıç dostu</Text>}
-                                {exercise.equipment.slice(0, 2).map((equipment) => (
-                                    <Text key={equipment} style={styles.badge}>{equipmentLabel(equipment)}</Text>
-                                ))}
-                            </View>
-                            <Text style={styles.cardText} numberOfLines={2}>{exercise.coachNotes}</Text>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     ))}
-                </View>
+                </Animated.View>
             </ScrollView>
 
-            <Modal visible={!!selected} transparent animationType="fade" onRequestClose={() => setSelected(null)}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
+            <PremiumModalSurface visible={!!selected} onDismiss={() => setSelected(null)} containerStyle={styles.modalCard}>
                         {selected && (
                             <>
                                 <View style={styles.modalHeader}>
@@ -338,13 +387,9 @@ export default function ExerciseLibraryScreen() {
                                 </ScrollView>
                             </>
                         )}
-                    </View>
-                </View>
-            </Modal>
+            </PremiumModalSurface>
 
-            <Modal visible={guideModalVisible} transparent animationType="fade" onRequestClose={() => setGuideModalVisible(false)}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
+            <PremiumModalSurface visible={guideModalVisible} onDismiss={() => setGuideModalVisible(false)} containerStyle={styles.modalCard}>
                         <View style={styles.modalHeader}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.modalTitle}>Kas ve patern rehberi</Text>
@@ -383,13 +428,9 @@ export default function ExerciseLibraryScreen() {
                                 })}
                             </View>
                         </ScrollView>
-                    </View>
-                </View>
-            </Modal>
+            </PremiumModalSurface>
 
-            <Modal visible={filterModalVisible} transparent animationType="fade" onRequestClose={() => setFilterModalVisible(false)}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
+            <PremiumModalSurface visible={filterModalVisible} onDismiss={() => setFilterModalVisible(false)} containerStyle={styles.modalCard}>
                         <View style={styles.modalHeader}>
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.modalTitle}>Filtrele</Text>
@@ -449,9 +490,7 @@ export default function ExerciseLibraryScreen() {
                                 <Text style={styles.primaryActionText}>Uygula</Text>
                             </TouchableOpacity>
                         </View>
-                    </View>
-                </View>
-            </Modal>
+            </PremiumModalSurface>
         </>
     );
 }
@@ -501,6 +540,7 @@ function InfoPill({ label, value, styles }: { label: string; value: string; styl
 const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: spacing.lg, paddingBottom: spacing.xxxl, gap: spacing.lg },
+    headerBlock: { gap: spacing.lg },
     header: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
     backBtn: {
         width: 40,
@@ -611,6 +651,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     filterText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
     filterTextActive: { color: colors.accent },
     list: { gap: spacing.md },
+    cardPressable: { width: "100%" },
     card: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.md,
