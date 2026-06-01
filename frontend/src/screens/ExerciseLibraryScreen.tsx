@@ -1,9 +1,10 @@
 import React from "react";
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Linking, Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+import { displayMuscleGroup, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
 import { useTheme } from "../hooks/ThemeContext";
 import { COACH_PATTERN_LABELS, type CoachPatternKey } from "../services/coachRuleEngine";
 
@@ -34,12 +35,12 @@ const REGION_FILTERS: { key: LibraryRegion; label: string; patterns: string[] }[
     {
         key: "upper",
         label: "Upper",
-        patterns: ["horizontal_adduction", "upper_chest", "shoulder_abduction", "shoulder_flexion", "shoulder_adduction", "shoulder_extension", "upper_back", "elbow_flexion", "elbow_extension"],
+        patterns: MUSCLE_GROUPS.filter((group) => group.region === "upper").flatMap((group) => group.patterns),
     },
     {
         key: "lower",
         label: "Lower",
-        patterns: ["leg_press", "knee_extension", "hip_hinge", "knee_flexion", "hip_adduction", "hip_abduction", "calf_raise"],
+        patterns: MUSCLE_GROUPS.filter((group) => group.region === "lower").flatMap((group) => group.patterns),
     },
 ];
 
@@ -250,7 +251,23 @@ export default function ExerciseLibraryScreen() {
                                     <View style={styles.quickInfoGrid}>
                                         <InfoPill label="Seviye" value={difficultyLabel(selected.difficulty)} styles={styles} />
                                         <InfoPill label="Ekipman" value={selected.equipment.slice(0, 2).map(equipmentLabel).join(", ")} styles={styles} />
-                                        <InfoPill label="Patern" value={COACH_PATTERN_LABELS[selected.pattern as CoachPatternKey] || selected.pattern} styles={styles} />
+                                        <InfoPill label="Bölge" value={displayMuscleGroup(selected)} styles={styles} />
+                                    </View>
+                                    <View style={styles.mediaPreview}>
+                                        <View style={styles.mediaIcon}>
+                                            <Ionicons name="play-circle-outline" size={28} color={colors.accent} />
+                                        </View>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={styles.mediaTitle}>Video / GIF rehberi</Text>
+                                            <Text style={styles.mediaText}>
+                                                Telifli görseller doğrudan gömülmez. Kendi çizimimiz veya lisanslı kaynak eklenince burada oynatılacak.
+                                            </Text>
+                                            {!!selected.mediaSourceUrl && (
+                                                <TouchableOpacity onPress={() => Linking.openURL(selected.mediaSourceUrl!)} activeOpacity={0.8}>
+                                                    <Text style={styles.mediaLink}>Kaynağı aç{selected.mediaCredit ? ` · ${selected.mediaCredit}` : ""}</Text>
+                                                </TouchableOpacity>
+                                            )}
+                                        </View>
                                     </View>
                                     <DetailBlock title="Hedef kaslar" items={[...selected.primaryMuscles, ...selected.secondaryMuscles]} styles={styles} />
                                     <DetailBlock title="Ne zaman secilmeli" items={guidePoints(selected)} styles={styles} />
@@ -530,6 +547,27 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.accent,
     },
     primaryActionText: { color: colors.background, fontSize: fontSize.sm, fontWeight: fontWeight.heavy },
+    mediaPreview: {
+        flexDirection: "row",
+        gap: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        marginBottom: spacing.lg,
+    },
+    mediaIcon: {
+        width: 46,
+        height: 46,
+        borderRadius: borderRadius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+    },
+    mediaTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    mediaText: { color: colors.textSecondary, fontSize: fontSize.xs, lineHeight: 18, marginTop: 3 },
+    mediaLink: { color: colors.accent, fontSize: fontSize.xs, fontWeight: fontWeight.bold, marginTop: spacing.xs },
     quickInfoGrid: {
         flexDirection: "row",
         flexWrap: "wrap",

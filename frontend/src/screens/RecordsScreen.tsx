@@ -10,7 +10,11 @@ import {
     StyleSheet,
     TouchableOpacity,
     ActivityIndicator,
+    Modal,
+    TextInput,
+    Linking,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -18,6 +22,9 @@ import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { workoutApi } from "../services/api";
 import { getPersonalRecords } from "../utils/workoutMetrics";
+import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
+
+const RECORD_LINKS_KEY = "personal_record_video_links";
 
 interface PRRecord {
     exercise: string;
@@ -36,6 +43,12 @@ export default function RecordsScreen() {
 
     const [records, setRecords] = useState<PRRecord[]>([]);
     const [splitFilter, setSplitFilter] = useState("Tümü");
+    const [muscleFilter, setMuscleFilter] = useState("Tümü");
+    const [query, setQuery] = useState("");
+    const [links, setLinks] = useState<Record<string, string>>({});
+    const [editingRecord, setEditingRecord] = useState<PRRecord | null>(null);
+    const [linkDraft, setLinkDraft] = useState("");
+    const [linkError, setLinkError] = useState("");
     const [loading, setLoading] = useState(true);
 
     useFocusEffect(
@@ -50,6 +63,8 @@ export default function RecordsScreen() {
             const workouts = res.data.workouts || [];
 
             setRecords(getPersonalRecords(workouts) as PRRecord[]);
+            const rawLinks = await AsyncStorage.getItem(RECORD_LINKS_KEY);
+            setLinks(rawLinks ? JSON.parse(rawLinks) : {});
         } catch (err) {
             console.error("[Records] Load error:", err);
         } finally {
@@ -76,7 +91,45 @@ export default function RecordsScreen() {
         return colors.textMuted;
     };
 
-    const renderItem = ({ item, index }: { item: PRRecord; index: number }) => (
+    const recordKey = (record: PRRecord) => record.exercise.trim().toLocaleLowerCase("tr-TR");
+
+    const isAllowedVideoUrl = (value: string) => {
+        if (!value.trim()) return true;
+        try {
+            const url = new URL(value.trim());
+            const host = url.hostname.replace(/^www\./, "");
+            return host === "youtube.com" || host === "youtu.be" || host === "instagram.com";
+        } catch {
+            return false;
+        }
+    };
+
+    const saveRecordLink = async () => {
+        if (!editingRecord) return;
+        if (!isAllowedVideoUrl(linkDraft)) {
+            setLinkError("Sadece YouTube veya Instagram bağlantısı ekleyebilirsin.");
+            return;
+        }
+        const next = { ...links };
+        const key = recordKey(editingRecord);
+        if (linkDraft.trim()) next[key] = linkDraft.trim();
+        else delete next[key];
+        setLinks(next);
+        await AsyncStorage.setItem(RECORD_LINKS_KEY, JSON.stringify(next));
+        setEditingRecord(null);
+        setLinkDraft("");
+        setLinkError("");
+    };
+
+    const openLinkEditor = (record: PRRecord) => {
+        setEditingRecord(record);
+        setLinkDraft(links[recordKey(record)] || "");
+        setLinkError("");
+    };
+
+    const renderItem = ({ item, index }: { item: PRRecord; index: number }) => {
+        const videoUrl = links[recordKey(item)];
+        return (
         <View style={styles.recordRow}>
             <View style={[styles.rankCircle, { backgroundColor: index < 3 ? getMedalColor(index) + "20" : colors.surfaceElevated }]}>
                 {index < 3 ? (
@@ -92,19 +145,35 @@ export default function RecordsScreen() {
             <Text style={styles.recordWeight}>
                 {item.weight} <Text style={styles.recordUnit}>{item.unit} x {item.reps}</Text>
             </Text>
+            <TouchableOpacity
+                style={[styles.linkBtn, videoUrl && styles.linkBtnActive]}
+                onPress={() => videoUrl ? Linking.openURL(videoUrl) : openLinkEditor(item)}
+                onLongPress={() => openLinkEditor(item)}
+                activeOpacity={0.78}
+            >
+                <Ionicons name={videoUrl ? "play-circle" : "link-outline"} size={18} color={videoUrl ? colors.background : colors.accent} />
+            </TouchableOpacity>
         </View>
-    );
+    )};
 
     const splitOptions = React.useMemo(() => {
         const labels = Array.from(new Set(records.map((record) => record.splitLabel || "Genel")));
         return ["Tümü", ...labels];
     }, [records]);
+    const muscleOptions = React.useMemo(() => ["Tümü", ...MUSCLE_GROUPS.map((group) => group.beginnerLabel)], []);
 
-    const visibleRecords = React.useMemo(() => (
-        splitFilter === "Tümü"
-            ? records
-            : records.filter((record) => (record.splitLabel || "Genel") === splitFilter)
-    ), [records, splitFilter]);
+    const visibleRecords = React.useMemo(() => {
+        const search = query.trim().toLocaleLowerCase("tr-TR");
+        return records.filter((record) => {
+            if (splitFilter !== "Tümü" && (record.splitLabel || "Genel") !== splitFilter) return false;
+            if (muscleFilter !== "Tümü") {
+                const group = groupForExerciseName(record.exercise);
+                if ((group?.beginnerLabel || "Genel") !== muscleFilter) return false;
+            }
+            if (search && !record.exercise.toLocaleLowerCase("tr-TR").includes(search)) return false;
+            return true;
+        });
+    }, [muscleFilter, query, records, splitFilter]);
 
     if (loading) {
         return (
@@ -137,6 +206,16 @@ export default function RecordsScreen() {
             ) : (
                 <>
                     <View style={styles.filterWrap}>
+                        <View style={styles.searchBox}>
+                            <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+                            <TextInput
+                                value={query}
+                                onChangeText={setQuery}
+                                placeholder="Hareket ara"
+                                placeholderTextColor={colors.textMuted}
+                                style={styles.searchInput}
+                            />
+                        </View>
                         <FlatList
                             horizontal
                             data={splitOptions}
@@ -151,6 +230,20 @@ export default function RecordsScreen() {
                                 </TouchableOpacity>
                             )}
                         />
+                        <FlatList
+                            horizontal
+                            data={muscleOptions}
+                            keyExtractor={(item) => `muscle-${item}`}
+                            showsHorizontalScrollIndicator={false}
+                            renderItem={({ item }) => (
+                                <TouchableOpacity
+                                    style={[styles.filterChip, muscleFilter === item && styles.filterChipActive]}
+                                    onPress={() => setMuscleFilter(item)}
+                                >
+                                    <Text style={[styles.filterChipText, muscleFilter === item && styles.filterChipTextActive]}>{item}</Text>
+                                </TouchableOpacity>
+                            )}
+                        />
                     </View>
                     <FlatList
                         data={visibleRecords}
@@ -162,6 +255,33 @@ export default function RecordsScreen() {
                     />
                 </>
             )}
+            <Modal visible={!!editingRecord} transparent animationType="fade" onRequestClose={() => setEditingRecord(null)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <Text style={styles.modalTitle}>PR videosu</Text>
+                        <Text style={styles.modalText}>
+                            {editingRecord?.exercise} rekoruna YouTube veya Instagram bağlantısı ekleyebilirsin.
+                        </Text>
+                        <TextInput
+                            value={linkDraft}
+                            onChangeText={setLinkDraft}
+                            placeholder="https://youtube.com/... veya https://instagram.com/..."
+                            placeholderTextColor={colors.textMuted}
+                            autoCapitalize="none"
+                            style={styles.linkInput}
+                        />
+                        {!!linkError && <Text style={styles.errorText}>{linkError}</Text>}
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setEditingRecord(null)}>
+                                <Text style={styles.secondaryBtnText}>İptal</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.primaryBtn} onPress={saveRecordLink}>
+                                <Text style={styles.primaryBtnText}>Kaydet</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -194,6 +314,24 @@ const createStyles = (colors: any) => StyleSheet.create({
     filterWrap: {
         paddingHorizontal: spacing.lg,
         paddingTop: spacing.md,
+        gap: spacing.sm,
+    },
+    searchBox: {
+        minHeight: 44,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    searchInput: {
+        flex: 1,
+        color: colors.text,
+        fontSize: fontSize.sm,
+        paddingVertical: spacing.sm,
     },
     filterChip: {
         borderWidth: 1,
@@ -249,12 +387,77 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.lg,
         fontWeight: fontWeight.heavy,
         color: colors.accent,
+        marginRight: spacing.sm,
     },
     recordUnit: {
         fontSize: fontSize.sm,
         fontWeight: "normal" as any,
         color: colors.textSecondary,
     },
+    linkBtn: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+    },
+    linkBtnActive: {
+        backgroundColor: colors.accent,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.68)",
+        alignItems: "center",
+        justifyContent: "center",
+        padding: spacing.lg,
+    },
+    modalCard: {
+        width: "100%",
+        maxWidth: 460,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        padding: spacing.lg,
+        gap: spacing.md,
+    },
+    modalTitle: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
+    modalText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20 },
+    linkInput: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        color: colors.text,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.md,
+        fontSize: fontSize.sm,
+    },
+    errorText: { color: colors.error, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+    modalActions: { flexDirection: "row", gap: spacing.sm },
+    secondaryBtn: {
+        flex: 1,
+        minHeight: 44,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.background,
+    },
+    secondaryBtnText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    primaryBtn: {
+        flex: 1,
+        minHeight: 44,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accent,
+    },
+    primaryBtnText: { color: colors.background, fontSize: fontSize.sm, fontWeight: fontWeight.heavy },
     separator: {
         height: 1,
         backgroundColor: colors.border,

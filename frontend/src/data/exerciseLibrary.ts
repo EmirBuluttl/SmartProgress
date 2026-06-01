@@ -24,6 +24,9 @@ export type ExerciseLibraryItem = {
     instructions: string[];
     commonMistakes: string[];
     coachNotes: string;
+    mediaUrl?: string;
+    mediaSourceUrl?: string;
+    mediaCredit?: string;
 };
 
 const item = (input: ExerciseLibraryItem): ExerciseLibraryItem => input;

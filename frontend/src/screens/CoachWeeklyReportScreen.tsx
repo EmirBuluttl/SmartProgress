@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,6 +7,7 @@ import { borderRadius, fontSize, fontWeight, lineHeight, spacing } from "../cons
 import { useTheme } from "../hooks/ThemeContext";
 import { coachApi } from "../services/api";
 import EmptyState from "../components/EmptyState";
+import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
 
 
 
@@ -36,6 +37,17 @@ const getMeta = (item: any, colors: any) => {
     return { label: "Takip", icon: "eye-outline" as const, color: colors.textSecondary };
 };
 
+type ReportFilter = "all" | "intervention" | "progress" | "plateau" | "regression" | "watch";
+
+const REPORT_FILTERS: { key: ReportFilter; label: string }[] = [
+    { key: "all", label: "Tümü" },
+    { key: "intervention", label: "Müdahale" },
+    { key: "progress", label: "Progress" },
+    { key: "plateau", label: "Plato" },
+    { key: "regression", label: "Düşüş" },
+    { key: "watch", label: "Takip" },
+];
+
 export default function CoachWeeklyReportScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
@@ -43,6 +55,9 @@ export default function CoachWeeklyReportScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [loading, setLoading] = React.useState(true);
     const [report, setReport] = React.useState<any | null>(null);
+    const [activeFilter, setActiveFilter] = React.useState<ReportFilter>("all");
+    const [muscleFilter, setMuscleFilter] = React.useState("Tümü");
+    const [query, setQuery] = React.useState("");
 
     React.useEffect(() => {
         let mounted = true;
@@ -67,11 +82,35 @@ export default function CoachWeeklyReportScreen() {
         item.flags?.includes("volume_reduce_candidate") ||
         item.flags?.includes("weight_increase_candidate") ||
         item.flags?.includes("volume_increase_candidate");
-    const interventionItems = analyses.filter(isIntervention);
-    const progressItems = analyses.filter((item: any) => item.decision === "progress" && !isIntervention(item));
-    const plateauItems = analyses.filter((item: any) => item.flags?.includes("plateau_candidate") && !isIntervention(item));
-    const regressionItems = analyses.filter((item: any) => item.flags?.includes("single_session_regression") && !isIntervention(item));
-    const watchItems = analyses.filter((item: any) =>
+    const matchesReportFilter = (item: any, filter: ReportFilter) => {
+        if (filter === "all") return true;
+        if (filter === "intervention") return isIntervention(item);
+        if (filter === "progress") return item.decision === "progress" && !isIntervention(item);
+        if (filter === "plateau") return item.flags?.includes("plateau_candidate") && !isIntervention(item);
+        if (filter === "regression") return item.flags?.includes("single_session_regression") && !isIntervention(item);
+        return item.decision === "watch" &&
+            !isIntervention(item) &&
+            !item.flags?.includes("plateau_candidate") &&
+            !item.flags?.includes("single_session_regression");
+    };
+    const muscleOptions = React.useMemo(() => ["Tümü", ...MUSCLE_GROUPS.map((group) => group.beginnerLabel)], []);
+    const filteredAnalyses = React.useMemo(() => {
+        const search = query.trim().toLocaleLowerCase("tr-TR");
+        return analyses.filter((item: any) => {
+            if (!matchesReportFilter(item, activeFilter)) return false;
+            if (muscleFilter !== "Tümü") {
+                const group = groupForExerciseName(item.exerciseName);
+                if ((group?.beginnerLabel || "Genel") !== muscleFilter) return false;
+            }
+            if (search && !String(item.exerciseName || "").toLocaleLowerCase("tr-TR").includes(search)) return false;
+            return true;
+        });
+    }, [activeFilter, analyses, muscleFilter, query]);
+    const interventionItems = filteredAnalyses.filter(isIntervention);
+    const progressItems = filteredAnalyses.filter((item: any) => item.decision === "progress" && !isIntervention(item));
+    const plateauItems = filteredAnalyses.filter((item: any) => item.flags?.includes("plateau_candidate") && !isIntervention(item));
+    const regressionItems = filteredAnalyses.filter((item: any) => item.flags?.includes("single_session_regression") && !isIntervention(item));
+    const watchItems = filteredAnalyses.filter((item: any) =>
         item.decision === "watch" &&
         !isIntervention(item) &&
         !item.flags?.includes("plateau_candidate") &&
@@ -212,15 +251,57 @@ export default function CoachWeeklyReportScreen() {
                         )}
                     </View>
 
+                    <View style={styles.filterPanel}>
+                        <View style={styles.searchBox}>
+                            <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+                            <TextInput
+                                value={query}
+                                onChangeText={setQuery}
+                                placeholder="Hareket ara"
+                                placeholderTextColor={colors.textMuted}
+                                style={styles.searchInput}
+                            />
+                        </View>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                            {REPORT_FILTERS.map((item) => (
+                                <TouchableOpacity
+                                    key={item.key}
+                                    style={[styles.filterChip, activeFilter === item.key && styles.filterChipActive]}
+                                    onPress={() => setActiveFilter(item.key)}
+                                    activeOpacity={0.84}
+                                >
+                                    <Text style={[styles.filterText, activeFilter === item.key && styles.filterTextActive]}>{item.label}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                            {muscleOptions.map((item) => (
+                                <TouchableOpacity
+                                    key={item}
+                                    style={[styles.filterChip, muscleFilter === item && styles.filterChipActive]}
+                                    onPress={() => setMuscleFilter(item)}
+                                    activeOpacity={0.84}
+                                >
+                                    <Text style={[styles.filterText, muscleFilter === item && styles.filterTextActive]}>{item}</Text>
+                                </TouchableOpacity>
+                            ))}
+                        </ScrollView>
+                        <Text style={styles.filterSummary}>{filteredAnalyses.length} / {analyses.length} sinyal gösteriliyor</Text>
+                    </View>
+
                     {renderGroup("Müdahale adayları", interventionItems)}
                     {renderGroup("Progress yakalanan hareketler", progressItems)}
                     {renderGroup("Plato adayları", plateauItems)}
                     {renderGroup("Düşüş sinyalleri", regressionItems)}
                     {renderGroup("Takipte kalacaklar", watchItems)}
 
-                    {analyses.length === 0 && (
+                    {analyses.length === 0 ? (
                         <View style={styles.loadingCard}>
                             <Text style={styles.mutedText}>Bu hafta hareket bazlı analiz üretmek için yeterli log yok.</Text>
+                        </View>
+                    ) : filteredAnalyses.length === 0 && (
+                        <View style={styles.loadingCard}>
+                            <Text style={styles.mutedText}>Bu filtrelerle eşleşen koç sinyali yok.</Text>
                         </View>
                     )}
                 </>
@@ -282,6 +363,47 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     heroTitle: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
     heroText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: lineHeight.sm },
+    filterPanel: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    searchBox: {
+        minHeight: 44,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    searchInput: {
+        flex: 1,
+        color: colors.text,
+        fontSize: fontSize.sm,
+        paddingVertical: spacing.sm,
+    },
+    filterRow: { gap: spacing.sm },
+    filterChip: {
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+    },
+    filterChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    filterText: { color: colors.textSecondary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+    filterTextActive: { color: colors.accent },
+    filterSummary: { color: colors.textMuted, fontSize: fontSize.xs },
     statGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     statCard: {
         flex: 1,
