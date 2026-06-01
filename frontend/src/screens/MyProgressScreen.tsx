@@ -68,10 +68,53 @@ export default function MyProgressScreen() {
     const [allWorkouts, setAllWorkouts] = React.useState<any[]>([]);
     const [bodyMeasurements, setBodyMeasurements] = React.useState<any[]>([]);
     const [nutritionLogs, setNutritionLogs] = React.useState<any[]>([]);
-    const [chartData, setChartData] = React.useState<{
+    const [rawChartData, setRawChartData] = React.useState<{
         labels: string[];
         datasets: { data: number[] }[];
     }>({ labels: ["0"], datasets: [{ data: [0] }] });
+    const [animationProgress, setAnimationProgress] = React.useState(0);
+    const chartAnimationTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+
+    const startChartAnimation = () => {
+        if (chartAnimationTimerRef.current) clearInterval(chartAnimationTimerRef.current);
+        setAnimationProgress(0);
+        
+        const duration = 500; // 500ms animasyon
+        const steps = 20;
+        const interval = duration / steps;
+        let step = 0;
+        
+        chartAnimationTimerRef.current = setInterval(() => {
+            step++;
+            const progress = step / steps;
+            
+            // Easing: easeOutQuad
+            const eased = progress * (2 - progress);
+            
+            if (step >= steps) {
+                setAnimationProgress(1);
+                if (chartAnimationTimerRef.current) clearInterval(chartAnimationTimerRef.current);
+            } else {
+                setAnimationProgress(eased);
+            }
+        }, interval);
+    };
+
+    React.useEffect(() => {
+        return () => {
+            if (chartAnimationTimerRef.current) clearInterval(chartAnimationTimerRef.current);
+        };
+    }, []);
+
+    const animatedChartData = React.useMemo(() => {
+        const rawLabels = rawChartData.labels;
+        const rawData = rawChartData.datasets[0]?.data || [];
+        const animatedDataPoints = rawData.map((val) => val * animationProgress);
+        return {
+            labels: rawLabels,
+            datasets: [{ data: animatedDataPoints.length ? animatedDataPoints : [0] }],
+        };
+    }, [rawChartData, animationProgress]);
     const [prs, setPrs] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [selectedPR, setSelectedPR] = React.useState<any | null>(null);
@@ -154,11 +197,8 @@ export default function MyProgressScreen() {
                 });
         }
 
-        if (dataPoints.length === 0) {
-            dataPoints = [0];
-            labels.push("-");
-        }
-        setChartData({ labels, datasets: [{ data: dataPoints }] });
+        setRawChartData({ labels, datasets: [{ data: dataPoints }] });
+        startChartAnimation();
     };
 
     const chartTitle = React.useMemo(() => {
@@ -177,9 +217,9 @@ export default function MyProgressScreen() {
     const chartDecimalPlaces = chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric === "body:weight" || chartSuffix === " g" ? 1 : 0;
 
     const latestChartValue = React.useMemo(() => {
-        const values = chartData.datasets[0]?.data || [];
+        const values = rawChartData.datasets[0]?.data || [];
         return values.length ? values[values.length - 1] : 0;
-    }, [chartData]);
+    }, [rawChartData]);
 
     const animatedLatestChartValue = useCountUp(latestChartValue);
 
@@ -364,7 +404,7 @@ export default function MyProgressScreen() {
                         </Text>
                     </View>
                     <LineChart
-                        data={chartData}
+                        data={animatedChartData}
                         width={SCREEN_WIDTH - spacing.lg * 4}
                         height={200}
                         yAxisSuffix={chartSuffix}

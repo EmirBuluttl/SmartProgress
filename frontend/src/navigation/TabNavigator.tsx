@@ -16,7 +16,7 @@ import {
     TouchableOpacity,
     Keyboard,
 } from "react-native";
-import { Ionicons } from "@expo/vector-icons";
+import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 
@@ -63,11 +63,19 @@ function AnimatedTabIcon({
 
     return (
         <Animated.View style={{ transform: [{ scale }] }}>
-            <Ionicons
-                name={(focused ? iconFocused : iconUnfocused) as any}
-                size={size}
-                color={color}
-            />
+            {routeName === "Coach" ? (
+                <MaterialCommunityIcons
+                    name="brain"
+                    size={size}
+                    color={color}
+                />
+            ) : (
+                <Ionicons
+                    name={(focused ? iconFocused : iconUnfocused) as any}
+                    size={size}
+                    color={color}
+                />
+            )}
         </Animated.View>
     );
 }
@@ -100,8 +108,8 @@ export default function TabNavigator({ route }: any) {
         {
             key: "Coach",
             label: "Koç",
-            iconFocused: "chatbubble-ellipses",
-            iconUnfocused: "chatbubble-ellipses-outline",
+            iconFocused: "brain",
+            iconUnfocused: "brain",
             component: CoachScreen,
         },
         {
