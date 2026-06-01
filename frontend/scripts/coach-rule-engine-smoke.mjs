@@ -6,6 +6,7 @@ import ts from "typescript";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const sourcePath = path.resolve(__dirname, "../src/services/coachRuleEngine.ts");
 const exerciseLibraryPath = path.resolve(__dirname, "../src/data/exerciseLibrary.ts");
+const exerciseMetadataPath = path.resolve(__dirname, "../src/data/exerciseMetadata.ts");
 
 function compileModule(filePath) {
     const source = fs.readFileSync(filePath, "utf8");
@@ -26,6 +27,7 @@ function loadModule(filePath) {
     const run = new Function("exports", "module", "require", compileModule(filePath));
     run(module.exports, module, (request) => {
         if (request === "../data/exerciseLibrary") return loadModule(exerciseLibraryPath);
+        if (request === "../data/exerciseMetadata") return loadModule(exerciseMetadataPath);
         throw new Error(`coachRuleEngine smoke test should not require external module: ${request}`);
     });
     return module.exports;

@@ -1,4 +1,5 @@
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+import { getExerciseMetadata } from "../data/exerciseMetadata";
 
 export type CoachLevel = "beginner" | "intermediate" | "advanced";
 export type CoachSplitType = "FB" | "UL" | "AP" | "TL" | "PPL" | "PPLUL";
@@ -470,17 +471,18 @@ function applyPainSafetyFilter(candidates: ExerciseLibraryItem[], options?: Exer
 }
 
 function exerciseStabilityScore(exercise: ExerciseLibraryItem, level?: CoachLevel) {
+    const metadata = getExerciseMetadata(exercise);
     let score = 0;
-    if (exercise.equipment.includes("machine")) score += 8;
-    if (exercise.equipment.includes("cable")) score += 6;
-    if (exercise.equipment.includes("smith")) score += 6;
-    if (exercise.tags.includes("stable") || exercise.tags.includes("guided")) score += 5;
+    if (metadata.stability === "very_stable") score += 12;
+    if (metadata.stability === "stable") score += 8;
+    if (metadata.stability === "moderate") score += 3;
+    if (metadata.skillDemand === "low") score += level === "beginner" ? 4 : 2;
+    if (metadata.skillDemand === "high") score -= level === "advanced" ? 1 : 7;
+    if (metadata.riskLevel === "high") score -= level === "advanced" ? 2 : 6;
+    if (metadata.riskLevel === "medium" && level === "beginner") score -= 2;
     if (exercise.beginnerFriendly) score += level === "beginner" ? 4 : 2;
     if (exercise.difficulty === "advanced") score -= level === "advanced" ? 1 : 8;
     if (exercise.difficulty === "intermediate" && level === "beginner") score -= 2;
-    if (exercise.equipment.includes("barbell")) score -= level === "beginner" ? 4 : 1;
-    if (exercise.equipment.includes("dumbbell")) score -= level === "beginner" ? 2 : 0;
-    if (exercise.equipment.includes("bodyweight")) score -= level === "beginner" ? 2 : 0;
     return score;
 }
 

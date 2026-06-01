@@ -4,6 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+import { getExerciseMetadata, riskLevelLabel, skillDemandLabel, stabilityLabel } from "../data/exerciseMetadata";
 import { displayExerciseTarget, displayMuscleGroup, MUSCLE_GROUPS, patternPurpose, relatedPatternsForExercise } from "../data/exerciseTaxonomy";
 import { useTheme } from "../hooks/ThemeContext";
 import { COACH_PATTERN_LABELS, type CoachPatternKey } from "../services/coachRuleEngine";
@@ -93,11 +94,14 @@ function difficultyLabel(value: ExerciseLibraryItem["difficulty"]) {
 
 function guidePoints(exercise: ExerciseLibraryItem) {
     const points: string[] = [];
+    const metadata = getExerciseMetadata(exercise);
     if (exercise.beginnerFriendly) points.push("Formu ogrenmek veya hareket hissini oturtmak icin iyi bir secimdir.");
     if (exercise.tags.includes("stable") || exercise.tags.includes("guided")) points.push("Stabil oldugu icin kilo/tekrar takibi daha tutarli olur.");
     if (exercise.tags.includes("compound")) points.push("Ana hareket olarak kullanilabilir; toparlanma ve teknik standardi takip edilmeli.");
     if (exercise.tags.includes("isolation")) points.push("Eksik bolgeyi tamamlamak veya hedef kas hissini artirmak icin uygundur.");
     if (exercise.tags.includes("strength")) points.push("Guc artisi takibinde anlamli olabilir; ego lift yerine tekrar edilebilir form onceliklidir.");
+    if (metadata.goalFit.includes("fatigue_management")) points.push("Yorgunluk yonetimi ve teknik tutarlilik icin iyi bir secenektir.");
+    if (metadata.goalFit.includes("rehab")) points.push("Omuz sagligi veya kontrollu kapasite calismasi icin dusuk yukle kullanilabilir.");
     if (exercise.equipment.includes("bodyweight")) points.push("Vucut agirligi hareketlerinde gerekirse external load/bodyweight ayrimiyla loglamak daha dogru olur.");
     return points.length > 0 ? points : ["Programdaki hedef kas paternine uyuyorsa kontrollu sekilde kullanilabilir."];
 }
@@ -287,6 +291,9 @@ export default function ExerciseLibraryScreen() {
                                         <InfoPill label="Seviye" value={difficultyLabel(selected.difficulty)} styles={styles} />
                                         <InfoPill label="Ekipman" value={selected.equipment.slice(0, 2).map(equipmentLabel).join(", ")} styles={styles} />
                                         <InfoPill label="Bölge" value={displayMuscleGroup(selected)} styles={styles} />
+                                        <InfoPill label="Stabilite" value={stabilityLabel(getExerciseMetadata(selected).stability)} styles={styles} />
+                                        <InfoPill label="Teknik" value={skillDemandLabel(getExerciseMetadata(selected).skillDemand)} styles={styles} />
+                                        <InfoPill label="Risk" value={riskLevelLabel(getExerciseMetadata(selected).riskLevel)} styles={styles} />
                                     </View>
                                     <View style={styles.patternPanel}>
                                         <Text style={styles.patternTitle}>

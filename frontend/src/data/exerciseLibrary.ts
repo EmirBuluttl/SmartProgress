@@ -1,4 +1,23 @@
 export type ExerciseDifficulty = "beginner" | "intermediate" | "advanced";
+export type ExerciseMovementFamily =
+    | "press"
+    | "fly"
+    | "pulldown"
+    | "row"
+    | "raise"
+    | "curl"
+    | "extension"
+    | "squat_pattern"
+    | "hinge"
+    | "hip_isolation"
+    | "core"
+    | "calf"
+    | "rotation"
+    | "other";
+export type ExerciseStability = "very_stable" | "stable" | "moderate" | "unstable";
+export type ExerciseSkillDemand = "low" | "medium" | "high";
+export type ExerciseRiskLevel = "low" | "medium" | "high";
+export type ExerciseGoalFit = "hypertrophy" | "strength" | "skill" | "rehab" | "fatigue_management";
 export type ExerciseEquipment =
     | "machine"
     | "smith"
@@ -24,6 +43,12 @@ export type ExerciseLibraryItem = {
     instructions: string[];
     commonMistakes: string[];
     coachNotes: string;
+    movementFamily?: ExerciseMovementFamily;
+    replacementGroup?: string;
+    stability?: ExerciseStability;
+    skillDemand?: ExerciseSkillDemand;
+    riskLevel?: ExerciseRiskLevel;
+    goalFit?: ExerciseGoalFit[];
     mediaUrl?: string;
     mediaSourceUrl?: string;
     mediaCredit?: string;
