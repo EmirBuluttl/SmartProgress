@@ -59,10 +59,10 @@ const orderedFocus = engine.getTrainingDays({
 assertEqual(orderedFocus, ["shoulder_abduction", "shoulder_flexion", "horizontal_adduction", "upper_chest"], "Ordered priority respects selected order and clusters");
 
 const chestOptions = engine.getAvailableExercises("horizontal_adduction", "Pec Deck").slice(0, 2);
-assertEqual(chestOptions, ["Smith Machine Bench Press", "Chest Press Machine"], "Avoided exercise is removed from recommendations");
+assertEqual(chestOptions, ["Chest Press Machine", "Smith Machine Bench Press"], "Avoided exercise is removed from recommendations");
 
 const chestOptionsAlias = engine.getAvailableExercises("horizontal_adduction", "pecdeck").slice(0, 2);
-assertEqual(chestOptionsAlias, ["Smith Machine Bench Press", "Chest Press Machine"], "Avoided exercise alias is removed from recommendations");
+assertEqual(chestOptionsAlias, ["Chest Press Machine", "Smith Machine Bench Press"], "Avoided exercise alias is removed from recommendations");
 
 const noSmithChestOptions = engine.getAvailableExercises("horizontal_adduction", "", [], {
     hasEquipmentLimit: "yes",
@@ -89,8 +89,8 @@ const generated = engine.buildCoachProgramData({
     avoidNote: "Pec Deck",
 });
 assertEqual(generated.days.map((day) => day.isRestDay || false), [false, false, true, false, false, true], "Generated rest days");
-assertEqual(generated.days[0].exercises[0].name, "Smith Machine Bench Press", "Avoid note affects generated program");
-assertEqual(generated.days[0].exercises[0].exerciseId, "smith_bench_press", "Generated program keeps canonical exercise id");
+assertEqual(generated.days[0].exercises[0].name, "Chest Press Machine", "Avoid note affects generated program");
+assertEqual(generated.days[0].exercises[0].exerciseId, "chest_press_machine", "Generated program keeps canonical exercise id");
 
 const fatLoss = engine.buildCoachProgramData({
     frequency: 3,

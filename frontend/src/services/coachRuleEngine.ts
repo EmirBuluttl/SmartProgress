@@ -61,6 +61,7 @@ type ExerciseSelectionOptions = {
     equipmentLimitNote?: string;
     painNote?: string;
     preferPainSafe?: boolean;
+    level?: CoachLevel;
 };
 
 export const COACH_LEVELS: { key: CoachLevel; label: string; desc: string; rir: string }[] = [
@@ -90,12 +91,16 @@ export const COACH_SESSION_DURATIONS: { key: CoachSessionDuration; label: string
 
 export const COACH_PRIORITIES: { key: CoachPatternKey; label: string }[] = [
     { key: "shoulder_abduction", label: "Yan omuz" },
+    { key: "rear_delt", label: "Arka omuz" },
+    { key: "trapezius", label: "Trapez" },
+    { key: "rotator_cuff", label: "Rotator cuff" },
     { key: "horizontal_adduction", label: "Göğüs" },
     { key: "upper_chest", label: "Üst göğüs" },
     { key: "shoulder_adduction", label: "Alt kanat" },
     { key: "upper_back", label: "Üst sırt" },
     { key: "elbow_flexion", label: "Biceps" },
     { key: "elbow_extension", label: "Triceps" },
+    { key: "hip_abduction", label: "Glute" },
     { key: "leg_press", label: "Bacak" },
     { key: "knee_flexion", label: "Hamstring" },
 ];
@@ -240,14 +245,22 @@ export function targetRir(level: CoachLevel): string {
 const PRIORITY_CLUSTERS: Partial<Record<CoachPatternKey, CoachPatternKey[]>> = {
     shoulder_abduction: ["shoulder_abduction", "shoulder_flexion"],
     shoulder_flexion: ["shoulder_flexion", "shoulder_abduction"],
+    rear_delt: ["rear_delt", "upper_back", "trapezius"],
+    trapezius: ["trapezius", "upper_back", "rear_delt"],
+    rotator_cuff: ["rotator_cuff", "rear_delt", "shoulder_abduction"],
     shoulder_adduction: ["shoulder_adduction", "shoulder_extension", "upper_back"],
     shoulder_extension: ["shoulder_extension", "shoulder_adduction", "upper_back"],
-    upper_back: ["upper_back", "shoulder_extension", "shoulder_adduction"],
+    upper_back: ["upper_back", "trapezius", "rear_delt", "shoulder_extension", "shoulder_adduction"],
     horizontal_adduction: ["horizontal_adduction", "upper_chest", "shoulder_flexion"],
     upper_chest: ["upper_chest", "horizontal_adduction", "shoulder_flexion"],
     leg_press: ["leg_press", "knee_extension", "knee_flexion", "hip_hinge"],
     knee_extension: ["knee_extension", "leg_press", "knee_flexion", "hip_hinge"],
     knee_flexion: ["knee_flexion", "hip_hinge", "leg_press", "knee_extension"],
+    hip_hinge: ["hip_hinge", "knee_flexion", "hip_abduction"],
+    hip_abduction: ["hip_abduction", "hip_hinge", "knee_flexion"],
+    spinal_flexion: ["spinal_flexion", "spinal_rotation", "spinal_extension"],
+    spinal_extension: ["spinal_extension", "spinal_flexion", "spinal_rotation"],
+    spinal_rotation: ["spinal_rotation", "spinal_flexion", "spinal_extension"],
 };
 
 export function buildPriorityOrder(priority: CoachPatternKey | null, priorityOrder: CoachPatternKey[] = []): CoachPatternKey[] {
@@ -456,6 +469,31 @@ function applyPainSafetyFilter(candidates: ExerciseLibraryItem[], options?: Exer
     return filtered.length > 0 ? filtered : candidates;
 }
 
+function exerciseStabilityScore(exercise: ExerciseLibraryItem, level?: CoachLevel) {
+    let score = 0;
+    if (exercise.equipment.includes("machine")) score += 8;
+    if (exercise.equipment.includes("cable")) score += 6;
+    if (exercise.equipment.includes("smith")) score += 6;
+    if (exercise.tags.includes("stable") || exercise.tags.includes("guided")) score += 5;
+    if (exercise.beginnerFriendly) score += level === "beginner" ? 4 : 2;
+    if (exercise.difficulty === "advanced") score -= level === "advanced" ? 1 : 8;
+    if (exercise.difficulty === "intermediate" && level === "beginner") score -= 2;
+    if (exercise.equipment.includes("barbell")) score -= level === "beginner" ? 4 : 1;
+    if (exercise.equipment.includes("dumbbell")) score -= level === "beginner" ? 2 : 0;
+    if (exercise.equipment.includes("bodyweight")) score -= level === "beginner" ? 2 : 0;
+    return score;
+}
+
+function sortExerciseCandidates(candidates: ExerciseLibraryItem[], options?: ExerciseSelectionOptions) {
+    return candidates
+        .map((exercise, index) => ({ exercise, index }))
+        .sort((a, b) => {
+            const scoreDiff = exerciseStabilityScore(b.exercise, options?.level) - exerciseStabilityScore(a.exercise, options?.level);
+            return scoreDiff || a.index - b.index;
+        })
+        .map(({ exercise }) => exercise);
+}
+
 export function getExercisesForPattern(
     pattern: CoachPatternKey,
     avoidNote?: string,
@@ -466,9 +504,10 @@ export function getExercisesForPattern(
     const candidates = EXERCISE_LIBRARY.filter((exercise) => exercise.pattern === pattern);
     const equipmentFiltered = applyEquipmentFilter(candidates, options);
     const painFiltered = applyPainSafetyFilter(equipmentFiltered, options);
-    if (avoided.length === 0) return painFiltered;
-    const filtered = painFiltered.filter((exercise) => !matchesAvoidedExercise(exercise, avoided));
-    return filtered.length > 0 ? filtered : painFiltered;
+    const sorted = sortExerciseCandidates(painFiltered, options);
+    if (avoided.length === 0) return sorted;
+    const filtered = sorted.filter((exercise) => !matchesAvoidedExercise(exercise, avoided));
+    return filtered.length > 0 ? filtered : sorted;
 }
 
 export function getAvailableExercises(
@@ -541,6 +580,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         equipmentLimitNote: input.equipmentLimitNote,
         painNote: input.painNote,
         preferPainSafe: input.hasPain === "yes",
+        level: input.level,
     };
     return {
         frequency: input.frequency,
