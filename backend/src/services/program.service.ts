@@ -19,12 +19,28 @@ export interface CreateProgramDto {
 
 export type ProgramSplitType = "PPL" | "AP" | "UL" | "TL" | "FB" | "OTHER";
 export type ProgramSortType = "stars" | "newest" | "oldest";
+const FREE_PUBLIC_PROGRAM_LIMIT = 5;
+const PRO_PUBLIC_PROGRAM_LIMIT = 10;
 
 function normalizeSplit(value: unknown): ProgramSplitType | undefined {
     const split = String(value || "").trim().toUpperCase();
     return ["PPL", "AP", "UL", "TL", "FB", "OTHER"].includes(split)
         ? split as ProgramSplitType
         : undefined;
+}
+
+function isActivePaidAccess(user: { subscriptionTier?: string | null; subscriptionStatus?: string | null; settings?: unknown } | null) {
+    if (!user) return false;
+    const tier = String(user.subscriptionTier || "").toUpperCase();
+    const status = String(user.subscriptionStatus || "").toUpperCase();
+    const settings = user.settings as Record<string, any> | null;
+    const expiresAt = settings?.pro_trial_expires_at ? new Date(settings.pro_trial_expires_at) : null;
+    const expiredTrial = status === "TRIAL" &&
+        expiresAt &&
+        Number.isFinite(expiresAt.getTime()) &&
+        expiresAt.getTime() < Date.now();
+    if (expiredTrial) return false;
+    return (tier === "PRO" || tier === "COACH_PLUS") && (status === "ACTIVE" || status === "TRIAL");
 }
 
 // ─── Service ─────────────────────────────────
@@ -50,6 +66,9 @@ export class ProgramService {
         userId: string,
         dto: CreateProgramDto,
     ): Promise<Program> {
+        if (dto.isPublic) {
+            await this.assertPublicProgramLimit(userId);
+        }
         return programRepository.create({
             name: dto.name,
             description: dto.description,
@@ -80,6 +99,9 @@ export class ProgramService {
             throw new ForbiddenError("You can only modify your own programs");
         }
 
+        if (!program.isPublic) {
+            await this.assertPublicProgramLimit(userId);
+        }
         return programRepository.updateVisibility(programId, !program.isPublic);
     }
 
@@ -275,7 +297,12 @@ export class ProgramService {
         const updateData: any = {};
         if (dto.name !== undefined) updateData.name = dto.name;
         if (dto.description !== undefined) updateData.description = dto.description;
-        if (dto.isPublic !== undefined) updateData.isPublic = dto.isPublic;
+        if (dto.isPublic !== undefined) {
+            if (dto.isPublic && !program.isPublic) {
+                await this.assertPublicProgramLimit(userId);
+            }
+            updateData.isPublic = dto.isPublic;
+        }
         if (dto.frequency !== undefined) updateData.frequency = dto.frequency;
         if (dto.data !== undefined) updateData.data = dto.data;
 
@@ -338,6 +365,22 @@ export class ProgramService {
                     },
                 },
             });
+        }
+    }
+
+    private async assertPublicProgramLimit(userId: string) {
+        const user = await prisma.user.findUnique({
+            where: { id: userId },
+            select: {
+                subscriptionTier: true,
+                subscriptionStatus: true,
+                settings: true,
+            },
+        });
+        const limit = isActivePaidAccess(user) ? PRO_PUBLIC_PROGRAM_LIMIT : FREE_PUBLIC_PROGRAM_LIMIT;
+        const currentCount = await programRepository.countPublicByUser(userId);
+        if (currentCount >= limit) {
+            throw new BadRequestError(`Public program limitine ulaştın. Mevcut limitin ${limit}.`);
         }
     }
 }

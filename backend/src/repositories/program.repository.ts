@@ -119,6 +119,15 @@ export class ProgramRepository {
         });
     }
 
+    async countPublicByUser(userId: string): Promise<number> {
+        return prisma.program.count({
+            where: {
+                userId,
+                isPublic: true,
+            },
+        });
+    }
+
     async starProgram(userId: string, programId: string) {
         return prisma.programStar.upsert({
             where: { userId_programId: { userId, programId } },

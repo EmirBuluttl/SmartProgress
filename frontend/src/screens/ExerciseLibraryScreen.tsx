@@ -1,5 +1,5 @@
 import React from "react";
-import { Modal, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
@@ -26,6 +26,49 @@ const FILTERS = [
 ] as const;
 
 type FilterKey = typeof FILTERS[number]["key"];
+type LibraryRegion = "all" | "upper" | "lower";
+type DifficultyFilter = "all" | ExerciseLibraryItem["difficulty"];
+
+const REGION_FILTERS: { key: LibraryRegion; label: string; patterns: string[] }[] = [
+    { key: "all", label: "Tümü", patterns: [] },
+    {
+        key: "upper",
+        label: "Upper",
+        patterns: ["horizontal_adduction", "upper_chest", "shoulder_abduction", "shoulder_flexion", "shoulder_adduction", "shoulder_extension", "upper_back", "elbow_flexion", "elbow_extension"],
+    },
+    {
+        key: "lower",
+        label: "Lower",
+        patterns: ["leg_press", "knee_extension", "hip_hinge", "knee_flexion", "hip_adduction", "hip_abduction", "calf_raise"],
+    },
+];
+
+const EQUIPMENT_LABELS: Record<string, string> = {
+    machine: "Machine",
+    smith: "Smith Machine",
+    cable: "Cable",
+    barbell: "Barbell",
+    dumbbell: "Dumbbell",
+    bodyweight: "Bodyweight",
+    bench: "Bench",
+    leg_press: "Leg Press",
+};
+
+const EQUIPMENT_FILTERS = Object.entries(EQUIPMENT_LABELS).map(([key, label]) => ({ key, label }));
+const DIFFICULTY_FILTERS: { key: DifficultyFilter; label: string }[] = [
+    { key: "all", label: "Tümü" },
+    { key: "beginner", label: "Başlangıç" },
+    { key: "intermediate", label: "Orta" },
+    { key: "advanced", label: "İleri" },
+];
+
+function equipmentLabel(value: string) {
+    return EQUIPMENT_LABELS[value] || value;
+}
+
+function normalizeText(value: unknown) {
+    return String(value || "").toLocaleLowerCase("tr-TR").trim();
+}
 
 function difficultyLabel(value: ExerciseLibraryItem["difficulty"]) {
     if (value === "beginner") return "Başlangıç";
@@ -79,14 +122,46 @@ export default function ExerciseLibraryScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [filter, setFilter] = React.useState<FilterKey>("all");
+    const [region, setRegion] = React.useState<LibraryRegion>("all");
+    const [difficulty, setDifficulty] = React.useState<DifficultyFilter>("all");
+    const [equipmentFilters, setEquipmentFilters] = React.useState<string[]>([]);
+    const [query, setQuery] = React.useState("");
+    const [filterModalVisible, setFilterModalVisible] = React.useState(false);
     const [selected, setSelected] = React.useState<ExerciseLibraryItem | null>(null);
 
     const exercises = React.useMemo(() => {
-        const filtered = filter === "all"
-            ? EXERCISE_LIBRARY
-            : EXERCISE_LIBRARY.filter((exercise) => exercise.pattern === filter);
+        const regionPatterns = REGION_FILTERS.find((item) => item.key === region)?.patterns || [];
+        const search = normalizeText(query);
+        const filtered = EXERCISE_LIBRARY.filter((exercise) => {
+            if (region !== "all" && !regionPatterns.includes(exercise.pattern)) return false;
+            if (filter !== "all" && exercise.pattern !== filter) return false;
+            if (difficulty !== "all" && exercise.difficulty !== difficulty) return false;
+            if (equipmentFilters.length > 0 && !equipmentFilters.some((equipment) => exercise.equipment.includes(equipment as any))) return false;
+            if (search) {
+                const haystack = [
+                    exercise.name,
+                    ...exercise.aliases,
+                    ...exercise.primaryMuscles,
+                    ...exercise.secondaryMuscles,
+                    COACH_PATTERN_LABELS[exercise.pattern as CoachPatternKey] || exercise.pattern,
+                ].map(normalizeText).join(" ");
+                if (!haystack.includes(search)) return false;
+            }
+            return true;
+        });
         return [...filtered].sort((a, b) => Number(b.beginnerFriendly) - Number(a.beginnerFriendly));
-    }, [filter]);
+    }, [difficulty, equipmentFilters, filter, query, region]);
+
+    const activeFilterCount = Number(region !== "all") +
+        Number(filter !== "all") +
+        Number(difficulty !== "all") +
+        equipmentFilters.length;
+
+    const toggleEquipment = (key: string) => {
+        setEquipmentFilters((current) =>
+            current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
+        );
+    };
 
     return (
         <>
@@ -104,21 +179,23 @@ export default function ExerciseLibraryScreen() {
                     </View>
                 </View>
 
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
-                    {FILTERS.map((item) => {
-                        const active = filter === item.key;
-                        return (
-                            <TouchableOpacity
-                                key={item.key}
-                                style={[styles.filterChip, active && styles.filterChipActive]}
-                                onPress={() => setFilter(item.key)}
-                                activeOpacity={0.82}
-                            >
-                                <Text style={[styles.filterText, active && styles.filterTextActive]}>{item.label}</Text>
-                            </TouchableOpacity>
-                        );
-                    })}
-                </ScrollView>
+                <View style={styles.searchPanel}>
+                    <View style={styles.searchBox}>
+                        <Ionicons name="search-outline" size={18} color={colors.textMuted} />
+                        <TextInput
+                            value={query}
+                            onChangeText={setQuery}
+                            placeholder="Hareket, kas veya ekipman ara"
+                            placeholderTextColor={colors.textMuted}
+                            style={styles.searchInput}
+                        />
+                    </View>
+                    <TouchableOpacity style={styles.filterBtn} onPress={() => setFilterModalVisible(true)} activeOpacity={0.84}>
+                        <Ionicons name="options-outline" size={18} color={colors.accent} />
+                        <Text style={styles.filterBtnText}>Filtrele{activeFilterCount ? ` (${activeFilterCount})` : ""}</Text>
+                    </TouchableOpacity>
+                </View>
+                <Text style={styles.resultCount}>{exercises.length} hareket bulundu</Text>
 
                 <View style={styles.list}>
                     {exercises.map((exercise) => (
@@ -143,7 +220,7 @@ export default function ExerciseLibraryScreen() {
                             <View style={styles.badgeRow}>
                                 {exercise.beginnerFriendly && <Text style={styles.badge}>Başlangıç dostu</Text>}
                                 {exercise.equipment.slice(0, 2).map((equipment) => (
-                                    <Text key={equipment} style={styles.badge}>{equipment}</Text>
+                                    <Text key={equipment} style={styles.badge}>{equipmentLabel(equipment)}</Text>
                                 ))}
                             </View>
                             <Text style={styles.cardText} numberOfLines={2}>{exercise.coachNotes}</Text>
@@ -172,7 +249,7 @@ export default function ExerciseLibraryScreen() {
                                 <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
                                     <View style={styles.quickInfoGrid}>
                                         <InfoPill label="Seviye" value={difficultyLabel(selected.difficulty)} styles={styles} />
-                                        <InfoPill label="Ekipman" value={selected.equipment.slice(0, 2).join(", ")} styles={styles} />
+                                        <InfoPill label="Ekipman" value={selected.equipment.slice(0, 2).map(equipmentLabel).join(", ")} styles={styles} />
                                         <InfoPill label="Patern" value={COACH_PATTERN_LABELS[selected.pattern as CoachPatternKey] || selected.pattern} styles={styles} />
                                     </View>
                                     <DetailBlock title="Hedef kaslar" items={[...selected.primaryMuscles, ...selected.secondaryMuscles]} styles={styles} />
@@ -194,7 +271,83 @@ export default function ExerciseLibraryScreen() {
                     </View>
                 </View>
             </Modal>
+
+            <Modal visible={filterModalVisible} transparent animationType="fade" onRequestClose={() => setFilterModalVisible(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <View style={styles.modalHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.modalTitle}>Filtrele</Text>
+                                <Text style={styles.modalSubtitle}>Önce ana bölgeyi, sonra kas/patern ve ekipmanı seç.</Text>
+                            </View>
+                            <TouchableOpacity style={styles.modalClose} onPress={() => setFilterModalVisible(false)}>
+                                <Ionicons name="close" size={20} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                            <FilterGroup title="Ana bölge" styles={styles}>
+                                {REGION_FILTERS.map((item) => (
+                                    <FilterChip key={item.key} label={item.label} active={region === item.key} onPress={() => setRegion(item.key)} styles={styles} />
+                                ))}
+                            </FilterGroup>
+                            <FilterGroup title="Kas / patern" styles={styles}>
+                                {FILTERS.filter((item) => {
+                                    const regionPatterns = REGION_FILTERS.find((regionItem) => regionItem.key === region)?.patterns || [];
+                                    return region === "all" || item.key === "all" || regionPatterns.includes(item.key);
+                                }).map((item) => (
+                                    <FilterChip key={item.key} label={item.label} active={filter === item.key} onPress={() => setFilter(item.key)} styles={styles} />
+                                ))}
+                            </FilterGroup>
+                            <FilterGroup title="Seviye" styles={styles}>
+                                {DIFFICULTY_FILTERS.map((item) => (
+                                    <FilterChip key={item.key} label={item.label} active={difficulty === item.key} onPress={() => setDifficulty(item.key)} styles={styles} />
+                                ))}
+                            </FilterGroup>
+                            <FilterGroup title="Ekipman" styles={styles}>
+                                {EQUIPMENT_FILTERS.map((item) => (
+                                    <FilterChip key={item.key} label={item.label} active={equipmentFilters.includes(item.key)} onPress={() => toggleEquipment(item.key)} styles={styles} />
+                                ))}
+                            </FilterGroup>
+                        </ScrollView>
+
+                        <View style={styles.filterActions}>
+                            <TouchableOpacity
+                                style={styles.secondaryAction}
+                                onPress={() => {
+                                    setRegion("all");
+                                    setFilter("all");
+                                    setDifficulty("all");
+                                    setEquipmentFilters([]);
+                                }}
+                            >
+                                <Text style={styles.secondaryActionText}>Temizle</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.primaryAction} onPress={() => setFilterModalVisible(false)}>
+                                <Text style={styles.primaryActionText}>Uygula</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
         </>
+    );
+}
+
+function FilterGroup({ title, children, styles }: { title: string; children: React.ReactNode; styles: any }) {
+    return (
+        <View style={styles.filterGroup}>
+            <Text style={styles.detailTitle}>{title}</Text>
+            <View style={styles.filterWrap}>{children}</View>
+        </View>
+    );
+}
+
+function FilterChip({ label, active, onPress, styles }: { label: string; active: boolean; onPress: () => void; styles: any }) {
+    return (
+        <TouchableOpacity style={[styles.filterChip, active && styles.filterChipActive]} onPress={onPress} activeOpacity={0.82}>
+            <Text style={[styles.filterText, active && styles.filterTextActive]}>{label}</Text>
+        </TouchableOpacity>
     );
 }
 
@@ -240,7 +393,45 @@ const createStyles = (colors: any) => StyleSheet.create({
     eyebrow: { color: colors.accent, fontSize: fontSize.xs, fontWeight: fontWeight.bold, letterSpacing: 1 },
     title: { color: colors.text, fontSize: fontSize.xxl, fontWeight: fontWeight.heavy },
     subtitle: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20, marginTop: spacing.xs },
+    searchPanel: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        alignItems: "center",
+    },
+    searchBox: {
+        flex: 1,
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    searchInput: {
+        flex: 1,
+        color: colors.text,
+        fontSize: fontSize.sm,
+        paddingVertical: spacing.sm,
+    },
+    filterBtn: {
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    filterBtnText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    resultCount: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: -spacing.sm },
     filterRow: { gap: spacing.sm, paddingVertical: spacing.xs },
+    filterGroup: { marginBottom: spacing.lg, gap: spacing.sm },
+    filterWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
     filterChip: {
         borderRadius: borderRadius.full,
         borderWidth: 1,
@@ -314,6 +505,31 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
     },
     modalScroll: { maxHeight: 520 },
+    filterActions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginTop: spacing.md,
+    },
+    secondaryAction: {
+        flex: 1,
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.background,
+    },
+    secondaryActionText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    primaryAction: {
+        flex: 1,
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accent,
+    },
+    primaryActionText: { color: colors.background, fontSize: fontSize.sm, fontWeight: fontWeight.heavy },
     quickInfoGrid: {
         flexDirection: "row",
         flexWrap: "wrap",

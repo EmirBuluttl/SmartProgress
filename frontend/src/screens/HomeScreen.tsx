@@ -38,6 +38,7 @@ import { SkeletonList } from "../components/SkeletonCard";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { syncPendingWorkouts } from "../services/syncService";
 import { countProgressEvents } from "../utils/workoutMetrics";
+import { calculateWorkoutStreak } from "../utils/streak";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -106,7 +107,7 @@ export default function HomeScreen() {
             const activeProgramId =
                 (await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY)) ||
                 (await AsyncStorage.getItem(FAVORITES_KEY));
-            const streak = calculateStreak(fetchedWorkouts, myPrograms || [], activeProgramId);
+            const streak = calculateWorkoutStreak(fetchedWorkouts, myPrograms || [], activeProgramId);
             setStats({
                 totalWorkouts: workoutRes.data.count || fetchedWorkouts.length,
                 currentStreak: streak,
@@ -729,66 +730,6 @@ export default function HomeScreen() {
 }
 
 // ─── Helpers ────────────────────────────────
-
-function calculateStreak(workouts: any[], programs: any[] = [], activeProgramId?: string | null): number {
-    if (!workouts.length) return 0;
-    
-    // One or more workouts on the same calendar day count as a single streak day.
-    const workedOutDates = new Set(workouts.map((w) => workoutDateKey(w.logDate)));
-    let streak = 0;
-    const today = new Date();
-
-    const activeProgram = activeProgramId
-        ? programs.find((program) => program.id === activeProgramId)
-        : null;
-    const cycleProgram = activeProgram && isCycleProgram(activeProgram.data)
-        ? activeProgram
-        : programs.find((program) => isCycleProgram(program.data));
-    const cycleDays = cycleProgram && isCycleProgram(cycleProgram.data)
-        ? cycleProgram.data.days
-        : [];
-    const currentCycleIndex = cycleProgram?.currentDayIndex ?? 0;
-
-    let restDaysOfWeek = new Set<number>(); // 0 = Sunday, 1 = Monday, etc.
-    if (!cycleDays.length) {
-        restDaysOfWeek = new Set();
-    } else if (cycleProgram?.data?.frequency === 7) {
-        cycleDays.forEach((day: any, index: number) => {
-            if (day.isRestDay) restDaysOfWeek.add((index + 1) % 7);
-        });
-    }
-
-    // Check up to 365 days back
-    for (let i = 0; i < 365; i++) {
-        const day = new Date(today);
-        day.setDate(today.getDate() - i);
-        const dayString = workoutDateKey(day);
-        const cycleDay = cycleDays.length
-            ? cycleDays[((currentCycleIndex - i) % cycleDays.length + cycleDays.length) % cycleDays.length]
-            : null;
-        
-        if (workedOutDates.has(dayString)) {
-            // Worked out!
-            streak++;
-        } else if (i === 0) {
-            // It's today. If they haven't worked out today, it doesn't break the streak yet.
-            // (They still have time to work out today).
-            continue;
-        } else if (cycleDay?.isRestDay || restDaysOfWeek.has(day.getDay())) {
-            // Rest/off days keep the chain alive but do not increment workout streak.
-            continue;
-        } else {
-            // Did not work out, and it wasn't a recognized rest day. Streak broken.
-            break;
-        }
-    }
-    return streak;
-}
-
-function workoutDateKey(value: string | Date): string {
-    const date = value instanceof Date ? value : new Date(value);
-    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-}
 
 function formatDate(dateStr: string): string {
     return new Date(dateStr).toLocaleDateString("tr-TR", { day: "numeric", month: "short" });

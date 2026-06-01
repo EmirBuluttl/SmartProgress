@@ -16,6 +16,7 @@ import {
     Platform,
     Modal,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import * as ImagePicker from "expo-image-picker";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -25,13 +26,15 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { workoutApi, programApi, authApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
-import { isCycleProgram } from "../types/workout";
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
 import AccentButton from "../components/AccentButton";
 import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
+import { calculateWorkoutStreak } from "../utils/streak";
+
+const ACTIVE_PROGRAM_KEY = "active_program_id";
 
 const AVAILABLE_COLORS = [
     "#CCFF00", // Default Lime
@@ -168,7 +171,8 @@ export default function ProfileScreen() {
             const allPrs = getPersonalRecords(workouts);
             setPrs(allPrs.slice(0, 3));
 
-            const streak = calculateStreak(workouts, progRes.data.programs || []);
+            const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
+            const streak = calculateWorkoutStreak(workouts, progRes.data.programs || [], activeProgramId);
 
             setStats({
                 totalWorkouts: workouts.length || 0,
@@ -739,55 +743,6 @@ function HeatmapCalendar({ workouts, colors, heatmapStyles }: { workouts: any[],
 }
 
 // ─── Helpers ────────────────────────────────
-function calculateStreak(workouts: any[], programs: any[] = []): number {
-    if (!workouts.length) return 0;
-
-    // One or more workouts on the same calendar day count as a single streak day.
-    const workedOutDates = new Set(workouts.map((w) => workoutDateKey(w.logDate)));
-    let streak = 0;
-    const today = new Date();
-
-    // Determine which days of the week are usually rest days based on the user's active/favorite program
-    // If no program, assume no rest days
-    let restDaysOfWeek = new Set<number>(); // 0 = Sunday, 1 = Monday, etc.
-    if (programs.length > 0) {
-        // Pick the first cycle program to extract rest days
-        const cycleProg = programs.find(p => isCycleProgram(p.data));
-        if (cycleProg) {
-            cycleProg.data.days.forEach((day: any, index: number) => {
-                if (day.isRestDay) {
-                    if (cycleProg.data.frequency === 7) {
-                        let dotw = (index + 1) % 7;
-                        restDaysOfWeek.add(dotw);
-                    }
-                }
-            });
-        }
-    }
-
-    for (let i = 0; i < 365; i++) {
-        const day = new Date(today);
-        day.setDate(today.getDate() - i);
-        const dayString = workoutDateKey(day);
-
-        if (workedOutDates.has(dayString)) {
-            streak++;
-        } else if (i === 0) {
-            continue;
-        } else if (restDaysOfWeek.has(day.getDay())) {
-            continue;
-        } else {
-            break;
-        }
-    }
-    return streak;
-}
-
-function workoutDateKey(value: string | Date): string {
-    const date = value instanceof Date ? value : new Date(value);
-    return `${date.getFullYear()}-${date.getMonth() + 1}-${date.getDate()}`;
-}
-
 // ─── Styles ─────────────────────────────────
 
 const createStyles = (colors: any) => StyleSheet.create({

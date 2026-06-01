@@ -29,6 +29,7 @@ interface User {
         pro_trial_started_at?: string;
         pro_trial_expires_at?: string;
         free_wizard_uses_remaining?: number;
+        pro_wizard_uses_remaining?: number;
         coach_plus_beta?: boolean;
     } | null;
 }

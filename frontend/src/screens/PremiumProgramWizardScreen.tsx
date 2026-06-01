@@ -37,6 +37,7 @@ import {
 } from "../services/coachRuleEngine";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
+const PRO_WIZARD_USES = 15;
 
 const normalizeLevel = (value: unknown): Level => {
     const text = String(value || "").toLowerCase();
@@ -105,6 +106,8 @@ export default function PremiumProgramWizardScreen() {
     const [profileApplied, setProfileApplied] = React.useState(false);
     const hasProAccess = hasActiveProAccess(user);
     const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 2));
+    const proWizardUsesRemaining = Math.max(0, Number(user?.settings?.pro_wizard_uses_remaining ?? PRO_WIZARD_USES));
+    const wizardUsesRemaining = hasProAccess ? proWizardUsesRemaining : freeWizardUsesRemaining;
 
     React.useEffect(() => {
         if (!coachProfile || profileApplied) return;
@@ -190,8 +193,10 @@ export default function PremiumProgramWizardScreen() {
     };
 
     const saveProgram = async (activate: boolean) => {
-        if (!hasProAccess && freeWizardUsesRemaining <= 0) {
-            setNotice("Ücretsiz wizard hakkın dolmuş görünüyor. Pro üyelik aktif olduğunda sınırsız program kurabilirsin.");
+        if (wizardUsesRemaining <= 0) {
+            setNotice(hasProAccess
+                ? "Akıllı program wizard hakkın dolmuş görünüyor. Bu beta dönemde Pro kullanıcılar için limit 15 program."
+                : "Ücretsiz wizard hakkın dolmuş görünüyor. Pro üyelik aktif olduğunda 15 akıllı program hakkın olur.");
             return;
         }
         setSaving(true);
@@ -208,7 +213,15 @@ export default function PremiumProgramWizardScreen() {
             if (activate && programId) {
                 await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, programId);
             }
-            if (!hasProAccess) {
+            if (hasProAccess) {
+                const nextUses = Math.max(0, proWizardUsesRemaining - 1);
+                const updateResponse = await authApi.updateProfile({
+                    settings: { pro_wizard_uses_remaining: nextUses },
+                });
+                if (updateResponse.data) {
+                    await updateUser(updateResponse.data);
+                }
+            } else {
                 const nextUses = Math.max(0, freeWizardUsesRemaining - 1);
                 const updateResponse = await authApi.updateProfile({
                     settings: { free_wizard_uses_remaining: nextUses },
@@ -567,15 +580,17 @@ export default function PremiumProgramWizardScreen() {
                     <Text style={styles.title}>Programı birlikte kuralım</Text>
                     <Text style={styles.subtitle}>
                         Rule engine ilk taslağı oluşturur; kararları sen onaylarsın.
-                        {!hasProAccess ? ` Ücretsiz kalan wizard hakkı: ${freeWizardUsesRemaining}.` : ""}
+                        {hasProAccess ? ` Kalan Pro wizard hakkı: ${proWizardUsesRemaining}/15.` : ` Ücretsiz kalan wizard hakkı: ${freeWizardUsesRemaining}.`}
                     </Text>
                 </View>
-                {!hasProAccess && freeWizardUsesRemaining <= 0 ? (
+                {wizardUsesRemaining <= 0 ? (
                     <View style={styles.card}>
                         <Ionicons name="lock-closed-outline" size={24} color={colors.accent} />
                         <Text style={styles.cardTitle}>Wizard hakkın doldu</Text>
                         <Text style={styles.bodyText}>
-                            Ücretsiz iki deneme hakkı tamamlanmış. Pro üyelik aktif olduğunda kişisel program wizard'ını sınırsız kullanabilirsin.
+                            {hasProAccess
+                                ? "Bu beta dönemde Pro wizard limiti 15 program. Mevcut programlarını düzenleyerek devam edebilirsin."
+                                : "Ücretsiz iki deneme hakkı tamamlanmış. Pro üyelik aktif olduğunda 15 akıllı program hakkın olur."}
                         </Text>
                         <TouchableOpacity style={styles.secondaryBtn} onPress={returnToCoach}>
                             <Text style={styles.secondaryText}>Koç'a Dön</Text>
@@ -594,7 +609,7 @@ export default function PremiumProgramWizardScreen() {
                 )}
             </ScrollView>
 
-            {!createdProgramId && step < 7 && (hasProAccess || freeWizardUsesRemaining > 0) && (
+            {!createdProgramId && step < 7 && wizardUsesRemaining > 0 && (
                 <View style={styles.footer}>
                     <TouchableOpacity style={styles.primaryBtn} onPress={goNext}>
                         <Text style={styles.primaryText}>Devam Et</Text>
