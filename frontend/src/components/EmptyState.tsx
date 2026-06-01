@@ -7,12 +7,14 @@ import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     ViewStyle,
+    Animated,
+    Easing,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
+import AnimatedPressable from "./AnimatedPressable";
 
 interface EmptyStateProps {
     icon?: React.ComponentProps<typeof Ionicons>["name"];
@@ -33,24 +35,36 @@ export default function EmptyState({
 }: EmptyStateProps) {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const float = React.useRef(new Animated.Value(0)).current;
+
+    React.useEffect(() => {
+        const loop = Animated.loop(
+            Animated.sequence([
+                Animated.timing(float, { toValue: -5, duration: 1500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+                Animated.timing(float, { toValue: 0, duration: 1500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
+            ]),
+        );
+        loop.start();
+        return () => loop.stop();
+    }, [float]);
 
     return (
         <View style={[styles.container, style]}>
-            <View style={styles.iconWrap}>
+            <Animated.View style={[styles.iconWrap, { transform: [{ translateY: float }] }]}>
                 <Ionicons name={icon} size={40} color={colors.textMuted} />
-            </View>
+            </Animated.View>
             <Text style={styles.title}>{title}</Text>
             {subtitle ? (
                 <Text style={styles.subtitle}>{subtitle}</Text>
             ) : null}
             {actionLabel && onAction ? (
-                <TouchableOpacity
+                <AnimatedPressable
                     style={styles.actionBtn}
                     onPress={onAction}
-                    activeOpacity={0.75}
+                    pressedScale={0.97}
                 >
                     <Text style={styles.actionText}>{actionLabel}</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
             ) : null}
         </View>
     );

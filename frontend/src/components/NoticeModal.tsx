@@ -1,14 +1,12 @@
 import React from "react";
 import {
-    Modal,
-    Pressable,
     StyleSheet,
     Text,
-    TouchableOpacity,
-    View,
 } from "react-native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
+import AnimatedPressable from "./AnimatedPressable";
+import PremiumModalSurface from "./PremiumModalSurface";
 
 interface NoticeModalProps {
     visible: boolean;
@@ -29,29 +27,18 @@ export default function NoticeModal({
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     return (
-        <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-            <Pressable style={styles.overlay} onPress={onClose}>
-                <Pressable style={styles.container} onPress={(event) => event.stopPropagation()}>
-                    <Text style={styles.title}>{title}</Text>
-                    <Text style={styles.message}>{message}</Text>
-                    <TouchableOpacity style={styles.button} onPress={onClose} activeOpacity={0.85}>
-                        <Text style={styles.buttonText}>{buttonLabel}</Text>
-                    </TouchableOpacity>
-                </Pressable>
-            </Pressable>
-        </Modal>
+        <PremiumModalSurface visible={visible} onDismiss={onClose} containerStyle={styles.container}>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.message}>{message}</Text>
+            <AnimatedPressable style={styles.button} onPress={onClose} pressedScale={0.97}>
+                <Text style={styles.buttonText}>{buttonLabel}</Text>
+            </AnimatedPressable>
+        </PremiumModalSurface>
     );
 }
 
 const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").generateColors>) =>
     StyleSheet.create({
-        overlay: {
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            padding: spacing.xl,
-            backgroundColor: "rgba(0, 0, 0, 0.72)",
-        },
         container: {
             width: "100%",
             maxWidth: 380,

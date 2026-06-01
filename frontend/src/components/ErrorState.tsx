@@ -7,12 +7,13 @@ import {
     View,
     Text,
     StyleSheet,
-    TouchableOpacity,
     ViewStyle,
+    Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
+import AnimatedPressable from "./AnimatedPressable";
 
 interface ErrorStateProps {
     message?: string;
@@ -27,23 +28,39 @@ export default function ErrorState({
 }: ErrorStateProps) {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const rotate = React.useRef(new Animated.Value(0)).current;
+
+    const handleRetry = () => {
+        rotate.setValue(0);
+        Animated.timing(rotate, {
+            toValue: 1,
+            duration: 420,
+            useNativeDriver: true,
+        }).start();
+        onRetry?.();
+    };
+
+    const iconRotation = rotate.interpolate({
+        inputRange: [0, 1],
+        outputRange: ["0deg", "360deg"],
+    });
 
     return (
         <View style={[styles.container, style]}>
-            <View style={styles.iconWrap}>
+            <Animated.View style={[styles.iconWrap, { transform: [{ rotate: iconRotation }] }]}>
                 <Ionicons name="alert-circle-outline" size={40} color={colors.error} />
-            </View>
+            </Animated.View>
             <Text style={styles.title}>Hata</Text>
             <Text style={styles.message}>{message}</Text>
             {onRetry ? (
-                <TouchableOpacity
+                <AnimatedPressable
                     style={styles.retryBtn}
-                    onPress={onRetry}
-                    activeOpacity={0.75}
+                    onPress={handleRetry}
+                    pressedScale={0.97}
                 >
                     <Ionicons name="refresh-outline" size={16} color={colors.accent} />
                     <Text style={styles.retryText}>Tekrar Dene</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
             ) : null}
         </View>
     );

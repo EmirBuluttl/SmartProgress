@@ -1,14 +1,13 @@
 import React from "react";
 import {
-    Modal,
-    Pressable,
     StyleSheet,
     Text,
-    TouchableOpacity,
     View,
 } from "react-native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
+import AnimatedPressable from "./AnimatedPressable";
+import PremiumModalSurface from "./PremiumModalSurface";
 
 interface ActionConfirmModalProps {
     visible: boolean;
@@ -43,34 +42,27 @@ export default function ActionConfirmModal({
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     return (
-        <Modal
-            visible={visible}
-            transparent
-            animationType="fade"
-            onRequestClose={onDismiss}
-        >
-            <Pressable style={styles.overlay} onPress={onDismiss}>
-                <Pressable style={styles.container} onPress={(event) => event.stopPropagation()}>
-                    <Text style={styles.title}>{title}</Text>
-                    <Text style={styles.message}>{message}</Text>
+        <PremiumModalSurface visible={visible} onDismiss={onDismiss} containerStyle={styles.container}>
+            <Text style={styles.title}>{title}</Text>
+            <Text style={styles.message}>{message}</Text>
 
                     <View style={styles.buttonRow}>
-                        <TouchableOpacity
+                        <AnimatedPressable
                             style={[styles.button, styles.secondaryButton]}
                             onPress={onSecondary}
-                            activeOpacity={0.8}
+                            pressedScale={0.97}
                         >
                             <Text style={styles.secondaryText}>{secondaryLabel}</Text>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
 
-                        <TouchableOpacity
+                        <AnimatedPressable
                             style={[
                                 styles.button,
                                 styles.primaryButton,
                                 destructivePrimary && styles.destructiveButton,
                             ]}
                             onPress={onPrimary}
-                            activeOpacity={0.85}
+                            pressedScale={0.97}
                         >
                             <Text style={[
                                 styles.primaryText,
@@ -78,16 +70,16 @@ export default function ActionConfirmModal({
                             ]}>
                                 {primaryLabel}
                             </Text>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     </View>
                     {tertiaryLabel && onTertiary && (
-                        <TouchableOpacity
+                        <AnimatedPressable
                             style={[
                                 styles.tertiaryButton,
                                 destructiveTertiary && styles.tertiaryDestructiveButton,
                             ]}
                             onPress={onTertiary}
-                            activeOpacity={0.85}
+                            pressedScale={0.98}
                         >
                             <Text style={[
                                 styles.tertiaryText,
@@ -95,23 +87,14 @@ export default function ActionConfirmModal({
                             ]}>
                                 {tertiaryLabel}
                             </Text>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     )}
-                </Pressable>
-            </Pressable>
-        </Modal>
+        </PremiumModalSurface>
     );
 }
 
 const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").generateColors>) =>
     StyleSheet.create({
-        overlay: {
-            flex: 1,
-            alignItems: "center",
-            justifyContent: "center",
-            padding: spacing.xl,
-            backgroundColor: "rgba(0, 0, 0, 0.72)",
-        },
         container: {
             width: "100%",
             maxWidth: 380,
