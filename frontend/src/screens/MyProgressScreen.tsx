@@ -11,7 +11,6 @@ import {
     StyleSheet,
     Dimensions,
     TouchableOpacity,
-    Modal,
     TextInput,
     Linking,
 } from "react-native";
@@ -29,6 +28,8 @@ import SectionHeader from "../components/SectionHeader";
 import { buildExerciseScoreTrend, buildProgressTrend, getPersonalRecords } from "../utils/workoutMetrics";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { useCountUp } from "../hooks/useCountUp";
+import AnimatedPressable from "../components/AnimatedPressable";
+import PremiumModalSurface from "../components/PremiumModalSurface";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const RECORD_LINKS_KEY = "personal_record_video_links";
@@ -61,6 +62,9 @@ export default function MyProgressScreen() {
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
     const { animStyle } = useScreenEnter();
+    const { animStyle: filtersAnimStyle } = useScreenEnter({ delay: 80 });
+    const { animStyle: chartAnimStyle } = useScreenEnter({ delay: 150 });
+    const { animStyle: prsAnimStyle } = useScreenEnter({ delay: 220 });
 
     const [filter, setFilter] = React.useState<TimeFilter>("1A");
     const [chartMetric, setChartMetric] = React.useState<ChartMetric>("progress:all");
@@ -375,119 +379,126 @@ export default function MyProgressScreen() {
                 <Text style={styles.pageTitle}>MyProgress</Text>
                 <Text style={styles.pageSubtitle}>Performans analitiğin ve akıllı öneriler</Text>
 
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.metricFilterRow}
-                >
-                    {metricOptions.map((option) => (
-                        <TouchableOpacity
-                            key={option.key}
-                            style={[styles.metricFilterBtn, chartMetric === option.key && styles.metricFilterBtnActive]}
-                            onPress={() => setChartMetric(option.key)}
-                        >
-                            <Text style={[styles.metricFilterText, chartMetric === option.key && styles.metricFilterTextActive]}>
-                                {option.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
+                <Animated.View style={filtersAnimStyle}>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.metricFilterRow}
+                    >
+                        {metricOptions.map((option) => (
+                            <AnimatedPressable
+                                key={option.key}
+                                style={[styles.metricFilterBtn, chartMetric === option.key && styles.metricFilterBtnActive]}
+                                onPress={() => setChartMetric(option.key)}
+                                pressedScale={0.96}
+                            >
+                                <Text style={[styles.metricFilterText, chartMetric === option.key && styles.metricFilterTextActive]}>
+                                    {option.label}
+                                </Text>
+                            </AnimatedPressable>
+                        ))}
+                    </ScrollView>
 
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.metricFilterRow}
-                >
-                    {splitOptions.map((option) => (
-                        <TouchableOpacity
-                            key={option}
-                            style={[styles.splitFilterBtn, splitFilter === option && styles.metricFilterBtnActive]}
-                            onPress={() => setSplitFilter(option)}
-                        >
-                            <Text style={[styles.metricFilterText, splitFilter === option && styles.metricFilterTextActive]}>
-                                {option}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
+                    <ScrollView
+                        horizontal
+                        showsHorizontalScrollIndicator={false}
+                        contentContainerStyle={styles.metricFilterRow}
+                    >
+                        {splitOptions.map((option) => (
+                            <AnimatedPressable
+                                key={option}
+                                style={[styles.splitFilterBtn, splitFilter === option && styles.metricFilterBtnActive]}
+                                onPress={() => setSplitFilter(option)}
+                                pressedScale={0.96}
+                            >
+                                <Text style={[styles.metricFilterText, splitFilter === option && styles.metricFilterTextActive]}>
+                                    {option}
+                                </Text>
+                            </AnimatedPressable>
+                        ))}
+                    </ScrollView>
 
-                {/* ─── Time Filter Row ─── */}
-                <View style={styles.filterRow}>
-                    {FILTERS.map((f) => (
-                        <TouchableOpacity
-                            key={f}
-                            style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
-                            onPress={() => setFilter(f)}
-                        >
-                            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-                                {f}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </View>
+                    {/* ─── Time Filter Row ─── */}
+                    <View style={styles.filterRow}>
+                        {FILTERS.map((f) => (
+                            <AnimatedPressable
+                                key={f}
+                                style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
+                                onPress={() => setFilter(f)}
+                                pressedScale={0.96}
+                            >
+                                <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+                                    {f}
+                                </Text>
+                            </AnimatedPressable>
+                        ))}
+                    </View>
+                </Animated.View>
 
                 {/* ─── Progress Chart ─── */}
-                <SectionHeader title={chartTitle} />
-                <GymCard elevated style={styles.chartCard}>
-                    <View style={styles.scoreSummaryRow}>
-                        <View>
-                            <Text style={styles.scoreSummaryLabel}>
-                                {chartMetric === "progress:all" || chartMetric.startsWith("exercise:") ? "Son yük skoru" : "Son kayıt"}
-                            </Text>
-                            <Text style={styles.scoreSummaryHint}>
-                                {chartMetric === "progress:all" || chartMetric.startsWith("exercise:")
-                                    ? "Kilo yüzdesi + tekrar katsayısı"
-                                    : "Seçili filtredeki son veri"}
+                <Animated.View style={chartAnimStyle}>
+                    <SectionHeader title={chartTitle} />
+                    <GymCard elevated style={styles.chartCard}>
+                        <View style={styles.scoreSummaryRow}>
+                            <View>
+                                <Text style={styles.scoreSummaryLabel}>
+                                    {chartMetric === "progress:all" || chartMetric.startsWith("exercise:") ? "Son yük skoru" : "Son kayıt"}
+                                </Text>
+                                <Text style={styles.scoreSummaryHint}>
+                                    {chartMetric === "progress:all" || chartMetric.startsWith("exercise:")
+                                        ? "Kilo yüzdesi + tekrar katsayısı"
+                                        : "Seçili filtredeki son veri"}
+                                </Text>
+                            </View>
+                            <Text
+                                style={[
+                                    styles.scoreSummaryValue,
+                                    latestChartValue < 0 && styles.scoreSummaryValueNegative,
+                                ]}
+                            >
+                                {latestChartLabel}
                             </Text>
                         </View>
-                        <Text
-                            style={[
-                                styles.scoreSummaryValue,
-                                latestChartValue < 0 && styles.scoreSummaryValueNegative,
-                            ]}
-                        >
-                            {latestChartLabel}
-                        </Text>
-                    </View>
-                    <LineChart
-                        data={animatedChartData}
-                        width={SCREEN_WIDTH - spacing.lg * 4}
-                        height={200}
-                        yAxisSuffix={chartSuffix}
-                        chartConfig={{
-                            useShadowColorFromDataset: true,
-                            backgroundColor: colors.surface,
-                            backgroundGradientFrom: colors.surfaceLight,
-                            backgroundGradientTo: colors.surface,
-                            decimalPlaces: chartDecimalPlaces,
-                            color: (opacity = 1) => {
-                                const hexMatch = colors.accent.match(/\w\w/g);
-                                if (!hexMatch) return `rgba(204, 255, 0, ${opacity})`;
-                                const [r, g, b] = hexMatch.map((h: string) => parseInt(h, 16));
-                                return `rgba(${r}, ${g}, ${b}, ${opacity})`;
-                            },
-                            labelColor: () => colors.textSecondary,
-                            propsForDots: { r: "5", strokeWidth: "2", stroke: colors.accent },
-                            propsForBackgroundLines: {
-                                strokeDasharray: "",
-                                stroke: colors.border,
-                                strokeWidth: 0.5,
-                            },
-                        }}
-                        bezier
-                        style={styles.chart}
-                    />
-                    <View style={styles.chartLegend}>
-                        <View style={styles.legendDot} />
-                        <Text style={styles.legendText}>
-                            {chartMetric.startsWith("exercise:")
-                                ? "Seçili harekette önceki en iyi kayda göre yük skoru"
-                                : chartMetric === "progress:all"
-                                    ? "Antrenmandaki hareketlerin ortalama yük skoru"
-                                    : "Profilde kaydettiğin takip verileri"}
-                        </Text>
-                    </View>
-                </GymCard>
+                        <LineChart
+                            data={animatedChartData}
+                            width={SCREEN_WIDTH - spacing.lg * 4}
+                            height={200}
+                            yAxisSuffix={chartSuffix}
+                            chartConfig={{
+                                useShadowColorFromDataset: true,
+                                backgroundColor: colors.surface,
+                                backgroundGradientFrom: colors.surfaceLight,
+                                backgroundGradientTo: colors.surface,
+                                decimalPlaces: chartDecimalPlaces,
+                                color: (opacity = 1) => {
+                                    const hexMatch = colors.accent.match(/\w\w/g);
+                                    if (!hexMatch) return `rgba(204, 255, 0, ${opacity})`;
+                                    const [r, g, b] = hexMatch.map((h: string) => parseInt(h, 16));
+                                    return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                                },
+                                labelColor: () => colors.textSecondary,
+                                propsForDots: { r: "5", strokeWidth: "2", stroke: colors.accent },
+                                propsForBackgroundLines: {
+                                    strokeDasharray: "",
+                                    stroke: colors.border,
+                                    strokeWidth: 0.5,
+                                },
+                            }}
+                            bezier
+                            style={styles.chart}
+                        />
+                        <View style={styles.chartLegend}>
+                            <View style={styles.legendDot} />
+                            <Text style={styles.legendText}>
+                                {chartMetric.startsWith("exercise:")
+                                    ? "Seçili harekette önceki en iyi kayda göre yük skoru"
+                                    : chartMetric === "progress:all"
+                                        ? "Antrenmandaki hareketlerin ortalama yük skoru"
+                                        : "Profilde kaydettiğin takip verileri"}
+                            </Text>
+                        </View>
+                    </GymCard>
+                </Animated.View>
 
                 {/* ─── AI Suggestion ─── */}
                 {isAutoSuggestEnabled && (
@@ -515,119 +526,113 @@ export default function MyProgressScreen() {
                 )}
 
                 {/* ─── Personal Records ─── */}
-                <SectionHeader
-                    title="Kişisel Rekorlar (PR)"
-                    actionLabel="Tümünü Gör"
-                    onAction={() => navigation.navigate("Records")}
-                />
-                {prs.length > 0 ? (
-                    prs.slice(0, 5).map((pr, index) => (
-                        <TouchableOpacity
-                            key={index}
-                            onPress={() => setSelectedPR(pr)}
-                            activeOpacity={0.8}
-                        >
-                            <GymCard style={styles.prCard}>
-                                <View style={styles.prRow}>
-                                    <View style={styles.prRank}>
-                                        <Text style={styles.prRankText}>#{index + 1}</Text>
+                <Animated.View style={prsAnimStyle}>
+                    <SectionHeader
+                        title="Kişisel Rekorlar (PR)"
+                        actionLabel="Tümünü Gör"
+                        onAction={() => navigation.navigate("Records")}
+                    />
+                    {prs.length > 0 ? (
+                        prs.slice(0, 5).map((pr, index) => (
+                            <AnimatedPressable
+                                key={index}
+                                onPress={() => setSelectedPR(pr)}
+                                pressedScale={0.99}
+                            >
+                                <GymCard style={styles.prCard}>
+                                    <View style={styles.prRow}>
+                                        <View style={styles.prRank}>
+                                            <Text style={styles.prRankText}>#{index + 1}</Text>
+                                        </View>
+                                        <View style={styles.prInfo}>
+                                            <Text style={styles.prExercise}>{pr.exercise}</Text>
+                                            <Text style={styles.prDate}>
+                                                {new Date(pr.date).toLocaleDateString("tr-TR", {
+                                                    day: "numeric",
+                                                    month: "short",
+                                                    year: "numeric",
+                                                })}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.prWeight}>
+                                            <Text style={styles.prWeightValue}>{pr.weight}</Text>
+                                            <Text style={styles.prWeightUnit}>{pr.unit} x {pr.reps}</Text>
+                                        </View>
                                     </View>
-                                    <View style={styles.prInfo}>
-                                        <Text style={styles.prExercise}>{pr.exercise}</Text>
-                                        <Text style={styles.prDate}>
-                                            {new Date(pr.date).toLocaleDateString("tr-TR", {
-                                                day: "numeric",
-                                                month: "short",
-                                                year: "numeric",
-                                            })}
-                                        </Text>
-                                    </View>
-                                    <View style={styles.prWeight}>
-                                        <Text style={styles.prWeightValue}>{pr.weight}</Text>
-                                        <Text style={styles.prWeightUnit}>{pr.unit} x {pr.reps}</Text>
-                                    </View>
-                                </View>
-                            </GymCard>
-                        </TouchableOpacity>
-                    ))
-                ) : (
-                    <Text style={styles.emptyText}>Henüz rekor bulunamadı.</Text>
-                )}
+                                </GymCard>
+                            </AnimatedPressable>
+                        ))
+                    ) : (
+                        <Text style={styles.emptyText}>Henüz rekor bulunamadı.</Text>
+                    )}
+                </Animated.View>
 
                 <View style={{ height: spacing.xxxl }} />
             </Animated.ScrollView>
 
             {/* ─── PR Detail Modal ─── */}
-            <Modal
-                visible={selectedPR !== null}
-                transparent
-                animationType="slide"
-                onRequestClose={closePrModal}
-            >
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
-                        <View style={styles.modalHeader}>
-                            <Text style={styles.modalTitle}>Kişisel Rekor</Text>
-                            <TouchableOpacity onPress={closePrModal}>
-                                <Ionicons name="close" size={24} color={colors.text} />
-                            </TouchableOpacity>
-                        </View>
-                        {selectedPR && (
-                            <>
-                                <Text style={styles.modalExercise}>{selectedPR.exercise}</Text>
-                                <Text style={styles.modalWeight}>
-                                    {selectedPR.weight} {selectedPR.unit} x {selectedPR.reps}
-                                </Text>
-                                <View style={styles.modalMeta}>
-                                    <Text style={styles.modalMetaText}>
-                                        {new Date(selectedPR.date).toLocaleDateString("tr-TR", {
-                                            day: "numeric",
-                                            month: "long",
-                                            year: "numeric",
-                                        })}
-                                    </Text>
-                                    {selectedPR.workoutTitle && (
-                                        <Text style={styles.modalMetaText}>
-                                            {selectedPR.workoutTitle}
-                                        </Text>
-                                    )}
-                                </View>
-                                {isEditingPrLink ? (
-                                    <View style={styles.linkEditor}>
-                                        <Text style={styles.linkEditorTitle}>PR video bağlantısı</Text>
-                                        <TextInput
-                                            value={linkDraft}
-                                            onChangeText={setLinkDraft}
-                                            placeholder="https://youtube.com/... veya https://instagram.com/..."
-                                            placeholderTextColor={colors.textMuted}
-                                            autoCapitalize="none"
-                                            style={styles.linkInput}
-                                        />
-                                        {!!linkError && <Text style={styles.errorText}>{linkError}</Text>}
-                                        <View style={styles.linkActions}>
-                                            <TouchableOpacity style={styles.secondaryAction} onPress={() => setIsEditingPrLink(false)}>
-                                                <Text style={styles.secondaryActionText}>İptal</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity style={styles.primaryAction} onPress={savePrLink}>
-                                                <Text style={styles.primaryActionText}>Kaydet</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    </View>
-                                ) : (
-                                <TouchableOpacity
-                                    style={[styles.videoBtn, selectedPrLink && styles.videoBtnActive]}
-                                    onPress={() => selectedPrLink ? Linking.openURL(selectedPrLink) : openPrLinkEditor()}
-                                    onLongPress={openPrLinkEditor}
-                                >
-                                    <Ionicons name={selectedPrLink ? "play-circle" : "link-outline"} size={18} color={colors.background} />
-                                    <Text style={styles.videoBtnText}>{selectedPrLink ? "PR Videosunu Aç" : "Video Bağlantısı Ekle"}</Text>
-                                </TouchableOpacity>
-                                )}
-                            </>
-                        )}
-                    </View>
+            <PremiumModalSurface visible={selectedPR !== null} onDismiss={closePrModal} containerStyle={styles.modalCard}>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Kişisel Rekor</Text>
+                    <AnimatedPressable onPress={closePrModal} pressedScale={0.9}>
+                        <Ionicons name="close" size={24} color={colors.text} />
+                    </AnimatedPressable>
                 </View>
-            </Modal>
+                {selectedPR && (
+                    <>
+                        <Text style={styles.modalExercise}>{selectedPR.exercise}</Text>
+                        <Text style={styles.modalWeight}>
+                            {selectedPR.weight} {selectedPR.unit} x {selectedPR.reps}
+                        </Text>
+                        <View style={styles.modalMeta}>
+                            <Text style={styles.modalMetaText}>
+                                {new Date(selectedPR.date).toLocaleDateString("tr-TR", {
+                                    day: "numeric",
+                                    month: "long",
+                                    year: "numeric",
+                                })}
+                            </Text>
+                            {selectedPR.workoutTitle && (
+                                <Text style={styles.modalMetaText}>
+                                    {selectedPR.workoutTitle}
+                                </Text>
+                            )}
+                        </View>
+                        {isEditingPrLink ? (
+                            <View style={styles.linkEditor}>
+                                <Text style={styles.linkEditorTitle}>PR video bağlantısı</Text>
+                                <TextInput
+                                    value={linkDraft}
+                                    onChangeText={setLinkDraft}
+                                    placeholder="https://youtube.com/... veya https://instagram.com/..."
+                                    placeholderTextColor={colors.textMuted}
+                                    autoCapitalize="none"
+                                    style={styles.linkInput}
+                                />
+                                {!!linkError && <Text style={styles.errorText}>{linkError}</Text>}
+                                <View style={styles.linkActions}>
+                                    <AnimatedPressable style={styles.secondaryAction} onPress={() => setIsEditingPrLink(false)} pressedScale={0.98}>
+                                        <Text style={styles.secondaryActionText}>İptal</Text>
+                                    </AnimatedPressable>
+                                    <AnimatedPressable style={styles.primaryAction} onPress={savePrLink} pressedScale={0.98}>
+                                        <Text style={styles.primaryActionText}>Kaydet</Text>
+                                    </AnimatedPressable>
+                                </View>
+                            </View>
+                        ) : (
+                            <AnimatedPressable
+                                style={[styles.videoBtn, selectedPrLink && styles.videoBtnActive]}
+                                onPress={() => selectedPrLink ? Linking.openURL(selectedPrLink) : openPrLinkEditor()}
+                                onLongPress={openPrLinkEditor}
+                                pressedScale={0.985}
+                            >
+                                <Ionicons name={selectedPrLink ? "play-circle" : "link-outline"} size={18} color={colors.background} />
+                                <Text style={styles.videoBtnText}>{selectedPrLink ? "PR Videosunu Aç" : "Video Bağlantısı Ekle"}</Text>
+                            </AnimatedPressable>
+                        )}
+                    </>
+                )}
+            </PremiumModalSurface>
         </>
     );
 }
@@ -864,18 +869,15 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontStyle: "italic",
         marginTop: spacing.sm,
     },
-    // Modal
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.7)",
-        justifyContent: "flex-end",
-    },
     modalCard: {
+        width: "100%",
+        maxWidth: 520,
+        maxHeight: "86%",
         backgroundColor: colors.surface,
-        borderTopLeftRadius: borderRadius.xl,
-        borderTopRightRadius: borderRadius.xl,
+        borderRadius: borderRadius.xl,
+        borderWidth: 1,
+        borderColor: colors.border,
         padding: spacing.xl,
-        paddingBottom: 40,
     },
     modalHeader: {
         flexDirection: "row",
