@@ -106,6 +106,15 @@ export const MUSCLE_GROUPS: MuscleGroup[] = [
         subGroups: [{ key: "calves", label: "Gastrocnemius / soleus", patterns: ["calf_raise"] }],
         info: "Plantar flexion hareketleri baldır kaslarını öne çıkarır.",
     },
+    {
+        key: "core",
+        label: "Core / abs",
+        beginnerLabel: "Karın",
+        region: "core",
+        patterns: ["spinal_flexion"],
+        subGroups: [{ key: "abs", label: "Abs", patterns: ["spinal_flexion"] }],
+        info: "Omurgayı kontrollü fleksiyona getiren hareketler karın kaslarını hedefler.",
+    },
 ];
 
 export function groupForPattern(pattern?: string): MuscleGroup | undefined {
@@ -114,6 +123,11 @@ export function groupForPattern(pattern?: string): MuscleGroup | undefined {
 
 export function groupForExercise(exercise: Pick<ExerciseLibraryItem, "pattern">): MuscleGroup | undefined {
     return groupForPattern(exercise.pattern);
+}
+
+export function subGroupForPattern(pattern?: string): MuscleGroup["subGroups"][number] | undefined {
+    const value = String(pattern || "");
+    return MUSCLE_GROUPS.flatMap((group) => group.subGroups).find((subGroup) => subGroup.patterns.includes(value));
 }
 
 export function groupForExerciseName(name: unknown): MuscleGroup | undefined {
@@ -130,4 +144,41 @@ export function displayMuscleGroup(exercise: Pick<ExerciseLibraryItem, "pattern"
     const group = groupForExercise(exercise);
     if (!group) return "Genel";
     return beginner ? group.beginnerLabel : group.label;
+}
+
+export function displayExerciseTarget(exercise: Pick<ExerciseLibraryItem, "pattern">): string {
+    const group = groupForExercise(exercise);
+    const subGroup = subGroupForPattern(exercise.pattern);
+    if (!group && !subGroup) return "Genel";
+    if (!subGroup) return group?.beginnerLabel || "Genel";
+    return `${group?.beginnerLabel || "Genel"} / ${subGroup.label}`;
+}
+
+export function relatedPatternsForExercise(exercise: Pick<ExerciseLibraryItem, "pattern">): string[] {
+    const group = groupForExercise(exercise);
+    if (!group) return [];
+    return group.patterns.filter((pattern) => pattern !== exercise.pattern);
+}
+
+export function patternPurpose(pattern?: string): string {
+    const labels: Record<string, string> = {
+        horizontal_adduction: "Göğsü yatay itme/fly hattında hedefler; press ve fly varyasyonları bu gruba girer.",
+        upper_chest: "Üst göğüs odağı için omuz fleksiyonu eklenen press/fly varyasyonlarını kapsar.",
+        shoulder_flexion: "Ön omuz ve dikey itiş hattını takip eder.",
+        shoulder_abduction: "Yan omuz odağıdır; omuzu yana kaldırma hareketleri bu paterndedir.",
+        shoulder_adduction: "Alt kanat odağıdır; kolu yukarıdan gövdeye yaklaştıran çekişleri kapsar.",
+        shoulder_extension: "Üst kanat odağıdır; dirseği gövdeye yakın aşağı/arkaya çeken hareketleri kapsar.",
+        upper_back: "Üst sırt, orta trapez ve arka omuz desteği için yatay çekiş hattıdır.",
+        elbow_extension: "Triceps için dirsek açma hareketlerini kapsar.",
+        elbow_flexion: "Biceps için dirsek bükme hareketlerini kapsar.",
+        reverse_curl: "Brachialis ve ön kol desteği için pronasyonlu curl varyasyonlarını kapsar.",
+        knee_extension: "Rectus femoris ve quadriceps izolasyonu için diz açma hattıdır.",
+        leg_press: "Vastus/quadriceps ağırlıklı squat veya leg press hattıdır.",
+        hip_hinge: "Hamstring ve glute odağı için kalçadan menteşe hareketlerini kapsar.",
+        knee_flexion: "Hamstring izolasyonu için diz bükme hareketlerini kapsar.",
+        hip_adduction: "İç bacak/adductor odağıdır.",
+        spinal_flexion: "Karın kasları için omurgayı kontrollü fleksiyona getiren hareketlerdir.",
+        calf_raise: "Baldır için plantar fleksiyon hareketlerini kapsar.",
+    };
+    return labels[String(pattern || "")] || "Bu hareket SmartProgress patern eşlemesine göre takip edilir.";
 }

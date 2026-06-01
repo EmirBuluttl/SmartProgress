@@ -4,7 +4,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
-import { displayMuscleGroup, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
+import { displayExerciseTarget, displayMuscleGroup, MUSCLE_GROUPS, patternPurpose, relatedPatternsForExercise } from "../data/exerciseTaxonomy";
 import { useTheme } from "../hooks/ThemeContext";
 import { COACH_PATTERN_LABELS, type CoachPatternKey } from "../services/coachRuleEngine";
 
@@ -27,7 +27,7 @@ const FILTERS = [
 ] as const;
 
 type FilterKey = typeof FILTERS[number]["key"];
-type LibraryRegion = "all" | "upper" | "lower";
+type LibraryRegion = "all" | "upper" | "lower" | "core";
 type DifficultyFilter = "all" | ExerciseLibraryItem["difficulty"];
 
 const REGION_FILTERS: { key: LibraryRegion; label: string; patterns: string[] }[] = [
@@ -41,6 +41,11 @@ const REGION_FILTERS: { key: LibraryRegion; label: string; patterns: string[] }[
         key: "lower",
         label: "Lower",
         patterns: MUSCLE_GROUPS.filter((group) => group.region === "lower").flatMap((group) => group.patterns),
+    },
+    {
+        key: "core",
+        label: "Core",
+        patterns: MUSCLE_GROUPS.filter((group) => group.region === "core").flatMap((group) => group.patterns),
     },
 ];
 
@@ -158,6 +163,11 @@ export default function ExerciseLibraryScreen() {
         Number(difficulty !== "all") +
         equipmentFilters.length;
 
+    const selectedGroup = React.useMemo(
+        () => MUSCLE_GROUPS.find((group) => group.patterns.includes(filter)),
+        [filter],
+    );
+
     const toggleEquipment = (key: string) => {
         setEquipmentFilters((current) =>
             current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
@@ -198,6 +208,39 @@ export default function ExerciseLibraryScreen() {
                 </View>
                 <Text style={styles.resultCount}>{exercises.length} hareket bulundu</Text>
 
+                <View style={styles.guidePanel}>
+                    <View style={styles.guideHeader}>
+                        <View style={styles.guideIcon}>
+                            <Ionicons name="body-outline" size={19} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.guideTitle}>Kas ve patern rehberi</Text>
+                            <Text style={styles.guideText}>
+                                Kütüphane hareketleri hedef kas ve hareket paterniyle eşler. Aynı eşleme koç önerilerini ve progress analizini besler.
+                            </Text>
+                        </View>
+                    </View>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupScroller}>
+                        {MUSCLE_GROUPS.map((group) => {
+                            const isActive = selectedGroup?.key === group.key;
+                            return (
+                                <TouchableOpacity
+                                    key={group.key}
+                                    style={[styles.groupCard, isActive && styles.groupCardActive]}
+                                    activeOpacity={0.84}
+                                    onPress={() => {
+                                        setRegion(group.region);
+                                        setFilter(group.patterns[0] as FilterKey);
+                                    }}
+                                >
+                                    <Text style={[styles.groupTitle, isActive && styles.groupTitleActive]}>{group.beginnerLabel}</Text>
+                                    <Text style={styles.groupText} numberOfLines={2}>{group.info}</Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </ScrollView>
+                </View>
+
                 <View style={styles.list}>
                     {exercises.map((exercise) => (
                         <TouchableOpacity
@@ -213,7 +256,7 @@ export default function ExerciseLibraryScreen() {
                                 <View style={{ flex: 1 }}>
                                     <Text style={styles.exerciseName}>{exercise.name}</Text>
                                     <Text style={styles.exerciseMeta}>
-                                        {COACH_PATTERN_LABELS[exercise.pattern as CoachPatternKey] || exercise.pattern} · {difficultyLabel(exercise.difficulty)}
+                                        {displayExerciseTarget(exercise)} · {difficultyLabel(exercise.difficulty)}
                                     </Text>
                                 </View>
                                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
@@ -239,7 +282,7 @@ export default function ExerciseLibraryScreen() {
                                     <View style={{ flex: 1 }}>
                                         <Text style={styles.modalTitle}>{selected.name}</Text>
                                         <Text style={styles.modalSubtitle}>
-                                            {COACH_PATTERN_LABELS[selected.pattern as CoachPatternKey] || selected.pattern} · {difficultyLabel(selected.difficulty)}
+                                            {displayExerciseTarget(selected)} · {difficultyLabel(selected.difficulty)}
                                         </Text>
                                     </View>
                                     <TouchableOpacity style={styles.modalClose} onPress={() => setSelected(null)}>
@@ -252,6 +295,17 @@ export default function ExerciseLibraryScreen() {
                                         <InfoPill label="Seviye" value={difficultyLabel(selected.difficulty)} styles={styles} />
                                         <InfoPill label="Ekipman" value={selected.equipment.slice(0, 2).map(equipmentLabel).join(", ")} styles={styles} />
                                         <InfoPill label="Bölge" value={displayMuscleGroup(selected)} styles={styles} />
+                                    </View>
+                                    <View style={styles.patternPanel}>
+                                        <Text style={styles.patternTitle}>
+                                            {COACH_PATTERN_LABELS[selected.pattern as CoachPatternKey] || selected.pattern}
+                                        </Text>
+                                        <Text style={styles.patternText}>{patternPurpose(selected.pattern)}</Text>
+                                        {relatedPatternsForExercise(selected).length > 0 && (
+                                            <Text style={styles.patternRelated}>
+                                                Yakın paternler: {relatedPatternsForExercise(selected).map((pattern) => COACH_PATTERN_LABELS[pattern as CoachPatternKey] || pattern).join(", ")}
+                                            </Text>
+                                        )}
                                     </View>
                                     <View style={styles.mediaPreview}>
                                         <View style={styles.mediaIcon}>
@@ -446,6 +500,40 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     filterBtnText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     resultCount: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: -spacing.sm },
+    guidePanel: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        padding: spacing.md,
+        gap: spacing.md,
+    },
+    guideHeader: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
+    guideIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: borderRadius.sm,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+    },
+    guideTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    guideText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20, marginTop: 2 },
+    groupScroller: { gap: spacing.sm, paddingRight: spacing.md },
+    groupCard: {
+        width: 160,
+        minHeight: 92,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        gap: spacing.xs,
+    },
+    groupCardActive: { borderColor: colors.accent, backgroundColor: colors.accentMuted },
+    groupTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    groupTitleActive: { color: colors.accent },
+    groupText: { color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 17 },
     filterRow: { gap: spacing.sm, paddingVertical: spacing.xs },
     filterGroup: { marginBottom: spacing.lg, gap: spacing.sm },
     filterWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
@@ -574,6 +662,18 @@ const createStyles = (colors: any) => StyleSheet.create({
         gap: spacing.sm,
         marginBottom: spacing.lg,
     },
+    patternPanel: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        marginBottom: spacing.lg,
+        gap: spacing.xs,
+    },
+    patternTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    patternText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20 },
+    patternRelated: { color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 18 },
     infoPill: {
         flexGrow: 1,
         minWidth: 128,
