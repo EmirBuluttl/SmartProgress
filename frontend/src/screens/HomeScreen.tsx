@@ -36,6 +36,7 @@ import SectionHeader from "../components/SectionHeader";
 import ActiveWorkoutBanner from "../components/ActiveWorkoutBanner";
 import { SkeletonList } from "../components/SkeletonCard";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import { useCountUp } from "../hooks/useCountUp";
 import { syncPendingWorkouts } from "../services/syncService";
 import { countProgressEvents } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
@@ -60,6 +61,7 @@ export default function HomeScreen() {
     const [programs, setPrograms] = useState<any[]>([]);
     const [communityPrograms, setCommunityPrograms] = useState<any[]>([]);
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 0 });
+    const animatedStreak = useCountUp(stats.currentStreak);
     const [loading, setLoading] = useState(true);
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const [bannerRefresh, setBannerRefresh] = useState(0);
@@ -271,7 +273,7 @@ export default function HomeScreen() {
                     <View style={styles.streakRow}>
                         <Ionicons name="flame" size={22} color={colors.accent} />
                         <Text style={[styles.streakValue, { marginLeft: spacing.xs }]}>
-                            {stats.currentStreak} Gündür
+                            {animatedStreak} Gündür
                         </Text>
                     </View>
                     <Text style={styles.streakText}>Antrenman Kaçırmadın</Text>

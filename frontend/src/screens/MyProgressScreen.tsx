@@ -7,6 +7,7 @@ import {
     View,
     Text,
     ScrollView,
+    Animated,
     StyleSheet,
     Dimensions,
     TouchableOpacity,
@@ -26,6 +27,8 @@ import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
 import { buildExerciseScoreTrend, buildProgressTrend, getPersonalRecords } from "../utils/workoutMetrics";
+import { useScreenEnter } from "../hooks/useScreenEnter";
+import { useCountUp } from "../hooks/useCountUp";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const RECORD_LINKS_KEY = "personal_record_video_links";
@@ -57,6 +60,7 @@ export default function MyProgressScreen() {
     const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled === true;
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
+    const { animStyle } = useScreenEnter();
 
     const [filter, setFilter] = React.useState<TimeFilter>("1A");
     const [chartMetric, setChartMetric] = React.useState<ChartMetric>("progress:all");
@@ -177,14 +181,16 @@ export default function MyProgressScreen() {
         return values.length ? values[values.length - 1] : 0;
     }, [chartData]);
 
+    const animatedLatestChartValue = useCountUp(latestChartValue);
+
     const latestChartLabel = React.useMemo(() => {
         if (chartMetric === "progress:all" || chartMetric.startsWith("exercise:")) {
-            return `${latestChartValue > 0 ? "+" : ""}${latestChartValue.toFixed(1)}%`;
+            return `${animatedLatestChartValue > 0 ? "+" : ""}${animatedLatestChartValue.toFixed(1)}%`;
         }
-        if (chartMetric === "body:weight") return `${latestChartValue.toFixed(1)} kg`;
-        if (chartMetric === "nutrition:calories") return `${Math.round(latestChartValue)} kcal`;
-        return `${latestChartValue.toFixed(1)} g`;
-    }, [chartMetric, latestChartValue]);
+        if (chartMetric === "body:weight") return `${animatedLatestChartValue.toFixed(1)} kg`;
+        if (chartMetric === "nutrition:calories") return `${Math.round(animatedLatestChartValue)} kcal`;
+        return `${animatedLatestChartValue.toFixed(1)} g`;
+    }, [chartMetric, animatedLatestChartValue]);
 
     // ─── Load analytics ───────────────────────
 
@@ -274,8 +280,8 @@ export default function MyProgressScreen() {
 
     return (
         <>
-            <ScrollView
-                style={styles.container}
+            <Animated.ScrollView
+                style={[styles.container, animStyle]}
                 contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
                 showsVerticalScrollIndicator={false}
             >
@@ -463,7 +469,7 @@ export default function MyProgressScreen() {
                 )}
 
                 <View style={{ height: spacing.xxxl }} />
-            </ScrollView>
+            </Animated.ScrollView>
 
             {/* ─── PR Detail Modal ─── */}
             <Modal

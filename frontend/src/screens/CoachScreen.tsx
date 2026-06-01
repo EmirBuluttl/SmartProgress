@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -9,6 +9,7 @@ import { useAuth } from "../store/AuthContext";
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { coachApi } from "../services/api";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
 
@@ -97,6 +98,7 @@ export default function CoachScreen() {
     const tier = getSubscriptionTier(user);
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
+    const { animStyle } = useScreenEnter();
     const isFree = tier === "free";
     const isCoachPlus = tier === "coach_plus";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
@@ -225,8 +227,8 @@ export default function CoachScreen() {
     };
 
     return (
-        <ScrollView
-            style={styles.container}
+        <Animated.ScrollView
+            style={[styles.container, animStyle]}
             contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]}
             showsVerticalScrollIndicator={false}
         >
@@ -704,7 +706,7 @@ export default function CoachScreen() {
                     Program değişiklikleri otomatik uygulanmayacak. Koç önerir, son kararı sen verirsin.
                 </Text>
             </View>
-        </ScrollView>
+        </Animated.ScrollView>
     );
 }
 

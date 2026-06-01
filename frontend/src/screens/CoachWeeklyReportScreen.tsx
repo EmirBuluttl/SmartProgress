@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,9 +7,16 @@ import { borderRadius, fontSize, fontWeight, lineHeight, spacing } from "../cons
 import { useTheme } from "../hooks/ThemeContext";
 import { coachApi } from "../services/api";
 import EmptyState from "../components/EmptyState";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
 
 
+
+// ─── Stagger wrapper — her kart index * 60ms delay ile girer ───
+function StaggerCard({ index, style, children }: { index: number; style?: any; children: React.ReactNode }) {
+    const { animStyle } = useScreenEnter({ delay: index * 60 });
+    return <Animated.View style={[style, animStyle]}>{children}</Animated.View>;
+}
 
 const formatBestSet = (set?: any) => {
     if (!set) return "Baz yok";
@@ -128,7 +135,7 @@ export default function CoachWeeklyReportScreen() {
                 {items.map((item, index) => {
                     const meta = getMeta(item, colors);
                     return (
-                        <View key={`${title}-${item.exerciseName}-${index}`} style={styles.signalCard}>
+                        <StaggerCard key={`${title}-${item.exerciseName}-${index}`} index={index} style={styles.signalCard}>
                             <View style={[styles.signalIcon, { borderColor: meta.color, backgroundColor: `${meta.color}1A` }]}>
                                 <Ionicons name={meta.icon} size={20} color={meta.color} />
                             </View>
@@ -152,7 +159,7 @@ export default function CoachWeeklyReportScreen() {
                                     <Text style={styles.interventionText}>{item.interventionAdvice}</Text>
                                 )}
                             </View>
-                        </View>
+                        </StaggerCard>
                     );
                 })}
             </View>

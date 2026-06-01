@@ -2,6 +2,7 @@ import React, { useState, useCallback } from "react";
 import {
     View,
     Text,
+    Animated,
     StyleSheet,
     Pressable,
     ScrollView,
@@ -21,6 +22,7 @@ import {
     syncPendingWorkouts,
 } from "../services/syncService";
 import { showAlert } from "../utils/confirm";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import GymCard from "../components/GymCard";
 import { summarizeCardioBlocks } from "../utils/cardio";
@@ -40,6 +42,7 @@ export default function WorkoutHistoryScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
+    const { animStyle } = useScreenEnter();
 
     const [workouts, setWorkouts] = useState<WorkoutItem[]>([]);
     const [favorites, setFavorites] = useState<Set<string>>(new Set());
@@ -202,7 +205,7 @@ export default function WorkoutHistoryScreen() {
     const pendingTotal = pendingInfo.pending + pendingInfo.failed + pendingInfo.permanent;
 
     return (
-        <View style={styles.root}>
+        <Animated.View style={[styles.root, animStyle]}>
             <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
                 <Pressable onPress={() => navigation.goBack()} style={styles.headerBtn}>
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
@@ -281,7 +284,7 @@ export default function WorkoutHistoryScreen() {
                 onSecondary={() => setConfirmClearPending(false)}
                 onDismiss={() => setConfirmClearPending(false)}
             />
-        </View>
+        </Animated.View>
     );
 }
 

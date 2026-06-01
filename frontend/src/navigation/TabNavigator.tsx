@@ -88,6 +88,7 @@ export default function TabNavigator() {
         <Tab.Navigator
             screenOptions={({ route }) => ({
                 headerShown: false,
+                animation: "shift",
                 tabBarStyle: styles.tabBar,
                 tabBarActiveTintColor: colors.accent,
                 tabBarInactiveTintColor: colors.tabBarInactive,

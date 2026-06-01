@@ -7,6 +7,7 @@ import {
     View,
     Text,
     ScrollView,
+    Animated,
     StyleSheet,
     Switch,
     TouchableOpacity,
@@ -33,6 +34,7 @@ import AccentButton from "../components/AccentButton";
 import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 
@@ -52,6 +54,7 @@ export default function ProfileScreen() {
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter();
 
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [rememberRepsEnabled, setRememberRepsEnabled] = useState(
@@ -207,8 +210,8 @@ export default function ProfileScreen() {
 
     return (
         <>
-        <ScrollView
-            style={styles.container}
+        <Animated.ScrollView
+            style={[styles.container, animStyle]}
             contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
             showsVerticalScrollIndicator={false}
         >
@@ -539,7 +542,7 @@ export default function ProfileScreen() {
             />
 
             <View style={{ height: spacing.xxxl }} />
-        </ScrollView>
+        </Animated.ScrollView>
         <Modal
             visible={themePickerVisible}
             transparent

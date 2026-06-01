@@ -6,6 +6,7 @@ import React, { useCallback } from "react";
 import {
     View,
     Text,
+    Animated,
     StyleSheet,
     TouchableOpacity,
     FlatList,
@@ -20,6 +21,13 @@ import { useTheme } from "../hooks/ThemeContext";
 import { programApi } from "../services/api";
 import GymCard from "../components/GymCard";
 import type { RootStackParamList } from "../navigation/RootNavigator";
+import { useScreenEnter } from "../hooks/useScreenEnter";
+
+// ─── Stagger wrapper — her kart index * 50ms delay ile girer ───
+function StaggerCard({ index, children }: { index: number; children: React.ReactNode }) {
+    const { animStyle } = useScreenEnter({ delay: index * 50 });
+    return <Animated.View style={animStyle}>{children}</Animated.View>;
+}
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 const ACTIVE_PROGRAM_KEY = "active_program_id";
@@ -112,7 +120,8 @@ export default function ProgramListScreen() {
                     data={programs}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.list}
-                    renderItem={({ item }) => (
+                    renderItem={({ item, index }) => (
+                        <StaggerCard index={index}>
                         <TouchableOpacity
                         activeOpacity={0.75}
                             onPress={() => navigation.navigate("ProgramDetail", { programId: item.id })}
@@ -186,6 +195,7 @@ export default function ProgramListScreen() {
                             </View>
                         </GymCard>
                         </TouchableOpacity>
+                        </StaggerCard>
                     )}
                 />
             )}

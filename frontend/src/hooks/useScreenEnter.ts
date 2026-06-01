@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────
-// useScreenEnter — Ekran mount animasyonu
+// useScreenEnter — Ekran mount/focus animasyonu
 // opacity: 0→1 (280ms) + translateY: 16→0 (spring)
 // useFocusEffect ile her tab geçişinde tekrar çalışır
 // useNativeDriver: true
@@ -9,7 +9,7 @@ import { Animated, Easing } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 
 interface ScreenEnterOptions {
-    /** ms cinsinden gecikme — stagger için kullanılır */
+    /** ms cinsinden gecikme — stagger için */
     delay?: number;
 }
 
@@ -19,7 +19,6 @@ export function useScreenEnter({ delay = 0 }: ScreenEnterOptions = {}) {
 
     useFocusEffect(
         useCallback(() => {
-            // Reset
             opacity.setValue(0);
             translateY.setValue(16);
 
@@ -43,13 +42,13 @@ export function useScreenEnter({ delay = 0 }: ScreenEnterOptions = {}) {
 
             anim.start();
             return () => anim.stop();
-        }, [delay])
+        }, [delay, opacity, translateY])
     );
 
-    const animStyle = {
-        opacity,
-        transform: [{ translateY }],
+    return {
+        animStyle: {
+            opacity,
+            transform: [{ translateY }],
+        },
     };
-
-    return { animStyle };
 }
