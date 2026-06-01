@@ -109,10 +109,34 @@ export default function MyProgressScreen() {
     const animatedChartData = React.useMemo(() => {
         const rawLabels = rawChartData.labels;
         const rawData = rawChartData.datasets[0]?.data || [];
-        const animatedDataPoints = rawData.map((val) => val * animationProgress);
+
+        if (rawData.length <= 1) {
+            return {
+                labels: rawLabels,
+                datasets: [{ data: rawData.length ? rawData : [0] }],
+            };
+        }
+
+        const n = rawData.length;
+        const idx = animationProgress * (n - 1);
+        const k = Math.floor(idx);
+        const f = idx - k;
+
+        const interpolatedValue = k + 1 < n
+            ? rawData[k] + (rawData[k + 1] - rawData[k]) * f
+            : rawData[k];
+
+        const animatedDataPoints = rawData.map((val, i) => {
+            if (i <= k) {
+                return val;
+            } else {
+                return interpolatedValue;
+            }
+        });
+
         return {
             labels: rawLabels,
-            datasets: [{ data: animatedDataPoints.length ? animatedDataPoints : [0] }],
+            datasets: [{ data: animatedDataPoints }],
         };
     }, [rawChartData, animationProgress]);
     const [prs, setPrs] = React.useState<any[]>([]);
