@@ -11,7 +11,10 @@ import {
     Dimensions,
     TouchableOpacity,
     Modal,
+    TextInput,
+    Linking,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LineChart } from "react-native-chart-kit";
 import { Ionicons } from "@expo/vector-icons";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
@@ -25,6 +28,7 @@ import SectionHeader from "../components/SectionHeader";
 import { buildExerciseScoreTrend, buildProgressTrend, getPersonalRecords } from "../utils/workoutMetrics";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
+const RECORD_LINKS_KEY = "personal_record_video_links";
 
 type TimeFilter = "1H" | "1A" | "1Y" | "Tümü";
 const FILTERS: TimeFilter[] = ["1H", "1A", "1Y", "Tümü"];
@@ -41,6 +45,10 @@ function formatDateLabel(value: unknown): string {
     const date = new Date(String(value || ""));
     if (!Number.isFinite(date.getTime())) return "";
     return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+}
+
+function recordKey(record: any): string {
+    return String(record?.exercise || "").trim().toLocaleLowerCase("tr-TR");
 }
 
 export default function MyProgressScreen() {
@@ -63,6 +71,10 @@ export default function MyProgressScreen() {
     const [prs, setPrs] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [selectedPR, setSelectedPR] = React.useState<any | null>(null);
+    const [recordLinks, setRecordLinks] = React.useState<Record<string, string>>({});
+    const [isEditingPrLink, setIsEditingPrLink] = React.useState(false);
+    const [linkDraft, setLinkDraft] = React.useState("");
+    const [linkError, setLinkError] = React.useState("");
 
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -193,11 +205,55 @@ export default function MyProgressScreen() {
             buildChartData(workouts, measurements, nutrition, filter, chartMetric);
 
             setPrs(getPersonalRecords(workouts));
+            const rawLinks = await AsyncStorage.getItem(RECORD_LINKS_KEY);
+            setRecordLinks(rawLinks ? JSON.parse(rawLinks) : {});
         } catch (err) {
             console.error("Analytics Load Error", err);
         } finally {
             setLoading(false);
         }
+    };
+
+    const selectedPrLink = selectedPR ? recordLinks[recordKey(selectedPR)] : "";
+
+    const isAllowedVideoUrl = (value: string) => {
+        if (!value.trim()) return true;
+        try {
+            const host = new URL(value.trim()).hostname.replace(/^www\./, "");
+            return ["youtube.com", "youtu.be", "instagram.com"].includes(host);
+        } catch {
+            return false;
+        }
+    };
+
+    const openPrLinkEditor = () => {
+        setLinkDraft(selectedPrLink || "");
+        setLinkError("");
+        setIsEditingPrLink(true);
+    };
+
+    const savePrLink = async () => {
+        if (!selectedPR) return;
+        if (!isAllowedVideoUrl(linkDraft)) {
+            setLinkError("Sadece YouTube veya Instagram bağlantısı ekleyebilirsin.");
+            return;
+        }
+        const next = { ...recordLinks };
+        const key = recordKey(selectedPR);
+        if (linkDraft.trim()) next[key] = linkDraft.trim();
+        else delete next[key];
+        setRecordLinks(next);
+        await AsyncStorage.setItem(RECORD_LINKS_KEY, JSON.stringify(next));
+        setIsEditingPrLink(false);
+        setLinkDraft("");
+        setLinkError("");
+    };
+
+    const closePrModal = () => {
+        setSelectedPR(null);
+        setIsEditingPrLink(false);
+        setLinkDraft("");
+        setLinkError("");
     };
 
     // Re-filter when filter changes
@@ -414,13 +470,13 @@ export default function MyProgressScreen() {
                 visible={selectedPR !== null}
                 transparent
                 animationType="slide"
-                onRequestClose={() => setSelectedPR(null)}
+                onRequestClose={closePrModal}
             >
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
                         <View style={styles.modalHeader}>
                             <Text style={styles.modalTitle}>Kişisel Rekor</Text>
-                            <TouchableOpacity onPress={() => setSelectedPR(null)}>
+                            <TouchableOpacity onPress={closePrModal}>
                                 <Ionicons name="close" size={24} color={colors.text} />
                             </TouchableOpacity>
                         </View>
@@ -444,10 +500,37 @@ export default function MyProgressScreen() {
                                         </Text>
                                     )}
                                 </View>
-                                <TouchableOpacity style={styles.videoBtn}>
-                                    <Ionicons name="videocam-outline" size={18} color={colors.background} />
-                                    <Text style={styles.videoBtnText}>Video Yükle (Yakında)</Text>
+                                {isEditingPrLink ? (
+                                    <View style={styles.linkEditor}>
+                                        <Text style={styles.linkEditorTitle}>PR video bağlantısı</Text>
+                                        <TextInput
+                                            value={linkDraft}
+                                            onChangeText={setLinkDraft}
+                                            placeholder="https://youtube.com/... veya https://instagram.com/..."
+                                            placeholderTextColor={colors.textMuted}
+                                            autoCapitalize="none"
+                                            style={styles.linkInput}
+                                        />
+                                        {!!linkError && <Text style={styles.errorText}>{linkError}</Text>}
+                                        <View style={styles.linkActions}>
+                                            <TouchableOpacity style={styles.secondaryAction} onPress={() => setIsEditingPrLink(false)}>
+                                                <Text style={styles.secondaryActionText}>İptal</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity style={styles.primaryAction} onPress={savePrLink}>
+                                                <Text style={styles.primaryActionText}>Kaydet</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    </View>
+                                ) : (
+                                <TouchableOpacity
+                                    style={[styles.videoBtn, selectedPrLink && styles.videoBtnActive]}
+                                    onPress={() => selectedPrLink ? Linking.openURL(selectedPrLink) : openPrLinkEditor()}
+                                    onLongPress={openPrLinkEditor}
+                                >
+                                    <Ionicons name={selectedPrLink ? "play-circle" : "link-outline"} size={18} color={colors.background} />
+                                    <Text style={styles.videoBtnText}>{selectedPrLink ? "PR Videosunu Aç" : "Video Bağlantısı Ekle"}</Text>
                                 </TouchableOpacity>
+                                )}
                             </>
                         )}
                     </View>
@@ -742,9 +825,71 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: borderRadius.md,
         gap: spacing.xs,
     },
+    videoBtnActive: {
+        backgroundColor: colors.accent,
+    },
     videoBtnText: {
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         color: colors.background,
+    },
+    linkEditor: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    linkEditorTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    linkInput: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        color: colors.text,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        fontSize: fontSize.sm,
+    },
+    errorText: {
+        color: "#EF4444",
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    linkActions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+    },
+    secondaryAction: {
+        flex: 1,
+        minHeight: 42,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    secondaryActionText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    primaryAction: {
+        flex: 1,
+        minHeight: 42,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    primaryActionText: {
+        color: colors.background,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.heavy,
     },
 });
