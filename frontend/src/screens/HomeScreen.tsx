@@ -40,6 +40,7 @@ import { useCountUp } from "../hooks/useCountUp";
 import { syncPendingWorkouts } from "../services/syncService";
 import { countProgressEvents } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
+import AnimatedPressable from "../components/AnimatedPressable";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -56,6 +57,11 @@ export default function HomeScreen() {
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { animStyle } = useScreenEnter();
+    const { animStyle: headerAnimStyle } = useScreenEnter({ delay: 0 });
+    const { animStyle: quickAnimStyle } = useScreenEnter({ delay: 80 });
+    const { animStyle: statsAnimStyle } = useScreenEnter({ delay: 140 });
+    const { animStyle: mainCardAnimStyle } = useScreenEnter({ delay: 200 });
+    const { animStyle: listAnimStyle } = useScreenEnter({ delay: 260 });
 
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [programs, setPrograms] = useState<any[]>([]);
@@ -268,7 +274,7 @@ export default function HomeScreen() {
             onContentSizeChange={restoreScrollPosition}
         >
             {/* ─── Header ─── */}
-            <View style={styles.header}>
+            <Animated.View style={[styles.header, headerAnimStyle]}>
                 <View>
                     <View style={styles.streakRow}>
                         <Ionicons name="flame" size={22} color={colors.accent} />
@@ -279,10 +285,10 @@ export default function HomeScreen() {
                     <Text style={styles.streakText}>Antrenman Kaçırmadın</Text>
                 </View>
                 <View style={styles.headerActions}>
-                    <TouchableOpacity
+                    <AnimatedPressable
                         style={styles.notificationBtn}
                         onPress={() => setNotificationsVisible(true)}
-                        activeOpacity={0.82}
+                        pressedScale={0.94}
                     >
                         <Ionicons name="notifications-outline" size={22} color={colors.accent} />
                         {unreadCount > 0 && (
@@ -290,30 +296,31 @@ export default function HomeScreen() {
                                 <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
                             </View>
                         )}
-                    </TouchableOpacity>
-                    <TouchableOpacity
+                    </AnimatedPressable>
+                    <AnimatedPressable
                         style={styles.avatarCircle}
                         onPress={() =>
                             (navigation as any).navigate("MainTabs", { screen: "Profile" })
                         }
-                        activeOpacity={0.8}
+                        pressedScale={0.94}
                     >
                         {user?.avatarUrl || user?.profileImage ? (
                             <Image source={{ uri: user.avatarUrl || user.profileImage }} style={{ width: "100%", height: "100%", borderRadius: 20 }} />
                         ) : (
                             <Text style={styles.avatarText}>{initials}</Text>
                         )}
-                    </TouchableOpacity>
+                    </AnimatedPressable>
                 </View>
-            </View>
+            </Animated.View>
 
             {/* ─── Active Workout Banner ─── */}
             <ActiveWorkoutBanner refreshKey={bannerRefresh} />
 
-            <TouchableOpacity
+            <Animated.View style={quickAnimStyle}>
+            <AnimatedPressable
                 style={styles.quickWorkoutCard}
                 onPress={() => navigation.navigate("WorkoutSession", { mode: "free" })}
-                activeOpacity={0.86}
+                pressedScale={0.99}
             >
                 <View style={styles.quickWorkoutIcon}>
                     <Ionicons name="flash-outline" size={20} color={colors.background} />
@@ -325,10 +332,11 @@ export default function HomeScreen() {
                     </Text>
                 </View>
                 <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
-            </TouchableOpacity>
+            </AnimatedPressable>
+            </Animated.View>
 
             {/* ─── Stats Row ─── */}
-            <View style={styles.statsRow}>
+            <Animated.View style={[styles.statsRow, statsAnimStyle]}>
                 <StatBadge
                     value={stats.totalWorkouts}
                     label="Antrenman"
@@ -347,10 +355,11 @@ export default function HomeScreen() {
                     label="Progress"
                     icon={<Ionicons name="trending-up-outline" size={18} color={colors.accent} />}
                 />
-            </View>
+            </Animated.View>
 
             {/* ─── Sıradaki Antrenman (Cycle-Based) ─── */}
             {favoriteProgram && isCurrentProgramCycle && currentDay && (
+                <Animated.View style={mainCardAnimStyle}>
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
                         <View style={styles.todayBadge}>
@@ -466,10 +475,12 @@ export default function HomeScreen() {
                         style={{ marginTop: spacing.md, minHeight: 56 }}
                     />
                 </GymCard>
+                </Animated.View>
             )}
 
             {/* ─── Aktif Program (Non-Cycle) ─── */}
             {favoriteProgram && !isCurrentProgramCycle && (
+                <Animated.View style={mainCardAnimStyle}>
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
                         <View style={styles.todayBadge}>
@@ -497,15 +508,18 @@ export default function HomeScreen() {
                         style={{ marginTop: spacing.md, minHeight: 56 }}
                     />
                 </GymCard>
+                </Animated.View>
             )}
 
             {/* ─── No Favorite Hint ─── */}
             {!favoriteProgram && programs.length > 0 && (
+                <Animated.View style={mainCardAnimStyle}>
                 <GymCard style={styles.todayCard}>
                     <Text style={styles.todayHint}>
                         Bir programı uzun basarak aktif takibe al; buraya "Sıradaki Antrenman" olarak sabitlensin.
                     </Text>
                 </GymCard>
+                </Animated.View>
             )}
 
             {/* ─── Recent Workouts ─── */}
@@ -515,6 +529,7 @@ export default function HomeScreen() {
                 onAction={() => navigation.navigate("WorkoutHistory")}
             />
             {workouts.length > 0 ? (
+                <Animated.View style={listAnimStyle}>
                 <FlatList
                     data={sortNewestFirst(workouts)}
                     horizontal
@@ -522,8 +537,8 @@ export default function HomeScreen() {
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.workoutList}
                     renderItem={({ item }) => (
-                        <TouchableOpacity
-                            activeOpacity={0.85}
+                        <AnimatedPressable
+                            pressedScale={0.985}
                             onPress={() => navigation.navigate("WorkoutDetail", { workout: item })}
                         >
                             <GymCard elevated style={[styles.workoutCard, { width: WORKOUT_CARD_WIDTH }]}>
@@ -546,10 +561,11 @@ export default function HomeScreen() {
                                     </Text>
                                 </View>
                             </GymCard>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     )}
                     ItemSeparatorComponent={() => <View style={{ width: spacing.md }} />}
                 />
+                </Animated.View>
             ) : (
                 <Text style={styles.emptyStateText}>Henüz antrenman kaydınız yok.</Text>
             )}
@@ -576,9 +592,9 @@ export default function HomeScreen() {
                     const dayIdx = prog.currentDayIndex ?? 0;
                     const dayCount = isCycle ? prog.data.days.length : 0;
                     return (
-                        <TouchableOpacity
+                        <AnimatedPressable
                             key={prog.id}
-                            activeOpacity={0.8}
+                            pressedScale={0.985}
                             onPress={() => {
                                 navigation.navigate("ProgramDetail", {
                                     programId: prog.id,
@@ -611,7 +627,7 @@ export default function HomeScreen() {
                                         : "Açıklama yok.")}
                                 </Text>
                             </GymCard>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     );
                 })
             ) : (
@@ -639,9 +655,9 @@ export default function HomeScreen() {
                             : 0;
 
                     return (
-                        <TouchableOpacity
+                        <AnimatedPressable
                             key={prog.id}
-                            activeOpacity={0.85}
+                            pressedScale={0.985}
                             onPress={() => navigation.navigate("ProgramDetail", { programId: prog.id })}
                         >
                             <GymCard style={styles.communityCard} elevated>
@@ -668,7 +684,7 @@ export default function HomeScreen() {
                                     {prog.description || `${dayCount} günlük public program`}
                                 </Text>
                             </GymCard>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     );
                 })
             ) : (
