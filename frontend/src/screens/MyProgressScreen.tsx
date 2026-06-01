@@ -16,7 +16,7 @@ import { LineChart } from "react-native-chart-kit";
 import { Ionicons } from "@expo/vector-icons";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { useFocusEffect } from "@react-navigation/native";
+import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { bodyMeasurementApi, nutritionApi, workoutApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
@@ -48,6 +48,7 @@ export default function MyProgressScreen() {
     const { colors } = useTheme();
     const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled === true;
     const insets = useSafeAreaInsets();
+    const navigation = useNavigation<any>();
 
     const [filter, setFilter] = React.useState<TimeFilter>("1A");
     const [chartMetric, setChartMetric] = React.useState<ChartMetric>("progress:all");
@@ -62,7 +63,6 @@ export default function MyProgressScreen() {
     const [prs, setPrs] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [selectedPR, setSelectedPR] = React.useState<any | null>(null);
-    const [showAllPrs, setShowAllPrs] = React.useState(false);
 
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -369,11 +369,11 @@ export default function MyProgressScreen() {
                 {/* ─── Personal Records ─── */}
                 <SectionHeader
                     title="Kişisel Rekorlar (PR)"
-                    actionLabel={showAllPrs ? "Gizle" : "Tümünü Gör"}
-                    onAction={() => setShowAllPrs(!showAllPrs)}
+                    actionLabel="Tümünü Gör"
+                    onAction={() => navigation.navigate("Records")}
                 />
                 {prs.length > 0 ? (
-                    (showAllPrs ? prs : prs.slice(0, 5)).map((pr, index) => (
+                    prs.slice(0, 5).map((pr, index) => (
                         <TouchableOpacity
                             key={index}
                             onPress={() => setSelectedPR(pr)}
