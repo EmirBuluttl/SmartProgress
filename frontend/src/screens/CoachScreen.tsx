@@ -10,6 +10,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { coachApi } from "../services/api";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import AnimatedPressable from "../components/AnimatedPressable";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
 
@@ -99,6 +100,10 @@ export default function CoachScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
     const { animStyle } = useScreenEnter();
+    const { animStyle: heroAnimStyle } = useScreenEnter({ delay: 70 });
+    const { animStyle: dashboardAnimStyle } = useScreenEnter({ delay: 140 });
+    const { animStyle: flowAnimStyle } = useScreenEnter({ delay: 200 });
+    const { animStyle: reportAnimStyle } = useScreenEnter({ delay: 260 });
     const isFree = tier === "free";
     const isCoachPlus = tier === "coach_plus";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
@@ -248,7 +253,7 @@ export default function CoachScreen() {
             </View>
 
             {isFree ? (
-                <View style={styles.teaserPanel}>
+                <Animated.View style={[styles.teaserPanel, heroAnimStyle]}>
                     <View style={styles.panelTopRow}>
                         <View>
                             <Text style={styles.panelLabel}>Pro deneme</Text>
@@ -261,17 +266,17 @@ export default function CoachScreen() {
                     <Text style={styles.panelText}>
                         Yeni hesaplarda Pro deneme süresi açık gelir. Deneme bittiyse de iki kez kişisel program wizard'ını kullanabilirsin; Coach+ AI soru-cevap katmanı beta olarak ayrı tutulur.
                     </Text>
-                    <TouchableOpacity
+                    <AnimatedPressable
                         style={styles.primaryButton}
-                        activeOpacity={0.85}
+                        pressedScale={0.985}
                         onPress={() => navigation.navigate("PremiumProgramWizard")}
                     >
                         <Ionicons name="map-outline" size={18} color={colors.background} />
                         <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Dene</Text>
-                    </TouchableOpacity>
-                </View>
+                    </AnimatedPressable>
+                </Animated.View>
             ) : (
-                <View style={styles.activeHero}>
+                <Animated.View style={[styles.activeHero, heroAnimStyle]}>
                     <View style={styles.panelTopRow}>
                         <View style={styles.activeHeroCopy}>
                             <Text style={styles.panelLabel}>{isCoachPlus ? "Coach+ beta erişimi" : "Pro erişimi"}</Text>
@@ -285,28 +290,28 @@ export default function CoachScreen() {
                         Haftalık raporun, kalıcı sinyallerin ve program wizard'ın buradan yönetilir. Koç otomatik değişiklik yapmaz; yakalar, açıklar ve aksiyon önerir.
                     </Text>
                     <View style={styles.activeHeroActions}>
-                        <TouchableOpacity
+                        <AnimatedPressable
                             style={[styles.primaryButton, styles.heroPrimaryButton]}
-                            activeOpacity={0.85}
+                            pressedScale={0.985}
                             onPress={() => navigation.navigate("PremiumProgramWizard")}
                         >
                             <Ionicons name="map-outline" size={18} color={colors.background} />
                             <Text style={styles.primaryButtonText}>Akıllı Program Wizard'ı Aç</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity
+                        </AnimatedPressable>
+                        <AnimatedPressable
                             style={styles.heroSecondaryButton}
-                            activeOpacity={0.85}
+                            pressedScale={0.985}
                             onPress={() => navigation.navigate("CoachWeeklyReport")}
                         >
                             <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                             <Text style={styles.heroSecondaryText}>Haftalık Rapor</Text>
-                        </TouchableOpacity>
+                        </AnimatedPressable>
                     </View>
-                </View>
+                </Animated.View>
             )}
 
             {!isFree && (
-                <View style={styles.section}>
+                <Animated.View style={[styles.section, dashboardAnimStyle]}>
                     <View style={styles.dashboardHeader}>
                         <View>
                             <Text style={styles.sectionTitle}>Koç merkezi</Text>
@@ -340,11 +345,11 @@ export default function CoachScreen() {
                             colors={colors}
                         />
                     </View>
-                </View>
+                </Animated.View>
             )}
 
             {isFree ? (
-                <View style={styles.section}>
+                <Animated.View style={[styles.section, flowAnimStyle]}>
                     <Text style={styles.sectionTitle}>Neler gelecek?</Text>
                     <FeatureRow
                         icon="map-outline"
@@ -364,9 +369,9 @@ export default function CoachScreen() {
                         description="Yeterli log varsa haftanın en iyi progress'i, takipteki hareketler ve gelecek hedefler."
                         colors={colors}
                     />
-                </View>
+                </Animated.View>
             ) : (
-                <View style={styles.section}>
+                <Animated.View style={[styles.section, flowAnimStyle]}>
                     <Text style={styles.sectionTitle}>Koç akışı</Text>
                     <FeatureRow
                         icon="analytics-outline"
@@ -386,10 +391,10 @@ export default function CoachScreen() {
                         description="RIR rahatlatma, hacim azaltma veya set artırma adaylarını kullanıcı onayına bırakır."
                         colors={colors}
                     />
-                </View>
+                </Animated.View>
             )}
 
-            <View style={styles.section}>
+            <Animated.View style={[styles.section, reportAnimStyle]}>
                 <Text style={styles.sectionTitle}>Haftalık rapor</Text>
                 <View style={styles.reportCard}>
                     <View style={styles.reportTopRow}>
@@ -497,18 +502,18 @@ export default function CoachScreen() {
                                     })}
                                 </View>
                             )}
-                            <TouchableOpacity
+                            <AnimatedPressable
                                 style={styles.secondaryActionBtn}
-                                activeOpacity={0.85}
+                                pressedScale={0.985}
                                 onPress={() => navigation.navigate("CoachWeeklyReport")}
                             >
                                 <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                                 <Text style={styles.secondaryActionText}>Detaylı haftalık raporu aç</Text>
-                            </TouchableOpacity>
+                            </AnimatedPressable>
                         </>
                     )}
                 </View>
-            </View>
+            </Animated.View>
 
             {coachInsights.length > 0 && (
                 <View style={styles.section}>
