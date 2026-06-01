@@ -138,11 +138,20 @@ export default function MyProgressScreen() {
         const minVal = Math.min(...rawData);
         const maxVal = Math.max(...rawData);
 
+        // Helper to convert hex accent to rgba
+        const accentColorFunc = (opacity = 1) => {
+            const hexMatch = colors.accent.match(/\w\w/g);
+            if (!hexMatch) return `rgba(204, 255, 0, ${opacity})`;
+            const [r, g, b] = hexMatch.map((h: string) => parseInt(h, 16));
+            return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+        };
+
         return {
             labels: rawLabels,
             datasets: [
                 {
                     data: animatedDataPoints,
+                    color: accentColorFunc,
                 },
                 {
                     data: rawData.map((_, i) => (i % 2 === 0 ? minVal : maxVal)),
@@ -151,7 +160,7 @@ export default function MyProgressScreen() {
                 }
             ],
         };
-    }, [rawChartData, animationProgress]);
+    }, [rawChartData, animationProgress, colors.accent]);
     const [prs, setPrs] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [selectedPR, setSelectedPR] = React.useState<any | null>(null);
@@ -446,11 +455,11 @@ export default function MyProgressScreen() {
                         height={200}
                         yAxisSuffix={chartSuffix}
                         chartConfig={{
+                            useShadowColorFromDataset: true,
                             backgroundColor: colors.surface,
                             backgroundGradientFrom: colors.surfaceLight,
                             backgroundGradientTo: colors.surface,
                             decimalPlaces: chartDecimalPlaces,
-                            // Convert the hex accent color to rgb for chart-kit:
                             color: (opacity = 1) => {
                                 const hexMatch = colors.accent.match(/\w\w/g);
                                 if (!hexMatch) return `rgba(204, 255, 0, ${opacity})`;
