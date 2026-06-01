@@ -10,9 +10,9 @@ import {
     StyleSheet,
     TouchableOpacity,
     ActivityIndicator,
-    Modal,
     TextInput,
     Linking,
+    Animated,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -23,6 +23,9 @@ import { useTheme } from "../hooks/ThemeContext";
 import { workoutApi } from "../services/api";
 import { getPersonalRecords } from "../utils/workoutMetrics";
 import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
+import AnimatedPressable from "../components/AnimatedPressable";
+import PremiumModalSurface from "../components/PremiumModalSurface";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 const RECORD_LINKS_KEY = "personal_record_video_links";
 
@@ -40,6 +43,8 @@ export default function RecordsScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
+    const { animStyle: headerAnimStyle } = useScreenEnter({ delay: 0 });
+    const { animStyle: filterAnimStyle } = useScreenEnter({ delay: 90 });
 
     const [records, setRecords] = useState<PRRecord[]>([]);
     const [splitFilter, setSplitFilter] = useState("Tümü");
@@ -130,30 +135,32 @@ export default function RecordsScreen() {
     const renderItem = ({ item, index }: { item: PRRecord; index: number }) => {
         const videoUrl = links[recordKey(item)];
         return (
-        <View style={styles.recordRow}>
-            <View style={[styles.rankCircle, { backgroundColor: index < 3 ? getMedalColor(index) + "20" : colors.surfaceElevated }]}>
-                {index < 3 ? (
-                    <Ionicons name="trophy" size={16} color={getMedalColor(index)} />
-                ) : (
-                    <Text style={styles.rankText}>{index + 1}</Text>
-                )}
-            </View>
-            <View style={styles.recordInfo}>
-                <Text style={styles.recordName} numberOfLines={1}>{item.exercise}</Text>
-                <Text style={styles.recordDate}>{formatDate(item.date)}</Text>
-            </View>
-            <Text style={styles.recordWeight}>
-                {item.weight} <Text style={styles.recordUnit}>{item.unit} x {item.reps}</Text>
-            </Text>
-            <TouchableOpacity
-                style={[styles.linkBtn, videoUrl && styles.linkBtnActive]}
-                onPress={() => videoUrl ? Linking.openURL(videoUrl) : openLinkEditor(item)}
-                onLongPress={() => openLinkEditor(item)}
-                activeOpacity={0.78}
-            >
-                <Ionicons name={videoUrl ? "play-circle" : "link-outline"} size={18} color={videoUrl ? colors.background : colors.accent} />
-            </TouchableOpacity>
-        </View>
+            <AnimatedPressable style={styles.recordPressable} pressedScale={0.99}>
+                <View style={styles.recordRow}>
+                    <View style={[styles.rankCircle, { backgroundColor: index < 3 ? getMedalColor(index) + "20" : colors.surfaceElevated }]}>
+                        {index < 3 ? (
+                            <Ionicons name="trophy" size={16} color={getMedalColor(index)} />
+                        ) : (
+                            <Text style={styles.rankText}>{index + 1}</Text>
+                        )}
+                    </View>
+                    <View style={styles.recordInfo}>
+                        <Text style={styles.recordName} numberOfLines={1}>{item.exercise}</Text>
+                        <Text style={styles.recordDate}>{formatDate(item.date)}</Text>
+                    </View>
+                    <Text style={styles.recordWeight}>
+                        {item.weight} <Text style={styles.recordUnit}>{item.unit} x {item.reps}</Text>
+                    </Text>
+                    <AnimatedPressable
+                        style={[styles.linkBtn, videoUrl && styles.linkBtnActive]}
+                        onPress={() => videoUrl ? Linking.openURL(videoUrl) : openLinkEditor(item)}
+                        onLongPress={() => openLinkEditor(item)}
+                        pressedScale={0.94}
+                    >
+                        <Ionicons name={videoUrl ? "play-circle" : "link-outline"} size={18} color={videoUrl ? colors.background : colors.accent} />
+                    </AnimatedPressable>
+                </View>
+            </AnimatedPressable>
     )};
 
     const splitOptions = React.useMemo(() => {
@@ -184,9 +191,9 @@ export default function RecordsScreen() {
     }
 
     return (
-        <View style={styles.container}>
+            <View style={styles.container}>
             {/* Header */}
-            <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
+            <Animated.View style={[styles.header, { paddingTop: insets.top + spacing.md }, headerAnimStyle]}>
                 <TouchableOpacity
                     onPress={() => navigation.goBack()}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -195,7 +202,7 @@ export default function RecordsScreen() {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Kişisel Rekorlar</Text>
                 <View style={{ width: 24 }} />
-            </View>
+            </Animated.View>
 
             {records.length === 0 ? (
                 <View style={styles.emptyState}>
@@ -205,7 +212,7 @@ export default function RecordsScreen() {
                 </View>
             ) : (
                 <>
-                    <View style={styles.filterWrap}>
+                    <Animated.View style={[styles.filterWrap, filterAnimStyle]}>
                         <View style={styles.searchBox}>
                             <Ionicons name="search-outline" size={18} color={colors.textMuted} />
                             <TextInput
@@ -222,12 +229,13 @@ export default function RecordsScreen() {
                             keyExtractor={(item) => item}
                             showsHorizontalScrollIndicator={false}
                             renderItem={({ item }) => (
-                                <TouchableOpacity
+                                <AnimatedPressable
                                     style={[styles.filterChip, splitFilter === item && styles.filterChipActive]}
                                     onPress={() => setSplitFilter(item)}
+                                    pressedScale={0.96}
                                 >
                                     <Text style={[styles.filterChipText, splitFilter === item && styles.filterChipTextActive]}>{item}</Text>
-                                </TouchableOpacity>
+                                </AnimatedPressable>
                             )}
                         />
                         <FlatList
@@ -236,15 +244,16 @@ export default function RecordsScreen() {
                             keyExtractor={(item) => `muscle-${item}`}
                             showsHorizontalScrollIndicator={false}
                             renderItem={({ item }) => (
-                                <TouchableOpacity
+                                <AnimatedPressable
                                     style={[styles.filterChip, muscleFilter === item && styles.filterChipActive]}
                                     onPress={() => setMuscleFilter(item)}
+                                    pressedScale={0.96}
                                 >
                                     <Text style={[styles.filterChipText, muscleFilter === item && styles.filterChipTextActive]}>{item}</Text>
-                                </TouchableOpacity>
+                                </AnimatedPressable>
                             )}
                         />
-                    </View>
+                    </Animated.View>
                     <FlatList
                         data={visibleRecords}
                         keyExtractor={(item) => item.exercise}
@@ -255,33 +264,29 @@ export default function RecordsScreen() {
                     />
                 </>
             )}
-            <Modal visible={!!editingRecord} transparent animationType="fade" onRequestClose={() => setEditingRecord(null)}>
-                <View style={styles.modalOverlay}>
-                    <View style={styles.modalCard}>
-                        <Text style={styles.modalTitle}>PR videosu</Text>
-                        <Text style={styles.modalText}>
-                            {editingRecord?.exercise} rekoruna YouTube veya Instagram bağlantısı ekleyebilirsin.
-                        </Text>
-                        <TextInput
-                            value={linkDraft}
-                            onChangeText={setLinkDraft}
-                            placeholder="https://youtube.com/... veya https://instagram.com/..."
-                            placeholderTextColor={colors.textMuted}
-                            autoCapitalize="none"
-                            style={styles.linkInput}
-                        />
-                        {!!linkError && <Text style={styles.errorText}>{linkError}</Text>}
-                        <View style={styles.modalActions}>
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setEditingRecord(null)}>
-                                <Text style={styles.secondaryBtnText}>İptal</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.primaryBtn} onPress={saveRecordLink}>
-                                <Text style={styles.primaryBtnText}>Kaydet</Text>
-                            </TouchableOpacity>
-                        </View>
-                    </View>
+            <PremiumModalSurface visible={!!editingRecord} onDismiss={() => setEditingRecord(null)} containerStyle={styles.modalCard}>
+                <Text style={styles.modalTitle}>PR videosu</Text>
+                <Text style={styles.modalText}>
+                    {editingRecord?.exercise} rekoruna YouTube veya Instagram bağlantısı ekleyebilirsin.
+                </Text>
+                <TextInput
+                    value={linkDraft}
+                    onChangeText={setLinkDraft}
+                    placeholder="https://youtube.com/... veya https://instagram.com/..."
+                    placeholderTextColor={colors.textMuted}
+                    autoCapitalize="none"
+                    style={styles.linkInput}
+                />
+                {!!linkError && <Text style={styles.errorText}>{linkError}</Text>}
+                <View style={styles.modalActions}>
+                    <AnimatedPressable style={styles.secondaryBtn} onPress={() => setEditingRecord(null)} pressedScale={0.98}>
+                        <Text style={styles.secondaryBtnText}>İptal</Text>
+                    </AnimatedPressable>
+                    <AnimatedPressable style={styles.primaryBtn} onPress={saveRecordLink} pressedScale={0.98}>
+                        <Text style={styles.primaryBtnText}>Kaydet</Text>
+                    </AnimatedPressable>
                 </View>
-            </Modal>
+            </PremiumModalSurface>
         </View>
     );
 }
@@ -354,6 +359,9 @@ const createStyles = (colors: any) => StyleSheet.create({
     filterChipTextActive: {
         color: colors.accent,
     },
+    recordPressable: {
+        width: "100%",
+    },
     recordRow: {
         flexDirection: "row",
         alignItems: "center",
@@ -406,13 +414,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     linkBtnActive: {
         backgroundColor: colors.accent,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.68)",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: spacing.lg,
     },
     modalCard: {
         width: "100%",
