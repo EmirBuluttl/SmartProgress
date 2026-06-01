@@ -77,7 +77,7 @@ const dumbbellOnlyChestOptions = engine.getAvailableExercises("horizontal_adduct
 assertEqual(dumbbellOnlyChestOptions, ["Dumbbell Press", "Dumbbell Fly"], "Only-equipment note narrows recommendations");
 
 assertEqual(engine.COACH_PATTERN_LABELS.leg_press, "Vastuslar (ön bacak)", "Leg press target label");
-assertEqual(engine.COACH_PATTERN_LABELS.hip_hinge, "Hamstring/Glute", "Hip hinge target label");
+assertEqual(engine.COACH_PATTERN_LABELS.hip_hinge, "Hinge", "Hip hinge target label");
 
 const generated = engine.buildCoachProgramData({
     frequency: 4,

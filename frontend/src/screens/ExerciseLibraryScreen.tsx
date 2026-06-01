@@ -14,16 +14,23 @@ const FILTERS = [
     { key: "upper_chest", label: "Üst göğüs" },
     { key: "shoulder_abduction", label: "Yan omuz" },
     { key: "shoulder_flexion", label: "Ön omuz" },
+    { key: "rear_delt", label: "Arka omuz" },
+    { key: "rotator_cuff", label: "Rotator cuff" },
     { key: "shoulder_adduction", label: "Alt kanat" },
     { key: "shoulder_extension", label: "Üst kanat" },
     { key: "upper_back", label: "Üst sırt" },
+    { key: "trapezius", label: "Trapez" },
     { key: "elbow_flexion", label: "Biceps" },
     { key: "elbow_extension", label: "Triceps" },
     { key: "leg_press", label: "Vastuslar" },
     { key: "knee_extension", label: "Quadriceps" },
-    { key: "hip_hinge", label: "Hamstring/Glute" },
+    { key: "hip_hinge", label: "Hinge" },
+    { key: "hip_abduction", label: "Glute" },
     { key: "knee_flexion", label: "Hamstring" },
-    { key: "calf_raise", label: "Calf" },
+    { key: "spinal_flexion", label: "Spine flexion" },
+    { key: "spinal_extension", label: "Spine extension" },
+    { key: "spinal_rotation", label: "Spine rotation" },
+    { key: "calf_raise", label: "Calve" },
 ] as const;
 
 type FilterKey = typeof FILTERS[number]["key"];
@@ -60,7 +67,9 @@ const EQUIPMENT_LABELS: Record<string, string> = {
     leg_press: "Leg Press",
 };
 
-const EQUIPMENT_FILTERS = Object.entries(EQUIPMENT_LABELS).map(([key, label]) => ({ key, label }));
+const EQUIPMENT_FILTERS = Object.entries(EQUIPMENT_LABELS)
+    .filter(([key]) => key !== "bench" && key !== "leg_press")
+    .map(([key, label]) => ({ key, label }));
 const DIFFICULTY_FILTERS: { key: DifficultyFilter; label: string }[] = [
     { key: "all", label: "Tümü" },
     { key: "beginner", label: "Başlangıç" },
@@ -103,6 +112,7 @@ function cautionPoints(exercise: ExerciseLibraryItem) {
         hip_pain_sensitive: "Kalca hassasiyeti varsa agri olusturan araliktan kac.",
         hamstring_sensitive: "Hamstring hassasiyeti varsa gerilimi kademeli arttir.",
         ankle_pain_sensitive: "Ayak bilegi hassasiyeti varsa kontrollu aralik kullan.",
+        neck_pain_sensitive: "Boyun hassasiyeti varsa trapez ve shrug varyasyonlarında yükü temkinli seç.",
     };
     const cautions = exercise.contraindicationTags.map((tag) => labels[tag]).filter(Boolean);
     if (exercise.difficulty === "advanced") cautions.push("Yeni baslayanlar icin ilk tercih olmamali; teknik standardi yuksek ister.");
@@ -133,6 +143,7 @@ export default function ExerciseLibraryScreen() {
     const [equipmentFilters, setEquipmentFilters] = React.useState<string[]>([]);
     const [query, setQuery] = React.useState("");
     const [filterModalVisible, setFilterModalVisible] = React.useState(false);
+    const [guideModalVisible, setGuideModalVisible] = React.useState(false);
     const [selected, setSelected] = React.useState<ExerciseLibraryItem | null>(null);
 
     const exercises = React.useMemo(() => {
@@ -167,6 +178,17 @@ export default function ExerciseLibraryScreen() {
         () => MUSCLE_GROUPS.find((group) => group.patterns.includes(filter)),
         [filter],
     );
+
+    const firstVisiblePattern = (patterns: string[]) => {
+        const available = patterns.find((pattern) => pattern !== "leg_press" || difficulty === "advanced");
+        return (available || patterns[0] || "all") as FilterKey;
+    };
+
+    React.useEffect(() => {
+        if (difficulty !== "advanced" && filter === "leg_press") {
+            setFilter("all");
+        }
+    }, [difficulty, filter]);
 
     const toggleEquipment = (key: string) => {
         setEquipmentFilters((current) =>
@@ -205,41 +227,11 @@ export default function ExerciseLibraryScreen() {
                         <Ionicons name="options-outline" size={18} color={colors.accent} />
                         <Text style={styles.filterBtnText}>Filtrele{activeFilterCount ? ` (${activeFilterCount})` : ""}</Text>
                     </TouchableOpacity>
+                    <TouchableOpacity style={styles.guideBtn} onPress={() => setGuideModalVisible(true)} activeOpacity={0.84}>
+                        <Ionicons name="body-outline" size={18} color={colors.accent} />
+                    </TouchableOpacity>
                 </View>
                 <Text style={styles.resultCount}>{exercises.length} hareket bulundu</Text>
-
-                <View style={styles.guidePanel}>
-                    <View style={styles.guideHeader}>
-                        <View style={styles.guideIcon}>
-                            <Ionicons name="body-outline" size={19} color={colors.accent} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.guideTitle}>Kas ve patern rehberi</Text>
-                            <Text style={styles.guideText}>
-                                Kütüphane hareketleri hedef kas ve hareket paterniyle eşler. Aynı eşleme koç önerilerini ve progress analizini besler.
-                            </Text>
-                        </View>
-                    </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.groupScroller}>
-                        {MUSCLE_GROUPS.map((group) => {
-                            const isActive = selectedGroup?.key === group.key;
-                            return (
-                                <TouchableOpacity
-                                    key={group.key}
-                                    style={[styles.groupCard, isActive && styles.groupCardActive]}
-                                    activeOpacity={0.84}
-                                    onPress={() => {
-                                        setRegion(group.region);
-                                        setFilter(group.patterns[0] as FilterKey);
-                                    }}
-                                >
-                                    <Text style={[styles.groupTitle, isActive && styles.groupTitleActive]}>{group.beginnerLabel}</Text>
-                                    <Text style={styles.groupText} numberOfLines={2}>{group.info}</Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </ScrollView>
-                </View>
 
                 <View style={styles.list}>
                     {exercises.map((exercise) => (
@@ -343,6 +335,51 @@ export default function ExerciseLibraryScreen() {
                 </View>
             </Modal>
 
+            <Modal visible={guideModalVisible} transparent animationType="fade" onRequestClose={() => setGuideModalVisible(false)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.modalCard}>
+                        <View style={styles.modalHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.modalTitle}>Kas ve patern rehberi</Text>
+                                <Text style={styles.modalSubtitle}>
+                                    Bir karta basınca ilgili patern filtrelenir. Aktif karta tekrar basarsan filtre kapanır.
+                                </Text>
+                            </View>
+                            <TouchableOpacity style={styles.modalClose} onPress={() => setGuideModalVisible(false)}>
+                                <Ionicons name="close" size={20} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
+                            <View style={styles.groupGrid}>
+                                {MUSCLE_GROUPS.map((group) => {
+                                    const isActive = selectedGroup?.key === group.key;
+                                    return (
+                                        <TouchableOpacity
+                                            key={group.key}
+                                            style={[styles.groupCard, isActive && styles.groupCardActive]}
+                                            activeOpacity={0.84}
+                                            onPress={() => {
+                                                if (isActive) {
+                                                    setRegion("all");
+                                                    setFilter("all");
+                                                    return;
+                                                }
+                                                setRegion(group.region);
+                                        setFilter(firstVisiblePattern(group.patterns));
+                                                setGuideModalVisible(false);
+                                            }}
+                                        >
+                                            <Text style={[styles.groupTitle, isActive && styles.groupTitleActive]}>{group.beginnerLabel}</Text>
+                                            <Text style={styles.groupText}>{group.info}</Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+                        </ScrollView>
+                    </View>
+                </View>
+            </Modal>
+
             <Modal visible={filterModalVisible} transparent animationType="fade" onRequestClose={() => setFilterModalVisible(false)}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.modalCard}>
@@ -365,9 +402,16 @@ export default function ExerciseLibraryScreen() {
                             <FilterGroup title="Kas / patern" styles={styles}>
                                 {FILTERS.filter((item) => {
                                     const regionPatterns = REGION_FILTERS.find((regionItem) => regionItem.key === region)?.patterns || [];
+                                    if (item.key === "leg_press" && difficulty !== "advanced") return false;
                                     return region === "all" || item.key === "all" || regionPatterns.includes(item.key);
                                 }).map((item) => (
-                                    <FilterChip key={item.key} label={item.label} active={filter === item.key} onPress={() => setFilter(item.key)} styles={styles} />
+                                    <FilterChip
+                                        key={item.key}
+                                        label={item.label}
+                                        active={filter === item.key}
+                                        onPress={() => setFilter(filter === item.key ? "all" : item.key)}
+                                        styles={styles}
+                                    />
                                 ))}
                             </FilterGroup>
                             <FilterGroup title="Seviye" styles={styles}>
@@ -498,6 +542,16 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         gap: spacing.xs,
     },
+    guideBtn: {
+        width: 46,
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        alignItems: "center",
+        justifyContent: "center",
+    },
     filterBtnText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     resultCount: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: -spacing.sm },
     guidePanel: {
@@ -520,6 +574,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     guideTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     guideText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20, marginTop: 2 },
     groupScroller: { gap: spacing.sm, paddingRight: spacing.md },
+    groupGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingBottom: spacing.md },
     groupCard: {
         width: 160,
         minHeight: 92,

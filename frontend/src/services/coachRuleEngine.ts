@@ -13,6 +13,9 @@ export type CoachPatternKey =
     | "shoulder_extension"
     | "shoulder_adduction"
     | "upper_back"
+    | "rear_delt"
+    | "trapezius"
+    | "rotator_cuff"
     | "shoulder_abduction"
     | "elbow_extension"
     | "elbow_flexion"
@@ -20,9 +23,12 @@ export type CoachPatternKey =
     | "knee_extension"
     | "leg_press"
     | "hip_hinge"
+    | "hip_abduction"
     | "knee_flexion"
     | "hip_adduction"
     | "spinal_flexion"
+    | "spinal_extension"
+    | "spinal_rotation"
     | "calf_raise";
 
 export type CoachPlanDay = {
@@ -95,12 +101,12 @@ export const COACH_PRIORITIES: { key: CoachPatternKey; label: string }[] = [
 ];
 
 export const COACH_PRIORITY_GROUPS: { key: string; label: string; patterns: CoachPatternKey[] }[] = [
-    { key: "shoulders", label: "Omuz", patterns: ["shoulder_abduction", "shoulder_flexion"] },
+    { key: "shoulders", label: "Omuz", patterns: ["shoulder_abduction", "shoulder_flexion", "rear_delt", "rotator_cuff"] },
     { key: "chest", label: "Göğüs", patterns: ["horizontal_adduction", "upper_chest"] },
-    { key: "back", label: "Sırt", patterns: ["shoulder_adduction", "shoulder_extension", "upper_back"] },
+    { key: "back", label: "Sırt", patterns: ["shoulder_adduction", "shoulder_extension", "upper_back", "trapezius"] },
     { key: "arms", label: "Kol", patterns: ["elbow_flexion", "elbow_extension", "reverse_curl"] },
-    { key: "legs", label: "Bacak", patterns: ["leg_press", "knee_extension", "knee_flexion", "hip_hinge", "hip_adduction", "calf_raise"] },
-    { key: "core", label: "Karın", patterns: ["spinal_flexion"] },
+    { key: "legs", label: "Bacak", patterns: ["leg_press", "knee_extension", "knee_flexion", "hip_hinge", "hip_abduction", "hip_adduction", "calf_raise"] },
+    { key: "core", label: "Karın", patterns: ["spinal_flexion", "spinal_extension", "spinal_rotation"] },
 ];
 
 export const COACH_PATTERN_LABELS: Record<CoachPatternKey, string> = {
@@ -110,17 +116,23 @@ export const COACH_PATTERN_LABELS: Record<CoachPatternKey, string> = {
     shoulder_extension: "Üst kanat",
     shoulder_adduction: "Alt kanat",
     upper_back: "Üst sırt",
+    rear_delt: "Arka omuz",
+    trapezius: "Trapez",
+    rotator_cuff: "Rotator cuff",
     shoulder_abduction: "Yan omuz",
     elbow_extension: "Triceps",
     elbow_flexion: "Biceps",
     reverse_curl: "Brachialis / ön kol",
     knee_extension: "Quadriceps",
     leg_press: "Vastuslar (ön bacak)",
-    hip_hinge: "Hamstring/Glute",
+    hip_hinge: "Hinge",
+    hip_abduction: "Glute",
     knee_flexion: "Hamstring",
     hip_adduction: "Adductor",
     spinal_flexion: "Abs",
-    calf_raise: "Calf",
+    spinal_extension: "Spine extension",
+    spinal_rotation: "Spine rotation",
+    calf_raise: "Calve",
 };
 
 export const COACH_EXERCISE_LIBRARY: Record<CoachPatternKey, string[]> = EXERCISE_LIBRARY.reduce((acc, exercise) => {
