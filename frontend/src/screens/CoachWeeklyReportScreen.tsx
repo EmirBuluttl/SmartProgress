@@ -9,6 +9,7 @@ import { coachApi } from "../services/api";
 import EmptyState from "../components/EmptyState";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
+import AnimatedPressable from "../components/AnimatedPressable";
 
 
 
@@ -65,6 +66,9 @@ export default function CoachWeeklyReportScreen() {
     const [activeFilter, setActiveFilter] = React.useState<ReportFilter>("all");
     const [muscleFilter, setMuscleFilter] = React.useState("Tümü");
     const [query, setQuery] = React.useState("");
+    const { animStyle: headerAnimStyle } = useScreenEnter({ delay: 0 });
+    const { animStyle: heroAnimStyle } = useScreenEnter({ delay: 90 });
+    const { animStyle: filterAnimStyle } = useScreenEnter({ delay: 160 });
 
     React.useEffect(() => {
         let mounted = true;
@@ -168,15 +172,17 @@ export default function CoachWeeklyReportScreen() {
 
     return (
         <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]} showsVerticalScrollIndicator={false}>
-            <View style={styles.header}>
-                <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()} activeOpacity={0.8}>
-                    <Ionicons name="chevron-back" size={22} color={colors.text} />
-                </TouchableOpacity>
+            <Animated.View style={[styles.header, headerAnimStyle]}>
+                <AnimatedPressable style={styles.backButtonPressable} onPress={() => navigation.goBack()} pressedScale={0.96}>
+                    <View style={styles.backButton}>
+                        <Ionicons name="chevron-back" size={22} color={colors.text} />
+                    </View>
+                </AnimatedPressable>
                 <View style={styles.headerCopy}>
                     <Text style={styles.eyebrow}>COACH REPORT</Text>
                     <Text style={styles.title}>Haftalık Rapor</Text>
                 </View>
-            </View>
+            </Animated.View>
 
             {loading ? (
                 <View style={styles.loadingCard}>
@@ -192,7 +198,7 @@ export default function CoachWeeklyReportScreen() {
                 />
             ) : (
                 <>
-                    <View style={styles.heroCard}>
+                    <Animated.View style={[styles.heroCard, heroAnimStyle]}>
                         <View style={styles.heroTopRow}>
                             <View style={styles.reportMark}>
                                 <Ionicons name="sparkles-outline" size={20} color={colors.background} />
@@ -256,9 +262,9 @@ export default function CoachWeeklyReportScreen() {
                                 ))}
                             </View>
                         )}
-                    </View>
+                    </Animated.View>
 
-                    <View style={styles.filterPanel}>
+                    <Animated.View style={[styles.filterPanel, filterAnimStyle]}>
                         <View style={styles.searchBox}>
                             <Ionicons name="search-outline" size={18} color={colors.textMuted} />
                             <TextInput
@@ -271,30 +277,30 @@ export default function CoachWeeklyReportScreen() {
                         </View>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
                             {REPORT_FILTERS.map((item) => (
-                                <TouchableOpacity
+                                <AnimatedPressable
                                     key={item.key}
                                     style={[styles.filterChip, activeFilter === item.key && styles.filterChipActive]}
                                     onPress={() => setActiveFilter(item.key)}
-                                    activeOpacity={0.84}
+                                    pressedScale={0.96}
                                 >
                                     <Text style={[styles.filterText, activeFilter === item.key && styles.filterTextActive]}>{item.label}</Text>
-                                </TouchableOpacity>
+                                </AnimatedPressable>
                             ))}
                         </ScrollView>
                         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
                             {muscleOptions.map((item) => (
-                                <TouchableOpacity
+                                <AnimatedPressable
                                     key={item}
                                     style={[styles.filterChip, muscleFilter === item && styles.filterChipActive]}
                                     onPress={() => setMuscleFilter(item)}
-                                    activeOpacity={0.84}
+                                    pressedScale={0.96}
                                 >
                                     <Text style={[styles.filterText, muscleFilter === item && styles.filterTextActive]}>{item}</Text>
-                                </TouchableOpacity>
+                                </AnimatedPressable>
                             ))}
                         </ScrollView>
                         <Text style={styles.filterSummary}>{filteredAnalyses.length} / {analyses.length} sinyal gösteriliyor</Text>
-                    </View>
+                    </Animated.View>
 
                     {renderGroup("Müdahale adayları", interventionItems)}
                     {renderGroup("Progress yakalanan hareketler", progressItems)}
@@ -330,6 +336,11 @@ const createStyles = (colors: any) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: { paddingHorizontal: spacing.xl, paddingTop: spacing.lg, paddingBottom: 80, gap: spacing.xl },
     header: { flexDirection: "row", alignItems: "center", gap: spacing.md },
+    backButtonPressable: {
+        width: 42,
+        height: 42,
+        borderRadius: borderRadius.full,
+    },
     backButton: {
         width: 42,
         height: 42,
