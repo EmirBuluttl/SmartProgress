@@ -172,6 +172,9 @@ export default function PremiumProgramWizardScreen() {
         if (goal === "fat_loss") reasons.push("Yag kaybi icin toparlanma dikkate alindi");
         return reasons;
     }, [avoidedExerciseTokens.length, equipmentLimitNote, goal, hasEquipmentLimit, hasPain, level, painNote]);
+    const hasUpperBackPriorityOverlap = priorityMode === "ordered" &&
+        priorityOrder.includes("upper_back") &&
+        (priorityOrder.includes("rear_delt") || priorityOrder.includes("trapezius"));
 
     const buildProgramData = () => buildCoachProgramData({
         frequency,
@@ -512,6 +515,14 @@ export default function PremiumProgramWizardScreen() {
                                                 <Text style={styles.orderPillText}>{index + 1}. {PATTERN_LABELS[pattern]}</Text>
                                             </View>
                                         ))}
+                                    </View>
+                                )}
+                                {hasUpperBackPriorityOverlap && (
+                                    <View style={styles.cautionBox}>
+                                        <Ionicons name="alert-circle-outline" size={18} color="#F5A524" />
+                                        <Text style={styles.cautionText}>
+                                            Arka omuz ve trapez zaten üst sırt paternine destek olur. Üst sırtı ayrıca seçersen koç bunu tek birleşik üst sırt odağı olarak düşünebilir; arka omuz/trapezi ayrı ayrı özellikle büyütmek istiyorsan üst sırtı listeden çıkar.
+                                        </Text>
                                     </View>
                                 )}
                                 <View style={styles.priorityGrid}>

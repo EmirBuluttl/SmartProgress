@@ -91,19 +91,22 @@ export const COACH_SESSION_DURATIONS: { key: CoachSessionDuration; label: string
 ];
 
 export const COACH_PRIORITIES: { key: CoachPatternKey; label: string }[] = [
+    { key: "horizontal_adduction", label: "Göğüs" },
+    { key: "upper_chest", label: "Üst göğüs" },
+    { key: "shoulder_flexion", label: "Ön omuz" },
     { key: "shoulder_abduction", label: "Yan omuz" },
     { key: "rear_delt", label: "Arka omuz" },
     { key: "trapezius", label: "Trapez" },
-    { key: "rotator_cuff", label: "Rotator cuff" },
-    { key: "horizontal_adduction", label: "Göğüs" },
-    { key: "upper_chest", label: "Üst göğüs" },
-    { key: "shoulder_adduction", label: "Alt kanat" },
-    { key: "upper_back", label: "Üst sırt" },
     { key: "elbow_flexion", label: "Biceps" },
     { key: "elbow_extension", label: "Triceps" },
-    { key: "hip_abduction", label: "Glute" },
-    { key: "leg_press", label: "Bacak" },
+    { key: "shoulder_adduction", label: "Alt kanat" },
+    { key: "shoulder_extension", label: "Üst kanat" },
+    { key: "upper_back", label: "Üst sırt" },
+    { key: "knee_extension", label: "Quadriceps" },
     { key: "knee_flexion", label: "Hamstring" },
+    { key: "hip_abduction", label: "Glute" },
+    { key: "calf_raise", label: "Calve" },
+    { key: "hip_adduction", label: "Adductor" },
 ];
 
 export const COACH_PRIORITY_GROUPS: { key: string; label: string; patterns: CoachPatternKey[] }[] = [
