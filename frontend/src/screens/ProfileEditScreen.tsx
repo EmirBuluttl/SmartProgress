@@ -23,6 +23,8 @@ import { useTheme } from "../hooks/ThemeContext";
 import { useAuth } from "../store/AuthContext";
 import { authApi } from "../services/api";
 import AccentButton from "../components/AccentButton";
+import AnimatedPressable from "../components/AnimatedPressable";
+import NoticeModal from "../components/NoticeModal";
 
 export default function ProfileEditScreen() {
     const navigation = useNavigation();
@@ -35,6 +37,15 @@ export default function ProfileEditScreen() {
     const [nickname, setNickname] = useState((user as any)?.nickname || "");
     const [profileImage, setProfileImage] = useState(user?.avatarUrl || user?.profileImage || "");
     const [saving, setSaving] = useState(false);
+    const [notice, setNotice] = useState<{ title: string; message: string; goBackOnClose?: boolean } | null>(null);
+
+    const closeNotice = () => {
+        const shouldGoBack = notice?.goBackOnClose;
+        setNotice(null);
+        if (shouldGoBack) {
+            navigation.goBack();
+        }
+    };
 
     const getPickedImageUri = (asset: ImagePicker.ImagePickerAsset) =>
         asset.base64
@@ -45,7 +56,7 @@ export default function ProfileEditScreen() {
         if (source === "camera") {
             const { status } = await ImagePicker.requestCameraPermissionsAsync();
             if (status !== "granted") {
-                Alert.alert("İzin Gerekli", "Lütfen kamera iznini verin.");
+                setNotice({ title: "İzin Gerekli", message: "Profil fotoğrafı çekmek için kamera izni vermen gerekiyor." });
                 return;
             }
             const result = await ImagePicker.launchCameraAsync({
@@ -61,7 +72,7 @@ export default function ProfileEditScreen() {
         } else {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== "granted") {
-                Alert.alert("İzin Gerekli", "Lütfen galeri iznini verin.");
+                setNotice({ title: "İzin Gerekli", message: "Profil fotoğrafını seçmek için galeri izni vermen gerekiyor." });
                 return;
             }
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -91,7 +102,7 @@ export default function ProfileEditScreen() {
 
     const handleSave = async () => {
         if (!firstName.trim() || !lastName.trim()) {
-            Alert.alert("Hata", "Ad ve Soyad alanları boş bırakılamaz.");
+            setNotice({ title: "Eksik Bilgi", message: "Ad ve soyad alanlarını boş bırakmamalısın." });
             return;
         }
 
@@ -111,11 +122,9 @@ export default function ProfileEditScreen() {
                 profileImage: profileImage || undefined,
             });
 
-            Alert.alert("Başarılı", "Profiliniz güncellendi.", [
-                { text: "Tamam", onPress: () => navigation.goBack() },
-            ]);
+            setNotice({ title: "Profil Güncellendi", message: "Profil bilgilerin başarıyla kaydedildi.", goBackOnClose: true });
         } catch (err: any) {
-            Alert.alert("Hata", err?.message || "Profil güncellenemedi.");
+            setNotice({ title: "Profil Güncellenemedi", message: err?.message || "Profil güncellenemedi. Lütfen tekrar dene." });
         } finally {
             setSaving(false);
         }
@@ -127,12 +136,14 @@ export default function ProfileEditScreen() {
         <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
-                <TouchableOpacity
+                <AnimatedPressable
                     onPress={() => navigation.goBack()}
+                    style={styles.closeBtn}
+                    pressedScale={0.94}
                     hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 >
                     <Ionicons name="close" size={28} color={colors.text} />
-                </TouchableOpacity>
+                </AnimatedPressable>
                 <Text style={styles.headerTitle}>Profili Düzenle</Text>
                 <View style={{ width: 28 }} />
             </View>
@@ -143,7 +154,7 @@ export default function ProfileEditScreen() {
                 keyboardShouldPersistTaps="handled"
             >
                 {/* Avatar */}
-                <TouchableOpacity style={styles.avatarSection} onPress={handlePickImage} activeOpacity={0.8}>
+                <AnimatedPressable style={styles.avatarSection} onPress={handlePickImage} pressedScale={0.96}>
                     <View style={styles.avatarLarge}>
                         {profileImage ? (
                             <Image source={{ uri: profileImage }} style={styles.avatarImage} />
@@ -155,7 +166,7 @@ export default function ProfileEditScreen() {
                         </View>
                     </View>
                     <Text style={styles.changePhotoText}>Fotoğrafı Değiştir</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
 
                 {/* Fields */}
                 <View style={styles.fieldGroup}>
@@ -200,6 +211,12 @@ export default function ProfileEditScreen() {
                     style={styles.saveBtn}
                 />
             </ScrollView>
+            <NoticeModal
+                visible={!!notice}
+                title={notice?.title || ""}
+                message={notice?.message || ""}
+                onClose={closeNotice}
+            />
         </View>
     );
 }
@@ -223,6 +240,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.lg,
         fontWeight: fontWeight.bold,
         color: colors.text,
+    },
+    closeBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceElevated,
     },
     content: {
         paddingHorizontal: spacing.lg,
