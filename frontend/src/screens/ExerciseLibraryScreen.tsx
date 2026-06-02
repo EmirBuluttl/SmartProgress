@@ -66,6 +66,7 @@ const EQUIPMENT_LABELS: Record<string, string> = {
     barbell: "Barbell",
     dumbbell: "Dumbbell",
     bodyweight: "BW/Calisthenics",
+    band: "Band",
     bench: "Bench",
     leg_press: "Leg Press",
 };
