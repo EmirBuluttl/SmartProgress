@@ -90,6 +90,25 @@ function normalizeText(value: unknown) {
     return String(value || "").toLocaleLowerCase("tr-TR").trim();
 }
 
+const DIFFICULTY_RANK: Record<ExerciseLibraryItem["difficulty"], number> = {
+    beginner: 0,
+    intermediate: 1,
+    advanced: 2,
+};
+
+const STABILITY_RANK: Record<ReturnType<typeof getExerciseMetadata>["stability"], number> = {
+    very_stable: 0,
+    stable: 1,
+    moderate: 2,
+    unstable: 3,
+};
+
+const RISK_RANK: Record<ReturnType<typeof getExerciseMetadata>["riskLevel"], number> = {
+    low: 0,
+    medium: 1,
+    high: 2,
+};
+
 function difficultyLabel(value: ExerciseLibraryItem["difficulty"]) {
     if (value === "beginner") return "Başlangıç";
     if (value === "advanced") return "İleri";
@@ -202,7 +221,15 @@ export default function ExerciseLibraryScreen() {
             }
             return true;
         });
-        return [...filtered].sort((a, b) => Number(b.beginnerFriendly) - Number(a.beginnerFriendly));
+        return [...filtered].sort((a, b) => {
+            const aMeta = getExerciseMetadata(a);
+            const bMeta = getExerciseMetadata(b);
+            return Number(b.beginnerFriendly) - Number(a.beginnerFriendly) ||
+                DIFFICULTY_RANK[a.difficulty] - DIFFICULTY_RANK[b.difficulty] ||
+                STABILITY_RANK[aMeta.stability] - STABILITY_RANK[bMeta.stability] ||
+                RISK_RANK[aMeta.riskLevel] - RISK_RANK[bMeta.riskLevel] ||
+                a.name.localeCompare(b.name);
+        });
     }, [difficulty, equipmentFilters, filter, guideGroupKey, query, region]);
 
     const activeFilterCount = Number(region !== "all") +

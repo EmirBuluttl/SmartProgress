@@ -98,6 +98,7 @@ export const COACH_PRIORITIES: { key: CoachPatternKey; label: string }[] = [
     { key: "rear_delt", label: "Arka omuz" },
     { key: "trapezius", label: "Trapez" },
     { key: "elbow_flexion", label: "Biceps" },
+    { key: "reverse_curl", label: "Brachialis / Bilek" },
     { key: "elbow_extension", label: "Triceps" },
     { key: "shoulder_adduction", label: "Alt kanat" },
     { key: "shoulder_extension", label: "Üst kanat" },

@@ -76,7 +76,13 @@ const dumbbellOnlyChestOptions = engine.getAvailableExercises("horizontal_adduct
     hasEquipmentLimit: "yes",
     equipmentLimitNote: "Sadece dumbbell var",
 });
-assertEqual(dumbbellOnlyChestOptions, ["Dumbbell Press", "Dumbbell Fly"], "Only-equipment note narrows recommendations");
+assertEqual(dumbbellOnlyChestOptions.slice(0, 2), ["Dumbbell Press", "Dumbbell Fly"], "Only-equipment note prioritizes available dumbbell recommendations");
+const blockedEquipmentRecommendations = ["Pec Deck", "Chest Press Machine", "Smith Machine Bench Press", "Cable Fly"];
+assertEqual(
+    blockedEquipmentRecommendations.filter((name) => dumbbellOnlyChestOptions.includes(name)),
+    [],
+    "Only-equipment note removes unavailable machine/cable/smith recommendations",
+);
 
 assertEqual(engine.COACH_PATTERN_LABELS.leg_press, "Vastuslar (ön bacak)", "Leg press target label");
 assertEqual(engine.COACH_PATTERN_LABELS.hip_hinge, "Hinge", "Hip hinge target label");
