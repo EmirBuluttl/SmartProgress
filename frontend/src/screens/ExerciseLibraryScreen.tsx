@@ -65,7 +65,7 @@ const EQUIPMENT_LABELS: Record<string, string> = {
     cable: "Cable",
     barbell: "Barbell",
     dumbbell: "Dumbbell",
-    bodyweight: "Bodyweight",
+    bodyweight: "BW/Calisthenics",
     bench: "Bench",
     leg_press: "Leg Press",
 };
@@ -104,7 +104,7 @@ function guidePoints(exercise: ExerciseLibraryItem) {
     if (exercise.tags.includes("strength")) points.push("Guc artisi takibinde anlamli olabilir; ego lift yerine tekrar edilebilir form onceliklidir.");
     if (metadata.goalFit.includes("fatigue_management")) points.push("Yorgunluk yonetimi ve teknik tutarlilik icin iyi bir secenektir.");
     if (metadata.goalFit.includes("rehab")) points.push("Omuz sagligi veya kontrollu kapasite calismasi icin dusuk yukle kullanilabilir.");
-    if (exercise.equipment.includes("bodyweight")) points.push("Vucut agirligi hareketlerinde gerekirse external load/bodyweight ayrimiyla loglamak daha dogru olur.");
+    if (exercise.equipment.includes("bodyweight")) points.push("BW/Calisthenics hareketlerinde gerekirse external load/bodyweight ayrimiyla loglamak daha dogru olur.");
     return points.length > 0 ? points : ["Programdaki hedef kas paternine uyuyorsa kontrollu sekilde kullanilabilir."];
 }
 
@@ -178,7 +178,10 @@ export default function ExerciseLibraryScreen() {
         const search = normalizeText(query);
         const filtered = EXERCISE_LIBRARY.filter((exercise) => {
             if (region !== "all" && !regionPatterns.includes(exercise.pattern)) return false;
-            if (filter !== "all" && exercise.pattern !== filter) return false;
+            if (filter !== "all") {
+                const matchesPattern = exercise.pattern === filter || (filter === "knee_extension" && exercise.pattern === "leg_press");
+                if (!matchesPattern) return false;
+            }
             if (difficulty !== "all" && exercise.difficulty !== difficulty) return false;
             if (equipmentFilters.length > 0 && !equipmentFilters.some((equipment) => exercise.equipment.includes(equipment as any))) return false;
             if (search) {
