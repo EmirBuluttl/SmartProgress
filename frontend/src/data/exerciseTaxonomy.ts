@@ -58,11 +58,11 @@ export const MUSCLE_GROUPS: MuscleGroup[] = [
         label: "Kol",
         beginnerLabel: "Kol",
         region: "upper",
-        patterns: ["elbow_flexion", "elbow_extension", "brachialis"],
+        patterns: ["elbow_flexion", "elbow_extension", "reverse_curl"],
         subGroups: [
             { key: "biceps", label: "Biceps", patterns: ["elbow_flexion"] },
             { key: "triceps", label: "Triceps", patterns: ["elbow_extension"] },
-            { key: "brachialis", label: "Brachialis / ön kol desteği", patterns: ["brachialis"] },
+            { key: "brachialis", label: "Brachialis / ön kol desteği", patterns: ["reverse_curl"] },
         ],
         info: "Kol hareketleri dirsek fleksiyon/ekstansiyon mantığıyla takip edilir.",
     },

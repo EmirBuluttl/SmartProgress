@@ -24,6 +24,7 @@ const FILTERS = [
     { key: "upper_back", label: "Üst sırt" },
     { key: "trapezius", label: "Trapez" },
     { key: "elbow_flexion", label: "Biceps" },
+    { key: "reverse_curl", label: "Brachialis / Bilek" },
     { key: "elbow_extension", label: "Triceps" },
     { key: "leg_press", label: "Vastuslar" },
     { key: "knee_extension", label: "Quadriceps" },
