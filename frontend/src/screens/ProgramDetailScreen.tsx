@@ -25,6 +25,7 @@ import { parseApiError, programApi, workoutApi } from "../services/api";
 import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
+import { navigateToWorkoutRespectingActiveSession } from "../utils/workoutNavigation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -137,7 +138,7 @@ export default function ProgramDetailScreen() {
             const copied = await copyProgramToLibrary();
             if (!copied?.data?.days) return;
             navigation.replace("ProgramDetail", { programId: copied.id });
-            navigation.navigate("WorkoutSession", {
+            navigateToWorkoutRespectingActiveSession(navigation, {
                 programId: copied.id,
                 programName: copied.name,
                 dayIndex: copied.currentDayIndex,
@@ -168,7 +169,7 @@ export default function ProgramDetailScreen() {
     };
 
     const navigateToSession = (dayIndex: number) => {
-        navigation.navigate("WorkoutSession", {
+        navigateToWorkoutRespectingActiveSession(navigation, {
             programId: program!.id,
             programName: program!.name,
             dayIndex,
@@ -184,7 +185,7 @@ export default function ProgramDetailScreen() {
             const copied = await copyProgramToLibrary();
             if (!copied?.data?.days) return;
             navigation.replace("ProgramDetail", { programId: copied.id });
-            navigation.navigate("WorkoutSession", {
+            navigateToWorkoutRespectingActiveSession(navigation, {
                 programId: copied.id,
                 programName: copied.name,
                 dayIndex,

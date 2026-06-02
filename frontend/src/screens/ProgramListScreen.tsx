@@ -22,6 +22,7 @@ import { programApi } from "../services/api";
 import GymCard from "../components/GymCard";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import { navigateToWorkoutRespectingActiveSession } from "../utils/workoutNavigation";
 
 // ─── Stagger wrapper — her kart index * 50ms delay ile girer ───
 function StaggerCard({ index, children }: { index: number; children: React.ReactNode }) {
@@ -181,7 +182,7 @@ export default function ProgramListScreen() {
                                             "hasData=",
                                             !!item.data,
                                         );
-                                        navigation.navigate("WorkoutSession", {
+                                        navigateToWorkoutRespectingActiveSession(navigation, {
                                             programId: item.id,
                                             programName: item.name,
                                             programData: item.data,

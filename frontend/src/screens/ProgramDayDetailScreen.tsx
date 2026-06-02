@@ -13,6 +13,7 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
+import { navigateToWorkoutRespectingActiveSession } from "../utils/workoutNavigation";
 
 type Route = RouteProp<RootStackParamList, "ProgramDayDetail">;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -25,7 +26,7 @@ export default function ProgramDayDetailScreen() {
     const { programId, programName, dayIndex, day, programData } = route.params;
 
     const startDay = () => {
-        navigation.navigate("WorkoutSession", {
+        navigateToWorkoutRespectingActiveSession(navigation, {
             programId,
             programName,
             dayIndex,

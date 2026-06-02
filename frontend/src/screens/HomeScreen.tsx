@@ -42,6 +42,7 @@ import { countProgressEvents } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { requestMainTabSwitch } from "../utils/mainTabEvents";
+import { navigateToWorkoutRespectingActiveSession } from "../utils/workoutNavigation";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -327,7 +328,7 @@ export default function HomeScreen() {
             <Animated.View style={quickAnimStyle}>
             <AnimatedPressable
                 style={styles.quickWorkoutCard}
-                onPress={() => navigation.navigate("WorkoutSession", { mode: "free" })}
+                onPress={() => navigateToWorkoutRespectingActiveSession(navigation, { mode: "free" })}
                 pressedScale={0.99}
             >
                 <View style={styles.quickWorkoutIcon}>
@@ -467,7 +468,7 @@ export default function HomeScreen() {
                         title={currentDay.exercises.length > 0 ? "Antrenmanı Başlat" : "Sonraki Güne Geç"}
                         onPress={() => {
                             if (currentDay.exercises.length > 0) {
-                                navigation.navigate("WorkoutSession", {
+                                navigateToWorkoutRespectingActiveSession(navigation, {
                                     programId: favoriteProgram.id,
                                     programName: favoriteProgram.name,
                                     dayIndex: currentDayIndex,
@@ -507,7 +508,7 @@ export default function HomeScreen() {
                     <AccentButton
                         title="Aktif Programı Başlat"
                         onPress={() =>
-                            navigation.navigate("WorkoutSession", {
+                            navigateToWorkoutRespectingActiveSession(navigation, {
                                 programId: favoriteProgram.id,
                                 programName: favoriteProgram.name,
                                 programData: favoriteProgram.data,
