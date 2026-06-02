@@ -259,6 +259,15 @@ export default function ExerciseLibraryScreen() {
         );
     };
 
+    const clearFilters = () => {
+        setFilter("all");
+        setRegion("all");
+        setDifficulty("all");
+        setEquipmentFilters([]);
+        setGuideGroupKey(null);
+        setQuery("");
+    };
+
     const selectRegion = (key: LibraryRegion) => {
         setGuideGroupKey(null);
         setRegion(key);
@@ -333,6 +342,21 @@ export default function ExerciseLibraryScreen() {
                 </Animated.View>
 
                 <Animated.View style={[styles.list, listMotionStyle]}>
+                    {exercises.length === 0 && (
+                        <View style={styles.emptyState}>
+                            <View style={styles.emptyIcon}>
+                                <Ionicons name="search-outline" size={22} color={colors.accent} />
+                            </View>
+                            <Text style={styles.emptyTitle}>Uygun hareket bulunamadı</Text>
+                            <Text style={styles.emptyText}>
+                                Filtreleri biraz genişlet veya arama metnini sadeleştir. Kütüphane önerileri seviye, ekipman ve patern eşleşmesine göre daralır.
+                            </Text>
+                            <TouchableOpacity style={styles.emptyAction} onPress={clearFilters} activeOpacity={0.84}>
+                                <Ionicons name="refresh-outline" size={17} color={colors.background} />
+                                <Text style={styles.emptyActionText}>Filtreleri temizle</Text>
+                            </TouchableOpacity>
+                        </View>
+                    )}
                     {exercises.map((exercise) => (
                         <AnimatedPressable
                             key={exercise.id}
@@ -560,13 +584,7 @@ export default function ExerciseLibraryScreen() {
                         <View style={styles.filterActions}>
                             <TouchableOpacity
                                 style={styles.secondaryAction}
-                                onPress={() => {
-                                    setRegion("all");
-                                    setFilter("all");
-                                    setGuideGroupKey(null);
-                                    setDifficulty("all");
-                                    setEquipmentFilters([]);
-                                }}
+                                onPress={clearFilters}
                             >
                                 <Text style={styles.secondaryActionText}>Temizle</Text>
                             </TouchableOpacity>
@@ -742,6 +760,52 @@ const createStyles = (colors: any) => StyleSheet.create({
     filterText: { color: colors.textSecondary, fontSize: fontSize.sm, fontWeight: fontWeight.semibold },
     filterTextActive: { color: colors.accent },
     list: { gap: spacing.md },
+    emptyState: {
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        padding: spacing.xl,
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    emptyIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: colors.accentMuted,
+        alignItems: "center",
+        justifyContent: "center",
+        marginBottom: spacing.xs,
+    },
+    emptyTitle: {
+        color: colors.text,
+        fontSize: fontSize.lg,
+        fontWeight: fontWeight.heavy,
+        textAlign: "center",
+    },
+    emptyText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+        textAlign: "center",
+    },
+    emptyAction: {
+        marginTop: spacing.sm,
+        minHeight: 42,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        paddingHorizontal: spacing.lg,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+    },
+    emptyActionText: {
+        color: colors.background,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
     cardPressable: { width: "100%" },
     card: {
         backgroundColor: colors.surface,
