@@ -522,9 +522,15 @@ export default function ExerciseLibraryScreen() {
                                                         label={subGroup.label}
                                                         active={filter === pattern}
                                                         onPress={() => {
-                                                            setGuideGroupKey(null);
-                                                            setRegion(activeGuideGroup.region);
-                                                            setFilter(filter === pattern ? "all" : pattern);
+                                                            if (filter === pattern) {
+                                                                setGuideGroupKey(activeGuideGroup.key);
+                                                                setRegion("all");
+                                                                setFilter("all");
+                                                                return;
+                                                            }
+                                                            setGuideGroupKey(activeGuideGroup.key);
+                                                            setRegion("all");
+                                                            setFilter(pattern);
                                                             setGuideModalVisible(false);
                                                         }}
                                                         styles={styles}
