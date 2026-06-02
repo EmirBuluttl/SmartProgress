@@ -150,6 +150,7 @@ export default function ExerciseLibraryScreen() {
     const [query, setQuery] = React.useState("");
     const [filterModalVisible, setFilterModalVisible] = React.useState(false);
     const [guideModalVisible, setGuideModalVisible] = React.useState(false);
+    const [guideGroupKey, setGuideGroupKey] = React.useState<string | null>(null);
     const [selected, setSelected] = React.useState<ExerciseLibraryItem | null>(null);
     const headerAnim = React.useRef(new Animated.Value(0)).current;
     const listAnim = React.useRef(new Animated.Value(0)).current;
@@ -175,8 +176,11 @@ export default function ExerciseLibraryScreen() {
 
     const exercises = React.useMemo(() => {
         const regionPatterns = REGION_FILTERS.find((item) => item.key === region)?.patterns || [];
+        const guideGroup = MUSCLE_GROUPS.find((group) => group.key === guideGroupKey);
+        const guidePatterns = guideGroup?.patterns || [];
         const search = normalizeText(query);
         const filtered = EXERCISE_LIBRARY.filter((exercise) => {
+            if (guidePatterns.length > 0 && !guidePatterns.includes(exercise.pattern)) return false;
             if (region !== "all" && !regionPatterns.includes(exercise.pattern)) return false;
             if (filter !== "all") {
                 const matchesPattern = exercise.pattern === filter || (filter === "knee_extension" && exercise.pattern === "leg_press");
@@ -197,9 +201,10 @@ export default function ExerciseLibraryScreen() {
             return true;
         });
         return [...filtered].sort((a, b) => Number(b.beginnerFriendly) - Number(a.beginnerFriendly));
-    }, [difficulty, equipmentFilters, filter, query, region]);
+    }, [difficulty, equipmentFilters, filter, guideGroupKey, query, region]);
 
     const activeFilterCount = Number(region !== "all") +
+        Number(!!guideGroupKey && filter === "all") +
         Number(filter !== "all") +
         Number(difficulty !== "all") +
         equipmentFilters.length;
@@ -208,11 +213,10 @@ export default function ExerciseLibraryScreen() {
         () => MUSCLE_GROUPS.find((group) => group.patterns.includes(filter)),
         [filter],
     );
-
-    const firstVisiblePattern = (patterns: string[]) => {
-        const available = patterns.find((pattern) => pattern !== "leg_press" || difficulty === "advanced");
-        return (available || patterns[0] || "all") as FilterKey;
-    };
+    const activeGuideGroup = React.useMemo(
+        () => MUSCLE_GROUPS.find((group) => group.key === guideGroupKey) || selectedGroup || null,
+        [guideGroupKey, selectedGroup],
+    );
 
     React.useEffect(() => {
         if (difficulty !== "advanced" && filter === "leg_press") {
@@ -224,6 +228,16 @@ export default function ExerciseLibraryScreen() {
         setEquipmentFilters((current) =>
             current.includes(key) ? current.filter((item) => item !== key) : [...current, key]
         );
+    };
+
+    const selectRegion = (key: LibraryRegion) => {
+        setGuideGroupKey(null);
+        setRegion(key);
+    };
+
+    const selectPattern = (key: FilterKey) => {
+        setGuideGroupKey(null);
+        setFilter(filter === key ? "all" : key);
     };
 
     const headerMotionStyle = {
@@ -407,7 +421,7 @@ export default function ExerciseLibraryScreen() {
                         <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
                             <View style={styles.groupGrid}>
                                 {MUSCLE_GROUPS.map((group) => {
-                                    const isActive = selectedGroup?.key === group.key;
+                                    const isActive = activeGuideGroup?.key === group.key;
                                     return (
                                         <TouchableOpacity
                                             key={group.key}
@@ -415,13 +429,14 @@ export default function ExerciseLibraryScreen() {
                                             activeOpacity={0.84}
                                             onPress={() => {
                                                 if (isActive) {
+                                                    setGuideGroupKey(null);
                                                     setRegion("all");
                                                     setFilter("all");
                                                     return;
                                                 }
-                                                setRegion(group.region);
-                                        setFilter(firstVisiblePattern(group.patterns));
-                                                setGuideModalVisible(false);
+                                                setGuideGroupKey(group.key);
+                                                setRegion("all");
+                                                setFilter("all");
                                             }}
                                         >
                                             <Text style={[styles.groupTitle, isActive && styles.groupTitleActive]}>{group.beginnerLabel}</Text>
@@ -430,6 +445,42 @@ export default function ExerciseLibraryScreen() {
                                     );
                                 })}
                             </View>
+                            {activeGuideGroup && (
+                                <View style={styles.guidePatternPanel}>
+                                    <Text style={styles.detailTitle}>{activeGuideGroup.beginnerLabel} alt paternleri</Text>
+                                    <View style={styles.filterWrap}>
+                                        <FilterChip
+                                            label={`Tüm ${activeGuideGroup.beginnerLabel}`}
+                                            active={guideGroupKey === activeGuideGroup.key && filter === "all"}
+                                            onPress={() => {
+                                                setGuideGroupKey(activeGuideGroup.key);
+                                                setRegion("all");
+                                                setFilter("all");
+                                            }}
+                                            styles={styles}
+                                        />
+                                        {activeGuideGroup.subGroups
+                                            .filter((subGroup) => !(subGroup.patterns.includes("leg_press") && difficulty !== "advanced"))
+                                            .map((subGroup) => {
+                                                const pattern = subGroup.patterns[0] as FilterKey;
+                                                return (
+                                                    <FilterChip
+                                                        key={subGroup.key}
+                                                        label={subGroup.label}
+                                                        active={filter === pattern}
+                                                        onPress={() => {
+                                                            setGuideGroupKey(null);
+                                                            setRegion(activeGuideGroup.region);
+                                                            setFilter(filter === pattern ? "all" : pattern);
+                                                            setGuideModalVisible(false);
+                                                        }}
+                                                        styles={styles}
+                                                    />
+                                                );
+                                            })}
+                                    </View>
+                                </View>
+                            )}
                         </ScrollView>
             </PremiumModalSurface>
 
@@ -447,7 +498,7 @@ export default function ExerciseLibraryScreen() {
                         <ScrollView style={styles.modalScroll} showsVerticalScrollIndicator={false}>
                             <FilterGroup title="Ana bölge" styles={styles}>
                                 {REGION_FILTERS.map((item) => (
-                                    <FilterChip key={item.key} label={item.label} active={region === item.key} onPress={() => setRegion(item.key)} styles={styles} />
+                                    <FilterChip key={item.key} label={item.label} active={region === item.key && !guideGroupKey} onPress={() => selectRegion(item.key)} styles={styles} />
                                 ))}
                             </FilterGroup>
                             <FilterGroup title="Kas / patern" styles={styles}>
@@ -460,7 +511,7 @@ export default function ExerciseLibraryScreen() {
                                         key={item.key}
                                         label={item.label}
                                         active={filter === item.key}
-                                        onPress={() => setFilter(filter === item.key ? "all" : item.key)}
+                                        onPress={() => selectPattern(item.key)}
                                         styles={styles}
                                     />
                                 ))}
@@ -483,6 +534,7 @@ export default function ExerciseLibraryScreen() {
                                 onPress={() => {
                                     setRegion("all");
                                     setFilter("all");
+                                    setGuideGroupKey(null);
                                     setDifficulty("all");
                                     setEquipmentFilters([]);
                                 }}
@@ -639,6 +691,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     groupTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     groupTitleActive: { color: colors.accent },
     groupText: { color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 17 },
+    guidePatternPanel: {
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        paddingTop: spacing.md,
+        marginTop: spacing.sm,
+        gap: spacing.sm,
+    },
     filterRow: { gap: spacing.sm, paddingVertical: spacing.xs },
     filterGroup: { marginBottom: spacing.lg, gap: spacing.sm },
     filterWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
