@@ -91,6 +91,8 @@ export default function TabNavigator({ route }: any) {
     const scrollViewRef = useRef<ScrollView | null>(null);
     const isScrollingRef = useRef(false);
     const activeIndexRef = useRef(0);
+    const lockedIndexRef = useRef<number | null>(null);
+    const lockUntilRef = useRef(0);
 
     const tabs = [
         {
@@ -162,8 +164,10 @@ export default function TabNavigator({ route }: any) {
         };
     }, []);
 
-    const switchToTab = (index: number, animated = true) => {
+    const switchToTab = (index: number, animated = true, lockMs = animated ? 420 : 700) => {
         isScrollingRef.current = true;
+        lockedIndexRef.current = index;
+        lockUntilRef.current = Date.now() + lockMs;
         activeIndexRef.current = index;
         setActiveIndex(index);
         scrollViewRef.current?.scrollTo({
@@ -175,8 +179,19 @@ export default function TabNavigator({ route }: any) {
                 x: index * screenWidth,
                 animated: false,
             });
-            isScrollingRef.current = false;
+            if (Date.now() >= lockUntilRef.current) {
+                lockedIndexRef.current = null;
+                isScrollingRef.current = false;
+            }
         }, animated ? 380 : 90);
+        setTimeout(() => {
+            scrollViewRef.current?.scrollTo({
+                x: index * screenWidth,
+                animated: false,
+            });
+            lockedIndexRef.current = null;
+            isScrollingRef.current = false;
+        }, lockMs);
     };
 
     const handleTabPress = (index: number) => {
@@ -187,8 +202,9 @@ export default function TabNavigator({ route }: any) {
         return subscribeMainTabSwitch((tabKey: MainTabKey) => {
             const targetIdx = tabs.findIndex((tab) => tab.key === tabKey);
             if (targetIdx !== -1) {
-                setTimeout(() => switchToTab(targetIdx, false), 80);
-                setTimeout(() => switchToTab(targetIdx, false), 240);
+                switchToTab(targetIdx, false);
+                setTimeout(() => switchToTab(targetIdx, false), 160);
+                setTimeout(() => switchToTab(targetIdx, false), 360);
             }
         });
     }, [screenWidth]);
@@ -197,6 +213,13 @@ export default function TabNavigator({ route }: any) {
         if (isScrollingRef.current) return;
         const xOffset = event.nativeEvent.contentOffset.x;
         const index = Math.round(xOffset / screenWidth);
+        if (Date.now() < lockUntilRef.current && lockedIndexRef.current !== null && index !== lockedIndexRef.current) {
+            scrollViewRef.current?.scrollTo({
+                x: lockedIndexRef.current * screenWidth,
+                animated: false,
+            });
+            return;
+        }
         if (index !== activeIndexRef.current && index >= 0 && index < tabs.length) {
             activeIndexRef.current = index;
             setActiveIndex(index);
