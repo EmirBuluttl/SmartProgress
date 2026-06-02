@@ -249,7 +249,7 @@ export default function HomeScreen() {
         if (notification.actionScreen === "ProgramDetail" && notification.actionParams?.programId) {
             navigation.navigate("ProgramDetail", { programId: notification.actionParams.programId });
         } else if (notification.actionScreen === "MyProgress") {
-            (navigation as any).navigate("MainTabs", { screen: "MyProgress" });
+            (navigation as any).navigate("MainTabs", { screen: "MyProgress", switchKey: Date.now() });
         }
     };
 
@@ -290,12 +290,14 @@ export default function HomeScreen() {
                         onPress={() => setNotificationsVisible(true)}
                         pressedScale={0.94}
                     >
+                        <View style={styles.notificationBtnContent}>
                         <Ionicons name="notifications-outline" size={22} color={colors.accent} />
                         {unreadCount > 0 && (
                             <View style={styles.notificationBadge}>
                                 <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
                             </View>
                         )}
+                        </View>
                     </AnimatedPressable>
                     <AnimatedPressable
                         style={styles.avatarCircle}
@@ -304,11 +306,13 @@ export default function HomeScreen() {
                         }
                         pressedScale={0.94}
                     >
+                        <View style={styles.avatarCircleContent}>
                         {user?.avatarUrl || user?.profileImage ? (
-                            <Image source={{ uri: user.avatarUrl || user.profileImage }} style={{ width: "100%", height: "100%", borderRadius: 20 }} />
+                            <Image source={{ uri: user.avatarUrl || user.profileImage }} style={styles.avatarImage} />
                         ) : (
                             <Text style={styles.avatarText}>{initials}</Text>
                         )}
+                        </View>
                     </AnimatedPressable>
                 </View>
             </Animated.View>
@@ -805,6 +809,13 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
     },
+    notificationBtnContent: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: "center",
+        justifyContent: "center",
+    },
     notificationBadge: {
         position: "absolute",
         top: -3,
@@ -941,6 +952,19 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.accentMuted,
         borderWidth: 2, borderColor: colors.accent,
         alignItems: "center", justifyContent: "center",
+    },
+    avatarCircleContent: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "hidden",
+    },
+    avatarImage: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
     },
     avatarText: { color: colors.accent, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     quickWorkoutCard: {

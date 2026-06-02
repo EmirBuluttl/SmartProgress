@@ -123,17 +123,19 @@ export default function TabNavigator({ route }: any) {
 
     // Handle deep navigation or tab switches from external screens
     const screenParam = route?.params?.screen;
+    const switchKey = route?.params?.switchKey;
     const lastHandledScreen = useRef<string | null>(null);
 
     useEffect(() => {
-        if (screenParam && screenParam !== lastHandledScreen.current) {
-            lastHandledScreen.current = screenParam;
+        const navigationKey = screenParam ? `${screenParam}:${switchKey ?? ""}` : null;
+        if (screenParam && navigationKey !== lastHandledScreen.current) {
+            lastHandledScreen.current = navigationKey;
             const targetIdx = tabs.findIndex((tab) => tab.key === screenParam);
             if (targetIdx !== -1) {
                 handleTabPress(targetIdx);
             }
         }
-    }, [screenParam]);
+    }, [screenParam, switchKey]);
 
     // Keep screen offset aligned on window resizing (responsiveness)
     useEffect(() => {
