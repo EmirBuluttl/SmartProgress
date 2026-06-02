@@ -90,6 +90,7 @@ export default function TabNavigator({ route }: any) {
     const [keyboardVisible, setKeyboardVisible] = useState(false);
     const scrollViewRef = useRef<ScrollView | null>(null);
     const isScrollingRef = useRef(false);
+    const activeIndexRef = useRef(0);
 
     const tabs = [
         {
@@ -133,7 +134,7 @@ export default function TabNavigator({ route }: any) {
             lastHandledScreen.current = navigationKey;
             const targetIdx = tabs.findIndex((tab) => tab.key === screenParam);
             if (targetIdx !== -1) {
-                handleTabPress(targetIdx);
+                switchToTab(targetIdx, false);
             }
         }
     }, [screenParam, switchKey]);
@@ -161,23 +162,33 @@ export default function TabNavigator({ route }: any) {
         };
     }, []);
 
-    const handleTabPress = (index: number) => {
+    const switchToTab = (index: number, animated = true) => {
         isScrollingRef.current = true;
+        activeIndexRef.current = index;
         setActiveIndex(index);
         scrollViewRef.current?.scrollTo({
             x: index * screenWidth,
-            animated: true,
+            animated,
         });
         setTimeout(() => {
+            scrollViewRef.current?.scrollTo({
+                x: index * screenWidth,
+                animated: false,
+            });
             isScrollingRef.current = false;
-        }, 350);
+        }, animated ? 380 : 90);
+    };
+
+    const handleTabPress = (index: number) => {
+        switchToTab(index, true);
     };
 
     useEffect(() => {
         return subscribeMainTabSwitch((tabKey: MainTabKey) => {
             const targetIdx = tabs.findIndex((tab) => tab.key === tabKey);
             if (targetIdx !== -1) {
-                handleTabPress(targetIdx);
+                setTimeout(() => switchToTab(targetIdx, false), 80);
+                setTimeout(() => switchToTab(targetIdx, false), 240);
             }
         });
     }, [screenWidth]);
@@ -186,7 +197,8 @@ export default function TabNavigator({ route }: any) {
         if (isScrollingRef.current) return;
         const xOffset = event.nativeEvent.contentOffset.x;
         const index = Math.round(xOffset / screenWidth);
-        if (index !== activeIndex && index >= 0 && index < tabs.length) {
+        if (index !== activeIndexRef.current && index >= 0 && index < tabs.length) {
+            activeIndexRef.current = index;
             setActiveIndex(index);
         }
     };
