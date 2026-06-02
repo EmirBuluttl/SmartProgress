@@ -24,6 +24,7 @@ import {
     getTrainingDays,
     getWorkoutDays,
     inferPainLimitedPatterns,
+    parseAvoidedExercises,
     resolveCoachExerciseWithAvoidance,
     splitOptionsForFrequency,
     splitReason,
@@ -134,16 +135,30 @@ export default function PremiumProgramWizardScreen() {
     const exerciseSelectionOptions = React.useMemo(() => ({
         hasEquipmentLimit,
         equipmentLimitNote,
+        level,
         painNote,
         preferPainSafe: hasPain === "yes",
-    }), [equipmentLimitNote, hasEquipmentLimit, hasPain, painNote]);
+    }), [equipmentLimitNote, hasEquipmentLimit, hasPain, level, painNote]);
     const resolveExercise = (pattern: PatternKey) =>
         resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote, [], exerciseSelectionOptions);
-    const activePriorityOrder = priorityMode === "ordered" ? priorityOrder : [];
-    const trainingDays = getTrainingDays({ frequency, split, priority, priorityOrder: activePriorityOrder });
-    const workoutDays = getWorkoutDays({ frequency, split, priority, priorityOrder: activePriorityOrder });
+    const activePriorityOrder = React.useMemo(
+        () => priorityMode === "ordered" ? priorityOrder : [],
+        [priorityMode, priorityOrder],
+    );
+    const trainingDays = React.useMemo(
+        () => getTrainingDays({ frequency, split, priority, priorityOrder: activePriorityOrder }),
+        [activePriorityOrder, frequency, priority, split],
+    );
+    const workoutDays = React.useMemo(
+        () => getWorkoutDays({ frequency, split, priority, priorityOrder: activePriorityOrder }),
+        [activePriorityOrder, frequency, priority, split],
+    );
 
-    const uniquePatterns = Array.from(new Set(trainingDays.flatMap((day) => day.patterns)));
+    const uniquePatterns = React.useMemo(
+        () => Array.from(new Set(trainingDays.flatMap((day) => day.patterns))),
+        [trainingDays],
+    );
+    const avoidedExerciseTokens = React.useMemo(() => parseAvoidedExercises(avoidNote), [avoidNote]);
 
     const programName = `SmartProgress ${selectedSplit.label}`;
 
@@ -164,6 +179,23 @@ export default function PremiumProgramWizardScreen() {
         avoidNote,
         selectedExercises,
     });
+
+    React.useEffect(() => {
+        setSelectedExercises((current) => {
+            let changed = false;
+            const next = { ...current };
+            uniquePatterns.forEach((pattern) => {
+                const selected = next[pattern];
+                if (!selected) return;
+                const available = getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions);
+                if (!available.includes(selected)) {
+                    delete next[pattern];
+                    changed = true;
+                }
+            });
+            return changed ? next : current;
+        });
+    }, [avoidNote, exerciseSelectionOptions, uniquePatterns]);
 
     const canContinue = step !== 2 || hasPain === "no" || painNote.trim().length > 1;
 
@@ -495,6 +527,12 @@ export default function PremiumProgramWizardScreen() {
                             </>
                         )}
                         <TextInput value={avoidNote} onChangeText={setAvoidNote} placeholder="Kaçındığın/sevmediğin hareket varsa yaz" placeholderTextColor={colors.textMuted} style={styles.input} />
+                        {avoidedExerciseTokens.length > 0 && (
+                            <Text style={styles.helperText}>
+                                Kaçınma filtresi aktif: {avoidedExerciseTokens.slice(0, 4).join(", ")}
+                                {avoidedExerciseTokens.length > 4 ? "..." : ""}
+                            </Text>
+                        )}
                     </View>
                 );
             case 5:
@@ -805,6 +843,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         fontSize: fontSize.sm,
+    },
+    helperText: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+        marginTop: spacing.xs,
     },
     inlineLabel: {
         color: colors.text,
