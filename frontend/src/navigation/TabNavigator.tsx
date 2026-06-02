@@ -24,6 +24,7 @@ import HomeScreen from "../screens/HomeScreen";
 import MyProgressScreen from "../screens/MyProgressScreen";
 import CoachScreen from "../screens/CoachScreen";
 import ProfileScreen from "../screens/ProfileScreen";
+import { MainTabKey, subscribeMainTabSwitch } from "../utils/mainTabEvents";
 
 const tabScales: Record<string, Animated.Value> = {};
 
@@ -171,6 +172,15 @@ export default function TabNavigator({ route }: any) {
             isScrollingRef.current = false;
         }, 350);
     };
+
+    useEffect(() => {
+        return subscribeMainTabSwitch((tabKey: MainTabKey) => {
+            const targetIdx = tabs.findIndex((tab) => tab.key === tabKey);
+            if (targetIdx !== -1) {
+                handleTabPress(targetIdx);
+            }
+        });
+    }, [screenWidth]);
 
     const handleScroll = (event: any) => {
         if (isScrollingRef.current) return;

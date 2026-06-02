@@ -41,6 +41,7 @@ import { syncPendingWorkouts } from "../services/syncService";
 import { countProgressEvents } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import AnimatedPressable from "../components/AnimatedPressable";
+import { requestMainTabSwitch } from "../utils/mainTabEvents";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -249,7 +250,7 @@ export default function HomeScreen() {
         if (notification.actionScreen === "ProgramDetail" && notification.actionParams?.programId) {
             navigation.navigate("ProgramDetail", { programId: notification.actionParams.programId });
         } else if (notification.actionScreen === "MyProgress") {
-            (navigation as any).navigate("MainTabs", { screen: "MyProgress", switchKey: Date.now() });
+            requestMainTabSwitch("MyProgress");
         }
     };
 
