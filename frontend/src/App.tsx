@@ -13,6 +13,7 @@ import RootNavigator from "./navigation/RootNavigator";
 import { useSync } from "./hooks/useSync";
 import { ThemeProvider } from "./hooks/ThemeContext";
 import { colors } from "./constants/theme";
+import AppErrorBoundary from "./components/AppErrorBoundary";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const linking: any = {
@@ -54,9 +55,11 @@ function App() {
         <GestureHandlerRootView style={styles.root}>
             <SafeAreaProvider>
                 <ThemeProvider>
-                    <AuthProvider>
-                        <AppContent />
-                    </AuthProvider>
+                    <AppErrorBoundary>
+                        <AuthProvider>
+                            <AppContent />
+                        </AuthProvider>
+                    </AppErrorBoundary>
                 </ThemeProvider>
             </SafeAreaProvider>
         </GestureHandlerRootView>
