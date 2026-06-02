@@ -31,6 +31,8 @@ import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
 import AccentButton from "../components/AccentButton";
+import AnimatedPressable from "../components/AnimatedPressable";
+import NoticeModal from "../components/NoticeModal";
 import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
@@ -65,6 +67,7 @@ export default function ProfileScreen() {
     );
     const [themePickerVisible, setThemePickerVisible] = useState(false);
     const [rememberInfoVisible, setRememberInfoVisible] = useState(false);
+    const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 5 });
     const [programs, setPrograms] = useState<any[]>([]);
@@ -90,7 +93,10 @@ export default function ProfileScreen() {
         if (Platform.OS === "web") {
             const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
             if (status !== "granted") {
-                Alert.alert("Ä°zin Gerekli", "LÃ¼tfen galeri iznini verin.");
+                setNotice({
+                    title: "İzin Gerekli",
+                    message: "Profil fotoğrafını değiştirmek için galeri izni vermen gerekiyor.",
+                });
                 return;
             }
             const result = await ImagePicker.launchImageLibraryAsync({
@@ -217,7 +223,7 @@ export default function ProfileScreen() {
         >
             {/* ─── Profile Header ─── */}
             <View style={styles.profileHeader}>
-                <TouchableOpacity onPress={pickProfileImage} activeOpacity={0.85}>
+                <AnimatedPressable style={styles.avatarPressable} onPress={pickProfileImage} pressedScale={0.96}>
                     <View style={styles.avatarLarge}>
                         {user?.avatarUrl || user?.profileImage ? (
                             <Image
@@ -233,19 +239,20 @@ export default function ProfileScreen() {
                             <Ionicons name="camera" size={14} color={colors.background} />
                         </View>
                     </View>
-                </TouchableOpacity>
+                </AnimatedPressable>
                 <Text style={styles.fullName}>{firstName} {lastName}</Text>
                 <Text style={styles.email}>{email}</Text>
                 <View style={styles.roleBadge}>
                     <Ionicons name="fitness-outline" size={14} color={colors.accent} />
                     <Text style={styles.roleBadgeText}>KULLANICI</Text>
                 </View>
-                <TouchableOpacity
+                <AnimatedPressable
                     style={styles.editProfileBtn}
                     onPress={() => (navigation as any).navigate("ProfileEdit")}
+                    pressedScale={0.97}
                 >
                     <Text style={styles.editProfileBtnText}>Profili Düzenle</Text>
-                </TouchableOpacity>
+                </AnimatedPressable>
             </View>
 
             {/* ─── Quick Stats ─── */}
@@ -551,6 +558,7 @@ export default function ProfileScreen() {
         >
             <View style={styles.themeModalOverlay}>
                 <View style={styles.themeModalCard}>
+                    <View style={styles.modalAccentBar} />
                     <Text style={styles.themeModalTitle}>Tema Rengi</Text>
                     <Text style={styles.themeModalDesc}>Uygulamanın vurgu rengini seç</Text>
                     <View style={styles.colorPickerGrid}>
@@ -590,6 +598,7 @@ export default function ProfileScreen() {
         >
             <View style={styles.themeModalOverlay}>
                 <View style={styles.themeModalCard}>
+                    <View style={styles.modalAccentBar} />
                     <Text style={styles.themeModalTitle}>Tekrarlarımı Hatırla</Text>
                     <Text style={styles.themeModalDesc}>
                         Kapalıyken programdaki hedef tekrar görünür. Açıkken aynı hareket için son logladığın tekrar sayısı öncelik kazanır.
@@ -621,6 +630,12 @@ export default function ProfileScreen() {
                 </View>
             </View>
         </Modal>
+        <NoticeModal
+            visible={!!notice}
+            title={notice?.title || ""}
+            message={notice?.message || ""}
+            onClose={() => setNotice(null)}
+        />
         </>
     );
 }
@@ -762,6 +777,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         marginBottom: spacing.xxl,
     },
+    avatarPressable: {
+        marginBottom: spacing.md,
+    },
     avatarLarge: {
         width: 80,
         height: 80,
@@ -771,7 +789,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.accent,
         alignItems: "center",
         justifyContent: "center",
-        marginBottom: spacing.md,
     },
     avatarLargeText: {
         fontSize: fontSize.xxl,
@@ -828,6 +845,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: borderRadius.sm,
         borderWidth: 1,
         borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
     },
     editProfileBtnText: {
         color: colors.accent,
@@ -1005,11 +1023,24 @@ const createStyles = (colors: any) => StyleSheet.create({
     themeModalCard: {
         width: "100%",
         maxWidth: 380,
-        borderRadius: borderRadius.lg,
+        borderRadius: borderRadius.xl,
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
         padding: spacing.lg,
+        overflow: "hidden",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 16 },
+        shadowOpacity: 0.45,
+        shadowRadius: 28,
+        elevation: 20,
+    },
+    modalAccentBar: {
+        height: 3,
+        width: 72,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accent,
+        marginBottom: spacing.md,
     },
     themeModalTitle: {
         color: colors.text,
