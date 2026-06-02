@@ -11,7 +11,6 @@ import {
     StyleSheet,
     ScrollView,
     ActivityIndicator,
-    Alert,
     RefreshControl,
     Image,
 } from "react-native";
@@ -99,7 +98,7 @@ export default function ProgramDetailScreen() {
             setWorkoutCount(count);
         } catch (err: any) {
             console.error("[ProgramDetail] fetch error:", err?.message);
-            Alert.alert("Hata", "Program yüklenemedi.");
+            showAlert("Hata", "Program yüklenemedi.");
             navigation.goBack();
         } finally {
             setLoading(false);
@@ -151,17 +150,7 @@ export default function ProgramDetailScreen() {
         const currentDay = program.data.days[dayIndex];
 
         if (currentDay?.isRestDay) {
-            Alert.alert(
-                "Dinlenme Günü",
-                "Bugün dinlenme günü! Yine de antrenman başlatmak ister misiniz?",
-                [
-                    { text: "Hayır", style: "cancel" },
-                    {
-                        text: "Evet, Başlat",
-                        onPress: () => navigateToSession(dayIndex),
-                    },
-                ],
-            );
+            setSelectedDayIndex(dayIndex);
             return;
         }
 
