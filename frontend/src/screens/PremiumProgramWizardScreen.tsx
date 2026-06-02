@@ -161,6 +161,17 @@ export default function PremiumProgramWizardScreen() {
     const avoidedExerciseTokens = React.useMemo(() => parseAvoidedExercises(avoidNote), [avoidNote]);
 
     const programName = `SmartProgress ${selectedSplit.label}`;
+    const exerciseSelectionReasons = React.useMemo(() => {
+        const reasons = [
+            `${LEVELS.find((item) => item.key === level)?.label || "Seviye"} icin stabilite onceligi`,
+        ];
+        if (hasEquipmentLimit === "yes" && equipmentLimitNote.trim()) reasons.push("Ekipman filtresi aktif");
+        if (hasPain === "yes" && painNote.trim()) reasons.push("Agri/sakatlik filtresi aktif");
+        if (avoidedExerciseTokens.length > 0) reasons.push("Kacinilan hareketler cikarildi");
+        if (goal === "strength") reasons.push("Guc hedefi dikkate alindi");
+        if (goal === "fat_loss") reasons.push("Yag kaybi icin toparlanma dikkate alindi");
+        return reasons;
+    }, [avoidedExerciseTokens.length, equipmentLimitNote, goal, hasEquipmentLimit, hasPain, level, painNote]);
 
     const buildProgramData = () => buildCoachProgramData({
         frequency,
@@ -550,20 +561,38 @@ export default function PremiumProgramWizardScreen() {
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Egzersiz seçimi</Text>
                         <Text style={styles.bodyText}>Her patern için önerilen hareketlerden birini seç. Soldan sağa optimallik azalır mantığını burada koruyoruz.</Text>
-                        {uniquePatterns.map((pattern) => (
-                            <View key={pattern} style={styles.exercisePicker}>
-                                <Text style={styles.patternLabel}>{PATTERN_LABELS[pattern]}</Text>
-                                {getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions).map((exercise) => (
-                                    <TouchableOpacity
-                                        key={exercise}
-                                        style={[styles.exerciseOption, resolveExercise(pattern) === exercise && styles.exerciseOptionActive]}
-                                        onPress={() => setSelectedExercises((prev) => ({ ...prev, [pattern]: exercise }))}
-                                    >
-                                        <Text style={[styles.exerciseOptionText, resolveExercise(pattern) === exercise && styles.exerciseOptionTextActive]}>{exercise}</Text>
-                                    </TouchableOpacity>
-                                ))}
+                        <View style={styles.selectionInfoBox}>
+                            <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.selectionInfoTitle}>Oneri sirasi nasil kuruluyor?</Text>
+                                <Text style={styles.selectionInfoText}>Daha stabil, seviyene uygun ve notlarina uyan hareketler once gelir. Istersen her paternde manuel secim yapabilirsin.</Text>
+                                <View style={styles.selectionReasonRow}>
+                                    {exerciseSelectionReasons.map((reason) => (
+                                        <Text key={reason} style={styles.selectionReasonChip}>{reason}</Text>
+                                    ))}
+                                </View>
                             </View>
-                        ))}
+                        </View>
+                        {uniquePatterns.map((pattern) => {
+                            const availableExercises = getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions);
+                            return (
+                                <View key={pattern} style={styles.exercisePicker}>
+                                    <View style={styles.patternHeader}>
+                                        <Text style={styles.patternLabel}>{PATTERN_LABELS[pattern]}</Text>
+                                        <Text style={styles.patternMeta}>{availableExercises.length} secenek</Text>
+                                    </View>
+                                    {availableExercises.map((exercise) => (
+                                        <TouchableOpacity
+                                            key={exercise}
+                                            style={[styles.exerciseOption, resolveExercise(pattern) === exercise && styles.exerciseOptionActive]}
+                                            onPress={() => setSelectedExercises((prev) => ({ ...prev, [pattern]: exercise }))}
+                                        >
+                                            <Text style={[styles.exerciseOptionText, resolveExercise(pattern) === exercise && styles.exerciseOptionTextActive]}>{exercise}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                            );
+                        })}
                     </View>
                 );
             default:
@@ -973,16 +1002,63 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.sm,
         lineHeight: 20,
     },
+    selectionInfoBox: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    selectionInfoTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    selectionInfoText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+        marginTop: 2,
+    },
+    selectionReasonRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.xs,
+        marginTop: spacing.sm,
+    },
+    selectionReasonChip: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 3,
+    },
     exercisePicker: {
         gap: spacing.sm,
         paddingTop: spacing.sm,
         borderTopWidth: 1,
         borderTopColor: colors.border,
     },
+    patternHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.sm,
+    },
     patternLabel: {
         color: colors.text,
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
+    },
+    patternMeta: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
     },
     exerciseOption: {
         paddingHorizontal: spacing.md,
