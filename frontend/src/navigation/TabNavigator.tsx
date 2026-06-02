@@ -88,11 +88,13 @@ export default function TabNavigator({ route }: any) {
 
     const [activeIndex, setActiveIndex] = useState(0);
     const [keyboardVisible, setKeyboardVisible] = useState(false);
+    const [externalSwitchVisible, setExternalSwitchVisible] = useState(false);
     const scrollViewRef = useRef<ScrollView | null>(null);
     const isScrollingRef = useRef(false);
     const activeIndexRef = useRef(0);
     const lockedIndexRef = useRef<number | null>(null);
     const lockUntilRef = useRef(0);
+    const externalSwitchOpacity = useRef(new Animated.Value(0)).current;
 
     const tabs = [
         {
@@ -198,10 +200,28 @@ export default function TabNavigator({ route }: any) {
         switchToTab(index, true);
     };
 
+    const showExternalSwitchCover = () => {
+        setExternalSwitchVisible(true);
+        externalSwitchOpacity.stopAnimation();
+        externalSwitchOpacity.setValue(1);
+        setTimeout(() => {
+            Animated.timing(externalSwitchOpacity, {
+                toValue: 0,
+                duration: 180,
+                useNativeDriver: true,
+            }).start(({ finished }) => {
+                if (finished) {
+                    setExternalSwitchVisible(false);
+                }
+            });
+        }, 280);
+    };
+
     useEffect(() => {
         return subscribeMainTabSwitch((tabKey: MainTabKey) => {
             const targetIdx = tabs.findIndex((tab) => tab.key === tabKey);
             if (targetIdx !== -1) {
+                showExternalSwitchCover();
                 switchToTab(targetIdx, false);
                 setTimeout(() => switchToTab(targetIdx, false), 160);
                 setTimeout(() => switchToTab(targetIdx, false), 360);
@@ -249,6 +269,15 @@ export default function TabNavigator({ route }: any) {
                 })}
             </ScrollView>
 
+            {externalSwitchVisible ? (
+                <Animated.View
+                    pointerEvents="none"
+                    style={[styles.externalSwitchCover, { opacity: externalSwitchOpacity }]}
+                >
+                    <View style={styles.externalSwitchAccent} />
+                </Animated.View>
+            ) : null}
+
             {/* Custom Bottom Tab Bar */}
             <View style={[styles.tabBar, keyboardVisible && { display: "none" }]}>
                 {tabs.map((tab, idx) => {
@@ -288,6 +317,19 @@ const createStyles = (colors: any) =>
         },
         scrollView: {
             flex: 1,
+        },
+        externalSwitchCover: {
+            ...StyleSheet.absoluteFillObject,
+            backgroundColor: colors.background,
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 5,
+        },
+        externalSwitchAccent: {
+            width: 72,
+            height: 3,
+            borderRadius: 99,
+            backgroundColor: colors.accent,
         },
         tabBar: {
             flexDirection: "row",

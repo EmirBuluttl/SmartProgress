@@ -250,8 +250,8 @@ export default function HomeScreen() {
             setNotificationsVisible(false);
             navigation.navigate("ProgramDetail", { programId: notification.actionParams.programId });
         } else if (notification.actionScreen === "MyProgress") {
+            requestMainTabSwitch("MyProgress");
             setNotificationsVisible(false);
-            setTimeout(() => requestMainTabSwitch("MyProgress"), 180);
         } else {
             setNotificationsVisible(false);
         }
