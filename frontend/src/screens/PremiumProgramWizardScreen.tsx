@@ -242,6 +242,15 @@ export default function PremiumProgramWizardScreen() {
         (navigation as any).navigate("MainTabs", { screen: "Coach" });
     };
 
+    const appendEquipmentNote = (note: string) => {
+        setEquipmentLimitNote((current) => {
+            const trimmed = current.trim();
+            if (!trimmed) return note;
+            if (trimmed.toLowerCase().includes(note.toLowerCase())) return trimmed;
+            return `${trimmed}, ${note}`;
+        });
+    };
+
     const goBack = () => {
         if (createdProgramId || step === 0) {
             returnToCoach();
@@ -440,7 +449,10 @@ export default function PremiumProgramWizardScreen() {
                             active={hasEquipmentLimit === "no"}
                             title="Hayır, tam erişimim var"
                             subtitle="Tam salon ekipmanı varsayılır."
-                            onPress={() => setHasEquipmentLimit("no")}
+                            onPress={() => {
+                                setHasEquipmentLimit("no");
+                                setEquipmentLimitNote("");
+                            }}
                             colors={colors}
                         />
                         <OptionCard
@@ -451,14 +463,26 @@ export default function PremiumProgramWizardScreen() {
                             colors={colors}
                         />
                         {hasEquipmentLimit === "yes" && (
-                            <TextInput
+                            <>
+                                <Text style={styles.helperText}>
+                                    Sadece eksik ekipmanı veya mecbur kaldığın ekipmanı yaz. Koç bu bilgiye göre daha stabil ve uygulanabilir hareketleri öne alır.
+                                </Text>
+                                <View style={styles.quickChipRow}>
+                                    {["cable yok", "smith yok", "makine yok", "barbell yok", "sadece dumbbell var"].map((note) => (
+                                        <TouchableOpacity key={note} style={styles.quickChip} onPress={() => appendEquipmentNote(note)} activeOpacity={0.82}>
+                                            <Text style={styles.quickChipText}>{note}</Text>
+                                        </TouchableOpacity>
+                                    ))}
+                                </View>
+                                <TextInput
                                 value={equipmentLimitNote}
                                 onChangeText={setEquipmentLimitNote}
                                 placeholder="Örn: Smith machine yok, cable yok, sadece dumbbell var"
                                 placeholderTextColor={colors.textMuted}
-                                style={styles.input}
+                                style={[styles.input, styles.textArea]}
                                 multiline
                             />
+                            </>
                         )}
                     </View>
                 );
@@ -561,6 +585,9 @@ export default function PremiumProgramWizardScreen() {
                             </>
                         )}
                         <TextInput value={avoidNote} onChangeText={setAvoidNote} placeholder="Kaçındığın/sevmediğin hareket varsa yaz" placeholderTextColor={colors.textMuted} style={styles.input} />
+                        <Text style={styles.helperText}>
+                            Örn: Pec deck yazarsan göğüs önerilerinden çıkarılır; koç aynı patern için diğer uygun hareketleri öne alır.
+                        </Text>
                         {avoidedExerciseTokens.length > 0 && (
                             <Text style={styles.helperText}>
                                 Kaçınma filtresi aktif: {avoidedExerciseTokens.slice(0, 4).join(", ")}
@@ -947,6 +974,28 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         fontSize: fontSize.sm,
+    },
+    textArea: {
+        minHeight: 84,
+        textAlignVertical: "top",
+    },
+    quickChipRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    quickChip: {
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    quickChipText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
     },
     helperText: {
         color: colors.textMuted,
