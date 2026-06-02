@@ -92,6 +92,8 @@ const formatInsightDate = (value?: string) => {
     return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "short" });
 };
 
+const PRO_WIZARD_USES = 15;
+
 export default function CoachScreen() {
     const { user } = useAuth();
     const { colors } = useTheme();
@@ -122,6 +124,9 @@ export default function CoachScreen() {
     const coachChatLimit = aiStatus?.coachChat?.limit || 0;
     const coachChatUsed = aiStatus?.coachChat?.used || 0;
     const coachChatRemaining = aiStatus?.coachChat?.remaining || 0;
+    const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 2));
+    const proWizardUsesRemaining = Math.max(0, Number(user?.settings?.pro_wizard_uses_remaining ?? PRO_WIZARD_USES));
+    const wizardUsesRemaining = isFree ? freeWizardUsesRemaining : proWizardUsesRemaining;
     const exerciseAnalyses = React.useMemo(
         () => Array.isArray(weeklyReport?.exerciseAnalyses) ? weeklyReport.exerciseAnalyses : [],
         [weeklyReport],
@@ -260,12 +265,24 @@ export default function CoachScreen() {
                             <Text style={styles.panelTitle}>Akıllı koçu deneyebilirsin</Text>
                         </View>
                         <View style={styles.statusPill}>
-                            <Text style={styles.statusText}>2 wizard hakkı</Text>
+                            <Text style={styles.statusText}>{wizardUsesRemaining} wizard hakkı</Text>
                         </View>
                     </View>
                     <Text style={styles.panelText}>
                         Yeni hesaplarda Pro deneme süresi açık gelir. Deneme bittiyse de iki kez kişisel program wizard'ını kullanabilirsin; Coach+ AI soru-cevap katmanı beta olarak ayrı tutulur.
                     </Text>
+                    <View style={styles.accessSummaryRow}>
+                        <View style={styles.accessSummaryItem}>
+                            <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
+                            <Text style={styles.accessSummaryText}>
+                                {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gün Pro deneme` : "Deneme süresi pasif"}
+                            </Text>
+                        </View>
+                        <View style={styles.accessSummaryItem}>
+                            <Ionicons name="map-outline" size={16} color={colors.accent} />
+                            <Text style={styles.accessSummaryText}>{wizardUsesRemaining} wizard hakkı</Text>
+                        </View>
+                    </View>
                     <AnimatedPressable
                         style={styles.primaryButton}
                         pressedScale={0.985}
@@ -289,6 +306,16 @@ export default function CoachScreen() {
                     <Text style={styles.panelText}>
                         Haftalık raporun, kalıcı sinyallerin ve program wizard'ın buradan yönetilir. Koç otomatik değişiklik yapmaz; yakalar, açıklar ve aksiyon önerir.
                     </Text>
+                    <View style={styles.accessSummaryRow}>
+                        <View style={styles.accessSummaryItem}>
+                            <Ionicons name="map-outline" size={16} color={colors.accent} />
+                            <Text style={styles.accessSummaryText}>{wizardUsesRemaining} wizard hakkı</Text>
+                        </View>
+                        <View style={styles.accessSummaryItem}>
+                            <Ionicons name={isCoachPlus ? "chatbubbles-outline" : "analytics-outline"} size={16} color={colors.accent} />
+                            <Text style={styles.accessSummaryText}>{isCoachPlus ? `${coachChatRemaining} AI soru` : "Rule engine aktif"}</Text>
+                        </View>
+                    </View>
                     <View style={styles.activeHeroActions}>
                         <AnimatedPressable
                             style={[styles.primaryButton, styles.heroPrimaryButton]}
@@ -944,6 +971,27 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.sm,
         lineHeight: lineHeight.sm,
+    },
+    accessSummaryRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    accessSummaryItem: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+    },
+    accessSummaryText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
     },
     primaryButton: {
         minHeight: 48,
