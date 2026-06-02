@@ -246,11 +246,14 @@ export default function HomeScreen() {
             console.warn("[HomeScreen] Notification could not be marked read:", err);
         }
 
-        setNotificationsVisible(false);
         if (notification.actionScreen === "ProgramDetail" && notification.actionParams?.programId) {
+            setNotificationsVisible(false);
             navigation.navigate("ProgramDetail", { programId: notification.actionParams.programId });
         } else if (notification.actionScreen === "MyProgress") {
             requestMainTabSwitch("MyProgress");
+            setTimeout(() => setNotificationsVisible(false), 280);
+        } else {
+            setNotificationsVisible(false);
         }
     };
 
