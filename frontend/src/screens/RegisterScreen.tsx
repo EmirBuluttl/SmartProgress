@@ -14,10 +14,9 @@ import {
     ScrollView,
     ActivityIndicator,
     TextInput as TextInputType,
-    Alert,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { AuthStackParamList } from "../navigation/AuthStack";
 import AccentButton from "../components/AccentButton";
@@ -202,11 +201,7 @@ export default function RegisterScreen() {
     };
 
     const handleForgotPassword = () => {
-        Alert.alert(
-            "Şifremi Unuttum",
-            "Kayıtlı e-posta adresinize bir sıfırlama bağlantısı göndereceğiz. Bu özellik yakında aktif olacaktır.",
-            [{ text: "Tamam" }],
-        );
+        navigation.navigate("ForgotPassword");
     };
 
     const pwStyles = React.useMemo(() => createPwStyles(colors), [colors]);
@@ -498,7 +493,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     forgotBtn: {
         flexDirection: "row",
-        zIndex: -1,
         alignItems: "center",
         alignSelf: "flex-end",
         gap: spacing.xs,
@@ -541,3 +535,4 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.accent,
     },
 });
+
