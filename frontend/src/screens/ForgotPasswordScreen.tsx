@@ -17,6 +17,7 @@ import type { AuthStackParamList } from "../navigation/AuthStack";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { authApi, parseApiError } from "../services/api";
+import AnimatedPressable from "../components/AnimatedPressable";
 
 type Nav = NativeStackNavigationProp<AuthStackParamList, "ForgotPassword">;
 type Route = RouteProp<AuthStackParamList, "ForgotPassword">;
@@ -109,14 +110,15 @@ export default function ForgotPasswordScreen() {
         >
             <ScrollView contentContainerStyle={styles.container} keyboardShouldPersistTaps="handled">
                 <View style={styles.header}>
-                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn} activeOpacity={0.75}>
+                    <AnimatedPressable onPress={() => navigation.goBack()} style={styles.backBtn} pressedScale={0.94}>
                         <Ionicons name="chevron-back" size={26} color={colors.text} />
-                    </TouchableOpacity>
+                    </AnimatedPressable>
                     <Text style={styles.title}>Şifre Sıfırla</Text>
                     <View style={styles.backBtn} />
                 </View>
 
                 <View style={styles.card}>
+                    <View style={styles.cardAccentBar} />
                     <Text style={styles.cardTitle}>
                         {step === "request" ? "Hesabını bulalım" : "Yeni şifreni belirle"}
                     </Text>
@@ -156,21 +158,21 @@ export default function ForgotPasswordScreen() {
                                     onSubmitEditing={requestReset}
                                 />
                             </View>
-                            <TouchableOpacity
+                            <AnimatedPressable
                                 style={[styles.primaryBtn, requesting && styles.disabledBtn]}
                                 onPress={requestReset}
                                 disabled={requesting}
-                                activeOpacity={0.75}
+                                pressedScale={0.98}
                             >
                                 {requesting ? (
                                     <ActivityIndicator color={colors.background} />
                                 ) : (
                                     <Text style={styles.primaryText}>Sıfırlama Bağlantısı Al</Text>
                                 )}
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("reset")} activeOpacity={0.75}>
+                            </AnimatedPressable>
+                            <AnimatedPressable style={styles.secondaryBtn} onPress={() => setStep("reset")} pressedScale={0.98}>
                                 <Text style={styles.secondaryText}>Kodum var</Text>
-                            </TouchableOpacity>
+                            </AnimatedPressable>
                         </>
                     ) : (
                         <>
@@ -214,21 +216,21 @@ export default function ForgotPasswordScreen() {
                                 />
                             </View>
 
-                            <TouchableOpacity
+                            <AnimatedPressable
                                 style={[styles.primaryBtn, resetting && styles.disabledBtn]}
                                 onPress={resetPassword}
                                 disabled={resetting}
-                                activeOpacity={0.75}
+                                pressedScale={0.98}
                             >
                                 {resetting ? (
                                     <ActivityIndicator color={colors.background} />
                                 ) : (
                                     <Text style={styles.primaryText}>Şifreyi Güncelle</Text>
                                 )}
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryBtn} onPress={() => setStep("request")} activeOpacity={0.75}>
+                            </AnimatedPressable>
+                            <AnimatedPressable style={styles.secondaryBtn} onPress={() => setStep("request")} pressedScale={0.98}>
                                 <Text style={styles.secondaryText}>E-posta adımına dön</Text>
-                            </TouchableOpacity>
+                            </AnimatedPressable>
                         </>
                     )}
                 </View>
@@ -254,8 +256,10 @@ const createStyles = (colors: any) => StyleSheet.create({
     backBtn: {
         width: 44,
         height: 44,
+        borderRadius: 22,
         alignItems: "center",
         justifyContent: "center",
+        backgroundColor: colors.surfaceElevated,
     },
     title: {
         fontSize: fontSize.xl,
@@ -268,6 +272,18 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: spacing.xl,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.25,
+        shadowRadius: 18,
+        elevation: 10,
+    },
+    cardAccentBar: {
+        width: 72,
+        height: 3,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accent,
+        marginBottom: spacing.md,
     },
     cardTitle: {
         fontSize: fontSize.xl,
