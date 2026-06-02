@@ -3,11 +3,13 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { authApi, parseApiError, programApi } from "../services/api";
+import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+import { getExerciseMetadata, riskLevelLabel, skillDemandLabel, stabilityLabel } from "../data/exerciseMetadata";
 import { useAuth } from "../store/AuthContext";
 import {
     buildCoachProgramData,
@@ -104,6 +106,7 @@ export default function PremiumProgramWizardScreen() {
     const [saving, setSaving] = React.useState(false);
     const [createdProgramId, setCreatedProgramId] = React.useState<string | null>(null);
     const [notice, setNotice] = React.useState<string | null>(null);
+    const [exerciseInfo, setExerciseInfo] = React.useState<{ pattern: PatternKey; item: ExerciseLibraryItem; rank: number } | null>(null);
     const [profileApplied, setProfileApplied] = React.useState(false);
     const hasProAccess = hasActiveProAccess(user);
     const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 2));
@@ -159,6 +162,14 @@ export default function PremiumProgramWizardScreen() {
         [trainingDays],
     );
     const avoidedExerciseTokens = React.useMemo(() => parseAvoidedExercises(avoidNote), [avoidNote]);
+    const libraryByName = React.useMemo(() => {
+        const map = new Map<string, ExerciseLibraryItem>();
+        EXERCISE_LIBRARY.forEach((item) => {
+            map.set(item.name, item);
+            item.aliases.forEach((alias) => map.set(alias, item));
+        });
+        return map;
+    }, []);
 
     const programName = `SmartProgress ${selectedSplit.label}`;
     const exerciseSelectionReasons = React.useMemo(() => {
@@ -175,6 +186,7 @@ export default function PremiumProgramWizardScreen() {
     const hasUpperBackPriorityOverlap = priorityMode === "ordered" &&
         priorityOrder.includes("upper_back") &&
         (priorityOrder.includes("rear_delt") || priorityOrder.includes("trapezius"));
+    const exerciseInfoMeta = exerciseInfo ? getExerciseMetadata(exerciseInfo.item) : null;
 
     const buildProgramData = () => buildCoachProgramData({
         frequency,
@@ -592,15 +604,31 @@ export default function PremiumProgramWizardScreen() {
                                         <Text style={styles.patternLabel}>{PATTERN_LABELS[pattern]}</Text>
                                         <Text style={styles.patternMeta}>{availableExercises.length} secenek</Text>
                                     </View>
-                                    {availableExercises.map((exercise) => (
+                                    {availableExercises.map((exercise, index) => {
+                                        const libraryItem = libraryByName.get(exercise);
+                                        const active = resolveExercise(pattern) === exercise;
+                                        return (
                                         <TouchableOpacity
                                             key={exercise}
-                                            style={[styles.exerciseOption, resolveExercise(pattern) === exercise && styles.exerciseOptionActive]}
+                                            style={[styles.exerciseOption, active && styles.exerciseOptionActive]}
                                             onPress={() => setSelectedExercises((prev) => ({ ...prev, [pattern]: exercise }))}
                                         >
-                                            <Text style={[styles.exerciseOptionText, resolveExercise(pattern) === exercise && styles.exerciseOptionTextActive]}>{exercise}</Text>
+                                            <View style={styles.exerciseOptionCopy}>
+                                                <Text style={[styles.exerciseOptionText, active && styles.exerciseOptionTextActive]}>{exercise}</Text>
+                                                <Text style={styles.exerciseOptionMeta}>#{index + 1} öneri sırası</Text>
+                                            </View>
+                                            {libraryItem && (
+                                                <TouchableOpacity
+                                                    style={styles.exerciseInfoBtn}
+                                                    onPress={() => setExerciseInfo({ pattern, item: libraryItem, rank: index + 1 })}
+                                                    activeOpacity={0.8}
+                                                >
+                                                    <Ionicons name="information-circle-outline" size={18} color={active ? colors.accent : colors.textMuted} />
+                                                </TouchableOpacity>
+                                            )}
                                         </TouchableOpacity>
-                                    ))}
+                                        );
+                                    })}
                                 </View>
                             );
                         })}
@@ -694,6 +722,42 @@ export default function PremiumProgramWizardScreen() {
                     </TouchableOpacity>
                 </View>
             )}
+            <Modal visible={!!exerciseInfo} transparent animationType="fade" onRequestClose={() => setExerciseInfo(null)}>
+                <View style={styles.modalOverlay}>
+                    <View style={styles.exerciseInfoModal}>
+                        {exerciseInfo && exerciseInfoMeta && (
+                            <>
+                                <View style={styles.modalHeader}>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.modalEyebrow}>#{exerciseInfo.rank} onerilen secenek</Text>
+                                        <Text style={styles.modalTitle}>{exerciseInfo.item.name}</Text>
+                                    </View>
+                                    <TouchableOpacity style={styles.modalClose} onPress={() => setExerciseInfo(null)} activeOpacity={0.8}>
+                                        <Ionicons name="close" size={20} color={colors.text} />
+                                    </TouchableOpacity>
+                                </View>
+                                <Text style={styles.modalDesc}>
+                                    {PATTERN_LABELS[exerciseInfo.pattern]} icin onerilir. Sira; seviye, stabilite, risk, ekipman ve notlarina gore belirlenir.
+                                </Text>
+                                <View style={styles.modalChipRow}>
+                                    <Text style={styles.modalChip}>{stabilityLabel(exerciseInfoMeta.stability)}</Text>
+                                    <Text style={styles.modalChip}>{skillDemandLabel(exerciseInfoMeta.skillDemand)}</Text>
+                                    <Text style={styles.modalChip}>{riskLevelLabel(exerciseInfoMeta.riskLevel)}</Text>
+                                </View>
+                                <Text style={styles.modalSectionTitle}>Koç notu</Text>
+                                <Text style={styles.modalDesc}>{exerciseInfo.item.coachNotes}</Text>
+                                <Text style={styles.modalSectionTitle}>Temel ipuçları</Text>
+                                {exerciseInfo.item.instructions.slice(0, 3).map((instruction) => (
+                                    <View key={instruction} style={styles.modalBullet}>
+                                        <View style={styles.modalBulletDot} />
+                                        <Text style={styles.modalBulletText}>{instruction}</Text>
+                                    </View>
+                                ))}
+                            </>
+                        )}
+                    </View>
+                </View>
+            </Modal>
         </View>
     );
 }
@@ -1072,6 +1136,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.semibold,
     },
     exerciseOption: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.sm,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.sm,
@@ -1083,6 +1151,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.accent,
         backgroundColor: colors.accentMuted,
     },
+    exerciseOptionCopy: {
+        flex: 1,
+        gap: 2,
+    },
     exerciseOptionText: {
         color: colors.textSecondary,
         fontSize: fontSize.sm,
@@ -1090,6 +1162,19 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     exerciseOptionTextActive: {
         color: colors.accent,
+    },
+    exerciseOptionMeta: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    exerciseInfoBtn: {
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surface,
     },
     summaryDay: {
         paddingTop: spacing.md,
@@ -1168,5 +1253,87 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         justifyContent: "center",
         marginBottom: spacing.sm,
+    },
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: "rgba(0,0,0,0.56)",
+        justifyContent: "center",
+        padding: spacing.xl,
+    },
+    exerciseInfoModal: {
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        padding: spacing.xl,
+        gap: spacing.md,
+    },
+    modalHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+    },
+    modalEyebrow: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        letterSpacing: 0.8,
+        textTransform: "uppercase",
+    },
+    modalTitle: {
+        color: colors.text,
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.heavy,
+        marginTop: 2,
+    },
+    modalClose: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.background,
+    },
+    modalDesc: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
+    modalChipRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    modalChip: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accentMuted,
+    },
+    modalSectionTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    modalBullet: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+    },
+    modalBulletDot: {
+        width: 6,
+        height: 6,
+        borderRadius: 3,
+        backgroundColor: colors.accent,
+        marginTop: 7,
+    },
+    modalBulletText: {
+        flex: 1,
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
     },
 });
