@@ -455,6 +455,7 @@ export default function WorkoutSessionScreen() {
     const freeWorkoutNameConfirmedRef = useRef(false);
     const freeWorkoutNameOverrideRef = useRef<string | null>(null);
     const qualityCheckedSessionRef = useRef<WorkoutSession | null>(null);
+    const preWorkoutReminderShownRef = useRef(false);
 
     const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe") => {
         let nextKey = "";
@@ -835,6 +836,29 @@ export default function WorkoutSessionScreen() {
 
         return () => clearTimeout(timer);
     }, [recentlyAddedExerciseId]);
+
+    useEffect(() => {
+        const note = String(user?.settings?.pre_workout_reminder_note || "").trim();
+        if (
+            preWorkoutReminderShownRef.current ||
+            user?.settings?.pre_workout_reminder_enabled !== true ||
+            !note ||
+            session.exercises.length === 0
+        ) {
+            return;
+        }
+
+        preWorkoutReminderShownRef.current = true;
+        setConceptNotice({
+            title: "Antrenman hatirlatmasi",
+            message: note,
+        });
+    }, [
+        session.exercises.length,
+        session.id,
+        user?.settings?.pre_workout_reminder_enabled,
+        user?.settings?.pre_workout_reminder_note,
+    ]);
 
     // ─── Debounced Auto-Save ─────────────────
     useEffect(() => {

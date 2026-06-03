@@ -6,6 +6,7 @@ import React, { useState } from "react";
 import {
     View,
     Text,
+    TextInput,
     ScrollView,
     Animated,
     StyleSheet,
@@ -79,8 +80,16 @@ export default function ProfileScreen() {
     const [showRpeRirInfo, setShowRpeRirInfo] = useState(
         user?.settings?.show_rpe_rir_info !== false
     );
+    const [preWorkoutReminderEnabled, setPreWorkoutReminderEnabled] = useState(
+        user?.settings?.pre_workout_reminder_enabled === true
+    );
+    const [preWorkoutReminderNote, setPreWorkoutReminderNote] = useState(
+        user?.settings?.pre_workout_reminder_note || ""
+    );
     const [themePickerVisible, setThemePickerVisible] = useState(false);
     const [rememberInfoVisible, setRememberInfoVisible] = useState(false);
+    const [reminderModalVisible, setReminderModalVisible] = useState(false);
+    const [reminderDraft, setReminderDraft] = useState("");
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
     const [photoSourceVisible, setPhotoSourceVisible] = useState(false);
 
@@ -383,6 +392,46 @@ export default function ProfileScreen() {
                         }}
                         thumbColor={notificationsEnabled ? colors.accent : colors.textMuted}
                     />
+                </View>
+
+                <View style={styles.settingDivider} />
+
+                <View style={styles.settingRow}>
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="clipboard-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Antrenman Oncesi Not</Text>
+                            <Text style={styles.settingDesc} numberOfLines={2}>
+                                {preWorkoutReminderNote || "Session basinda kendine kisa bir hatirlatma goster"}
+                            </Text>
+                        </View>
+                    </View>
+                    <View style={styles.settingActionCluster}>
+                        <TouchableOpacity
+                            style={styles.smallOutlineBtn}
+                            onPress={() => {
+                                setReminderDraft(preWorkoutReminderNote);
+                                setReminderModalVisible(true);
+                            }}
+                            activeOpacity={0.75}
+                        >
+                            <Text style={styles.smallOutlineBtnText}>Duzenle</Text>
+                        </TouchableOpacity>
+                        <Switch
+                            value={preWorkoutReminderEnabled}
+                            onValueChange={(val) => {
+                                setPreWorkoutReminderEnabled(val);
+                                persistSettings({ pre_workout_reminder_enabled: val }, "pre-workout reminder setting");
+                            }}
+                            trackColor={{
+                                false: colors.surfaceElevated,
+                                true: colors.accentMuted,
+                            }}
+                            thumbColor={preWorkoutReminderEnabled ? colors.accent : colors.textMuted}
+                        />
+                    </View>
                 </View>
 
                 <View style={styles.settingDivider} />
@@ -704,6 +753,51 @@ export default function ProfileScreen() {
                 </View>
             </View>
         </Modal>
+        <Modal
+            visible={reminderModalVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setReminderModalVisible(false)}
+        >
+            <View style={styles.themeModalOverlay}>
+                <View style={styles.themeModalCard}>
+                    <View style={styles.modalAccentBar} />
+                    <Text style={styles.themeModalTitle}>Antrenman Oncesi Not</Text>
+                    <Text style={styles.themeModalDesc}>
+                        Session basladiginda kendine gostermek istedigin kisa hatirlatmayi yaz.
+                    </Text>
+                    <TextInput
+                        style={styles.reminderInput}
+                        value={reminderDraft}
+                        onChangeText={setReminderDraft}
+                        placeholder="Orn. Diz isindirma, formu bozma, RIR'i dürüst gir"
+                        placeholderTextColor={colors.textMuted}
+                        multiline
+                        maxLength={220}
+                        selectionColor={colors.accent}
+                    />
+                    <View style={styles.reminderModalActions}>
+                        <TouchableOpacity
+                            style={styles.themeModalClose}
+                            onPress={() => setReminderModalVisible(false)}
+                        >
+                            <Text style={styles.themeModalCloseText}>Vazgec</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.reminderSaveBtn}
+                            onPress={() => {
+                                const next = reminderDraft.trim();
+                                setPreWorkoutReminderNote(next);
+                                setReminderModalVisible(false);
+                                persistSettings({ pre_workout_reminder_note: next }, "pre-workout reminder note");
+                            }}
+                        >
+                            <Text style={styles.reminderSaveText}>Kaydet</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </View>
+        </Modal>
         <NoticeModal
             visible={!!notice}
             title={notice?.title || ""}
@@ -990,6 +1084,11 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
         marginRight: spacing.md,
     },
+    settingActionCluster: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
     settingIconWrap: {
         width: 36,
         height: 36,
@@ -1054,6 +1153,20 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     comingSoonText: {
         color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    smallOutlineBtn: {
+        minHeight: 34,
+        justifyContent: "center",
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+    },
+    smallOutlineBtnText: {
+        color: colors.textSecondary,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.bold,
     },
@@ -1203,6 +1316,37 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     themeModalCloseText: {
         color: colors.textSecondary,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    reminderInput: {
+        minHeight: 104,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceElevated,
+        color: colors.text,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+        padding: spacing.md,
+        textAlignVertical: "top",
+        marginTop: spacing.md,
+    },
+    reminderModalActions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginTop: spacing.md,
+    },
+    reminderSaveBtn: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+    },
+    reminderSaveText: {
+        color: colors.background,
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
     },

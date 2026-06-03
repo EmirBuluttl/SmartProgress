@@ -68,6 +68,8 @@ const DEFAULT_USER_SETTINGS = {
     profile_visibility: "private",
     training_level: "beginner",
     show_rpe_rir_info: true,
+    pre_workout_reminder_enabled: false,
+    pre_workout_reminder_note: "",
     onboarding_completed: false,
 };
 
