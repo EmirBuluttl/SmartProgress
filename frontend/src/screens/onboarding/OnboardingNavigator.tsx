@@ -12,7 +12,7 @@ import Animated, {
     Easing,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
-import { OnboardingProvider } from "./OnboardingContext";
+import { OnboardingProvider, useOnboarding, type OnboardingData } from "./OnboardingContext";
 import OnboardingWelcome from "./OnboardingWelcome";
 import OnboardingPhysical from "./OnboardingPhysical";
 import OnboardingSports from "./OnboardingSports";
@@ -71,8 +71,9 @@ function NavContent({
     onComplete,
 }: {
     firstName: string;
-    onComplete: () => void;
+    onComplete: (data: OnboardingData) => void;
 }) {
+    const { data } = useOnboarding();
     const [step, setStep] = useState(1);
     const fadingRef = useRef(false);
     const pendingStep = useRef<number | null>(null);
@@ -103,9 +104,9 @@ function NavContent({
     }, []);
 
     const goNext = useCallback(() => {
-        if (step >= TOTAL) { onComplete(); return; }
+        if (step >= TOTAL) { onComplete(data); return; }
         navigate(step + 1);
-    }, [step, navigate, onComplete]);
+    }, [data, step, navigate, onComplete]);
 
     const goBack = useCallback(() => {
         if (step <= 1) return;
@@ -126,7 +127,7 @@ function NavContent({
             case 3: return <OnboardingSports onNext={goNext} onBack={goBack} />;
             case 4: return <OnboardingExperience onNext={goNext} onBack={goBack} />;
             case 5: return <OnboardingGoals onNext={goNext} onBack={goBack} />;
-            case 6: return <OnboardingReady onFinish={onComplete} firstName={firstName} />;
+            case 6: return <OnboardingReady onFinish={() => onComplete(data)} firstName={firstName} />;
             default: return null;
         }
     };
@@ -160,7 +161,7 @@ export default function OnboardingNavigator({
     onComplete,
 }: {
     firstName?: string;
-    onComplete: () => void;
+    onComplete: (data: OnboardingData) => void;
 }) {
     return (
         <OnboardingProvider>

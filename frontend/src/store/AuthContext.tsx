@@ -24,6 +24,7 @@ interface User {
         profile_visibility?: "public" | "private";
         training_level?: "beginner" | "intermediate" | "advanced";
         show_rpe_rir_info?: boolean;
+        onboarding_completed?: boolean;
         onboarding_profile?: Record<string, any>;
         onboardingProfile?: Record<string, any>;
         coach_profile?: Record<string, any>;

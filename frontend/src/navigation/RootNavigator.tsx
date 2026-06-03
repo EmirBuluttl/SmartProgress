@@ -7,6 +7,7 @@ import { View, ActivityIndicator } from "react-native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { useAuth } from "../store/AuthContext";
 import { useTheme } from "../hooks/ThemeContext";
+import { authApi } from "../services/api";
 
 import AuthStack from "./AuthStack";
 import TabNavigator from "./TabNavigator";
@@ -29,6 +30,8 @@ import PremiumProgramWizardScreen from "../screens/PremiumProgramWizardScreen";
 import CoachWeeklyReportScreen from "../screens/CoachWeeklyReportScreen";
 import CoachInsightHistoryScreen from "../screens/CoachInsightHistoryScreen";
 import ExerciseLibraryScreen from "../screens/ExerciseLibraryScreen";
+import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
+import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
 
 // ─── Types ───────────────────────────────────
 
@@ -109,6 +112,33 @@ const AppStack = createNativeStackNavigator<RootStackParamList>();
 
 function AppNavigator() {
     const { colors } = useTheme();
+    const { user, updateUser } = useAuth();
+    const needsOnboarding = user?.settings?.onboarding_completed === false;
+
+    const completeOnboarding = async (data: OnboardingData) => {
+        const settings = {
+            ...user?.settings,
+            onboarding_completed: true,
+            onboarding_profile: data,
+            training_level: data.experienceLevel || user?.settings?.training_level || "beginner",
+        };
+        updateUser({ settings });
+        try {
+            await authApi.updateProfile({ settings });
+        } catch (error) {
+            console.warn("[RootNavigator] Failed to persist onboarding profile:", error);
+        }
+    };
+
+    if (needsOnboarding) {
+        return (
+            <OnboardingNavigator
+                firstName={user?.firstName || "Sporcu"}
+                onComplete={completeOnboarding}
+            />
+        );
+    }
+
     return (
         <AppStack.Navigator
             screenOptions={{

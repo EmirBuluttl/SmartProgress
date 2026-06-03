@@ -68,6 +68,7 @@ const DEFAULT_USER_SETTINGS = {
     profile_visibility: "private",
     training_level: "beginner",
     show_rpe_rir_info: true,
+    onboarding_completed: false,
 };
 
 const PRO_TRIAL_DAYS = 30;
