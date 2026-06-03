@@ -422,6 +422,7 @@ export default function WorkoutSessionScreen() {
     const [emptyFinishModalVisible, setEmptyFinishModalVisible] = useState(false);
     const [qualityModalVisible, setQualityModalVisible] = useState(false);
     const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
+    const [warmupGuideVisible, setWarmupGuideVisible] = useState(false);
     const [exitModalVisible, setExitModalVisible] = useState(false);
     const [exitModalHasData, setExitModalHasData] = useState(false);
     const [addExerciseModalVisible, setAddExerciseModalVisible] = useState(false);
@@ -456,6 +457,7 @@ export default function WorkoutSessionScreen() {
     const freeWorkoutNameOverrideRef = useRef<string | null>(null);
     const qualityCheckedSessionRef = useRef<WorkoutSession | null>(null);
     const preWorkoutReminderShownRef = useRef(false);
+    const warmupGuideShownRef = useRef(false);
 
     const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe") => {
         let nextKey = "";
@@ -1442,6 +1444,43 @@ export default function WorkoutSessionScreen() {
         }
     };
 
+    const markWarmupSetsCompleted = useCallback(() => {
+        updateSession((prev) => ({
+            ...prev,
+            exercises: prev.exercises.map((exercise) => ({
+                ...exercise,
+                sets: exercise.sets.map((set) => set.isWarmup ? { ...set, completed: true } : set),
+            })),
+        }));
+        setWarmupGuideVisible(false);
+    }, [updateSession]);
+
+    const saveWarmupOnlySession = useCallback(async () => {
+        const currentSession = materializeSessionInputs();
+        const warmupExercises = currentSession.exercises
+            .map((exercise) => ({
+                ...exercise,
+                sets: exercise.sets.filter((set) => set.isWarmup && hasLoggedSetData(set)),
+            }))
+            .filter((exercise) => exercise.sets.length > 0);
+
+        if (warmupExercises.length === 0) {
+            setWarmupGuideVisible(false);
+            setConceptNotice({
+                title: "Isinma verisi yok",
+                message: "Sadece isinmayi kaydetmek icin once W setlerine agirlik/tekrar veya sure girmen gerekiyor.",
+            });
+            return;
+        }
+
+        setWarmupGuideVisible(false);
+        await finishWorkout({
+            ...currentSession,
+            title: `${currentSession.title} - Isinma`,
+            exercises: warmupExercises,
+        });
+    }, [finishWorkout, materializeSessionInputs]);
+
     const cancelWorkout = async () => {
         pendingExitActionRef.current = null;
         setExitModalHasData(hasLoggedWorkoutData(materializeSessionInputs()));
@@ -2067,6 +2106,19 @@ export default function WorkoutSessionScreen() {
     const settingsExercise = setSettingsExercise
         ? session.exercises.find((exercise) => exercise.id === setSettingsExercise.id) ?? null
         : null;
+    const warmupSetCount = React.useMemo(
+        () => session.exercises.reduce((total, exercise) => total + exercise.sets.filter((set) => set.isWarmup).length, 0),
+        [session.exercises],
+    );
+
+    useEffect(() => {
+        if (warmupGuideShownRef.current || warmupSetCount === 0 || session.exercises.length === 0) {
+            return;
+        }
+
+        warmupGuideShownRef.current = true;
+        setWarmupGuideVisible(true);
+    }, [session.exercises.length, warmupSetCount]);
 
     // ─── Render ──────────────────────────────
 
@@ -2075,6 +2127,18 @@ export default function WorkoutSessionScreen() {
             style={styles.container}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
+            <ActionConfirmModal
+                visible={warmupGuideVisible}
+                title="Isinma rutini hazir"
+                message={`${warmupSetCount} isinma seti bu antrenmana bagli. Isinmayi tamamlayip ana antrenmana gecebilir, log girdiysen sadece isinmayi kaydedebilir veya devam edip manuel loglayabilirsin.`}
+                primaryLabel="Isinmayi Tamamla"
+                secondaryLabel="Devam Et"
+                tertiaryLabel="Sadece Isinmayi Kaydet"
+                onPrimary={markWarmupSetsCompleted}
+                onSecondary={() => setWarmupGuideVisible(false)}
+                onTertiary={saveWarmupOnlySession}
+                onDismiss={() => setWarmupGuideVisible(false)}
+            />
             <ActionConfirmModal
                 visible={emptyFinishModalVisible}
                 title="Henüz veri girmediniz"
