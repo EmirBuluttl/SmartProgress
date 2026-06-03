@@ -25,6 +25,17 @@ export interface WorkoutSet {
     targetWeight?: string; // from program template
     targetRPE?: string;    // from program template
     targetRIR?: string;    // from program template
+    sideMode?: "both" | "left_right";
+    left?: UnilateralSetSide;
+    right?: UnilateralSetSide;
+}
+
+export interface UnilateralSetSide {
+    weight?: number;
+    reps?: number;
+    durationSeconds?: number;
+    rpe?: number | string;
+    rir?: number | string;
 }
 
 // ─── Target Set (Program Template) ──────────
@@ -177,6 +188,9 @@ export interface SyncWorkoutPayload {
                 analysisExcluded?: boolean;
                 analysisWarning?: string;
                 isWarmup?: boolean;
+                sideMode?: "both" | "left_right";
+                left?: UnilateralSetSide;
+                right?: UnilateralSetSide;
             }[];
         }[];
         totalDuration?: number;

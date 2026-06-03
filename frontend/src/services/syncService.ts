@@ -30,6 +30,24 @@ function generateId(): string {
 function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
     // Load score: working sets count as 1, or RPE/10 when RPE is logged.
     const totalVolume = calculateLoadScoreFromExercises(session.exercises);
+    const getAnalysisSetValues = (set: WorkoutSession["exercises"][number]["sets"][number]) => {
+        if (set.sideMode !== "left_right") {
+            return { weight: set.weight, reps: set.reps, durationSeconds: set.durationSeconds ?? 0 };
+        }
+
+        const leftWeight = Number(set.left?.weight) || 0;
+        const rightWeight = Number(set.right?.weight) || 0;
+        const leftReps = Number(set.left?.reps) || 0;
+        const rightReps = Number(set.right?.reps) || 0;
+        const leftDuration = Number(set.left?.durationSeconds) || 0;
+        const rightDuration = Number(set.right?.durationSeconds) || 0;
+
+        return {
+            weight: leftWeight > 0 && rightWeight > 0 ? Math.min(leftWeight, rightWeight) : Math.max(leftWeight, rightWeight, Number(set.weight) || 0),
+            reps: leftReps > 0 && rightReps > 0 ? Math.min(leftReps, rightReps) : Math.max(leftReps, rightReps, Number(set.reps) || 0),
+            durationSeconds: leftDuration > 0 && rightDuration > 0 ? Math.min(leftDuration, rightDuration) : Math.max(leftDuration, rightDuration, Number(set.durationSeconds) || 0),
+        };
+    };
 
     return {
         sportId: session.sportId,
@@ -40,23 +58,32 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
                 exerciseId: ex.exerciseId,
                 name: ex.name,
                 sets: ex.sets
-                    .filter((s) => s.weight > 0 || s.reps > 0 || (s.durationSeconds ?? 0) > 0)
-                    .map((s) => ({
-                        reps: s.reps,
-                        weight: s.weight,
+                    .filter((s) => {
+                        const analysisValues = getAnalysisSetValues(s);
+                        return analysisValues.weight > 0 || analysisValues.reps > 0 || analysisValues.durationSeconds > 0;
+                    })
+                    .map((s) => {
+                        const analysisValues = getAnalysisSetValues(s);
+                        return ({
+                        reps: analysisValues.reps,
+                        weight: analysisValues.weight,
                         weightMode: s.weightMode ?? "kg",
                         bodyWeight: s.bodyWeight,
                         externalWeight: s.externalWeight,
                         effortMode: s.effortMode ?? "reps",
-                        durationSeconds: s.durationSeconds ?? 0,
+                        durationSeconds: analysisValues.durationSeconds,
                         unit: s.unit,
                         rpe: s.rpe !== undefined && s.rpe !== "" ? clampRpe(s.rpe) : undefined,
-                        rir: normalizeRirLogValue((s as any).rir, s.reps),
+                        rir: normalizeRirLogValue((s as any).rir, analysisValues.reps),
                         targetReps: s.targetReps,
                         analysisExcluded: s.analysisExcluded === true ? true : undefined,
                         analysisWarning: s.analysisWarning,
                         isWarmup: s.isWarmup ?? false,
-                    })),
+                        sideMode: s.sideMode,
+                        left: s.left,
+                        right: s.right,
+                    });
+                    }),
             })).filter((ex) => ex.sets.length > 0),
             totalDuration: session.totalDuration,
             totalVolume,

@@ -985,6 +985,38 @@ export default function WorkoutSessionScreen() {
         [updateSession],
     );
 
+    const updateUnilateralSide = useCallback((
+        exerciseId: string,
+        set: WorkoutSet,
+        side: "left" | "right",
+        field: "weight" | "reps" | "durationSeconds",
+        rawValue: string,
+    ) => {
+        const value = field === "durationSeconds"
+            ? parseDurationInput(rawValue)
+            : Number(rawValue.replace(",", ".")) || 0;
+        const nextSide = { ...(set[side] || {}), [field]: value };
+        const otherSide = set[side === "left" ? "right" : "left"] || {};
+        const left = side === "left" ? nextSide : otherSide;
+        const right = side === "right" ? nextSide : otherSide;
+        const leftWeight = Number(left.weight) || 0;
+        const rightWeight = Number(right.weight) || 0;
+        const leftReps = Number(left.reps) || 0;
+        const rightReps = Number(right.reps) || 0;
+        const leftDuration = Number(left.durationSeconds) || 0;
+        const rightDuration = Number(right.durationSeconds) || 0;
+
+        updateSetPatch(exerciseId, set.id, {
+            sideMode: "left_right",
+            left,
+            right,
+            weight: leftWeight > 0 && rightWeight > 0 ? Math.min(leftWeight, rightWeight) : Math.max(leftWeight, rightWeight, Number(set.weight) || 0),
+            reps: leftReps > 0 && rightReps > 0 ? Math.min(leftReps, rightReps) : Math.max(leftReps, rightReps, Number(set.reps) || 0),
+            durationSeconds: leftDuration > 0 && rightDuration > 0 ? Math.min(leftDuration, rightDuration) : Math.max(leftDuration, rightDuration, Number(set.durationSeconds) || 0),
+            completed: true,
+        });
+    }, [updateSetPatch]);
+
     const exerciseLibraryResults = React.useMemo(() => {
         const query = newExerciseName.trim().toLocaleLowerCase("tr-TR");
         const filtered = query
@@ -1594,7 +1626,8 @@ export default function WorkoutSessionScreen() {
             const canMoveSetDown = setIndex < exercise.sets.length - 1;
 
             const setContent = (
-                <View style={[styles.setRow, isWarmup && styles.warmupSetRow]}>
+                <View style={styles.setBlock}>
+                <View style={[styles.setRow, isWarmup && styles.warmupSetRow, set.sideMode === "left_right" && styles.unilateralSetRow]}>
                         {isWeb ? (
                             <View style={[styles.setDragHandle, styles.webSetOrderHandle, isWarmup && styles.warmupSetDragHandle]}>
                                 <Text style={[styles.setNumber, isWarmup && styles.warmupSetNumber]}>
@@ -1731,6 +1764,49 @@ export default function WorkoutSessionScreen() {
                         >
                             <Ionicons name="trash-outline" size={18} color={colors.textMuted} />
                         </TouchableOpacity>
+                </View>
+                {set.sideMode === "left_right" && (
+                    <View style={styles.unilateralPanel}>
+                        {(["left", "right"] as const).map((side) => {
+                            const sideData = set[side] || {};
+                            const sideLabel = side === "left" ? "Sol" : "Sag";
+                            return (
+                                <View key={side} style={styles.unilateralRow}>
+                                    <Text style={styles.unilateralLabel}>{sideLabel}</Text>
+                                    <TextInput
+                                        style={styles.unilateralInput}
+                                        value={sideData.weight ? String(sideData.weight) : ""}
+                                        onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "weight", text)}
+                                        placeholder={set.weightMode === "bodyweight" ? "BW" : "kg"}
+                                        placeholderTextColor={colors.textMuted}
+                                        keyboardType="decimal-pad"
+                                        selectionColor={colors.accent}
+                                    />
+                                    <TextInput
+                                        style={styles.unilateralInput}
+                                        value={
+                                            set.effortMode === "duration"
+                                                ? formatDurationInput(sideData.durationSeconds)
+                                                : sideData.reps ? String(sideData.reps) : ""
+                                        }
+                                        onChangeText={(text) => updateUnilateralSide(
+                                            exercise.id,
+                                            set,
+                                            side,
+                                            set.effortMode === "duration" ? "durationSeconds" : "reps",
+                                            text,
+                                        )}
+                                        placeholder={set.effortMode === "duration" ? "sn" : "tekrar"}
+                                        placeholderTextColor={colors.textMuted}
+                                        keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
+                                        selectionColor={colors.accent}
+                                    />
+                                </View>
+                            );
+                        })}
+                        <Text style={styles.unilateralHint}>Analiz zayif taraf uzerinden hesaplanir.</Text>
+                    </View>
+                )}
                 </View>
             );
 
@@ -2247,6 +2323,7 @@ export default function WorkoutSessionScreen() {
                                     const label = isWarmup ? `W${warmupCount}` : `${workingCount}`;
                                     const currentWeightMode = set.weightMode ?? "kg";
                                     const currentEffortMode = set.effortMode ?? "reps";
+                                    const currentSideMode = set.sideMode ?? "both";
 
                                     return (
                                         <View key={set.id} style={styles.setSettingsRow}>
@@ -2280,6 +2357,24 @@ export default function WorkoutSessionScreen() {
                                                         onPress={() => setEffortMode(settingsExercise.id, set, "duration")}
                                                     >
                                                         <Text style={[styles.segmentText, currentEffortMode === "duration" && styles.segmentTextActive]}>Süre</Text>
+                                                    </TouchableOpacity>
+                                                </View>
+                                                <View style={styles.segmentedControl}>
+                                                    <TouchableOpacity
+                                                        style={[styles.segmentBtn, currentSideMode !== "left_right" && styles.segmentBtnActive]}
+                                                        onPress={() => updateSetPatch(settingsExercise.id, set.id, { sideMode: "both", left: undefined, right: undefined })}
+                                                    >
+                                                        <Text style={[styles.segmentText, currentSideMode !== "left_right" && styles.segmentTextActive]}>Normal</Text>
+                                                    </TouchableOpacity>
+                                                    <TouchableOpacity
+                                                        style={[styles.segmentBtn, currentSideMode === "left_right" && styles.segmentBtnActive]}
+                                                        onPress={() => updateSetPatch(settingsExercise.id, set.id, {
+                                                            sideMode: "left_right",
+                                                            left: set.left || { weight: set.weight || undefined, reps: set.reps || undefined, durationSeconds: set.durationSeconds || undefined },
+                                                            right: set.right || { weight: set.weight || undefined, reps: set.reps || undefined, durationSeconds: set.durationSeconds || undefined },
+                                                        })}
+                                                    >
+                                                        <Text style={[styles.segmentText, currentSideMode === "left_right" && styles.segmentTextActive]}>L/R</Text>
                                                     </TouchableOpacity>
                                                 </View>
                                             </View>
@@ -2715,10 +2810,55 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
 
     // Set Row
+    setBlock: {
+        marginBottom: spacing.sm,
+    },
     setRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: spacing.sm,
+    },
+    unilateralSetRow: {
+        marginBottom: spacing.xs,
+    },
+    unilateralPanel: {
+        marginLeft: 54,
+        marginRight: spacing.sm,
+        padding: spacing.sm,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        gap: spacing.xs,
+    },
+    unilateralRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    unilateralLabel: {
+        width: 34,
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    unilateralInput: {
+        flex: 1,
+        minHeight: 38,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceLight,
+        color: colors.text,
+        textAlign: "center",
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.semibold,
+    },
+    unilateralHint: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        lineHeight: 16,
     },
     warmupSetRow: {
         opacity: 0.75,

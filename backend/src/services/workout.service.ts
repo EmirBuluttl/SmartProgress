@@ -26,6 +26,14 @@ const coerceInt = z.preprocess((val) => {
     return isNaN(num) ? 0 : num;
 }, z.number().int());
 
+const unilateralSideSchema = z.object({
+    weight: coerceNumber.pipe(z.number().nonnegative()).optional(),
+    reps: coerceInt.pipe(z.number().int().min(0)).optional(),
+    durationSeconds: coerceInt.pipe(z.number().int().min(0)).optional(),
+    rpe: z.union([z.number(), z.string()]).optional().nullable(),
+    rir: z.union([z.number(), z.string()]).optional().nullable(),
+});
+
 const workoutSetSchema = z.object({
     reps: coerceInt.pipe(z.number().int().min(0)),
     weight: coerceNumber.pipe(z.number().nonnegative()),
@@ -41,6 +49,9 @@ const workoutSetSchema = z.object({
     analysisExcluded: z.boolean().optional(),
     analysisWarning: z.string().max(500).optional(),
     isWarmup: z.boolean().optional(),
+    sideMode: z.enum(["both", "left_right"]).optional(),
+    left: unilateralSideSchema.optional(),
+    right: unilateralSideSchema.optional(),
 });
 
 const workoutExerciseSchema = z.object({
