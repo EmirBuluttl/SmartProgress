@@ -13,7 +13,14 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
-import { navigateToWorkoutRespectingActiveSession } from "../utils/workoutNavigation";
+import ActionConfirmModal from "../components/ActionConfirmModal";
+import {
+    activateProgramForWorkout,
+    buildPreviewWorkoutParams,
+    buildTrackedWorkoutParams,
+    getActiveProgramId,
+    navigateToWorkoutRespectingActiveSession,
+} from "../utils/workoutNavigation";
 
 type Route = RouteProp<RootStackParamList, "ProgramDayDetail">;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -24,14 +31,39 @@ export default function ProgramDayDetailScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { programId, programName, dayIndex, day, programData } = route.params;
+    const [inactiveStartModalVisible, setInactiveStartModalVisible] = React.useState(false);
 
-    const startDay = () => {
+    const programToStart = React.useMemo(() => ({
+        id: programId,
+        name: programName,
+        data: programData,
+    }), [programData, programId, programName]);
+
+    const startDay = async () => {
+        const activeProgramId = await getActiveProgramId();
+
+        if (activeProgramId !== programId) {
+            setInactiveStartModalVisible(true);
+            return;
+        }
+
         navigateToWorkoutRespectingActiveSession(navigation, {
             programId,
             programName,
             dayIndex,
             programData,
         });
+    };
+
+    const startAsActive = async () => {
+        setInactiveStartModalVisible(false);
+        await activateProgramForWorkout(programId);
+        navigateToWorkoutRespectingActiveSession(navigation, buildTrackedWorkoutParams(programToStart, 0));
+    };
+
+    const startWithoutTracking = () => {
+        setInactiveStartModalVisible(false);
+        navigateToWorkoutRespectingActiveSession(navigation, buildPreviewWorkoutParams(programToStart, dayIndex));
     };
 
     return (
@@ -105,6 +137,16 @@ export default function ProgramDayDetailScreen() {
                     <Text style={styles.startText}>Bu Günü Başlat</Text>
                 </TouchableOpacity>
             </View>
+            <ActionConfirmModal
+                visible={inactiveStartModalVisible}
+                title="Bu program takipte degil"
+                message="Programi aktif hale getirirsen onceki aktif programin gun sirasi sifirlanir ve bu program ilk gunden takibe alinir. Istersen sadece bu gunu takip akisini degistirmeden baslatabilirsin."
+                primaryLabel="Aktif yap ve baslat"
+                secondaryLabel="Sadece bu gunu baslat"
+                onPrimary={startAsActive}
+                onSecondary={startWithoutTracking}
+                onDismiss={() => setInactiveStartModalVisible(false)}
+            />
         </View>
     );
 }

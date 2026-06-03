@@ -24,7 +24,14 @@ import { parseApiError, programApi, workoutApi } from "../services/api";
 import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
-import { navigateToWorkoutRespectingActiveSession } from "../utils/workoutNavigation";
+import {
+    activateProgramForWorkout,
+    buildPreviewWorkoutParams,
+    buildTrackedWorkoutParams,
+    getActiveProgramId,
+    navigateToWorkoutRespectingActiveSession,
+    type StartableProgram,
+} from "../utils/workoutNavigation";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -66,6 +73,11 @@ interface ProgramData {
     createdAt: string;
 }
 
+type PendingStart = {
+    program: StartableProgram;
+    dayIndex: number;
+};
+
 export default function ProgramDetailScreen() {
     const navigation = useNavigation<Nav>();
     const route = useRoute<Route>();
@@ -83,6 +95,7 @@ export default function ProgramDetailScreen() {
     const [restAdvancing, setRestAdvancing] = useState(false);
     const [workoutCount, setWorkoutCount] = useState(0);
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
+    const [pendingStart, setPendingStart] = useState<PendingStart | null>(null);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -157,13 +170,35 @@ export default function ProgramDetailScreen() {
         navigateToSession(dayIndex);
     };
 
-    const navigateToSession = (dayIndex: number) => {
-        navigateToWorkoutRespectingActiveSession(navigation, {
-            programId: program!.id,
-            programName: program!.name,
-            dayIndex,
-            programData: program!.data as any,
-        });
+    const navigateToSession = async (dayIndex: number) => {
+        const programToStart = {
+            id: program!.id,
+            name: program!.name,
+            data: program!.data as any,
+        };
+        const activeProgramId = await getActiveProgramId();
+
+        if (activeProgramId !== programToStart.id) {
+            setPendingStart({ program: programToStart, dayIndex });
+            return;
+        }
+
+        navigateToWorkoutRespectingActiveSession(navigation, buildTrackedWorkoutParams(programToStart, dayIndex));
+    };
+
+    const startPendingAsActive = async () => {
+        if (!pendingStart) return;
+        const next = pendingStart;
+        setPendingStart(null);
+        await activateProgramForWorkout(next.program.id);
+        navigateToWorkoutRespectingActiveSession(navigation, buildTrackedWorkoutParams(next.program, 0));
+    };
+
+    const startPendingWithoutTracking = () => {
+        if (!pendingStart) return;
+        const next = pendingStart;
+        setPendingStart(null);
+        navigateToWorkoutRespectingActiveSession(navigation, buildPreviewWorkoutParams(next.program, next.dayIndex));
     };
 
     const handleStartSelectedDay = async (dayIndex: number) => {
@@ -621,6 +656,16 @@ export default function ProgramDetailScreen() {
                     if (selectedDayIndex !== null) navigateToDayDetail(selectedDayIndex);
                 }}
                 onDismiss={() => setSelectedDayIndex(null)}
+            />
+            <ActionConfirmModal
+                visible={!!pendingStart}
+                title="Bu program takipte degil"
+                message="Programi aktif hale getirirsen onceki aktif programin gun sirasi sifirlanir ve bu program ilk gunden takibe alinir. Istersen sadece sectigin gunu calisabilirsin."
+                primaryLabel="Aktif yap ve baslat"
+                secondaryLabel="Sadece bu gunu baslat"
+                onPrimary={startPendingAsActive}
+                onSecondary={startPendingWithoutTracking}
+                onDismiss={() => setPendingStart(null)}
             />
             <NoticeModal
                 visible={!!notice}

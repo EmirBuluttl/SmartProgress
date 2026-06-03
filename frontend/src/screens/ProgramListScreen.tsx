@@ -20,9 +20,20 @@ import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { programApi } from "../services/api";
 import GymCard from "../components/GymCard";
+import ActionConfirmModal from "../components/ActionConfirmModal";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { useScreenEnter } from "../hooks/useScreenEnter";
-import { navigateToWorkoutRespectingActiveSession } from "../utils/workoutNavigation";
+import {
+    activateProgramForWorkout,
+    ACTIVE_PROGRAM_KEY,
+    buildPreviewWorkoutParams,
+    buildTrackedWorkoutParams,
+    clearActiveProgramId,
+    getActiveProgramId,
+    LEGACY_ACTIVE_PROGRAM_KEY,
+    navigateToWorkoutRespectingActiveSession,
+    type StartableProgram,
+} from "../utils/workoutNavigation";
 
 // ─── Stagger wrapper — her kart index * 50ms delay ile girer ───
 function StaggerCard({ index, children }: { index: number; children: React.ReactNode }) {
@@ -31,8 +42,6 @@ function StaggerCard({ index, children }: { index: number; children: React.React
 }
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
-const ACTIVE_PROGRAM_KEY = "active_program_id";
-const LEGACY_FAVORITES_KEY = "program_favorite_id";
 
 export default function ProgramListScreen() {
     const navigation = useNavigation<Nav>();
@@ -41,12 +50,13 @@ export default function ProgramListScreen() {
     const [programs, setPrograms] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [activeId, setActiveId] = React.useState<string | null>(null);
+    const [pendingStart, setPendingStart] = React.useState<StartableProgram | null>(null);
 
     const load = async () => {
         try {
             const res = await programApi.listMine();
             const active = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
-            const legacy = await AsyncStorage.getItem(LEGACY_FAVORITES_KEY);
+            const legacy = await AsyncStorage.getItem(LEGACY_ACTIVE_PROGRAM_KEY);
             const list = res.data.programs || [];
             console.log(
                 "[ProgramList] Loaded programs from listMine:",
@@ -72,9 +82,37 @@ export default function ProgramListScreen() {
     const toggleActiveProgram = async (id: string) => {
         const next = activeId === id ? null : id;
         setActiveId(next);
-        if (next) await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, next);
-        else await AsyncStorage.removeItem(ACTIVE_PROGRAM_KEY);
-        await AsyncStorage.removeItem(LEGACY_FAVORITES_KEY);
+        if (next) await activateProgramForWorkout(next, activeId);
+        else await clearActiveProgramId();
+    };
+
+    const startProgram = async (item: any) => {
+        const programToStart: StartableProgram = { id: item.id, name: item.name, data: item.data };
+        const currentActiveId = activeId || await getActiveProgramId();
+
+        if (currentActiveId !== item.id) {
+            setPendingStart(programToStart);
+            return;
+        }
+
+        console.log("[ProgramList] Starting active program:", item.id, "hasData=", !!item.data);
+        navigateToWorkoutRespectingActiveSession(navigation, buildTrackedWorkoutParams(programToStart));
+    };
+
+    const startPendingAsActive = async () => {
+        if (!pendingStart) return;
+        const programToStart = pendingStart;
+        setPendingStart(null);
+        await activateProgramForWorkout(programToStart.id, activeId);
+        setActiveId(programToStart.id);
+        navigateToWorkoutRespectingActiveSession(navigation, buildTrackedWorkoutParams(programToStart, 0));
+    };
+
+    const startPendingWithoutTracking = () => {
+        if (!pendingStart) return;
+        const programToStart = pendingStart;
+        setPendingStart(null);
+        navigateToWorkoutRespectingActiveSession(navigation, buildPreviewWorkoutParams(programToStart, 0));
     };
 
     useFocusEffect(useCallback(() => { load(); }, []));
@@ -175,19 +213,7 @@ export default function ProgramListScreen() {
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     style={styles.startBtn}
-                                    onPress={() => {
-                                        console.log(
-                                            "[ProgramList] Starting program:",
-                                            item.id,
-                                            "hasData=",
-                                            !!item.data,
-                                        );
-                                        navigateToWorkoutRespectingActiveSession(navigation, {
-                                            programId: item.id,
-                                            programName: item.name,
-                                            programData: item.data,
-                                        });
-                                    }}
+                                    onPress={() => startProgram(item)}
                                     activeOpacity={0.75}
                                 >
                                     <Ionicons name="play" size={16} color={colors.background} />
@@ -200,6 +226,16 @@ export default function ProgramListScreen() {
                     )}
                 />
             )}
+            <ActionConfirmModal
+                visible={!!pendingStart}
+                title="Bu program takipte degil"
+                message="Bu programi aktif takip edilen program haline getirirsem onceki aktif programin gun sirasi sifirlanir. Istersen sadece bu antrenmani takip akisini degistirmeden baslatabilirsin."
+                primaryLabel="Aktif yap ve baslat"
+                secondaryLabel="Sadece baslat"
+                onPrimary={startPendingAsActive}
+                onSecondary={startPendingWithoutTracking}
+                onDismiss={() => setPendingStart(null)}
+            />
         </View>
     );
 }
