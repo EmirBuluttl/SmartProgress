@@ -228,6 +228,22 @@ export default function HomeScreen() {
         ? (currentDayIndex + 1) % cycleData.days.length
         : 0;
     const nextDay = cycleData?.days?.[nextDayIndex];
+    const preWorkoutReminderNotification =
+        user?.settings?.pre_workout_reminder_enabled === true && favoriteProgram && currentDay
+            ? {
+                id: "local-pre-workout-reminder",
+                title: "Antrenman hatirlatmasi",
+                message: `${favoriteProgram.name} icin siradaki gun: ${currentDay.label}. ${user?.settings?.pre_workout_reminder_note || "Baslamadan once isinma ve form notlarini kontrol et."}`,
+                actionLabel: "Programi ac",
+                actionScreen: "ProgramDetail",
+                actionParams: { programId: favoriteProgram.id },
+                readAt: null,
+            }
+            : null;
+    const displayedNotifications = preWorkoutReminderNotification
+        ? [preWorkoutReminderNotification, ...notifications.filter((item) => item.id !== preWorkoutReminderNotification.id)]
+        : notifications;
+    const displayedUnreadCount = unreadCount + (preWorkoutReminderNotification ? 1 : 0);
 
     const selectActiveProgramDay = async (dayIndex: number) => {
         if (!favoriteProgram) return;
@@ -238,7 +254,7 @@ export default function HomeScreen() {
 
     const openNotification = async (notification: any) => {
         try {
-            if (!notification.readAt) {
+            if (!notification.readAt && !String(notification.id).startsWith("local-")) {
                 const res = await notificationApi.markRead(notification.id);
                 setNotifications(res.data.notifications || []);
                 setUnreadCount(res.data.unreadCount || 0);
@@ -297,9 +313,9 @@ export default function HomeScreen() {
                     >
                         <View style={styles.notificationBtnContent}>
                         <Ionicons name="notifications-outline" size={22} color={colors.accent} />
-                        {unreadCount > 0 && (
+                        {displayedUnreadCount > 0 && (
                             <View style={styles.notificationBadge}>
-                                <Text style={styles.notificationBadgeText}>{unreadCount > 9 ? "9+" : unreadCount}</Text>
+                                <Text style={styles.notificationBadgeText}>{displayedUnreadCount > 9 ? "9+" : displayedUnreadCount}</Text>
                             </View>
                         )}
                         </View>
@@ -713,7 +729,7 @@ export default function HomeScreen() {
                     <View style={styles.notificationHeader}>
                         <Text style={styles.notificationTitle}>Bildirimler</Text>
                         <View style={styles.notificationHeaderActions}>
-                            {notifications.length > 0 ? (
+                            {displayedNotifications.length > 0 ? (
                                 <TouchableOpacity onPress={clearNotifications} style={styles.notificationClearBtn}>
                                     <Text style={styles.notificationClearText}>Temizle</Text>
                                 </TouchableOpacity>
@@ -723,13 +739,13 @@ export default function HomeScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
-                    {notifications.length === 0 ? (
+                    {displayedNotifications.length === 0 ? (
                         <View style={styles.notificationEmpty}>
                             <Ionicons name="notifications-off-outline" size={34} color={colors.textMuted} />
                             <Text style={styles.notificationEmptyText}>Şimdilik bildirimin yok.</Text>
                         </View>
                     ) : (
-                        notifications.map((item) => (
+                        displayedNotifications.map((item) => (
                             <TouchableOpacity
                                 key={item.id}
                                 style={[styles.notificationItem, !item.readAt && styles.notificationItemUnread]}
