@@ -21,9 +21,9 @@ import {
     resetFailedWorkouts,
     syncPendingWorkouts,
 } from "../services/syncService";
-import { showAlert } from "../utils/confirm";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import ActionConfirmModal from "../components/ActionConfirmModal";
+import NoticeModal from "../components/NoticeModal";
 import GymCard from "../components/GymCard";
 import { summarizeCardioBlocks } from "../utils/cardio";
 
@@ -51,6 +51,7 @@ export default function WorkoutHistoryScreen() {
     const [loading, setLoading] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [pendingInfo, setPendingInfo] = useState({ pending: 0, failed: 0, permanent: 0 });
+    const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
     const sortNewestFirst = (items: WorkoutItem[]) =>
         [...items].sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime());
@@ -126,7 +127,7 @@ export default function WorkoutHistoryScreen() {
         } catch (err) {
             setWorkouts(previous);
             const apiError = parseApiError(err);
-            showAlert("Hata", apiError.message || "Silme islemi basarisiz.");
+            setNotice({ title: "Silinemedi", message: apiError.message || "Silme islemi basarisiz." });
         }
         setPendingDeleteId(null);
     };
@@ -283,6 +284,12 @@ export default function WorkoutHistoryScreen() {
                 onPrimary={handleClearPending}
                 onSecondary={() => setConfirmClearPending(false)}
                 onDismiss={() => setConfirmClearPending(false)}
+            />
+            <NoticeModal
+                visible={!!notice}
+                title={notice?.title ?? ""}
+                message={notice?.message ?? ""}
+                onClose={() => setNotice(null)}
             />
         </Animated.View>
     );

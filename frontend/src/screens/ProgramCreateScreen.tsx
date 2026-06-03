@@ -10,7 +10,6 @@ import {
     TextInput,
     ScrollView,
     TouchableOpacity,
-    Alert,
     KeyboardAvoidingView,
     Modal,
     Platform,
@@ -57,15 +56,6 @@ type PendingAction =
 function safeString(value: unknown): string {
     if (value == null) return "";
     return String(value).trim();
-}
-
-/** Cross-platform alert that falls back to window.alert on web. */
-function showAlert(title: string, message: string): void {
-    if (Platform.OS === "web") {
-        window.alert(`${title}\n\n${message}`);
-    } else {
-        Alert.alert(title, message);
-    }
 }
 
 function makeDay(index: number): ProgramDay {
@@ -265,7 +255,7 @@ export default function ProgramCreateScreen() {
 
     const removeDay = (index: number) => {
         if (days.length === 1) {
-            showAlert("Hata", "En az bir gün olmalıdır.");
+            setValidationNotice({ title: "Gun gerekli", message: "En az bir gun olmalidir." });
             return;
         }
         setDays((prev) => {
@@ -677,7 +667,7 @@ export default function ProgramCreateScreen() {
             navigation.goBack();
         } catch (error) {
             const apiError = parseApiError(error);
-            showAlert("Kaydetme Hatası", apiError.message);
+            setValidationNotice({ title: "Kaydetme hatasi", message: apiError.message });
         } finally {
             setIsSaving(false);
         }

@@ -42,7 +42,6 @@ import {
 import { bodyMeasurementApi, programApi, workoutApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import AccentButton from "../components/AccentButton";
-import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
@@ -437,6 +436,7 @@ export default function WorkoutSessionScreen() {
     const [setSettingsExercise, setSetSettingsExercise] = useState<WorkoutExercise | null>(null);
     const [startBlockedModalVisible, setStartBlockedModalVisible] = useState(false);
     const [conceptNotice, setConceptNotice] = useState<{ title: string; message: string } | null>(null);
+    const [postFinishNotice, setPostFinishNotice] = useState<{ title: string; message: string; summaryParams: any } | null>(null);
     const [latestBodyWeight, setLatestBodyWeight] = useState<number | null>(null);
     const [bodyWeightModal, setBodyWeightModal] = useState<{ exerciseId: string; setId: string } | null>(null);
     const [bodyWeightDraft, setBodyWeightDraft] = useState("");
@@ -1306,28 +1306,28 @@ export default function WorkoutSessionScreen() {
             await savePendingWorkout(completedSession);
             await clearActiveSession();
 
+            let syncNotice: { title: string; message: string } | null = null;
             try {
                 const syncResult = await syncPendingWorkouts();
                 if (syncResult.failed > 0) {
-                    showAlert(
-                        "Senkronizasyon Uyarısı",
-                        `Antrenman yerel olarak kaydedildi ancak sunucuya gönderilemedi.\n\n` +
-                        `Hata: ${syncResult.errors.join(", ")}\n\n` +
-                        `İnternet bağlantınızı kontrol edin. Sonraki giriş sırasında tekrar denenecek.`,
-                    );
+                    syncNotice = {
+                        title: "Senkronizasyon uyarisi",
+                        message: `Antrenman yerel olarak kaydedildi ancak sunucuya gonderilemedi.\n\n` +
+                            `Hata: ${syncResult.errors.join(", ")}\n\n` +
+                            "Internet baglantinizi kontrol edin. Sonraki giriste tekrar denenecek.",
+                    };
                 } else if (syncResult.offline) {
-                    showAlert(
-                        "Çevrimdışı Kayıt",
-                        "Antrenman yerel olarak kaydedildi. İnternet bağlantısı sağlandığında otomatik olarak senkronize edilecek.",
-                    );
+                    syncNotice = {
+                        title: "Cevrimdisi kayit",
+                        message: "Antrenman yerel olarak kaydedildi. Internet baglantisi saglandiginda otomatik olarak senkronize edilecek.",
+                    };
                 }
             } catch (err) {
                 console.warn("[WorkoutSession] Sync hatası (arka planda yeniden denenecek):", err);
-                showAlert(
-                    "Senkronizasyon Hatası",
-                    "Antrenman yerel olarak kaydedildi ancak sunucuya gönderilemedi. " +
-                    "Sonraki girişinizde tekrar denenecek.",
-                );
+                syncNotice = {
+                    title: "Senkronizasyon hatasi",
+                    message: "Antrenman yerel olarak kaydedildi ancak sunucuya gonderilemedi. Sonraki girisinizde tekrar denenecek.",
+                };
             }
 
             // ── Compute summary stats ──
@@ -1358,7 +1358,7 @@ export default function WorkoutSessionScreen() {
             }
 
             // ── Navigate to Summary ──
-            (navigation as any).replace("WorkoutSummary", {
+            const summaryParams = {
                 programId,
                 programName: route.params?.programName,
                 dayLabel,
@@ -1369,10 +1369,16 @@ export default function WorkoutSessionScreen() {
                 setCount,
                 notes: completedSession.notes,
                 cardioBlocks: completedSession.cardioBlocks,
-            });
+            };
+
+            if (syncNotice) {
+                setPostFinishNotice({ ...syncNotice, summaryParams });
+            } else {
+                (navigation as any).replace("WorkoutSummary", summaryParams);
+            }
         } catch (error) {
             console.error("[WorkoutSession] Kaydetme hatası:", error);
-            showAlert("Kaydetme Hatası", "Antrenman verisi kaydedilirken bir hata oluştu.");
+            setConceptNotice({ title: "Kaydetme hatasi", message: "Antrenman verisi kaydedilirken bir hata olustu." });
         } finally {
             setFinishing(false);
             finishingRef.current = false;
@@ -2034,6 +2040,18 @@ export default function WorkoutSessionScreen() {
                 title={conceptNotice?.title ?? ""}
                 message={conceptNotice?.message ?? ""}
                 onClose={() => setConceptNotice(null)}
+            />
+            <NoticeModal
+                visible={!!postFinishNotice}
+                title={postFinishNotice?.title ?? ""}
+                message={postFinishNotice?.message ?? ""}
+                onClose={() => {
+                    const summaryParams = postFinishNotice?.summaryParams;
+                    setPostFinishNotice(null);
+                    if (summaryParams) {
+                        (navigation as any).replace("WorkoutSummary", summaryParams);
+                    }
+                }}
             />
             <Modal
                 visible={freeWorkoutNameModalVisible}

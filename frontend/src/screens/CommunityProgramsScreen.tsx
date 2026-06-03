@@ -6,7 +6,6 @@ import {
     TouchableOpacity,
     FlatList,
     ActivityIndicator,
-    Alert,
     Image,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -73,6 +72,7 @@ export default function CommunityProgramsScreen() {
     const [sort, setSort] = useState<SortMode>("stars");
     const [split, setSplit] = useState<SplitFilter>("ALL");
     const [splitInfoVisible, setSplitInfoVisible] = useState(false);
+    const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
 
     const load = useCallback(async () => {
         try {
@@ -115,7 +115,7 @@ export default function CommunityProgramsScreen() {
             updateProgram(res.data);
         } catch (err) {
             const apiError = parseApiError(err);
-            Alert.alert("Hata", apiError.message);
+            setNotice({ title: "Islem basarisiz", message: apiError.message });
         } finally {
             setBusyId(null);
         }
@@ -125,11 +125,11 @@ export default function CommunityProgramsScreen() {
         setBusyId(program.id);
         try {
             const res = await programApi.copyToLibrary(program.id);
-            Alert.alert("Eklendi", "Program kitaplığına eklendi.");
+            setNotice({ title: "Kitapliga eklendi", message: "Program kutuphanene eklendi." });
             navigation.navigate("ProgramDetail", { programId: res.data.id });
         } catch (err) {
             const apiError = parseApiError(err);
-            Alert.alert("Hata", apiError.message);
+            setNotice({ title: "Eklenemedi", message: apiError.message });
         } finally {
             setBusyId(null);
         }
@@ -277,6 +277,12 @@ export default function CommunityProgramsScreen() {
                 title="Split Kısaltmaları"
                 message={"PPL: Push Pull Legs\nAP: Anterior Posterior\nUL: Upper Lower\nTL: Torso Limbs\nFB: Full Body\nDiğer: Bu kalıpların dışında özel programlar"}
                 onClose={() => setSplitInfoVisible(false)}
+            />
+            <NoticeModal
+                visible={!!notice}
+                title={notice?.title ?? ""}
+                message={notice?.message ?? ""}
+                onClose={() => setNotice(null)}
             />
         </View>
     );

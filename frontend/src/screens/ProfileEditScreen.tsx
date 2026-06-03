@@ -10,7 +10,6 @@ import {
     TouchableOpacity,
     StyleSheet,
     ScrollView,
-    Alert,
     ActivityIndicator,
     Image,
     Platform,
@@ -25,6 +24,7 @@ import { authApi } from "../services/api";
 import AccentButton from "../components/AccentButton";
 import AnimatedPressable from "../components/AnimatedPressable";
 import NoticeModal from "../components/NoticeModal";
+import ActionConfirmModal from "../components/ActionConfirmModal";
 
 export default function ProfileEditScreen() {
     const navigation = useNavigation();
@@ -38,6 +38,7 @@ export default function ProfileEditScreen() {
     const [profileImage, setProfileImage] = useState(user?.avatarUrl || user?.profileImage || "");
     const [saving, setSaving] = useState(false);
     const [notice, setNotice] = useState<{ title: string; message: string; goBackOnClose?: boolean } | null>(null);
+    const [photoSourceVisible, setPhotoSourceVisible] = useState(false);
 
     const closeNotice = () => {
         const shouldGoBack = notice?.goBackOnClose;
@@ -93,11 +94,7 @@ export default function ProfileEditScreen() {
             pickImage("gallery");
             return;
         }
-        Alert.alert("Profil Fotoğrafı", "Fotoğraf kaynağını seç", [
-            { text: "Kamera", onPress: () => pickImage("camera") },
-            { text: "Galeri", onPress: () => pickImage("gallery") },
-            { text: "İptal", style: "cancel" },
-        ]);
+        setPhotoSourceVisible(true);
     };
 
     const handleSave = async () => {
@@ -216,6 +213,22 @@ export default function ProfileEditScreen() {
                 title={notice?.title || ""}
                 message={notice?.message || ""}
                 onClose={closeNotice}
+            />
+            <ActionConfirmModal
+                visible={photoSourceVisible}
+                title="Profil fotografi"
+                message="Fotografi kamera ile cekebilir veya galeriden secebilirsin."
+                primaryLabel="Kamera"
+                secondaryLabel="Galeri"
+                onPrimary={() => {
+                    setPhotoSourceVisible(false);
+                    pickImage("camera");
+                }}
+                onSecondary={() => {
+                    setPhotoSourceVisible(false);
+                    pickImage("gallery");
+                }}
+                onDismiss={() => setPhotoSourceVisible(false)}
             />
         </View>
     );

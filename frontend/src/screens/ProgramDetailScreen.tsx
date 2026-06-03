@@ -21,7 +21,6 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { parseApiError, programApi, workoutApi } from "../services/api";
-import { showAlert } from "../utils/confirm";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import {
@@ -94,7 +93,7 @@ export default function ProgramDetailScreen() {
     const [syncingSource, setSyncingSource] = useState(false);
     const [restAdvancing, setRestAdvancing] = useState(false);
     const [workoutCount, setWorkoutCount] = useState(0);
-    const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
+    const [notice, setNotice] = useState<{ title: string; message: string; goBackOnClose?: boolean } | null>(null);
     const [pendingStart, setPendingStart] = useState<PendingStart | null>(null);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
@@ -111,8 +110,7 @@ export default function ProgramDetailScreen() {
             setWorkoutCount(count);
         } catch (err: any) {
             console.error("[ProgramDetail] fetch error:", err?.message);
-            showAlert("Hata", "Program yüklenemedi.");
-            navigation.goBack();
+            setNotice({ title: "Program yuklenemedi", message: "Program bilgileri yuklenemedi.", goBackOnClose: true });
         } finally {
             setLoading(false);
             setRefreshing(false);
@@ -139,7 +137,7 @@ export default function ProgramDetailScreen() {
             navigation.goBack();
         } catch (err: any) {
             const apiError = parseApiError(err);
-            showAlert("Hata", apiError.message || "Silme islemi basarisiz.");
+            setNotice({ title: "Silinemedi", message: apiError.message || "Silme islemi basarisiz." });
             setDeleting(false);
         }
     };
@@ -271,7 +269,7 @@ export default function ProgramDetailScreen() {
             setProgram(res.data as ProgramData);
         } catch (err) {
             const apiError = parseApiError(err);
-            showAlert("Hata", apiError.message || "Yıldız işlemi başarısız.");
+            setNotice({ title: "Islem basarisiz", message: apiError.message || "Yildiz islemi basarisiz." });
         } finally {
             setSocialBusy(false);
         }
@@ -285,7 +283,7 @@ export default function ProgramDetailScreen() {
             return res.data as ProgramData;
         } catch (err) {
             const apiError = parseApiError(err);
-            showAlert("Hata", apiError.message || "Program kitaplığa eklenemedi.");
+            setNotice({ title: "Eklenemedi", message: apiError.message || "Program kitapliga eklenemedi." });
             return null;
         } finally {
             setSocialBusy(false);
@@ -301,7 +299,7 @@ export default function ProgramDetailScreen() {
             setNotice({ title: "Güncellendi", message: "Program kopyan kaynak programın son sürümüne geçirildi." });
         } catch (err) {
             const apiError = parseApiError(err);
-            showAlert("Hata", apiError.message || "Program güncellenemedi.");
+            setNotice({ title: "Guncellenemedi", message: apiError.message || "Program guncellenemedi." });
         } finally {
             setSyncingSource(false);
         }
@@ -671,7 +669,11 @@ export default function ProgramDetailScreen() {
                 visible={!!notice}
                 title={notice?.title ?? ""}
                 message={notice?.message ?? ""}
-                onClose={() => setNotice(null)}
+                onClose={() => {
+                    const shouldGoBack = notice?.goBackOnClose;
+                    setNotice(null);
+                    if (shouldGoBack) navigation.goBack();
+                }}
             />
         </View>
     );

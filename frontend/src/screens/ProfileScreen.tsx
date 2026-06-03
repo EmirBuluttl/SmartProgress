@@ -12,7 +12,6 @@ import {
     Switch,
     TouchableOpacity,
     Image,
-    Alert,
     Dimensions,
     Platform,
     Modal,
@@ -33,6 +32,7 @@ import SectionHeader from "../components/SectionHeader";
 import AccentButton from "../components/AccentButton";
 import AnimatedPressable from "../components/AnimatedPressable";
 import NoticeModal from "../components/NoticeModal";
+import ActionConfirmModal from "../components/ActionConfirmModal";
 import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
@@ -68,6 +68,7 @@ export default function ProfileScreen() {
     const [themePickerVisible, setThemePickerVisible] = useState(false);
     const [rememberInfoVisible, setRememberInfoVisible] = useState(false);
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
+    const [photoSourceVisible, setPhotoSourceVisible] = useState(false);
 
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 5 });
     const [programs, setPrograms] = useState<any[]>([]);
@@ -112,53 +113,57 @@ export default function ProfileScreen() {
             return;
         }
 
-        Alert.alert(
-            "Profil Fotoğrafı",
-            "Fotoğraf kaynağını seç",
-            [
-                {
-                    text: "Kamera",
-                    onPress: async () => {
-                        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-                        if (status !== "granted") {
-                            Alert.alert("İzin Gerekli", "Lütfen kamera iznini verin.");
-                            return;
-                        }
-                        const result = await ImagePicker.launchCameraAsync({
-                            mediaTypes: ["images"],
-                            allowsEditing: true,
-                            aspect: [1, 1],
-                            quality: 0.8,
-                            base64: true,
-                        });
-                        if (!result.canceled && result.assets[0]) {
-                            await savePickedImage(getPickedImageUri(result.assets[0]));
-                        }
-                    },
-                },
-                {
-                    text: "Galeri",
-                    onPress: async () => {
-                        const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                        if (status !== "granted") {
-                            Alert.alert("İzin Gerekli", "Lütfen galeri iznini verin.");
-                            return;
-                        }
-                        const result = await ImagePicker.launchImageLibraryAsync({
-                            mediaTypes: ["images"],
-                            allowsEditing: true,
-                            aspect: [1, 1],
-                            quality: 0.8,
-                            base64: true,
-                        });
-                        if (!result.canceled && result.assets[0]) {
-                            await savePickedImage(getPickedImageUri(result.assets[0]));
-                        }
-                    },
-                },
-                { text: "İptal", style: "cancel" },
-            ]
-        );
+        setPhotoSourceVisible(true);
+    };
+
+    const pickProfileImageFromSource = async (source: "camera" | "gallery") => {
+        const getPickedImageUri = (asset: ImagePicker.ImagePickerAsset) =>
+            asset.base64
+                ? `data:${asset.mimeType || "image/jpeg"};base64,${asset.base64}`
+                : asset.uri;
+
+        const savePickedImage = async (uri: string) => {
+            updateUser({ avatarUrl: uri, profileImage: uri });
+            try {
+                await authApi.updateProfile({ avatarUrl: uri });
+            } catch (err) {
+                console.warn("[Profile] Failed to persist profile image:", err);
+            }
+        };
+
+        const permission = source === "camera"
+            ? await ImagePicker.requestCameraPermissionsAsync()
+            : await ImagePicker.requestMediaLibraryPermissionsAsync();
+
+        if (permission.status !== "granted") {
+            setNotice({
+                title: "Izin gerekli",
+                message: source === "camera"
+                    ? "Profil fotografi cekmek icin kamera izni vermen gerekiyor."
+                    : "Profil fotografi secmek icin galeri izni vermen gerekiyor.",
+            });
+            return;
+        }
+
+        const result = source === "camera"
+            ? await ImagePicker.launchCameraAsync({
+                mediaTypes: ["images"],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+                base64: true,
+            })
+            : await ImagePicker.launchImageLibraryAsync({
+                mediaTypes: ["images"],
+                allowsEditing: true,
+                aspect: [1, 1],
+                quality: 0.8,
+                base64: true,
+            });
+
+        if (!result.canceled && result.assets[0]) {
+            await savePickedImage(getPickedImageUri(result.assets[0]));
+        }
     };
 
     const loadProfileData = async () => {
@@ -635,6 +640,22 @@ export default function ProfileScreen() {
             title={notice?.title || ""}
             message={notice?.message || ""}
             onClose={() => setNotice(null)}
+        />
+        <ActionConfirmModal
+            visible={photoSourceVisible}
+            title="Profil fotografi"
+            message="Fotografi kamera ile cekebilir veya galeriden secebilirsin."
+            primaryLabel="Kamera"
+            secondaryLabel="Galeri"
+            onPrimary={() => {
+                setPhotoSourceVisible(false);
+                pickProfileImageFromSource("camera");
+            }}
+            onSecondary={() => {
+                setPhotoSourceVisible(false);
+                pickProfileImageFromSource("gallery");
+            }}
+            onDismiss={() => setPhotoSourceVisible(false)}
         />
         </>
     );
