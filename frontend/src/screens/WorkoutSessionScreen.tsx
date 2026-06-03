@@ -411,6 +411,7 @@ export default function WorkoutSessionScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled === true;
     const rememberRepsEnabled = user?.settings?.remember_reps_enabled === true;
+    const showRpeRirInfo = user?.settings?.show_rpe_rir_info !== false;
 
     const [session, setSession] = useState<WorkoutSession>(createSession);
     const [elapsed, setElapsed] = useState(0);
@@ -1470,7 +1471,7 @@ export default function WorkoutSessionScreen() {
                         </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
-                        style={styles.infoBtn}
+                        style={[styles.infoBtn, !showRpeRirInfo && { display: "none" }]}
                         onPress={() => setConceptNotice({
                             title: "RPE / RIR nedir?",
                             message: "RPE, setin zorluğunu 0-10 arası puanlamaktır. RIR ise sette kaç tekrar yedek kaldığını tahmin etmektir. Örn. RIR 2, yaklaşık 2 tekrar daha çıkardı demektir.",

@@ -31,6 +31,7 @@ import PrivacyModal from "../components/PrivacyModal";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+import { useAuth } from "../store/AuthContext";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -116,6 +117,7 @@ export default function ProgramCreateScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const route = useRoute<RouteProp<RootStackParamList, "ProgramCreate">>();
     const { colors } = useTheme();
+    const { user } = useAuth();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
     // Edit mode params
@@ -138,6 +140,7 @@ export default function ProgramCreateScreen() {
     const [copyTargetsVisible, setCopyTargetsVisible] = useState(false);
     const [validationNotice, setValidationNotice] = useState<{ title: string; message: string } | null>(null);
     const [conceptNotice, setConceptNotice] = useState<{ title: string; message: string } | null>(null);
+    const showRpeRirInfo = user?.settings?.show_rpe_rir_info !== false;
     const [reorderModal, setReorderModal] = useState<{
         exerciseId: string;
         currentIndex: number;
@@ -914,7 +917,7 @@ export default function ProgramCreateScreen() {
                                 <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: showRPE ? colors.accent : colors.textMuted }}>RPE</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={styles.infoBtn}
+                                style={[styles.infoBtn, !showRpeRirInfo && { display: "none" }]}
                                 onPress={() => setConceptNotice({
                                     title: "RPE nedir?",
                                     message: "RPE, setin ne kadar zor hissettirdiğini 0-10 arası puanlamaktır. 10, daha tekrar çıkmazdı demektir; 7 ise yaklaşık 3 tekrar daha çıkardı anlamına gelir.",
@@ -937,7 +940,7 @@ export default function ProgramCreateScreen() {
                                 <Text style={{ fontSize: fontSize.sm, fontWeight: fontWeight.semibold, color: showRIR ? colors.accent : colors.textMuted }}>RIR</Text>
                             </TouchableOpacity>
                             <TouchableOpacity
-                                style={styles.infoBtn}
+                                style={[styles.infoBtn, !showRpeRirInfo && { display: "none" }]}
                                 onPress={() => setConceptNotice({
                                     title: "RIR nedir?",
                                     message: "RIR, sette kaç tekrar daha yapabileceğini tahmin etmektir. RIR 2, o sette yaklaşık 2 tekrar yedek kaldı demektir.",

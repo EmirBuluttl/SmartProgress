@@ -66,6 +66,8 @@ const DEFAULT_USER_SETTINGS = {
     is_auto_suggest_enabled: false,
     remember_reps_enabled: false,
     profile_visibility: "private",
+    training_level: "beginner",
+    show_rpe_rir_info: true,
 };
 
 const PRO_TRIAL_DAYS = 30;

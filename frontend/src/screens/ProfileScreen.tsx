@@ -49,6 +49,14 @@ const AVAILABLE_COLORS = [
     "#00FF66", // Green
 ];
 
+const TRAINING_LEVEL_OPTIONS = [
+    { key: "beginner", label: "Baslangic" },
+    { key: "intermediate", label: "Orta" },
+    { key: "advanced", label: "Ileri" },
+] as const;
+
+type TrainingLevel = typeof TRAINING_LEVEL_OPTIONS[number]["key"];
+
 export default function ProfileScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { user, logout, updateUser } = useAuth();
@@ -65,6 +73,12 @@ export default function ProfileScreen() {
     const [profilePublic, setProfilePublic] = useState(
         user?.settings?.profile_visibility === "public"
     );
+    const [trainingLevel, setTrainingLevel] = useState<TrainingLevel>(
+        (user?.settings?.training_level as TrainingLevel) || "beginner"
+    );
+    const [showRpeRirInfo, setShowRpeRirInfo] = useState(
+        user?.settings?.show_rpe_rir_info !== false
+    );
     const [themePickerVisible, setThemePickerVisible] = useState(false);
     const [rememberInfoVisible, setRememberInfoVisible] = useState(false);
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
@@ -75,6 +89,16 @@ export default function ProfileScreen() {
     const [prs, setPrs] = useState<any[]>([]);
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    const persistSettings = async (patch: Record<string, any>, warningLabel: string) => {
+        const newSettings = { ...user?.settings, ...patch };
+        updateUser({ settings: newSettings });
+        try {
+            await authApi.updateProfile({ settings: newSettings });
+        } catch (err) {
+            console.warn(`[Profile] Failed to persist ${warningLabel}:`, err);
+        }
+    };
 
     const pickProfileImage = async () => {
         const getPickedImageUri = (asset: ImagePicker.ImagePickerAsset) =>
@@ -363,6 +387,66 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
+                <View style={styles.settingBlock}>
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="speedometer-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Kullanici Seviyesi</Text>
+                            <Text style={styles.settingDesc}>Koç ve rehber anlatimlari bu seviyeye gore sakinlesir</Text>
+                        </View>
+                    </View>
+                    <View style={styles.levelSegmentRow}>
+                        {TRAINING_LEVEL_OPTIONS.map((option) => {
+                            const selected = trainingLevel === option.key;
+                            return (
+                                <TouchableOpacity
+                                    key={option.key}
+                                    style={[styles.levelSegment, selected && styles.levelSegmentActive]}
+                                    onPress={() => {
+                                        setTrainingLevel(option.key);
+                                        persistSettings({ training_level: option.key }, "training level");
+                                    }}
+                                    activeOpacity={0.75}
+                                >
+                                    <Text style={[styles.levelSegmentText, selected && styles.levelSegmentTextActive]}>
+                                        {option.label}
+                                    </Text>
+                                </TouchableOpacity>
+                            );
+                        })}
+                    </View>
+                </View>
+
+                <View style={styles.settingDivider} />
+
+                <View style={styles.settingRow}>
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>RPE/RIR Bilgi Butonlari</Text>
+                            <Text style={styles.settingDesc}>Loglama ve program ekranlarinda kucuk aciklama ikonlarini goster</Text>
+                        </View>
+                    </View>
+                    <Switch
+                        value={showRpeRirInfo}
+                        onValueChange={(val) => {
+                            setShowRpeRirInfo(val);
+                            persistSettings({ show_rpe_rir_info: val }, "RPE/RIR info setting");
+                        }}
+                        trackColor={{
+                            false: colors.surfaceElevated,
+                            true: colors.accentMuted,
+                        }}
+                        thumbColor={showRpeRirInfo ? colors.accent : colors.textMuted}
+                    />
+                </View>
+
+                <View style={styles.settingDivider} />
+
                 <TouchableOpacity
                     style={styles.settingRow}
                     activeOpacity={0.75}
@@ -401,13 +485,7 @@ export default function ProfileScreen() {
                         value={rememberRepsEnabled}
                         onValueChange={async (val) => {
                             setRememberRepsEnabled(val);
-                            const newSettings = { ...user?.settings, remember_reps_enabled: val };
-                            updateUser({ settings: newSettings });
-                            try {
-                                await authApi.updateProfile({ settings: newSettings });
-                            } catch (err) {
-                                console.warn("[Profile] Failed to persist remember reps setting:", err);
-                            }
+                            persistSettings({ remember_reps_enabled: val }, "remember reps setting");
                         }}
                         trackColor={{
                             false: colors.surfaceElevated,
@@ -435,16 +513,7 @@ export default function ProfileScreen() {
                         value={profilePublic}
                         onValueChange={async (val) => {
                             setProfilePublic(val);
-                            const newSettings = {
-                                ...user?.settings,
-                                profile_visibility: val ? "public" : "private",
-                            };
-                            updateUser({ settings: newSettings });
-                            try {
-                                await authApi.updateProfile({ settings: newSettings });
-                            } catch (err) {
-                                console.warn("[Profile] Failed to persist profile visibility:", err);
-                            }
+                            persistSettings({ profile_visibility: val ? "public" : "private" }, "profile visibility");
                         }}
                         trackColor={{
                             false: colors.surfaceElevated,
@@ -912,6 +981,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: "space-between",
         paddingVertical: spacing.sm,
     },
+    settingBlock: {
+        paddingVertical: spacing.sm,
+    },
     settingInfo: {
         flexDirection: "row",
         alignItems: "center",
@@ -946,6 +1018,33 @@ const createStyles = (colors: any) => StyleSheet.create({
         height: 1,
         backgroundColor: colors.border,
         marginVertical: spacing.sm,
+    },
+    levelSegmentRow: {
+        flexDirection: "row",
+        gap: spacing.xs,
+        marginTop: spacing.md,
+    },
+    levelSegment: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+    },
+    levelSegmentActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    levelSegmentText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    levelSegmentTextActive: {
+        color: colors.accent,
     },
     comingSoonBadge: {
         paddingHorizontal: spacing.sm,
