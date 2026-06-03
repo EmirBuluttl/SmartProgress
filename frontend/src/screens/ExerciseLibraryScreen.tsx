@@ -66,7 +66,7 @@ const EQUIPMENT_LABELS: Record<string, string> = {
     cable: "Cable",
     barbell: "Barbell",
     dumbbell: "Dumbbell",
-    bodyweight: "BW/Calisthenics",
+    bodyweight: "Bodyweight",
     band: "Band",
     bench: "Bench",
     leg_press: "Leg Press",
@@ -84,6 +84,10 @@ const DIFFICULTY_FILTERS: { key: DifficultyFilter; label: string }[] = [
 
 function equipmentLabel(value: string) {
     return EQUIPMENT_LABELS[value] || value;
+}
+
+function isBodyweightExercise(exercise: ExerciseLibraryItem) {
+    return exercise.equipment.includes("bodyweight");
 }
 
 function normalizeText(value: unknown) {
@@ -334,6 +338,15 @@ export default function ExerciseLibraryScreen() {
                             <Ionicons name="options-outline" size={18} color={colors.accent} />
                             <Text style={styles.filterBtnText}>Filtrele{activeFilterCount ? ` (${activeFilterCount})` : ""}</Text>
                         </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.quickBwBtn, equipmentFilters.includes("bodyweight") && styles.quickBwBtnActive]}
+                            onPress={() => toggleEquipment("bodyweight")}
+                            activeOpacity={0.84}
+                        >
+                            <Text style={[styles.quickBwText, equipmentFilters.includes("bodyweight") && styles.quickBwTextActive]}>
+                                Calisthenics
+                            </Text>
+                        </TouchableOpacity>
                         <TouchableOpacity style={styles.guideBtn} onPress={() => setGuideModalVisible(true)} activeOpacity={0.84}>
                             <Ionicons name="body-outline" size={18} color={colors.accent} />
                         </TouchableOpacity>
@@ -379,6 +392,12 @@ export default function ExerciseLibraryScreen() {
                                 </View>
                                 <View style={styles.badgeRow}>
                                     {exercise.beginnerFriendly && <Text style={styles.badge}>Başlangıç dostu</Text>}
+                                    {isBodyweightExercise(exercise) && (
+                                        <>
+                                            <Text style={styles.bwBadge}>Calisthenics</Text>
+                                            <Text style={styles.bwBadge}>BW log</Text>
+                                        </>
+                                    )}
                                     {exercise.equipment.slice(0, 2).map((equipment) => (
                                         <Text key={equipment} style={styles.badge}>{equipmentLabel(equipment)}</Text>
                                     ))}
@@ -665,11 +684,13 @@ const createStyles = (colors: any) => StyleSheet.create({
     subtitle: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20, marginTop: spacing.xs },
     searchPanel: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: spacing.sm,
         alignItems: "center",
     },
     searchBox: {
         flex: 1,
+        minWidth: 180,
         minHeight: 46,
         borderRadius: borderRadius.md,
         borderWidth: 1,
@@ -696,6 +717,28 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.xs,
+    },
+    quickBwBtn: {
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.md,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    quickBwBtnActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    quickBwText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    quickBwTextActive: {
+        color: colors.accent,
     },
     guideBtn: {
         width: 46,
@@ -839,6 +882,15 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.semibold,
         borderRadius: borderRadius.full,
         backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 3,
+    },
+    bwBadge: {
+        color: colors.background,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accent,
         paddingHorizontal: spacing.sm,
         paddingVertical: 3,
     },
