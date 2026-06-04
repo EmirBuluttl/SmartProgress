@@ -107,7 +107,7 @@ export default function PublicProfileScreen() {
 
                         <SectionHeader title="Public Programlar" />
                         {(profile.programs || []).length > 0 ? (
-                            profile.programs.map((program: any) => (
+                            [...profile.programs].sort((a: any, b: any) => (b.starCount || 0) - (a.starCount || 0)).map((program: any) => (
                                 <TouchableOpacity
                                     key={program.id}
                                     activeOpacity={0.8}

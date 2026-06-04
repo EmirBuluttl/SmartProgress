@@ -26,6 +26,7 @@ import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
 import { buildExerciseScoreTrend, buildProgressTrend, getPersonalRecords } from "../utils/workoutMetrics";
+import { groupForExerciseName } from "../data/exerciseTaxonomy";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { useCountUp } from "../hooks/useCountUp";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -37,7 +38,7 @@ const RECORD_LINKS_KEY = "personal_record_video_links";
 type TimeFilter = "1H" | "1A" | "1Y" | "Tümü";
 const FILTERS: TimeFilter[] = ["1H", "1A", "1Y", "Tümü"];
 const FILTER_DAYS: Record<TimeFilter, number> = { "1H": 7, "1A": 30, "1Y": 365, "Tümü": 9999 };
-type ChartMetric = "progress:all" | `exercise:${string}` | "body:weight" | "nutrition:calories" | "nutrition:protein" | "nutrition:carbs" | "nutrition:fat";
+type ChartMetric = "progress:all" | `exercise:${string}` | `muscle:${string}` | "body:weight" | "nutrition:calories" | "nutrition:protein" | "nutrition:carbs" | "nutrition:fat";
 
 function toNumber(value: unknown): number {
     if (value === null || value === undefined || value === "") return 0;
@@ -49,6 +50,25 @@ function formatDateLabel(value: unknown): string {
     const date = new Date(String(value || ""));
     if (!Number.isFinite(date.getTime())) return "";
     return date.toLocaleDateString("tr-TR", { day: "2-digit", month: "2-digit" });
+}
+
+function buildMuscleTrendFromExercises(workouts: any[], exerciseNames: string[]) {
+    const byDate = new Map<string, { date?: string; scores: number[] }>();
+    exerciseNames.forEach((exerciseName) => {
+        buildExerciseScoreTrend(workouts, exerciseName).forEach((point) => {
+            if (!point.comparable) return;
+            const key = String(point.date || "");
+            if (!byDate.has(key)) byDate.set(key, { date: point.date, scores: [] });
+            byDate.get(key)?.scores.push(point.score);
+        });
+    });
+    return Array.from(byDate.values())
+        .map((entry) => ({
+            date: entry.date,
+            comparable: true,
+            score: Math.round((entry.scores.reduce((sum, score) => sum + score, 0) / Math.max(1, entry.scores.length)) * 10) / 10,
+        }))
+        .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime());
 }
 
 function recordKey(record: any): string {
@@ -179,9 +199,12 @@ export default function MyProgressScreen() {
     // ─── Progress calculation ─────────────────
 
     const metricOptions = React.useMemo(() => {
-        const exercises = Array.from(new Set(getPersonalRecords(allWorkouts).map((pr) => pr.exercise))).slice(0, 12);
+        const records = getPersonalRecords(allWorkouts);
+        const exercises = Array.from(new Set(records.map((pr) => pr.exercise))).slice(0, 12);
+        const muscleGroups = Array.from(new Set(records.map((pr) => groupForExerciseName(pr.exercise)?.beginnerLabel || "Genel"))).slice(0, 12);
         return [
             { key: "progress:all" as ChartMetric, label: "Genel Progress" },
+            ...muscleGroups.map((group) => ({ key: `muscle:${group}` as ChartMetric, label: `${group} Progress` })),
             ...exercises.map((exercise) => ({ key: `exercise:${exercise}` as ChartMetric, label: exercise })),
             { key: "body:weight" as ChartMetric, label: "Vücut Ağırlığı" },
             { key: "nutrition:calories" as ChartMetric, label: "Kalori" },
@@ -227,6 +250,17 @@ export default function MyProgressScreen() {
                     dataPoints.push(point.score);
                     labels.push(`A${idx + 1}`);
                 });
+        } else if (metric.startsWith("muscle:")) {
+            const muscleGroup = metric.replace("muscle:", "");
+            const exerciseNames = getPersonalRecords(scopedWorkouts)
+                .filter((record) => (groupForExerciseName(record.exercise)?.beginnerLabel || "Genel") === muscleGroup)
+                .map((record) => record.exercise);
+            buildMuscleTrendFromExercises(scopedWorkouts, exerciseNames)
+                .filter((point) => new Date(point.date || 0) >= cutoff && point.comparable)
+                .forEach((point, idx) => {
+                    dataPoints.push(point.score);
+                    labels.push(`A${idx + 1}`);
+                });
         } else if (metric === "body:weight") {
             const records = [...measurements]
                 .sort((a, b) => new Date(a.date || 0).getTime() - new Date(b.date || 0).getTime())
@@ -257,7 +291,7 @@ export default function MyProgressScreen() {
         return selected?.label || "Progress";
     }, [chartMetric, metricOptions]);
 
-    const chartSuffix = chartMetric === "progress:all" || chartMetric.startsWith("exercise:")
+    const chartSuffix = chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric.startsWith("muscle:")
         ? "%"
         : chartMetric === "body:weight"
             ? " kg"
@@ -265,7 +299,7 @@ export default function MyProgressScreen() {
                 ? " kcal"
                 : " g";
 
-    const chartDecimalPlaces = chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric === "body:weight" || chartSuffix === " g" ? 1 : 0;
+    const chartDecimalPlaces = chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric.startsWith("muscle:") || chartMetric === "body:weight" || chartSuffix === " g" ? 1 : 0;
 
     const latestChartValue = React.useMemo(() => {
         const values = rawChartData.datasets[0]?.data || [];
@@ -275,7 +309,7 @@ export default function MyProgressScreen() {
     const animatedLatestChartValue = useCountUp(latestChartValue);
 
     const latestChartLabel = React.useMemo(() => {
-        if (chartMetric === "progress:all" || chartMetric.startsWith("exercise:")) {
+        if (chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric.startsWith("muscle:")) {
             return `${animatedLatestChartValue > 0 ? "+" : ""}${animatedLatestChartValue.toFixed(1)}%`;
         }
         if (chartMetric === "body:weight") return `${animatedLatestChartValue.toFixed(1)} kg`;
@@ -400,10 +434,10 @@ export default function MyProgressScreen() {
                         <View style={styles.scoreSummaryRow}>
                             <View>
                                 <Text style={styles.scoreSummaryLabel}>
-                                    {chartMetric === "progress:all" || chartMetric.startsWith("exercise:") ? "Son yük skoru" : "Son kayıt"}
+                                    {chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric.startsWith("muscle:") ? "Son yük skoru" : "Son kayıt"}
                                 </Text>
                                 <Text style={styles.scoreSummaryHint}>
-                                    {chartMetric === "progress:all" || chartMetric.startsWith("exercise:")
+                                    {chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric.startsWith("muscle:")
                                         ? "Kilo yüzdesi + tekrar katsayısı"
                                         : "Seçili filtredeki son veri"}
                                 </Text>
@@ -450,6 +484,8 @@ export default function MyProgressScreen() {
                             <Text style={styles.legendText}>
                                 {chartMetric.startsWith("exercise:")
                                     ? "Seçili harekette önceki en iyi kayda göre yük skoru"
+                                    : chartMetric.startsWith("muscle:")
+                                        ? "Seçili kas grubundaki hareketlerin ortalama yük skoru"
                                     : chartMetric === "progress:all"
                                         ? "Antrenmandaki hareketlerin ortalama yük skoru"
                                         : "Profilde kaydettiğin takip verileri"}

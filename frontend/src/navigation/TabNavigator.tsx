@@ -195,24 +195,26 @@ export default function TabNavigator({ route }: any) {
     };
 
     const handleTabPress = (index: number) => {
-        switchToTab(index, true);
+        if (index === activeIndexRef.current) return;
+        showExternalSwitchCover();
+        switchToTab(index, false, 360);
     };
 
     const showExternalSwitchCover = () => {
         setExternalSwitchVisible(true);
         externalSwitchOpacity.stopAnimation();
-        externalSwitchOpacity.setValue(1);
+        externalSwitchOpacity.setValue(0.26);
         setTimeout(() => {
             Animated.timing(externalSwitchOpacity, {
                 toValue: 0,
-                duration: 260,
+                duration: 320,
                 useNativeDriver: true,
             }).start(({ finished }) => {
                 if (finished) {
                     setExternalSwitchVisible(false);
                 }
             });
-        }, 360);
+        }, 120);
     };
 
     useEffect(() => {

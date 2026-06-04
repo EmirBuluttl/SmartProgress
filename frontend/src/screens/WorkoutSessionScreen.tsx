@@ -1686,7 +1686,7 @@ export default function WorkoutSessionScreen() {
                     <Ionicons name="close" size={28} color={colors.textSecondary} />
                 </TouchableOpacity>
 
-                <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.xs }}>
+                <View style={styles.headerActionGroup}>
                     <TouchableOpacity
                         style={styles.rirToggleBtn}
                         onPress={cycleMode}
@@ -2877,7 +2877,16 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
+        gap: spacing.sm,
         marginBottom: spacing.xxl,
+    },
+    headerActionGroup: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "flex-end",
+        gap: spacing.xs,
+        minWidth: 0,
     },
     cancelBtn: {
         padding: spacing.xs,
@@ -2886,15 +2895,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: colors.surface,
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.full,
         borderWidth: 1,
         borderColor: colors.accent,
     },
     rirToggleBtn: {
-        marginRight: spacing.md,
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
         borderRadius: borderRadius.md,
         backgroundColor: colors.surfaceLight,

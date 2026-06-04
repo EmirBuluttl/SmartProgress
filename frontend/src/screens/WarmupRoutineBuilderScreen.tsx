@@ -132,11 +132,9 @@ export default function WarmupRoutineBuilderScreen() {
                     : undefined,
             };
         });
-        const { warmupRoutineResult, ...programCreateParams } = route.params.programCreateParams || {};
         navigation.navigate({
             name: "ProgramCreate",
             params: {
-                ...programCreateParams,
                 warmupRoutineResult: { days: cleanedDays },
             },
             merge: true,

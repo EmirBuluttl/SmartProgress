@@ -59,6 +59,38 @@ function getEffortHeader(sets: any[] = []): string {
     return hasDuration ? "SURE" : "TEKRAR";
 }
 
+function getDisplaySetRows(sets: any[] = []) {
+    return sets.flatMap((set, index) => {
+        if (set?.sideMode !== "left_right") return [{ set, sourceIndex: index }];
+        return (["left", "right"] as const).flatMap((side) => {
+            const sideData = set?.[side] || {};
+            const hasSideData = Number(sideData.weight || 0) > 0 ||
+                Number(sideData.reps || 0) > 0 ||
+                Number(sideData.durationSeconds || 0) > 0 ||
+                Number(sideData.rpe || 0) > 0 ||
+                sideData.rir !== undefined;
+            if (!hasSideData) return [];
+            return [{
+                sourceIndex: index,
+                side,
+                set: {
+                    ...set,
+                    ...sideData,
+                    weight: sideData.weight ?? set.weight,
+                    reps: sideData.reps ?? set.reps,
+                    durationSeconds: sideData.durationSeconds ?? set.durationSeconds,
+                    rpe: sideData.rpe ?? set.rpe,
+                    rir: sideData.rir ?? set.rir,
+                },
+            }];
+        });
+    });
+}
+
+function countDisplaySets(exercises: any[] = []): number {
+    return exercises.reduce((sum, exercise) => sum + getDisplaySetRows(exercise?.sets || []).length, 0);
+}
+
 export default function WorkoutDetailScreen() {
     const navigation = useNavigation();
     const route = useRoute<Route>();
@@ -102,7 +134,7 @@ export default function WorkoutDetailScreen() {
                     <View style={styles.statBox}>
                         <Ionicons name="layers-outline" size={20} color={colors.accent} />
                         <Text style={styles.statValue}>
-                            {exercises.reduce((sum: number, ex: any) => sum + (ex.sets?.length || 0), 0)}
+                            {countDisplaySets(exercises)}
                         </Text>
                         <Text style={styles.statLabel}>Set</Text>
                     </View>
@@ -173,20 +205,21 @@ export default function WorkoutDetailScreen() {
                                 <View style={styles.setHeaderRow}>
                                     <Text style={[styles.setHeaderCell, { flex: 0.4 }]}>SET</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 1 }]}>AĞIRLIK</Text>
-                                    <Text style={[styles.setHeaderCell, styles.effortHeaderCell, { flex: 1.1 }]} numberOfLines={1}>{getEffortHeader(ex.sets || [])}</Text>
+                                    <Text style={[styles.setHeaderCell, styles.effortHeaderCell, { flex: 1.1 }]} numberOfLines={1}>{getEffortHeader(getDisplaySetRows(ex.sets || []).map((row: any) => row.set))}</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 0.6 }]}>RPE</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 0.6 }]}>RIR</Text>
                                 </View>
                                 {(() => {
                                     let warmupCount = 0;
                                     let workingCount = 0;
-                                    return (ex.sets || []).map((set: any, sIdx: number) => {
+                                    return getDisplaySetRows(ex.sets || []).map((row: any, sIdx: number) => {
+                                        const set = row.set;
                                         const isWarmup = !!set.isWarmup;
                                         if (isWarmup) warmupCount++;
                                         else workingCount++;
-                                        const label = isWarmup ? `W${warmupCount}` : `${workingCount}`;
+                                        const label = `${isWarmup ? `W${warmupCount}` : `${workingCount}`}${row.side === "left" ? "L" : row.side === "right" ? "R" : ""}`;
                                         return (
-                                    <View key={sIdx} style={[
+                                    <View key={`${row.sourceIndex}-${row.side || "both"}`} style={[
                                         styles.setRow,
                                         sIdx % 2 === 0 ? styles.setRowEven : styles.setRowOdd,
                                         isWarmup && { opacity: 0.7 },

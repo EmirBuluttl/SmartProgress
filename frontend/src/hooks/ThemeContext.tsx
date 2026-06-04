@@ -13,9 +13,9 @@ type ColorPalette = Record<keyof typeof baseColors, string>;
 const lightBaseColors: ColorPalette = {
     ...baseColors,
     background: "#F8FAFC",
-    surface: "#FFFFFF",
-    surfaceLight: "#F1F5F9",
-    surfaceElevated: "#E2E8F0",
+    surface: "#F3F6FA",
+    surfaceLight: "#EAF0F7",
+    surfaceElevated: "#DDE6F0",
     text: "#0F172A",
     textSecondary: "#475569",
     textMuted: "#64748B",

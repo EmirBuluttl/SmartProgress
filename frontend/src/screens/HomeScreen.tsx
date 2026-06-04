@@ -77,6 +77,7 @@ export default function HomeScreen() {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [notificationsVisible, setNotificationsVisible] = useState(false);
+    const [notificationFilter, setNotificationFilter] = useState<"all" | "progress" | "reminder" | "program" | "social">("all");
     const hasLoadedDashboard = React.useRef(false);
     const scrollRef = useRef<ScrollView | null>(null);
     const shouldRestoreScroll = useRef(false);
@@ -221,12 +222,15 @@ export default function HomeScreen() {
         if (next) await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, next);
         else await AsyncStorage.removeItem(ACTIVE_PROGRAM_KEY);
         await AsyncStorage.removeItem(FAVORITES_KEY);
+        if (next) {
+            scrollRef.current?.scrollTo({ y: 210, animated: true });
+        }
         activationLift.setValue(0);
         activeCardPulse.setValue(0);
         Animated.parallel([
             Animated.sequence([
-                Animated.timing(activationLift, { toValue: 1, duration: 160, useNativeDriver: true }),
-                Animated.timing(activationLift, { toValue: 0, duration: 220, useNativeDriver: true }),
+                Animated.timing(activationLift, { toValue: 1, duration: 420, useNativeDriver: true }),
+                Animated.timing(activationLift, { toValue: 0, duration: 120, useNativeDriver: true }),
             ]),
             Animated.sequence([
                 Animated.timing(activeCardPulse, { toValue: 1, duration: 180, useNativeDriver: true }),
@@ -239,8 +243,8 @@ export default function HomeScreen() {
 
     const programActivationStyle = (id: string) => activatedProgramId === id
         ? {
-            transform: [{ translateY: activationLift.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }) }],
-            opacity: activationLift.interpolate({ inputRange: [0, 1], outputRange: [1, 0.72] }),
+            transform: [{ translateY: activationLift.interpolate({ inputRange: [0, 1], outputRange: [0, -150] }) }],
+            opacity: activationLift.interpolate({ inputRange: [0, 0.85, 1], outputRange: [1, 0.86, 0.25] }),
         }
         : undefined;
 
@@ -277,6 +281,15 @@ export default function HomeScreen() {
     const displayedNotifications = preWorkoutReminderNotification
         ? [preWorkoutReminderNotification, ...notifications.filter((item) => item.id !== preWorkoutReminderNotification.id)]
         : notifications;
+    const filteredNotifications = displayedNotifications.filter((item) => {
+        if (notificationFilter === "all") return true;
+        const haystack = `${item.type || ""} ${item.title || ""} ${item.message || ""} ${item.actionScreen || ""}`.toLocaleLowerCase("tr-TR");
+        if (notificationFilter === "progress") return haystack.includes("progress") || haystack.includes("pr") || haystack.includes("geli");
+        if (notificationFilter === "reminder") return haystack.includes("hat") || haystack.includes("reminder") || haystack.includes("antrenman");
+        if (notificationFilter === "program") return haystack.includes("program");
+        if (notificationFilter === "social") return haystack.includes("star") || haystack.includes("yıldız") || haystack.includes("sosyal");
+        return true;
+    });
     const displayedUnreadCount = unreadCount + (preWorkoutReminderNotification ? 1 : 0);
 
     const selectActiveProgramDay = async (dayIndex: number) => {
@@ -782,13 +795,32 @@ export default function HomeScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
-                    {displayedNotifications.length === 0 ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.notificationFilterRow}>
+                        {([
+                            ["all", "Tümü"],
+                            ["progress", "Progress"],
+                            ["reminder", "Hatırlatıcı"],
+                            ["program", "Program"],
+                            ["social", "Sosyal"],
+                        ] as const).map(([key, label]) => (
+                            <TouchableOpacity
+                                key={key}
+                                style={[styles.notificationFilterChip, notificationFilter === key && styles.notificationFilterChipActive]}
+                                onPress={() => setNotificationFilter(key)}
+                                activeOpacity={0.82}
+                            >
+                                <Text style={[styles.notificationFilterText, notificationFilter === key && styles.notificationFilterTextActive]}>{label}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                    {filteredNotifications.length === 0 ? (
                         <View style={styles.notificationEmpty}>
                             <Ionicons name="notifications-off-outline" size={34} color={colors.textMuted} />
                             <Text style={styles.notificationEmptyText}>Şimdilik bildirimin yok.</Text>
                         </View>
                     ) : (
-                        displayedNotifications.map((item) => (
+                        <ScrollView style={styles.notificationList} showsVerticalScrollIndicator={false}>
+                        {filteredNotifications.map((item) => (
                             <TouchableOpacity
                                 key={item.id}
                                 style={[styles.notificationItem, !item.readAt && styles.notificationItemUnread]}
@@ -806,7 +838,8 @@ export default function HomeScreen() {
                                     ) : null}
                                 </View>
                             </TouchableOpacity>
-                        ))
+                        ))}
+                        </ScrollView>
                     )}
                 </View>
             </View>
@@ -913,6 +946,35 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
         padding: spacing.lg,
         maxHeight: "76%",
+    },
+    notificationList: {
+        maxHeight: 420,
+    },
+    notificationFilterRow: {
+        gap: spacing.sm,
+        paddingBottom: spacing.md,
+    },
+    notificationFilterChip: {
+        minHeight: 34,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceElevated,
+    },
+    notificationFilterChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    notificationFilterText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    notificationFilterTextActive: {
+        color: colors.accent,
     },
     notificationHeader: {
         flexDirection: "row",
@@ -1034,19 +1096,21 @@ const createStyles = (colors: any) => StyleSheet.create({
     quickWorkoutCard: {
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.md,
+        gap: spacing.sm,
         flexWrap: "nowrap",
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: borderRadius.lg,
-        padding: spacing.md,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        minHeight: 58,
         marginBottom: spacing.lg,
     },
     quickWorkoutIcon: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
+        width: 38,
+        height: 38,
+        borderRadius: 19,
         flexShrink: 0,
         backgroundColor: colors.accent,
         alignItems: "center",

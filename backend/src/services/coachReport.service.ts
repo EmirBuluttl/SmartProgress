@@ -37,24 +37,74 @@ function exerciseHistoryKey(exercise: any): string {
     return normalizeExerciseName(exercise?.name);
 }
 
-function bestWorkingSet(exercise: any): CoachBestSet | null {
+function compareBestSet(a: CoachBestSet, b: CoachBestSet) {
+    return (b.weight - a.weight) || (b.reps - a.reps);
+}
+
+function toDateBucket(date: Date): string {
+    return date.toISOString().slice(0, 10);
+}
+
+function buildCoachSet(set: any, side?: "left" | "right"): CoachBestSet | null {
+    const sideData = side ? set?.[side] || {} : {};
+    const source = side
+        ? {
+            ...set,
+            ...sideData,
+            weight: sideData.weight ?? set?.weight,
+            reps: sideData.reps ?? set?.reps,
+            durationSeconds: sideData.durationSeconds ?? set?.durationSeconds,
+            rpe: sideData.rpe ?? set?.rpe,
+            rir: sideData.rir ?? set?.rir,
+        }
+        : set;
+
+    if (source?.effortMode === "duration" || toNumber(source?.durationSeconds) > 0 && toNumber(source?.reps) <= 0) return null;
+
+    const next = {
+        ...resolveCoachSetLoad(source),
+        reps: toNumber(source?.reps),
+        rir: source?.rir,
+        targetReps: set?.targetReps,
+    };
+
+    return next.weight > 0 || next.reps > 0 ? next : null;
+}
+
+function bestWorkingSets(exercise: any): { keySuffix: string; name: string; best: CoachBestSet }[] {
     const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
-    const logged = sets
-        .filter((set: any) => !set?.isWarmup && set?.analysisExcluded !== true && set?.effortMode !== "duration")
-        .map((set: any) => ({
-            ...resolveCoachSetLoad(set),
-            reps: toNumber(set?.reps),
-            rir: set?.rir,
-            targetReps: set?.targetReps,
-        }))
-        .filter((set: CoachBestSet) => set.weight > 0 || set.reps > 0);
-    if (logged.length === 0) return null;
-    return logged.sort((a: CoachBestSet, b: CoachBestSet) => (b.weight - a.weight) || (b.reps - a.reps))[0];
+    const byTrack = new Map<string, { keySuffix: string; name: string; best: CoachBestSet }>();
+    const baseName = String(exercise?.name || "Hareket");
+
+    for (const set of sets) {
+        if (set?.isWarmup || set?.analysisExcluded === true) continue;
+
+        const sides: ("left" | "right" | undefined)[] = set?.sideMode === "left_right"
+            ? ["left", "right"]
+            : [undefined];
+
+        for (const side of sides) {
+            const best = buildCoachSet(set, side);
+            if (!best) continue;
+            const keySuffix = side ? `:${side}` : ":both";
+            const name = side === "left"
+                ? `${baseName} (Sol)`
+                : side === "right"
+                    ? `${baseName} (Sag)`
+                    : baseName;
+            const existing = byTrack.get(keySuffix);
+            if (!existing || compareBestSet(existing.best, best) > 0) {
+                byTrack.set(keySuffix, { keySuffix, name, best });
+            }
+        }
+    }
+
+    return Array.from(byTrack.values());
 }
 
 function hashWorkoutSources(logs: { id: string; updatedAt: Date }[]) {
     return createHash("sha256")
-        .update(["coach-report-v4", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
+        .update(["coach-report-v5", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
         .digest("hex");
 }
 
@@ -136,35 +186,40 @@ export class CoachReportService {
         const cached = await this.findWeeklyReport(userId, weekStart);
         if (cached?.sourceHash === sourceHash) return cached;
 
-        const historyByExercise = new Map<string, CoachExerciseHistoryEntry[]>();
+        const bestByExerciseDay = new Map<string, { historyKey: string; logId: string; logDate: Date; name: string; best: CoachBestSet }>();
         const chronologicalAnalysisLogs = [...analysisLogs].sort((a, b) => a.logDate.getTime() - b.logDate.getTime());
         for (const log of chronologicalAnalysisLogs) {
             const exercises = Array.isArray((log.data as any)?.exercises) ? (log.data as any).exercises : [];
-            const bestByExerciseInLog = new Map<string, { name: string; best: CoachBestSet }>();
             for (const exercise of exercises) {
-                const key = exerciseHistoryKey(exercise);
-                if (!key) continue;
-                const best = bestWorkingSet(exercise);
-                if (!best) continue;
-                const existing = bestByExerciseInLog.get(key);
-                if (!existing || best.weight > existing.best.weight || (best.weight === existing.best.weight && best.reps > existing.best.reps)) {
-                    bestByExerciseInLog.set(key, {
-                        name: String(exercise?.name || "Hareket"),
-                        best,
-                    });
+                const baseKey = exerciseHistoryKey(exercise);
+                if (!baseKey) continue;
+                for (const entry of bestWorkingSets(exercise)) {
+                    const historyKey = `${baseKey}${entry.keySuffix}`;
+                    const bucketKey = `${historyKey}:${toDateBucket(log.logDate)}`;
+                    const existing = bestByExerciseDay.get(bucketKey);
+                    if (!existing || compareBestSet(existing.best, entry.best) > 0) {
+                        bestByExerciseDay.set(bucketKey, {
+                            historyKey,
+                            logId: log.id,
+                            logDate: log.logDate,
+                            name: entry.name,
+                            best: entry.best,
+                        });
+                    }
                 }
             }
+        }
 
-            for (const [key, entry] of bestByExerciseInLog) {
-                const history = historyByExercise.get(key) || [];
-                history.push({
-                    logId: log.id,
-                    logDate: log.logDate,
-                    name: entry.name,
-                    best: entry.best,
-                });
-                historyByExercise.set(key, history);
-            }
+        const historyByExercise = new Map<string, CoachExerciseHistoryEntry[]>();
+        for (const entry of Array.from(bestByExerciseDay.values()).sort((a, b) => a.logDate.getTime() - b.logDate.getTime())) {
+            const history = historyByExercise.get(entry.historyKey) || [];
+            history.push({
+                logId: entry.logId,
+                logDate: entry.logDate,
+                name: entry.name,
+                best: entry.best,
+            });
+            historyByExercise.set(entry.historyKey, history);
         }
 
         const exerciseAnalyses = Array.from(historyByExercise.values()).flatMap((history) => {

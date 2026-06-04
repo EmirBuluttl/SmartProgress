@@ -335,6 +335,14 @@ export default function CoachScreen() {
                             colors={colors}
                         />
                     </View>
+                    <AnimatedPressable
+                        style={styles.secondaryActionBtn}
+                        pressedScale={0.985}
+                        onPress={() => navigation.navigate("CoachWeeklyReport")}
+                    >
+                        <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+                        <Text style={styles.secondaryActionText}>Haftalık raporu aç</Text>
+                    </AnimatedPressable>
                 </Animated.View>
             )}
 
@@ -498,21 +506,6 @@ export default function CoachScreen() {
                 </View>
             )}
 
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Coach+ yakinda</Text>
-                <View style={styles.lockedCoachCard}>
-                    <View style={styles.lockedIcon}>
-                        <Ionicons name="sparkles-outline" size={22} color={colors.accent} />
-                    </View>
-                    <View style={styles.lockedCopy}>
-                        <Text style={styles.reportTitle}>AI sohbet katmani beta hazirlikta</Text>
-                        <Text style={styles.panelText}>
-                            Coach+ su an aktif satis paketi degil. Premium koc motoru urunlesirken AI soru-cevap katmani kalite, maliyet ve guvenlik testleri tamamlanana kadar pasif tanitilacak.
-                        </Text>
-                    </View>
-                </View>
-            </View>
-
             <View style={styles.compareSection}>
                 <View style={styles.dashboardHeader}>
                     <View>
@@ -534,6 +527,7 @@ export default function CoachScreen() {
                         ]}
                         colors={colors}
                         active={tier === "pro"}
+                        highlighted
                         onPress={() => navigation.navigate("PremiumDetail")}
                     />
                     <PlanCard
@@ -549,7 +543,6 @@ export default function CoachScreen() {
                         ]}
                         colors={colors}
                         active={isCoachPlus}
-                        highlighted
                     />
                 </View>
                 <View style={styles.pricingNote}>
@@ -557,6 +550,21 @@ export default function CoachScreen() {
                     <Text style={styles.noteText}>
                         Premium koc motoru urunlesmeye hazirlanir; Coach+ AI soru-cevap ise dogru kaliteye ulasana kadar beta olarak test edilir.
                     </Text>
+                </View>
+            </View>
+
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Coach+ yakinda</Text>
+                <View style={styles.lockedCoachCard}>
+                    <View style={styles.lockedIcon}>
+                        <Ionicons name="sparkles-outline" size={22} color={colors.accent} />
+                    </View>
+                    <View style={styles.lockedCopy}>
+                        <Text style={styles.reportTitle}>AI sohbet katmani beta hazirlikta</Text>
+                        <Text style={styles.panelText}>
+                            Coach+ su an aktif satis paketi degil. Premium koc motoru urunlesirken AI soru-cevap katmani kalite, maliyet ve guvenlik testleri tamamlanana kadar pasif tanitilacak.
+                        </Text>
+                    </View>
                 </View>
             </View>
 
@@ -752,9 +760,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
     },
     iconBadge: {
-        width: 58,
-        height: 58,
-        borderRadius: 18,
+        width: 48,
+        height: 48,
+        borderRadius: 16,
         backgroundColor: colors.accent,
         alignItems: "center",
         justifyContent: "center",
@@ -771,7 +779,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     title: {
         color: colors.text,
-        fontSize: fontSize.xxxl,
+        fontSize: fontSize.xxl,
         fontWeight: fontWeight.heavy,
     },
     subtitle: {
@@ -809,6 +817,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         minWidth: 190,
     },
     heroSecondaryButton: {
+        display: "none",
         flex: 1,
         minWidth: 150,
         minHeight: 48,

@@ -50,6 +50,12 @@ const AVAILABLE_COLORS = [
     "#FFB800", // Gold/Orange
     "#B026FF", // Purple
     "#00FF66", // Green
+    "#7DD3FC", // Soft Sky
+    "#A7F3D0", // Soft Mint
+    "#F9A8D4", // Soft Rose
+    "#C4B5FD", // Soft Violet
+    "#FDBA74", // Soft Apricot
+    "#99F6E4", // Soft Teal
 ];
 
 const TRAINING_LEVEL_OPTIONS = [
@@ -254,6 +260,23 @@ export default function ProfileScreen() {
     const firstName = user?.firstName || "Sporcu";
     const lastName = user?.lastName || "";
     const email = user?.email || "sporcu@smartprogress.com";
+    const programUsageDays = React.useMemo(() => {
+        const usage = new Map<string, Set<string>>();
+        workouts.forEach((workout: any) => {
+            const programId = String(workout?.programId || workout?.data?.programId || "").trim();
+            const date = String(workout?.logDate || "").slice(0, 10);
+            if (!programId || !date) return;
+            if (!usage.has(programId)) usage.set(programId, new Set());
+            usage.get(programId)?.add(date);
+        });
+        return usage;
+    }, [workouts]);
+    const topPrograms = React.useMemo(
+        () => [...programs]
+            .sort((a, b) => (programUsageDays.get(b.id)?.size || 0) - (programUsageDays.get(a.id)?.size || 0))
+            .slice(0, 3),
+        [programs, programUsageDays],
+    );
 
     return (
         <>
@@ -283,10 +306,6 @@ export default function ProfileScreen() {
                 </AnimatedPressable>
                 <Text style={styles.fullName}>{firstName} {lastName}</Text>
                 <Text style={styles.email}>{email}</Text>
-                <View style={styles.roleBadge}>
-                    <Ionicons name="fitness-outline" size={14} color={colors.accent} />
-                    <Text style={styles.roleBadgeText}>KULLANICI</Text>
-                </View>
                 <AnimatedPressable
                     style={styles.editProfileBtn}
                     onPress={() => (navigation as any).navigate("ProfileEdit")}
@@ -597,7 +616,7 @@ export default function ProfileScreen() {
                 actionLabel="Tümü"
                 onAction={() => navigation.navigate("ProgramList")}
             />
-            {programs.length > 0 ? programs.slice(0, 3).map((prog, index) => (
+            {topPrograms.length > 0 ? topPrograms.map((prog, index) => (
                 <TouchableOpacity
                     key={prog.id}
                     onPress={() => navigation.navigate("ProgramDetail", { programId: prog.id })}
@@ -609,7 +628,7 @@ export default function ProfileScreen() {
                             <View style={{ flex: 1 }}>
                                 <Text style={styles.programName}>{prog.name}</Text>
                                 <Text style={styles.programDesc} numberOfLines={1}>
-                                    {prog.description || "Açıklama yok"}
+                                    {(programUsageDays.get(prog.id)?.size || 0) > 0 ? `${programUsageDays.get(prog.id)?.size || 0} gündür kullanılıyor` : prog.description || "Açıklama yok"}
                                 </Text>
                             </View>
                             <View
