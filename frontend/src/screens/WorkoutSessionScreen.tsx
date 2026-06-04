@@ -422,7 +422,6 @@ export default function WorkoutSessionScreen() {
     const [emptyFinishModalVisible, setEmptyFinishModalVisible] = useState(false);
     const [qualityModalVisible, setQualityModalVisible] = useState(false);
     const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
-    const [warmupGuideVisible, setWarmupGuideVisible] = useState(false);
     const [exitModalVisible, setExitModalVisible] = useState(false);
     const [exitModalHasData, setExitModalHasData] = useState(false);
     const [addExerciseModalVisible, setAddExerciseModalVisible] = useState(false);
@@ -457,7 +456,6 @@ export default function WorkoutSessionScreen() {
     const freeWorkoutNameOverrideRef = useRef<string | null>(null);
     const qualityCheckedSessionRef = useRef<WorkoutSession | null>(null);
     const preWorkoutReminderShownRef = useRef(false);
-    const warmupGuideShownRef = useRef(false);
 
     const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe") => {
         let nextKey = "";
@@ -1444,43 +1442,6 @@ export default function WorkoutSessionScreen() {
         }
     };
 
-    const markWarmupSetsCompleted = useCallback(() => {
-        updateSession((prev) => ({
-            ...prev,
-            exercises: prev.exercises.map((exercise) => ({
-                ...exercise,
-                sets: exercise.sets.map((set) => set.isWarmup ? { ...set, completed: true } : set),
-            })),
-        }));
-        setWarmupGuideVisible(false);
-    }, [updateSession]);
-
-    const saveWarmupOnlySession = useCallback(async () => {
-        const currentSession = materializeSessionInputs();
-        const warmupExercises = currentSession.exercises
-            .map((exercise) => ({
-                ...exercise,
-                sets: exercise.sets.filter((set) => set.isWarmup && hasLoggedSetData(set)),
-            }))
-            .filter((exercise) => exercise.sets.length > 0);
-
-        if (warmupExercises.length === 0) {
-            setWarmupGuideVisible(false);
-            setConceptNotice({
-                title: "Isinma verisi yok",
-                message: "Sadece isinmayi kaydetmek icin once W setlerine agirlik/tekrar veya sure girmen gerekiyor.",
-            });
-            return;
-        }
-
-        setWarmupGuideVisible(false);
-        await finishWorkout({
-            ...currentSession,
-            title: `${currentSession.title} - Isinma`,
-            exercises: warmupExercises,
-        });
-    }, [finishWorkout, materializeSessionInputs]);
-
     const cancelWorkout = async () => {
         pendingExitActionRef.current = null;
         setExitModalHasData(hasLoggedWorkoutData(materializeSessionInputs()));
@@ -1901,22 +1862,24 @@ export default function WorkoutSessionScreen() {
                             </Text>
                         )}
 
-                        {exercise.isCustom && (
+                        <View style={styles.exerciseActionGroup}>
+                            {exercise.isCustom && (
+                                <TouchableOpacity
+                                    onPress={() => removeExercise(exercise.id)}
+                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                    style={styles.exerciseIconBtn}
+                                >
+                                    <Ionicons name="trash-outline" size={19} color={colors.error} />
+                                </TouchableOpacity>
+                            )}
                             <TouchableOpacity
-                                onPress={() => removeExercise(exercise.id)}
+                                onPress={() => setSetSettingsExercise(exercise)}
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                style={{ paddingLeft: spacing.sm }}
+                                style={styles.exerciseSettingsBtn}
                             >
-                                <Ionicons name="trash-outline" size={20} color={colors.error} />
+                                <Ionicons name="options-outline" size={19} color={colors.textMuted} />
                             </TouchableOpacity>
-                        )}
-                        <TouchableOpacity
-                            onPress={() => setSetSettingsExercise(exercise)}
-                            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            style={styles.exerciseSettingsBtn}
-                        >
-                            <Ionicons name="options-outline" size={20} color={colors.textMuted} />
-                        </TouchableOpacity>
+                        </View>
                     </View>
 
                     {isAutoSuggestEnabled && (
@@ -2106,19 +2069,6 @@ export default function WorkoutSessionScreen() {
     const settingsExercise = setSettingsExercise
         ? session.exercises.find((exercise) => exercise.id === setSettingsExercise.id) ?? null
         : null;
-    const warmupSetCount = React.useMemo(
-        () => session.exercises.reduce((total, exercise) => total + exercise.sets.filter((set) => set.isWarmup).length, 0),
-        [session.exercises],
-    );
-
-    useEffect(() => {
-        if (warmupGuideShownRef.current || warmupSetCount === 0 || session.exercises.length === 0) {
-            return;
-        }
-
-        warmupGuideShownRef.current = true;
-        setWarmupGuideVisible(true);
-    }, [session.exercises.length, warmupSetCount]);
 
     // ─── Render ──────────────────────────────
 
@@ -2127,18 +2077,6 @@ export default function WorkoutSessionScreen() {
             style={styles.container}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-            <ActionConfirmModal
-                visible={warmupGuideVisible}
-                title="Isinma rutini hazir"
-                message={`${warmupSetCount} isinma seti bu antrenmana bagli. Isinmayi tamamlayip ana antrenmana gecebilir, log girdiysen sadece isinmayi kaydedebilir veya devam edip manuel loglayabilirsin.`}
-                primaryLabel="Isinmayi Tamamla"
-                secondaryLabel="Devam Et"
-                tertiaryLabel="Sadece Isinmayi Kaydet"
-                onPrimary={markWarmupSetsCompleted}
-                onSecondary={() => setWarmupGuideVisible(false)}
-                onTertiary={saveWarmupOnlySession}
-                onDismiss={() => setWarmupGuideVisible(false)}
-            />
             <ActionConfirmModal
                 visible={emptyFinishModalVisible}
                 title="Henüz veri girmediniz"
@@ -2822,6 +2760,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         marginBottom: spacing.md,
+        gap: spacing.xs,
     },
     exerciseIndexBadge: {
         width: 28,
@@ -2839,22 +2778,37 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     exerciseNameText: {
         flex: 1,
+        minWidth: 0,
         fontSize: fontSize.lg,
         fontWeight: fontWeight.semibold,
         color: colors.text,
         paddingVertical: spacing.xs,
-        marginRight: spacing.sm,
     },
-    exerciseSettingsBtn: {
-        width: 36,
-        height: 36,
+    exerciseActionGroup: {
+        flexDirection: "row",
+        alignItems: "center",
+        flexShrink: 0,
+        gap: spacing.xs,
+    },
+    exerciseIconBtn: {
+        width: 34,
+        height: 34,
         borderRadius: borderRadius.md,
         alignItems: "center",
         justifyContent: "center",
         backgroundColor: colors.surfaceLight,
         borderWidth: 1,
         borderColor: colors.border,
-        marginLeft: spacing.xs,
+    },
+    exerciseSettingsBtn: {
+        width: 34,
+        height: 34,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: colors.border,
     },
 
     // Set Header
@@ -2885,8 +2839,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: spacing.xs,
     },
     unilateralPanel: {
-        marginLeft: 54,
-        marginRight: spacing.sm,
+        marginLeft: 0,
+        marginRight: 0,
         padding: spacing.sm,
         borderRadius: borderRadius.md,
         borderWidth: 1,
@@ -2897,6 +2851,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     unilateralRow: {
         flexDirection: "row",
         alignItems: "center",
+        flexWrap: "wrap",
         gap: spacing.sm,
     },
     unilateralLabel: {
@@ -2907,6 +2862,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     unilateralInput: {
         flex: 1,
+        minWidth: 82,
         minHeight: 38,
         borderRadius: borderRadius.sm,
         borderWidth: 1,

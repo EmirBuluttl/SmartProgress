@@ -338,15 +338,6 @@ export default function ExerciseLibraryScreen() {
                             <Ionicons name="options-outline" size={18} color={colors.accent} />
                             <Text style={styles.filterBtnText}>Filtrele{activeFilterCount ? ` (${activeFilterCount})` : ""}</Text>
                         </TouchableOpacity>
-                        <TouchableOpacity
-                            style={[styles.quickBwBtn, equipmentFilters.includes("bodyweight") && styles.quickBwBtnActive]}
-                            onPress={() => toggleEquipment("bodyweight")}
-                            activeOpacity={0.84}
-                        >
-                            <Text style={[styles.quickBwText, equipmentFilters.includes("bodyweight") && styles.quickBwTextActive]}>
-                                Calisthenics
-                            </Text>
-                        </TouchableOpacity>
                         <TouchableOpacity style={styles.guideBtn} onPress={() => setGuideModalVisible(true)} activeOpacity={0.84}>
                             <Ionicons name="body-outline" size={18} color={colors.accent} />
                         </TouchableOpacity>
@@ -684,13 +675,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     subtitle: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20, marginTop: spacing.xs },
     searchPanel: {
         flexDirection: "row",
-        flexWrap: "wrap",
         gap: spacing.sm,
         alignItems: "center",
     },
     searchBox: {
         flex: 1,
-        minWidth: 180,
+        minWidth: 0,
         minHeight: 46,
         borderRadius: borderRadius.md,
         borderWidth: 1,
@@ -717,28 +707,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.xs,
-    },
-    quickBwBtn: {
-        minHeight: 46,
-        borderRadius: borderRadius.md,
-        borderWidth: 1,
-        borderColor: colors.border,
-        backgroundColor: colors.surface,
-        paddingHorizontal: spacing.md,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    quickBwBtnActive: {
-        borderColor: colors.accent,
-        backgroundColor: colors.accentMuted,
-    },
-    quickBwText: {
-        color: colors.textSecondary,
-        fontSize: fontSize.sm,
-        fontWeight: fontWeight.bold,
-    },
-    quickBwTextActive: {
-        color: colors.accent,
     },
     guideBtn: {
         width: 46,
