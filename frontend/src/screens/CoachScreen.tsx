@@ -11,7 +11,7 @@ import { RootStackParamList } from "../navigation/RootNavigator";
 import { coachApi } from "../services/api";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import AnimatedPressable from "../components/AnimatedPressable";
-import { navigateWithFeedback } from "../utils/navigationFeedback";
+import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
 
@@ -108,7 +108,8 @@ export default function CoachScreen() {
     const { animStyle: flowAnimStyle } = useScreenEnter({ delay: 200 });
     const { animStyle: reportAnimStyle } = useScreenEnter({ delay: 260 });
     const navigateStatic = React.useCallback(
-        (screen: keyof RootStackParamList) => navigateWithFeedback(() => navigation.navigate(screen as any)),
+        (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
+            navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
         [navigation],
     );
     const isFree = tier === "free";
@@ -239,7 +240,7 @@ export default function CoachScreen() {
                     <AnimatedPressable
                         style={styles.primaryButton}
                         pressedScale={0.985}
-                        onPress={() => navigateStatic("PremiumProgramWizard")}
+                        onPress={() => navigateStatic("PremiumProgramWizard", "modal")}
                     >
                         <Ionicons name="map-outline" size={18} color={colors.background} />
                         <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Dene</Text>
@@ -273,7 +274,7 @@ export default function CoachScreen() {
                         <AnimatedPressable
                             style={[styles.primaryButton, styles.heroPrimaryButton]}
                             pressedScale={0.985}
-                            onPress={() => navigateStatic("PremiumProgramWizard")}
+                            onPress={() => navigateStatic("PremiumProgramWizard", "modal")}
                         >
                             <Ionicons name="map-outline" size={18} color={colors.background} />
                             <Text style={styles.primaryButtonText}>Akıllı Program Wizard'ı Aç</Text>
@@ -527,7 +528,7 @@ export default function CoachScreen() {
                         <AnimatedPressable
                             style={styles.primaryButton}
                             pressedScale={0.985}
-                            onPress={() => navigateStatic("PremiumProgramWizard")}
+                            onPress={() => navigateStatic("PremiumProgramWizard", "modal")}
                         >
                             <Ionicons name="map-outline" size={18} color={colors.background} />
                             <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Dene</Text>
@@ -561,7 +562,7 @@ export default function CoachScreen() {
                             <AnimatedPressable
                                 style={[styles.primaryButton, styles.heroPrimaryButton]}
                                 pressedScale={0.985}
-                                onPress={() => navigateStatic("PremiumProgramWizard")}
+                                onPress={() => navigateStatic("PremiumProgramWizard", "modal")}
                             >
                                 <Ionicons name="map-outline" size={18} color={colors.background} />
                                 <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Ac</Text>

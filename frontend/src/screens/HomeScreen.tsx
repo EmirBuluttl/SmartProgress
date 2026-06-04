@@ -47,7 +47,7 @@ import {
     navigateToFreeWorkoutRespectingActiveSession,
     navigateToWorkoutRespectingActiveSession,
 } from "../utils/workoutNavigation";
-import { navigateWithFeedback } from "../utils/navigationFeedback";
+import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -70,7 +70,8 @@ export default function HomeScreen() {
     const { animStyle: mainCardAnimStyle } = useScreenEnter({ delay: 200 });
     const { animStyle: listAnimStyle } = useScreenEnter({ delay: 260 });
     const navigateStatic = React.useCallback(
-        (screen: keyof RootStackParamList) => navigateWithFeedback(() => navigation.navigate(screen as any)),
+        (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
+            navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
         [navigation],
     );
 
@@ -667,12 +668,12 @@ export default function HomeScreen() {
             <SectionHeader
                 title="Programlarım"
                 actionLabel={programs.length > 3 ? "Tümü" : "Yeni Oluştur"}
-                onAction={() => programs.length > 3 ? navigateStatic("ProgramList") : navigateStatic("ProgramCreate")}
+                onAction={() => programs.length > 3 ? navigateStatic("ProgramList") : navigateStatic("ProgramCreate", "modal")}
             />
             {programs.length > 3 && (
                 <TouchableOpacity
                     style={styles.inlineCreateBtn}
-                    onPress={() => navigateStatic("ProgramCreate")}
+                    onPress={() => navigateStatic("ProgramCreate", "modal")}
                     activeOpacity={0.8}
                 >
                     <Ionicons name="add-circle-outline" size={18} color={colors.accent} />

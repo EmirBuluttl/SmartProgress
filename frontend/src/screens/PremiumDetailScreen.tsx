@@ -11,7 +11,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { useScreenEnter } from "../hooks/useScreenEnter";
-import { navigateWithFeedback } from "../utils/navigationFeedback";
+import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 
 export default function PremiumDetailScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -20,7 +20,8 @@ export default function PremiumDetailScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { animStyle } = useScreenEnter();
     const navigateStatic = React.useCallback(
-        (screen: keyof RootStackParamList) => navigateWithFeedback(() => navigation.navigate(screen as any)),
+        (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
+            navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
         [navigation],
     );
 
@@ -53,7 +54,7 @@ export default function PremiumDetailScreen() {
                 </Text>
                 <AccentButton
                     title="Akilli Program Wizard'i Ac"
-                    onPress={() => navigateStatic("PremiumProgramWizard")}
+                    onPress={() => navigateStatic("PremiumProgramWizard", "modal")}
                     style={styles.cta}
                 />
             </GymCard>

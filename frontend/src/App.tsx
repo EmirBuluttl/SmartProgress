@@ -2,7 +2,7 @@
 // SmartProgress — App Entry Point
 // ─────────────────────────────────────────────
 import React from "react";
-import { StyleSheet } from "react-native";
+import { StyleSheet, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
@@ -14,6 +14,7 @@ import { useSync } from "./hooks/useSync";
 import { ThemeProvider } from "./hooks/ThemeContext";
 import { colors } from "./constants/theme";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import NavigationFeedbackOverlay from "./components/NavigationFeedbackOverlay";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const linking: any = {
@@ -40,13 +41,16 @@ function AppContent() {
     useSync();
 
     return (
-        <NavigationContainer
-            linking={linking}
-            documentTitle={{ enabled: false }}
-        >
-            <StatusBar style="light" />
-            <RootNavigator />
-        </NavigationContainer>
+        <View style={styles.appShell}>
+            <NavigationContainer
+                linking={linking}
+                documentTitle={{ enabled: false }}
+            >
+                <StatusBar style="light" />
+                <RootNavigator />
+            </NavigationContainer>
+            <NavigationFeedbackOverlay />
+        </View>
     );
 }
 
@@ -70,6 +74,9 @@ const styles = StyleSheet.create({
     root: {
         flex: 1,
         backgroundColor: colors.background,
+    },
+    appShell: {
+        flex: 1,
     },
 });
 

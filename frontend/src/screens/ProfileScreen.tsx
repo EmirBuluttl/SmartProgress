@@ -34,7 +34,7 @@ import AccentButton from "../components/AccentButton";
 import AnimatedPressable from "../components/AnimatedPressable";
 import NoticeModal from "../components/NoticeModal";
 import { requestAppTourReplay } from "../utils/appTourEvents";
-import { navigateWithFeedback } from "../utils/navigationFeedback";
+import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
@@ -77,7 +77,8 @@ export default function ProfileScreen() {
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
     const { animStyle } = useScreenEnter();
     const navigateStatic = React.useCallback(
-        (screen: keyof RootStackParamList) => navigateWithFeedback(() => navigation.navigate(screen as any)),
+        (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
+            navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
         [navigation],
     );
 
@@ -314,7 +315,7 @@ export default function ProfileScreen() {
                 <Text style={styles.email}>{email}</Text>
                 <AnimatedPressable
                     style={styles.editProfileBtn}
-                    onPress={() => (navigation as any).navigate("ProfileEdit")}
+                    onPress={() => navigateStatic("ProfileEdit", "modal")}
                     pressedScale={0.97}
                 >
                     <Text style={styles.editProfileBtnText}>Profili Düzenle</Text>
