@@ -123,6 +123,7 @@ export interface ProgramDay {
     label: string;             // "Gün 1 — Anterior"
     exercises: TargetExercise[];
     isRestDay?: boolean;       // Off / dinlenme günü işareti
+    warmupRoutine?: WarmupRoutineStep[];
 }
 
 export interface CycleProgramData {

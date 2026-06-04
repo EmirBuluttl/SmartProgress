@@ -47,7 +47,6 @@ import NoticeModal from "../components/NoticeModal";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
 import { summarizeCardioBlocks } from "../utils/cardio";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
-import { DEFAULT_PRE_WORKOUT_WARMUP_STEPS } from "../data/warmupRoutine";
 
 // ─── Constants ───────────────────────────────
 
@@ -426,6 +425,7 @@ export default function WorkoutSessionScreen() {
     const [qualityModalVisible, setQualityModalVisible] = useState(false);
     const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
     const [preWorkoutWarmupVisible, setPreWorkoutWarmupVisible] = useState(false);
+    const [exerciseNameNotice, setExerciseNameNotice] = useState<string | null>(null);
     const [exitModalVisible, setExitModalVisible] = useState(false);
     const [exitModalHasData, setExitModalHasData] = useState(false);
     const [addExerciseModalVisible, setAddExerciseModalVisible] = useState(false);
@@ -570,13 +570,13 @@ export default function WorkoutSessionScreen() {
         const rpeRaw = textCache[cacheKey(exerciseId, set.id, "rpe")];
         const rirRaw = textCache[cacheKey(exerciseId, set.id, "rir")];
 
-        if (weightRaw !== undefined) {
+        if (set.sideMode !== "left_right" && weightRaw !== undefined) {
             nextSet.weight = parseFloat(weightRaw) || 0;
         }
-        if (repsRaw !== undefined) {
+        if (set.sideMode !== "left_right" && repsRaw !== undefined) {
             nextSet.reps = parseInt(repsRaw, 10) || 0;
         }
-        if (durationRaw !== undefined) {
+        if (set.sideMode !== "left_right" && durationRaw !== undefined) {
             nextSet.durationSeconds = parseDurationInput(durationRaw);
         }
         if (rpeRaw !== undefined) {
@@ -699,6 +699,9 @@ export default function WorkoutSessionScreen() {
                 const templateExercises: any[] = isCycle
                     ? (days![dayIndex % days!.length]?.exercises ?? [])
                     : ((normalized as any).exercises ?? []);
+                const dayWarmupRoutine = isCycle
+                    ? days![dayIndex % days!.length]?.warmupRoutine
+                    : (normalized as any).warmupRoutine;
                 const programTrackingMode = inferTrackingModeFromExercises(templateExercises);
 
                 if (templateExercises.length > 0) {
@@ -767,14 +770,16 @@ export default function WorkoutSessionScreen() {
                         ...createSession(),
                         title,
                         exercises: newExercises,
-                        warmupRoutine: {
-                            status: "pending",
-                            startedAt: new Date().toISOString(),
-                            steps: (((normalized as any).warmupRoutine || DEFAULT_PRE_WORKOUT_WARMUP_STEPS) as any[]).map((step) => ({
-                                ...step,
-                                completed: false,
-                            })),
-                        },
+                        warmupRoutine: Array.isArray(dayWarmupRoutine) && dayWarmupRoutine.length > 0
+                            ? {
+                                status: "pending",
+                                startedAt: new Date().toISOString(),
+                                steps: dayWarmupRoutine.map((step: any) => ({
+                                    ...step,
+                                    completed: false,
+                                })),
+                            }
+                            : undefined,
                         programId: programId,
                         dayIndex,
                     };
@@ -998,22 +1003,25 @@ export default function WorkoutSessionScreen() {
         }));
     }, [updateSession]);
 
-    const setWarmupRoutineStatus = useCallback((status: "completed" | "skipped" | "cancelled") => {
-        updateSession((prev) => ({
-            ...prev,
-            warmupRoutine: prev.warmupRoutine
+    const setWarmupRoutineStatus = useCallback(async (status: "completed" | "skipped" | "cancelled") => {
+        const currentSession = materializeSessionInputs();
+        const nextSession = {
+            ...currentSession,
+            warmupRoutine: currentSession.warmupRoutine
                 ? {
-                    ...prev.warmupRoutine,
+                    ...currentSession.warmupRoutine,
                     status,
                     completedAt: new Date().toISOString(),
                     steps: status === "completed"
-                        ? prev.warmupRoutine.steps.map((step) => ({ ...step, completed: true }))
-                        : prev.warmupRoutine.steps,
+                        ? currentSession.warmupRoutine.steps.map((step) => ({ ...step, completed: true }))
+                        : currentSession.warmupRoutine.steps,
                 }
-                : prev.warmupRoutine,
-        }));
+                : currentSession.warmupRoutine,
+        };
+        setSession(nextSession);
+        await saveActiveSession({ ...nextSession, totalDuration: elapsed });
         setPreWorkoutWarmupVisible(false);
-    }, [updateSession]);
+    }, [elapsed, materializeSessionInputs]);
 
     const updateSet = useCallback(
         (exerciseId: string, setId: string, field: keyof WorkoutSet, value: string | number | boolean | undefined) => {
@@ -1055,12 +1063,17 @@ export default function WorkoutSessionScreen() {
         exerciseId: string,
         set: WorkoutSet,
         side: "left" | "right",
-        field: "weight" | "reps" | "durationSeconds",
+        field: "weight" | "reps" | "durationSeconds" | "rpe" | "rir",
         rawValue: string,
     ) => {
+        const repsForSide = Number((set[side] || {}).reps) || Number(set.reps) || undefined;
         const value = field === "durationSeconds"
             ? parseDurationInput(rawValue)
-            : Number(rawValue.replace(",", ".")) || 0;
+            : field === "rir"
+                ? (normalizeRirLogValue(rawValue, repsForSide) ?? "")
+                : field === "rpe"
+                    ? clampRpe(rawValue)
+                    : Number(rawValue.replace(",", ".")) || 0;
         const nextSide = { ...(set[side] || {}), [field]: value };
         const otherSide = set[side === "left" ? "right" : "left"] || {};
         const left = side === "left" ? nextSide : otherSide;
@@ -1071,6 +1084,10 @@ export default function WorkoutSessionScreen() {
         const rightReps = Number(right.reps) || 0;
         const leftDuration = Number(left.durationSeconds) || 0;
         const rightDuration = Number(right.durationSeconds) || 0;
+        const leftRpe = Number(left.rpe) || 0;
+        const rightRpe = Number(right.rpe) || 0;
+        const leftRir = typeof left.rir === "number" ? left.rir : Number(left.rir) || 0;
+        const rightRir = typeof right.rir === "number" ? right.rir : Number(right.rir) || 0;
 
         updateSetPatch(exerciseId, set.id, {
             sideMode: "left_right",
@@ -1079,6 +1096,8 @@ export default function WorkoutSessionScreen() {
             weight: leftWeight > 0 && rightWeight > 0 ? Math.min(leftWeight, rightWeight) : Math.max(leftWeight, rightWeight, Number(set.weight) || 0),
             reps: leftReps > 0 && rightReps > 0 ? Math.min(leftReps, rightReps) : Math.max(leftReps, rightReps, Number(set.reps) || 0),
             durationSeconds: leftDuration > 0 && rightDuration > 0 ? Math.min(leftDuration, rightDuration) : Math.max(leftDuration, rightDuration, Number(set.durationSeconds) || 0),
+            rpe: leftRpe > 0 && rightRpe > 0 ? Math.max(leftRpe, rightRpe) : Math.max(leftRpe, rightRpe, Number(set.rpe) || 0),
+            rir: leftRir > 0 && rightRir > 0 ? Math.min(leftRir, rightRir) : (left.rir || right.rir || set.rir),
             completed: true,
         });
     }, [updateSetPatch]);
@@ -1756,8 +1775,8 @@ export default function WorkoutSessionScreen() {
                             <TextInput
                                 ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-weight`] = el; }}
                                 style={[styles.numericInput, set.weightMode === "bodyweight" && styles.exceptionInput]}
-                                value={set.weightMode === "bodyweight" ? "BW" : getTextValue(exercise.id, set.id, "weight", set.weight)}
-                                editable={set.weightMode !== "bodyweight"}
+                                value={set.sideMode === "left_right" ? "L/R" : set.weightMode === "bodyweight" ? "BW" : getTextValue(exercise.id, set.id, "weight", set.weight)}
+                                editable={set.sideMode !== "left_right" && set.weightMode !== "bodyweight"}
                                 onChangeText={(text) => {
                                     onNumericChange(exercise.id, set.id, "weight", text);
                                     if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
@@ -1785,7 +1804,8 @@ export default function WorkoutSessionScreen() {
                             <TextInput
                                 ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-reps`] = el; }}
                                 style={[styles.numericInput, set.effortMode === "duration" && styles.exceptionInput]}
-                                value={getEffortTextValue(exercise.id, set)}
+                                value={set.sideMode === "left_right" ? "L/R" : getEffortTextValue(exercise.id, set)}
+                                editable={set.sideMode !== "left_right"}
                                 onChangeText={(text) => {
                                     onNumericChange(exercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" as any : "reps", text);
                                     if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
@@ -1810,7 +1830,8 @@ export default function WorkoutSessionScreen() {
                                 <TextInput
                                     ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-rpe`] = el; }}
                                     style={styles.numericInput}
-                                    value={getTextValue(exercise.id, set.id, "rpe", set.rpe ?? 0)}
+                                    value={set.sideMode === "left_right" ? "L/R" : getTextValue(exercise.id, set.id, "rpe", set.rpe ?? 0)}
+                                    editable={set.sideMode !== "left_right"}
                                     onChangeText={(text) => onNumericChange(exercise.id, set.id, "rpe", text)}
                                     onBlur={() => onNumericBlur(exercise.id, set.id, "rpe")}
                                     placeholder={
@@ -1832,7 +1853,8 @@ export default function WorkoutSessionScreen() {
                             <View style={[styles.inputWrapper, { flex: 0.8 }]}>
                                 <TextInput
                                     style={styles.numericInput}
-                                    value={getTextValue(exercise.id, set.id, "rir" as any, (set as any).rir ?? "")}
+                                    value={set.sideMode === "left_right" ? "L/R" : getTextValue(exercise.id, set.id, "rir" as any, (set as any).rir ?? "")}
+                                    editable={set.sideMode !== "left_right"}
                                     onChangeText={(text) => onNumericChange(exercise.id, set.id, "rir" as any, text)}
                                     onBlur={() => onNumericBlur(exercise.id, set.id, "rir" as any)}
                                     placeholder={
@@ -1891,6 +1913,28 @@ export default function WorkoutSessionScreen() {
                                         keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
                                         selectionColor={colors.accent}
                                     />
+                                    {(rpeMode === "rpe" || rpeMode === "both") && (
+                                        <TextInput
+                                            style={styles.unilateralInput}
+                                            value={sideData.rpe ? String(sideData.rpe) : ""}
+                                            onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "rpe", text)}
+                                            placeholder="RPE"
+                                            placeholderTextColor={colors.textMuted}
+                                            keyboardType="number-pad"
+                                            selectionColor={colors.accent}
+                                        />
+                                    )}
+                                    {(rpeMode === "rir" || rpeMode === "both") && (
+                                        <TextInput
+                                            style={styles.unilateralInput}
+                                            value={sideData.rir ? String(sideData.rir) : ""}
+                                            onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "rir", text)}
+                                            placeholder="RIR"
+                                            placeholderTextColor={colors.textMuted}
+                                            keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
+                                            selectionColor={colors.accent}
+                                        />
+                                    )}
                                 </View>
                             );
                         })}
@@ -1947,21 +1991,25 @@ export default function WorkoutSessionScreen() {
                                 selectionColor={colors.accent}
                             />
                         ) : (
+                            <TouchableOpacity
+                                style={styles.exerciseNameTapTarget}
+                                onPress={() => setExerciseNameNotice(exercise.name)}
+                                activeOpacity={0.78}
+                            >
                             <Text style={styles.exerciseNameText} numberOfLines={1}>
                                 {exercise.name}
                             </Text>
+                            </TouchableOpacity>
                         )}
 
                         <View style={styles.exerciseActionGroup}>
-                            {exercise.isCustom && (
-                                <TouchableOpacity
-                                    onPress={() => removeExercise(exercise.id)}
-                                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                                    style={styles.exerciseIconBtn}
-                                >
-                                    <Ionicons name="trash-outline" size={19} color={colors.error} />
-                                </TouchableOpacity>
-                            )}
+                            <TouchableOpacity
+                                onPress={() => removeExercise(exercise.id)}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                                style={styles.exerciseIconBtn}
+                            >
+                                <Ionicons name="trash-outline" size={19} color={colors.error} />
+                            </TouchableOpacity>
                             <TouchableOpacity
                                 onPress={() => setSetSettingsExercise(exercise)}
                                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -2292,6 +2340,12 @@ export default function WorkoutSessionScreen() {
                 title={conceptNotice?.title ?? ""}
                 message={conceptNotice?.message ?? ""}
                 onClose={() => setConceptNotice(null)}
+            />
+            <NoticeModal
+                visible={!!exerciseNameNotice}
+                title="Hareket adi"
+                message={exerciseNameNotice ?? ""}
+                onClose={() => setExerciseNameNotice(null)}
             />
             <NoticeModal
                 visible={!!postFinishNotice}
@@ -2933,6 +2987,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.text,
         paddingVertical: spacing.xs,
     },
+    exerciseNameTapTarget: {
+        flex: 1,
+        minWidth: 0,
+    },
     exerciseActionGroup: {
         flexDirection: "row",
         alignItems: "center",
@@ -3011,7 +3069,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     unilateralInput: {
         flex: 1,
-        minWidth: 82,
+        minWidth: 72,
         minHeight: 38,
         borderRadius: borderRadius.sm,
         borderWidth: 1,

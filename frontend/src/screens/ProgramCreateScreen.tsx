@@ -110,6 +110,7 @@ interface ProgramDay {
     label: string;
     exercises: TargetExercise[];
     isRestDay?: boolean;
+    warmupRoutine?: typeof DEFAULT_PRE_WORKOUT_WARMUP_STEPS;
 }
 
 // ─── Screen ──────────────────────────────────
@@ -177,6 +178,7 @@ export default function ProgramCreateScreen() {
                 setDays(rawDays.map((d: any) => ({
                     label: d.label || "",
                     isRestDay: !!d.isRestDay,
+                    warmupRoutine: Array.isArray(d.warmupRoutine) ? d.warmupRoutine : undefined,
                     exercises: (d.exercises || []).map((ex: any) => ({
                         id: ex.id || Math.random().toString(36).slice(2),
                         exerciseId: ex.exerciseId,
@@ -271,6 +273,20 @@ export default function ProgramCreateScreen() {
 
     const updateDayLabel = (index: number, label: string) => {
         setDays((prev) => prev.map((d, i) => (i === index ? { ...d, label } : d)));
+    };
+
+    const setDayWarmupEnabled = (index: number, enabled: boolean) => {
+        setDays((prev) =>
+            prev.map((day, i) => {
+                if (i !== index) return day;
+                return {
+                    ...day,
+                    warmupRoutine: enabled
+                        ? (day.warmupRoutine?.length ? day.warmupRoutine : DEFAULT_PRE_WORKOUT_WARMUP_STEPS.map((step) => ({ ...step })))
+                        : undefined,
+                };
+            }),
+        );
     };
 
     // ─── Exercise Management ──────────────────
@@ -633,10 +649,10 @@ export default function ProgramCreateScreen() {
             const programData = {
                 ...(frequency !== null ? { frequency } : {}),
                 ...(isPublic ? { splitType: splitType ?? selectedSplit } : {}),
-                warmupRoutine: editProgramData?.data?.warmupRoutine || DEFAULT_PRE_WORKOUT_WARMUP_STEPS,
                 days: days.map((d) => ({
                     label: d.label,
                     isRestDay: !!d.isRestDay,
+                    warmupRoutine: !d.isRestDay && d.warmupRoutine?.length ? d.warmupRoutine : undefined,
                     exercises: d.isRestDay ? [] : d.exercises.map((ex) => ({
                         id: ex.id,
                         exerciseId: ex.exerciseId,
@@ -949,6 +965,34 @@ export default function ProgramCreateScreen() {
                                 })}
                             >
                                 <Ionicons name="information-circle-outline" size={20} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        </View>
+                    )}
+
+                    {!activeDay.isRestDay && (
+                        <View style={styles.warmupRoutineCard}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.warmupRoutineTitle}>Antrenman oncesi isinma rutini</Text>
+                                <Text style={styles.warmupRoutineDesc}>
+                                    W setlerinden bagimsizdir. Sadece bu gun baslatilirken hatirlatilir.
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                style={[
+                                    styles.warmupRoutineToggle,
+                                    !!activeDay.warmupRoutine?.length && styles.warmupRoutineToggleActive,
+                                ]}
+                                onPress={() => setDayWarmupEnabled(activeDayIdx, !(activeDay.warmupRoutine?.length))}
+                                activeOpacity={0.78}
+                            >
+                                <Text
+                                    style={[
+                                        styles.warmupRoutineToggleText,
+                                        !!activeDay.warmupRoutine?.length && styles.warmupRoutineToggleTextActive,
+                                    ]}
+                                >
+                                    {activeDay.warmupRoutine?.length ? "Acik" : "Kapali"}
+                                </Text>
                             </TouchableOpacity>
                         </View>
                     )}
@@ -1557,6 +1601,50 @@ const createStyles = (colors: any) => StyleSheet.create({
     copyDayChipText: {
         fontSize: fontSize.sm,
         fontWeight: fontWeight.semibold,
+        color: colors.accent,
+    },
+    warmupRoutineCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        marginBottom: spacing.md,
+    },
+    warmupRoutineTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    warmupRoutineDesc: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        lineHeight: 17,
+        marginTop: 2,
+    },
+    warmupRoutineToggle: {
+        paddingHorizontal: spacing.md,
+        minHeight: 34,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surface,
+    },
+    warmupRoutineToggleActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    warmupRoutineToggleText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    warmupRoutineToggleTextActive: {
         color: colors.accent,
     },
     // Exercises
