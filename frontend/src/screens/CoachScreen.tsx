@@ -285,7 +285,7 @@ export default function CoachScreen() {
                 </Animated.View>
             )}
 
-            {!isFree && (
+            {(
                 <Animated.View style={[styles.section, dashboardAnimStyle]}>
                     <View style={styles.dashboardHeader}>
                         <View>
@@ -493,21 +493,85 @@ export default function CoachScreen() {
 
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Akilli Program Wizard</Text>
-                <AnimatedPressable
-                    style={styles.lockedCoachCard}
-                    pressedScale={0.985}
-                    onPress={() => navigation.navigate("PremiumProgramWizard")}
-                >
-                    <View style={styles.lockedIcon}>
-                        <Ionicons name="map-outline" size={22} color={colors.accent} />
-                    </View>
-                    <View style={styles.lockedCopy}>
-                        <Text style={styles.reportTitle}>Programini koc motoruyla kur</Text>
+                {isFree ? (
+                    <Animated.View style={[styles.wizardHeroPanel, heroAnimStyle]}>
+                        <View style={styles.panelTopRow}>
+                            <View>
+                                <Text style={styles.panelLabel}>Premium deneme</Text>
+                                <Text style={styles.panelTitle}>Akilli kocu deneyebilirsin</Text>
+                            </View>
+                            <View style={styles.statusPill}>
+                                <Text style={styles.statusText}>{wizardUsesRemaining} wizard hakki</Text>
+                            </View>
+                        </View>
                         <Text style={styles.panelText}>
-                            Seviye, haftalik gun, sakatlik bilgisi ve kas onceliklerine gore Premium program taslagini hazirlar.
+                            Yeni hesaplarda Premium deneme suresi acik gelir. Deneme bittiyse de iki kez kisisel program wizard'ini kullanabilirsin.
                         </Text>
-                    </View>
-                </AnimatedPressable>
+                        <View style={styles.accessSummaryRow}>
+                            <View style={styles.accessSummaryItem}>
+                                <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
+                                <Text style={styles.accessSummaryText}>
+                                    {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gun Premium deneme` : "Deneme suresi pasif"}
+                                </Text>
+                            </View>
+                            <View style={styles.accessSummaryItem}>
+                                <Ionicons name="map-outline" size={16} color={colors.accent} />
+                                <Text style={styles.accessSummaryText}>{wizardUsesRemaining} wizard hakki</Text>
+                            </View>
+                        </View>
+                        <AnimatedPressable
+                            style={styles.primaryButton}
+                            pressedScale={0.985}
+                            onPress={() => navigation.navigate("PremiumProgramWizard")}
+                        >
+                            <Ionicons name="map-outline" size={18} color={colors.background} />
+                            <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Dene</Text>
+                        </AnimatedPressable>
+                    </Animated.View>
+                ) : (
+                    <Animated.View style={[styles.wizardHeroPanel, heroAnimStyle]}>
+                        <View style={styles.panelTopRow}>
+                            <View style={styles.activeHeroCopy}>
+                                <Text style={styles.panelLabel}>Premium erisimi</Text>
+                                <Text style={styles.panelTitle}>Koc takibi aktif</Text>
+                            </View>
+                            <View style={styles.statusPill}>
+                                <Text style={styles.statusText}>{trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gun` : "Aktif"}</Text>
+                            </View>
+                        </View>
+                        <Text style={styles.panelText}>
+                            Haftalik raporun, kalici sinyallerin ve program wizard'in buradan yonetilir. Koc otomatik degisiklik yapmaz; yakalar, aciklar ve aksiyon onerir.
+                        </Text>
+                        <View style={styles.accessSummaryRow}>
+                            <View style={styles.accessSummaryItem}>
+                                <Ionicons name="map-outline" size={16} color={colors.accent} />
+                                <Text style={styles.accessSummaryText}>{wizardUsesRemaining} wizard hakki</Text>
+                            </View>
+                            <View style={styles.accessSummaryItem}>
+                                <Ionicons name="analytics-outline" size={16} color={colors.accent} />
+                                <Text style={styles.accessSummaryText}>Rule engine aktif</Text>
+                            </View>
+                        </View>
+                        <View style={styles.activeHeroActions}>
+                            <AnimatedPressable
+                                style={[styles.primaryButton, styles.heroPrimaryButton]}
+                                pressedScale={0.985}
+                                onPress={() => navigation.navigate("PremiumProgramWizard")}
+                            >
+                                <Ionicons name="map-outline" size={18} color={colors.background} />
+                                <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Ac</Text>
+                            </AnimatedPressable>
+                            <AnimatedPressable
+                                style={styles.heroSecondaryButton}
+                                pressedScale={0.985}
+                                onPress={() => navigation.navigate("CoachWeeklyReport")}
+                            >
+                                <Ionicons name="document-text-outline" size={18} color={colors.accent} />
+                                <Text style={styles.heroSecondaryText}>Haftalik Rapor</Text>
+                            </AnimatedPressable>
+                        </View>
+                    </Animated.View>
+                )}
             </View>
 
             <View style={styles.compareSection}>
@@ -778,6 +842,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         lineHeight: lineHeight.sm,
     },
     teaserPanel: {
+        display: "none",
         backgroundColor: colors.surface,
         borderRadius: borderRadius.md,
         borderWidth: 1,
@@ -786,6 +851,15 @@ const createStyles = (colors: any) => StyleSheet.create({
         gap: spacing.md,
     },
     activeHero: {
+        display: "none",
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.borderLight || colors.border,
+        padding: spacing.xl,
+        gap: spacing.md,
+    },
+    wizardHeroPanel: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.md,
         borderWidth: 1,

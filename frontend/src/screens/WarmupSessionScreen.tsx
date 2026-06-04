@@ -201,22 +201,28 @@ export default function WarmupSessionScreen() {
                             return (
                                 <View key={set.id} style={styles.setRow}>
                                     <Text style={styles.setIndex}>{index + 1}</Text>
-                                    <TextInput
-                                        style={styles.input}
-                                        keyboardType="decimal-pad"
-                                        value={formatNumber(set.weight)}
-                                        onChangeText={(text) => updateWarmupSet(exercise.id, set.id, "weight", text)}
-                                        placeholder="kg"
-                                        placeholderTextColor={colors.textMuted}
-                                    />
-                                    <TextInput
-                                        style={styles.input}
-                                        keyboardType="number-pad"
-                                        value={formatNumber(durationMode ? set.durationSeconds : set.reps)}
-                                        onChangeText={(text) => updateWarmupSet(exercise.id, set.id, durationMode ? "durationSeconds" : "reps", text)}
-                                        placeholder={durationMode ? "sn" : "tekrar"}
-                                        placeholderTextColor={colors.textMuted}
-                                    />
+                                    <View style={styles.inputWrap}>
+                                        <Text style={styles.inputLabel}>Kg</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            keyboardType="decimal-pad"
+                                            value={formatNumber(set.weight)}
+                                            onChangeText={(text) => updateWarmupSet(exercise.id, set.id, "weight", text)}
+                                            placeholder="kg"
+                                            placeholderTextColor={colors.textMuted}
+                                        />
+                                    </View>
+                                    <View style={styles.inputWrap}>
+                                        <Text style={styles.inputLabel}>{durationMode ? "Sure" : "Tekrar"}</Text>
+                                        <TextInput
+                                            style={styles.input}
+                                            keyboardType="number-pad"
+                                            value={formatNumber(durationMode ? set.durationSeconds : set.reps)}
+                                            onChangeText={(text) => updateWarmupSet(exercise.id, set.id, durationMode ? "durationSeconds" : "reps", text)}
+                                            placeholder={durationMode ? "sn" : "tekrar"}
+                                            placeholderTextColor={colors.textMuted}
+                                        />
+                                    </View>
                                 </View>
                             );
                         })}
@@ -302,15 +308,25 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     exerciseTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     targetText: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: spacing.xs },
-    setRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md },
-    setIndex: { width: 28, color: colors.accent, fontWeight: fontWeight.bold, textAlign: "center" },
+    setRow: { flexDirection: "row", flexWrap: "wrap", alignItems: "flex-end", gap: spacing.sm, marginTop: spacing.md },
+    setIndex: { width: 24, minHeight: 44, flexShrink: 0, color: colors.accent, fontWeight: fontWeight.bold, textAlign: "center", textAlignVertical: "center" },
+    inputWrap: {
+        flexGrow: 1,
+        flexBasis: 96,
+        minWidth: 82,
+    },
+    inputLabel: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        marginBottom: 4,
+    },
     input: {
-        flex: 1,
         minHeight: 44,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: borderRadius.md,
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.sm,
         color: colors.text,
         backgroundColor: colors.surfaceElevated,
         textAlign: "center",

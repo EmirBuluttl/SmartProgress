@@ -34,6 +34,7 @@ import AccentButton from "../components/AccentButton";
 import StatBadge from "../components/StatBadge";
 import SectionHeader from "../components/SectionHeader";
 import ActiveWorkoutBanner from "../components/ActiveWorkoutBanner";
+import ActionConfirmModal from "../components/ActionConfirmModal";
 import { SkeletonList } from "../components/SkeletonCard";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { useCountUp } from "../hooks/useCountUp";
@@ -77,6 +78,7 @@ export default function HomeScreen() {
     const [notifications, setNotifications] = useState<any[]>([]);
     const [unreadCount, setUnreadCount] = useState(0);
     const [notificationsVisible, setNotificationsVisible] = useState(false);
+    const [quickWorkoutConfirmVisible, setQuickWorkoutConfirmVisible] = useState(false);
     const [notificationFilter, setNotificationFilter] = useState<"all" | "progress" | "reminder" | "program" | "social">("all");
     const hasLoadedDashboard = React.useRef(false);
     const scrollRef = useRef<ScrollView | null>(null);
@@ -403,7 +405,7 @@ export default function HomeScreen() {
             <Animated.View style={quickAnimStyle}>
             <AnimatedPressable
                 style={styles.quickWorkoutCard}
-                onPress={() => navigateToWorkoutRespectingActiveSession(navigation, { mode: "free" })}
+                onPress={() => setQuickWorkoutConfirmVisible(true)}
                 pressedScale={0.99}
             >
                 <View style={styles.quickWorkoutInner}>
@@ -777,6 +779,19 @@ export default function HomeScreen() {
 
             <View style={{ height: spacing.xxxl }} />
         </Animated.ScrollView>
+        <ActionConfirmModal
+            visible={quickWorkoutConfirmVisible}
+            title="Antrenman başlatılsın mı?"
+            message="Serbest antrenman program seçmeden boş bir log ekranı açar. Yanlışlıkla dokunduysan iptal edebilirsin."
+            primaryLabel="Evet, başlat"
+            secondaryLabel="Hayır"
+            onPrimary={() => {
+                setQuickWorkoutConfirmVisible(false);
+                navigateToWorkoutRespectingActiveSession(navigation, { mode: "free" });
+            }}
+            onSecondary={() => setQuickWorkoutConfirmVisible(false)}
+            onDismiss={() => setQuickWorkoutConfirmVisible(false)}
+        />
         <Modal
             visible={notificationsVisible}
             transparent
