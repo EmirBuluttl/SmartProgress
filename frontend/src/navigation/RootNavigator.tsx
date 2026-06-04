@@ -95,6 +95,7 @@ export type RootStackParamList = {
     WarmupRoutineBuilder: {
         days: { label: string; isRestDay?: boolean; warmupRoutine?: any }[];
         initialDayIndex?: number;
+        programCreateParams?: RootStackParamList["ProgramCreate"];
     };
     WorkoutHistory: undefined;
     ProgramList: undefined;

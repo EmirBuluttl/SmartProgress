@@ -134,7 +134,10 @@ export default function WarmupRoutineBuilderScreen() {
         });
         navigation.navigate({
             name: "ProgramCreate",
-            params: { warmupRoutineResult: { days: cleanedDays } },
+            params: {
+                ...(route.params.programCreateParams || {}),
+                warmupRoutineResult: { days: cleanedDays },
+            },
             merge: true,
         });
     };

@@ -172,6 +172,7 @@ export default function MyProgressScreen() {
     const [isEditingPrLink, setIsEditingPrLink] = React.useState(false);
     const [linkDraft, setLinkDraft] = React.useState("");
     const [linkError, setLinkError] = React.useState("");
+    const [filterModalVisible, setFilterModalVisible] = React.useState(false);
 
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -379,60 +380,17 @@ export default function MyProgressScreen() {
                 <Text style={styles.pageTitle}>MyProgress</Text>
                 <Text style={styles.pageSubtitle}>Performans analitiğin ve akıllı öneriler</Text>
 
-                <Animated.View style={filtersAnimStyle}>
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.metricFilterRow}
-                    >
-                        {metricOptions.map((option) => (
-                            <AnimatedPressable
-                                key={option.key}
-                                style={[styles.metricFilterBtn, chartMetric === option.key && styles.metricFilterBtnActive]}
-                                onPress={() => setChartMetric(option.key)}
-                                pressedScale={0.96}
-                            >
-                                <Text style={[styles.metricFilterText, chartMetric === option.key && styles.metricFilterTextActive]}>
-                                    {option.label}
-                                </Text>
-                            </AnimatedPressable>
-                        ))}
-                    </ScrollView>
-
-                    <ScrollView
-                        horizontal
-                        showsHorizontalScrollIndicator={false}
-                        contentContainerStyle={styles.metricFilterRow}
-                    >
-                        {splitOptions.map((option) => (
-                            <AnimatedPressable
-                                key={option}
-                                style={[styles.splitFilterBtn, splitFilter === option && styles.metricFilterBtnActive]}
-                                onPress={() => setSplitFilter(option)}
-                                pressedScale={0.96}
-                            >
-                                <Text style={[styles.metricFilterText, splitFilter === option && styles.metricFilterTextActive]}>
-                                    {option}
-                                </Text>
-                            </AnimatedPressable>
-                        ))}
-                    </ScrollView>
-
-                    {/* ─── Time Filter Row ─── */}
-                    <View style={styles.filterRow}>
-                        {FILTERS.map((f) => (
-                            <AnimatedPressable
-                                key={f}
-                                style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
-                                onPress={() => setFilter(f)}
-                                pressedScale={0.96}
-                            >
-                                <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
-                                    {f}
-                                </Text>
-                            </AnimatedPressable>
-                        ))}
+                <Animated.View style={[styles.filterSummaryCard, filtersAnimStyle]}>
+                    <View style={{ flex: 1, minWidth: 0 }}>
+                        <Text style={styles.filterSummaryLabel}>Gorunum</Text>
+                        <Text style={styles.filterSummaryValue} numberOfLines={1}>
+                            {chartTitle} ? {splitFilter} ? {filter}
+                        </Text>
                     </View>
+                    <AnimatedPressable style={styles.filterOpenBtn} onPress={() => setFilterModalVisible(true)} pressedScale={0.96}>
+                        <Ionicons name="filter-outline" size={18} color={colors.accent} />
+                        <Text style={styles.filterOpenText}>Filtrele</Text>
+                    </AnimatedPressable>
                 </Animated.View>
 
                 {/* ─── Progress Chart ─── */}
@@ -528,7 +486,7 @@ export default function MyProgressScreen() {
                 {/* ─── Personal Records ─── */}
                 <Animated.View style={prsAnimStyle}>
                     <SectionHeader
-                        title="Kişisel Rekorlar (PR)"
+                        title="En İyi Setlerim"
                         actionLabel="Tümünü Gör"
                         onAction={() => navigation.navigate("Records")}
                     />
@@ -573,7 +531,7 @@ export default function MyProgressScreen() {
             {/* ─── PR Detail Modal ─── */}
             <PremiumModalSurface visible={selectedPR !== null} onDismiss={closePrModal} containerStyle={styles.modalCard}>
                 <View style={styles.modalHeader}>
-                    <Text style={styles.modalTitle}>Kişisel Rekor</Text>
+                    <Text style={styles.modalTitle}>En İyi Set</Text>
                     <AnimatedPressable onPress={closePrModal} pressedScale={0.9}>
                         <Ionicons name="close" size={24} color={colors.text} />
                     </AnimatedPressable>
@@ -633,6 +591,62 @@ export default function MyProgressScreen() {
                     </>
                 )}
             </PremiumModalSurface>
+            <PremiumModalSurface visible={filterModalVisible} onDismiss={() => setFilterModalVisible(false)} containerStyle={styles.filterModalCard}>
+                <View style={styles.modalHeader}>
+                    <Text style={styles.modalTitle}>Grafik Filtresi</Text>
+                    <AnimatedPressable onPress={() => setFilterModalVisible(false)} pressedScale={0.9}>
+                        <Ionicons name="close" size={24} color={colors.text} />
+                    </AnimatedPressable>
+                </View>
+                <Text style={styles.filterModalLabel}>Grafik</Text>
+                <ScrollView style={styles.filterModalList} contentContainerStyle={styles.metricFilterRow}>
+                    {metricOptions.map((option) => (
+                        <AnimatedPressable
+                            key={option.key}
+                            style={[styles.metricFilterBtn, chartMetric === option.key && styles.metricFilterBtnActive]}
+                            onPress={() => setChartMetric(option.key)}
+                            pressedScale={0.96}
+                        >
+                            <Text style={[styles.metricFilterText, chartMetric === option.key && styles.metricFilterTextActive]}>
+                                {option.label}
+                            </Text>
+                        </AnimatedPressable>
+                    ))}
+                </ScrollView>
+                <Text style={styles.filterModalLabel}>Antrenman</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricFilterRow}>
+                    {splitOptions.map((option) => (
+                        <AnimatedPressable
+                            key={option}
+                            style={[styles.splitFilterBtn, splitFilter === option && styles.metricFilterBtnActive]}
+                            onPress={() => setSplitFilter(option)}
+                            pressedScale={0.96}
+                        >
+                            <Text style={[styles.metricFilterText, splitFilter === option && styles.metricFilterTextActive]}>
+                                {option}
+                            </Text>
+                        </AnimatedPressable>
+                    ))}
+                </ScrollView>
+                <Text style={styles.filterModalLabel}>Zaman</Text>
+                <View style={styles.filterRow}>
+                    {FILTERS.map((f) => (
+                        <AnimatedPressable
+                            key={f}
+                            style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
+                            onPress={() => setFilter(f)}
+                            pressedScale={0.96}
+                        >
+                            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>
+                                {f}
+                            </Text>
+                        </AnimatedPressable>
+                    ))}
+                </View>
+                <AnimatedPressable style={styles.primaryAction} onPress={() => setFilterModalVisible(false)} pressedScale={0.98}>
+                    <Text style={styles.primaryActionText}>Uygula</Text>
+                </AnimatedPressable>
+            </PremiumModalSurface>
         </>
     );
 }
@@ -659,6 +673,65 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.md,
         color: colors.textSecondary,
         marginBottom: spacing.xl,
+    },
+    filterSummaryCard: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        marginBottom: spacing.lg,
+    },
+    filterSummaryLabel: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+    },
+    filterSummaryValue: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+        marginTop: 2,
+    },
+    filterOpenBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    filterOpenText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    filterModalCard: {
+        width: "100%",
+        maxWidth: 430,
+        maxHeight: "86%",
+        padding: spacing.xl,
+        borderRadius: borderRadius.xl,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    filterModalLabel: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        marginTop: spacing.md,
+        marginBottom: spacing.sm,
+    },
+    filterModalList: {
+        maxHeight: 210,
     },
     filterRow: {
         flexDirection: "row",

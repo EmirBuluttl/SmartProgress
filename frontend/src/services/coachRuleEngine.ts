@@ -234,7 +234,9 @@ export function splitReason(split: CoachSplitType): string {
 }
 
 export function workingSetCount(level: CoachLevel): number {
-    return level === "beginner" ? 3 : 1;
+    if (level === "beginner") return 3;
+    if (level === "intermediate") return 2;
+    return 1;
 }
 
 export function targetReps(level: CoachLevel): string {
@@ -296,9 +298,96 @@ export function workingSetCountForInput(input: Pick<CoachProfileInput, "level" |
     return workingSetCount(input.level);
 }
 
-export function targetRepsForInput(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus">): string {
+function dayGroup(label?: string) {
+    const raw = String(label || "").toLocaleLowerCase("tr-TR");
+    if (raw.includes("push")) return "Push";
+    if (raw.includes("pull")) return "Pull";
+    if (raw.includes("legs")) return "Legs";
+    if (raw.includes("upper")) return "Upper";
+    if (raw.includes("lower")) return "Lower";
+    if (raw.includes("anterior")) return "Anterior";
+    if (raw.includes("posterior")) return "Posterior";
+    if (raw.includes("torso")) return "Torso";
+    if (raw.includes("limbs")) return "Limbs";
+    if (raw.includes("full body")) return "FullBody";
+    return "Default";
+}
+
+const advancedSetSchemes: Record<string, Partial<Record<CoachPatternKey, number>>> = {
+    "FB:FullBody": {
+        horizontal_adduction: 1, upper_chest: 1, shoulder_extension: 1, shoulder_adduction: 1,
+        upper_back: 1, shoulder_abduction: 2, elbow_extension: 1, elbow_flexion: 1,
+        knee_extension: 1, leg_press: 1, hip_hinge: 1, knee_flexion: 1,
+        spinal_flexion: 2, calf_raise: 1,
+    },
+    "UL:Upper": {
+        horizontal_adduction: 2, upper_chest: 2, shoulder_flexion: 1, shoulder_extension: 1,
+        shoulder_adduction: 2, upper_back: 2, shoulder_abduction: 2, elbow_extension: 2,
+        elbow_flexion: 2, reverse_curl: 1,
+    },
+    "UL:Lower": {
+        knee_extension: 2, leg_press: 2, hip_hinge: 2, knee_flexion: 1,
+        hip_adduction: 1, spinal_flexion: 2, calf_raise: 2,
+    },
+    "AP:Anterior": {
+        horizontal_adduction: 2, upper_chest: 2, shoulder_flexion: 1, shoulder_abduction: 2,
+        elbow_extension: 2, knee_extension: 2, leg_press: 2, spinal_flexion: 2,
+    },
+    "AP:Posterior": {
+        shoulder_extension: 1, shoulder_adduction: 2, upper_back: 2, elbow_flexion: 2,
+        reverse_curl: 1, hip_hinge: 2, knee_flexion: 1, hip_adduction: 1, calf_raise: 1,
+    },
+    "TL:Torso": {
+        horizontal_adduction: 2, upper_chest: 2, shoulder_flexion: 1, shoulder_extension: 1,
+        shoulder_adduction: 2, upper_back: 2, shoulder_abduction: 2,
+    },
+    "TL:Limbs": {
+        elbow_extension: 2, elbow_flexion: 2, reverse_curl: 2, knee_extension: 2,
+        leg_press: 2, hip_hinge: 2, knee_flexion: 1, hip_adduction: 1,
+        spinal_flexion: 2, calf_raise: 2,
+    },
+    "PPL:Push": {
+        horizontal_adduction: 2, upper_chest: 2, shoulder_flexion: 2, shoulder_abduction: 2, elbow_extension: 2,
+    },
+    "PPL:Pull": {
+        shoulder_extension: 2, shoulder_adduction: 2, upper_back: 2, elbow_flexion: 2, reverse_curl: 2,
+    },
+    "PPL:Legs": {
+        knee_extension: 2, leg_press: 2, hip_hinge: 2, knee_flexion: 2,
+        hip_adduction: 2, spinal_flexion: 2, calf_raise: 2,
+    },
+    "PPLUL:Push": {
+        horizontal_adduction: 2, upper_chest: 2, shoulder_flexion: 2, shoulder_abduction: 2, elbow_extension: 2,
+    },
+    "PPLUL:Pull": {
+        shoulder_extension: 2, shoulder_adduction: 2, upper_back: 2, elbow_flexion: 2, reverse_curl: 2,
+    },
+    "PPLUL:Legs": {
+        knee_extension: 2, leg_press: 2, hip_hinge: 2, knee_flexion: 2,
+        hip_adduction: 2, spinal_flexion: 2, calf_raise: 2,
+    },
+    "PPLUL:Upper": {
+        horizontal_adduction: 1, upper_chest: 1, shoulder_flexion: 1, shoulder_extension: 1,
+        shoulder_adduction: 1, upper_back: 1, shoulder_abduction: 1, elbow_extension: 1,
+        elbow_flexion: 1, reverse_curl: 1,
+    },
+    "PPLUL:Lower": {
+        knee_extension: 1, leg_press: 1, hip_hinge: 1, knee_flexion: 1,
+        hip_adduction: 1, spinal_flexion: 1, calf_raise: 1,
+    },
+};
+
+function advancedWorkingSetCount(split: CoachSplitType | undefined, dayLabel: string | undefined, pattern: CoachPatternKey | undefined) {
+    if (!split || !pattern) return 1;
+    const key = `${split}:${dayGroup(dayLabel)}`;
+    return advancedSetSchemes[key]?.[pattern] || 1;
+}
+
+export function targetRepsForInput(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus"> & { pattern?: CoachPatternKey; split?: CoachSplitType; dayLabel?: string }): string {
     if (input.goal === "fat_loss" && input.level !== "advanced") return "8-10";
     if (hasSpecificStrengthFocus(input)) return "3-6";
+    if (input.pattern === "shoulder_abduction") return input.level === "beginner" ? "12-15" : "4-10";
+    if (input.level === "advanced" && input.split === "AP" && dayGroup(input.dayLabel) === "Posterior" && input.pattern === "calf_raise") return "6-10";
     return targetReps(input.level);
 }
 
@@ -308,10 +397,15 @@ export function targetRirForInput(input: Pick<CoachProfileInput, "level" | "goal
     return targetRir(input.level);
 }
 
-export function makeTargetSets(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus" | "hasPain">) {
+export function makeTargetSets(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus" | "hasPain"> & { pattern?: CoachPatternKey; split?: CoachSplitType; dayLabel?: string }) {
+    const baseWorkingSets = input.level === "advanced"
+        ? advancedWorkingSetCount(input.split, input.dayLabel, input.pattern)
+        : workingSetCountForInput(input);
+    const workingSets = input.hasPain === "yes" ? Math.min(baseWorkingSets, 2) : baseWorkingSets;
+
     return [
         { targetReps: "3-5", targetRIR: "3-4", isWarmup: true },
-        ...Array.from({ length: workingSetCountForInput(input) }, () => ({
+        ...Array.from({ length: workingSets }, () => ({
             targetReps: targetRepsForInput(input),
             targetRIR: targetRirForInput(input),
             isWarmup: false,
@@ -627,6 +721,9 @@ export function buildCoachProgramData(input: CoachProfileInput) {
                             goal: input.goal,
                             strengthFocus: input.strengthFocus,
                             hasPain: painLimitedPatterns.includes(pattern) ? "yes" : "no",
+                            pattern,
+                            split: input.split,
+                            dayLabel: day.label,
                         }),
                     };
                 }),

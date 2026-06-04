@@ -294,6 +294,7 @@ export default function ProgramCreateScreen() {
     const openWarmupRoutineBuilder = () => {
         navigation.navigate("WarmupRoutineBuilder", {
             initialDayIndex: activeDayIdx,
+            programCreateParams: route.params,
             days: days.map((day) => ({
                 label: day.label,
                 isRestDay: day.isRestDay,

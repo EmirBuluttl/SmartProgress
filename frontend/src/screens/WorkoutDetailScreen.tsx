@@ -47,6 +47,13 @@ function formatDate(iso: string): string {
     });
 }
 
+function getEffortHeader(sets: any[] = []): string {
+    const hasDuration = sets.some((set) => set.effortMode === "duration");
+    const hasReps = sets.some((set) => set.effortMode !== "duration");
+    if (hasDuration && hasReps) return "TEKRAR/SURE";
+    return hasDuration ? "SURE" : "TEKRAR";
+}
+
 export default function WorkoutDetailScreen() {
     const navigation = useNavigation();
     const route = useRoute<Route>();
@@ -161,7 +168,7 @@ export default function WorkoutDetailScreen() {
                                 <View style={styles.setHeaderRow}>
                                     <Text style={[styles.setHeaderCell, { flex: 0.4 }]}>SET</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 1 }]}>AĞIRLIK</Text>
-                                    <Text style={[styles.setHeaderCell, { flex: 0.8 }]}>TEKRAR/SÜRE</Text>
+                                    <Text style={[styles.setHeaderCell, { flex: 0.95 }]} numberOfLines={1}>{getEffortHeader(ex.sets || [])}</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 0.6 }]}>RPE</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 0.6 }]}>RIR</Text>
                                 </View>
@@ -185,7 +192,7 @@ export default function WorkoutDetailScreen() {
                                         <Text style={[styles.setCell, styles.setCellAccent, { flex: 1 }]}>
                                             {set.weightMode === "bodyweight" ? "BW" : set.weight > 0 ? `${set.weight} ${set.unit || "kg"}` : "—"}
                                         </Text>
-                                        <Text style={[styles.setCell, { flex: 0.8 }]}>
+                                        <Text style={[styles.setCell, { flex: 0.95 }]}>
                                             {set.effortMode === "duration"
                                                 ? formatSetDuration(set.durationSeconds)
                                                 : set.reps > 0 ? `${set.reps}` : "—"}

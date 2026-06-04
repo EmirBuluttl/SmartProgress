@@ -200,7 +200,7 @@ export default function RecordsScreen() {
                 >
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
                 </TouchableOpacity>
-                <Text style={styles.headerTitle}>Kişisel Rekorlar</Text>
+                <Text style={styles.headerTitle}>En İyi Setlerim</Text>
                 <View style={{ width: 24 }} />
             </Animated.View>
 

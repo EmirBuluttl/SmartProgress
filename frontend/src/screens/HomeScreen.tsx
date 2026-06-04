@@ -256,6 +256,17 @@ export default function HomeScreen() {
         await loadDashboard();
     };
 
+    const openCurrentProgramDayDetail = () => {
+        if (!favoriteProgram || !currentDay) return;
+        navigation.navigate("ProgramDayDetail", {
+            programId: favoriteProgram.id,
+            programName: favoriteProgram.name,
+            dayIndex: currentDayIndex,
+            day: currentDay,
+            programData: favoriteProgram.data,
+        });
+    };
+
     const openNotification = async (notification: any) => {
         try {
             if (!notification.readAt && !String(notification.id).startsWith("local-")) {
@@ -354,9 +365,9 @@ export default function HomeScreen() {
                 <View style={styles.quickWorkoutIcon}>
                     <Ionicons name="flash-outline" size={20} color={colors.background} />
                 </View>
-                <View style={{ flex: 1 }}>
-                    <Text style={styles.quickWorkoutTitle}>Serbest antrenman</Text>
-                    <Text style={styles.quickWorkoutSubtitle}>
+                <View style={styles.quickWorkoutTextBlock}>
+                    <Text style={styles.quickWorkoutTitle} numberOfLines={1}>Serbest antrenman</Text>
+                    <Text style={styles.quickWorkoutSubtitle} numberOfLines={1}>
                         Program seçmeden hareket ekleyip logla
                     </Text>
                 </View>
@@ -389,6 +400,7 @@ export default function HomeScreen() {
             {/* ─── Sıradaki Antrenman (Cycle-Based) ─── */}
             {favoriteProgram && isCurrentProgramCycle && currentDay && (
                 <Animated.View style={mainCardAnimStyle}>
+                <TouchableOpacity activeOpacity={0.94} onPress={openCurrentProgramDayDetail}>
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
                         <View style={styles.todayBadge}>
@@ -402,13 +414,7 @@ export default function HomeScreen() {
                     <Text style={styles.todayProgName}>{favoriteProgram.name}</Text>
                     <TouchableOpacity
                         activeOpacity={0.75}
-                        onPress={() => navigation.navigate("ProgramDayDetail", {
-                            programId: favoriteProgram.id,
-                            programName: favoriteProgram.name,
-                            dayIndex: currentDayIndex,
-                            day: currentDay,
-                            programData: favoriteProgram.data,
-                        })}
+                        onPress={openCurrentProgramDayDetail}
                     >
                         <View style={styles.todayDayAction}>
                             <Text style={styles.todayDayLabel}>{currentDay.label}</Text>
@@ -504,6 +510,7 @@ export default function HomeScreen() {
                         style={{ marginTop: spacing.md, minHeight: 56 }}
                     />
                 </GymCard>
+                </TouchableOpacity>
                 </Animated.View>
             )}
 
@@ -573,9 +580,6 @@ export default function HomeScreen() {
                             <GymCard elevated style={[styles.workoutCard, { width: WORKOUT_CARD_WIDTH }]}>
                                 <View style={styles.workoutCardHeader}>
                                     <Text style={styles.workoutTitle}>{item.title}</Text>
-                                    <View style={styles.sportBadge}>
-                                        <Text style={styles.sportBadgeText}>{item.sportName || "Fitness"}</Text>
-                                    </View>
                                 </View>
                                 <Text style={styles.workoutDate}>
                                     {formatDate(item.logDate)}
@@ -1015,6 +1019,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         color: colors.text,
+    },
+    quickWorkoutTextBlock: {
+        flex: 1,
+        minWidth: 0,
     },
     quickWorkoutSubtitle: {
         marginTop: 2,

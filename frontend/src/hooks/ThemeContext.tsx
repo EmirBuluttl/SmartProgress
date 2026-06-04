@@ -3,9 +3,27 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { colors as baseColors } from "../constants/theme";
 
 const THEME_STORAGE_KEY = "@smartprogress_theme_accent";
+const THEME_MODE_STORAGE_KEY = "@smartprogress_theme_mode";
 
-// Default accent is the lime green
-const DEFAULT_ACCENT = "#CCFF00";
+const DEFAULT_ACCENT = "#3B82F6";
+export type ThemeMode = "dark" | "light";
+
+type ColorPalette = Record<keyof typeof baseColors, string>;
+
+const lightBaseColors: ColorPalette = {
+    ...baseColors,
+    background: "#F8FAFC",
+    surface: "#FFFFFF",
+    surfaceLight: "#F1F5F9",
+    surfaceElevated: "#E2E8F0",
+    text: "#0F172A",
+    textSecondary: "#475569",
+    textMuted: "#64748B",
+    border: "#E2E8F0",
+    borderLight: "#CBD5E1",
+    tabBarBg: "#FFFFFF",
+    tabBarInactive: "#94A3B8",
+};
 
 // Helper to adjust hex color brightness or opacity
 const hexToRgb = (hex: string) => {
@@ -33,9 +51,10 @@ const darkenHex = (hex: string, amount: number) => {
     return `#${(1 << 24 | r << 16 | g << 8 | b).toString(16).slice(1).toUpperCase()}`;
 };
 
-export const generateColors = (accentHex: string) => {
+export const generateColors = (accentHex: string, mode: ThemeMode = "dark") => {
     const rgb = hexToRgb(accentHex);
-    let accentMuted = "rgba(204, 255, 0, 0.15)"; // Default fallback
+    const palette = mode === "light" ? lightBaseColors : baseColors;
+    let accentMuted = "rgba(59, 130, 246, 0.15)";
     
     if (rgb) {
         accentMuted = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.15)`;
@@ -44,7 +63,7 @@ export const generateColors = (accentHex: string) => {
     const accentDark = darkenHex(accentHex, 0.2); // 20% darker
     
     return {
-        ...baseColors,
+        ...palette,
         accent: accentHex,
         accentDark,
         accentMuted,
@@ -53,13 +72,16 @@ export const generateColors = (accentHex: string) => {
 
 type ThemeContextType = {
     colors: ReturnType<typeof generateColors>;
+    themeMode: ThemeMode;
     setAccentColor: (color: string) => Promise<void>;
+    setThemeMode: (mode: ThemeMode) => Promise<void>;
 };
 
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider = ({ children }: { children: ReactNode }) => {
     const [accentColor, setAccentColorState] = useState<string>(DEFAULT_ACCENT);
+    const [themeMode, setThemeModeState] = useState<ThemeMode>("dark");
 
     useEffect(() => {
         const loadTheme = async () => {
@@ -67,6 +89,10 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
                 const storedAccent = await AsyncStorage.getItem(THEME_STORAGE_KEY);
                 if (storedAccent) {
                     setAccentColorState(storedAccent);
+                }
+                const storedMode = await AsyncStorage.getItem(THEME_MODE_STORAGE_KEY);
+                if (storedMode === "light" || storedMode === "dark") {
+                    setThemeModeState(storedMode);
                 }
             } catch (error) {
                 console.error("Failed to load theme color from storage", error);
@@ -84,10 +110,19 @@ export const ThemeProvider = ({ children }: { children: ReactNode }) => {
         }
     };
 
-    const currentColors = generateColors(accentColor);
+    const setThemeMode = async (mode: ThemeMode) => {
+        setThemeModeState(mode);
+        try {
+            await AsyncStorage.setItem(THEME_MODE_STORAGE_KEY, mode);
+        } catch (error) {
+            console.error("Failed to save theme mode to storage", error);
+        }
+    };
+
+    const currentColors = generateColors(accentColor, themeMode);
 
     return (
-        <ThemeContext.Provider value={{ colors: currentColors, setAccentColor }}>
+        <ThemeContext.Provider value={{ colors: currentColors, themeMode, setAccentColor, setThemeMode }}>
             {children}
         </ThemeContext.Provider>
     );
@@ -97,7 +132,7 @@ export const useTheme = () => {
     const context = useContext(ThemeContext);
     if (!context) {
         // Provide a fallback so it doesn't crash if used outside provider by mistake during dev
-        return { colors: generateColors(DEFAULT_ACCENT), setAccentColor: async () => {} };
+        return { colors: generateColors(DEFAULT_ACCENT), themeMode: "dark" as ThemeMode, setAccentColor: async () => {}, setThemeMode: async () => {} };
     }
     return context;
 };

@@ -53,12 +53,10 @@ function AnimatedTabIcon({
     const scale = getTabScale(routeName);
 
     useEffect(() => {
-        Animated.spring(scale, {
-            toValue: focused ? 1.18 : 1,
+        Animated.timing(scale, {
+            toValue: focused ? 1.08 : 1,
+            duration: 180,
             useNativeDriver: true,
-            damping: 15,
-            stiffness: 200,
-            mass: 1,
         }).start();
     }, [focused, scale]);
 

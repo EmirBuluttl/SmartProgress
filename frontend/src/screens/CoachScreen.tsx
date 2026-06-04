@@ -1,5 +1,5 @@
 import React from "react";
-import { Animated, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -111,18 +111,12 @@ export default function CoachScreen() {
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
     const [coachInsights, setCoachInsights] = React.useState<any[]>([]);
     const [aiStatus, setAiStatus] = React.useState<any | null>(null);
-    const [aiMessages, setAiMessages] = React.useState<any[]>([]);
-    const [coachQuestion, setCoachQuestion] = React.useState("");
-    const [coachAnswer, setCoachAnswer] = React.useState<any | null>(null);
     const [reportLoading, setReportLoading] = React.useState(false);
-    const [askLoading, setAskLoading] = React.useState(false);
     const coachNarration = weeklyReport?.coachNarration;
     const trialExpiresAt = user?.settings?.pro_trial_expires_at ? new Date(user.settings.pro_trial_expires_at) : null;
     const trialDaysLeft = trialExpiresAt && Number.isFinite(trialExpiresAt.getTime())
         ? Math.max(0, Math.ceil((trialExpiresAt.getTime() - Date.now()) / 86400000))
         : null;
-    const coachChatLimit = aiStatus?.coachChat?.limit || 0;
-    const coachChatUsed = aiStatus?.coachChat?.used || 0;
     const coachChatRemaining = aiStatus?.coachChat?.remaining || 0;
     const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 2));
     const proWizardUsesRemaining = Math.max(0, Number(user?.settings?.pro_wizard_uses_remaining ?? PRO_WIZARD_USES));
@@ -173,15 +167,6 @@ export default function CoachScreen() {
         }
     }, [isCoachPlus]);
 
-    const loadAiMessages = React.useCallback(async () => {
-        if (!isCoachPlus) return;
-        try {
-            const response = await coachApi.aiMessages({ limit: 5 });
-            setAiMessages(Array.isArray(response.data?.data) ? response.data.data : []);
-        } catch (error) {
-            setAiMessages([]);
-        }
-    }, [isCoachPlus]);
 
     const loadCoachInsights = React.useCallback(async () => {
         try {
@@ -208,33 +193,11 @@ export default function CoachScreen() {
         loadReport();
         loadCoachInsights();
         loadAiStatus();
-        loadAiMessages();
         return () => {
             mounted = false;
         };
-    }, [loadAiMessages, loadAiStatus, loadCoachInsights]);
+    }, [loadAiStatus, loadCoachInsights]);
 
-    const handleAskCoach = async () => {
-        const question = coachQuestion.trim();
-        if (!question || askLoading) return;
-        setAskLoading(true);
-        setCoachAnswer(null);
-        try {
-            const response = await coachApi.ask({ question });
-            setCoachAnswer(response.data || null);
-            setCoachQuestion("");
-            loadAiStatus();
-            loadAiMessages();
-        } catch (error) {
-            setCoachAnswer({
-                text: "Koç cevabı şu an alınamadı. Biraz sonra tekrar deneyebilirsin.",
-                source: "fallback",
-                reason: "provider_error",
-            });
-        } finally {
-            setAskLoading(false);
-        }
-    };
 
     return (
         <Animated.ScrollView
@@ -261,7 +224,7 @@ export default function CoachScreen() {
                 <Animated.View style={[styles.teaserPanel, heroAnimStyle]}>
                     <View style={styles.panelTopRow}>
                         <View>
-                            <Text style={styles.panelLabel}>Pro deneme</Text>
+                            <Text style={styles.panelLabel}>Premium deneme</Text>
                             <Text style={styles.panelTitle}>Akıllı koçu deneyebilirsin</Text>
                         </View>
                         <View style={styles.statusPill}>
@@ -269,13 +232,13 @@ export default function CoachScreen() {
                         </View>
                     </View>
                     <Text style={styles.panelText}>
-                        Yeni hesaplarda Pro deneme süresi açık gelir. Deneme bittiyse de iki kez kişisel program wizard'ını kullanabilirsin; Coach+ AI soru-cevap katmanı beta olarak ayrı tutulur.
+                        Yeni hesaplarda Premium deneme süresi açık gelir. Deneme bittiyse de iki kez kişisel program wizard'ını kullanabilirsin; Coach+ AI soru-cevap katmanı beta olarak ayrı tutulur.
                     </Text>
                     <View style={styles.accessSummaryRow}>
                         <View style={styles.accessSummaryItem}>
                             <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
                             <Text style={styles.accessSummaryText}>
-                                {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gün Pro deneme` : "Deneme süresi pasif"}
+                                {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gün Premium deneme` : "Deneme süresi pasif"}
                             </Text>
                         </View>
                         <View style={styles.accessSummaryItem}>
@@ -296,7 +259,7 @@ export default function CoachScreen() {
                 <Animated.View style={[styles.activeHero, heroAnimStyle]}>
                     <View style={styles.panelTopRow}>
                         <View style={styles.activeHeroCopy}>
-                            <Text style={styles.panelLabel}>{isCoachPlus ? "Coach+ beta erişimi" : "Pro erişimi"}</Text>
+                            <Text style={styles.panelLabel}>{isCoachPlus ? "Coach+ beta erisimi" : "Premium erisimi"}</Text>
                             <Text style={styles.panelTitle}>Koç takibi aktif</Text>
                         </View>
                         <View style={styles.statusPill}>
@@ -551,13 +514,13 @@ export default function CoachScreen() {
                         </TouchableOpacity>
                     </View>
                     <View style={styles.timelineCard}>
-                        {coachInsights.slice(0, 8).map((insight, index) => {
+                        {coachInsights.slice(0, 4).map((insight, index) => {
                             const meta = getInsightMeta(insight.type, colors);
                             return (
                                 <View key={insight.id} style={styles.timelineItem}>
                                     <View style={styles.timelineRail}>
                                         <View style={[styles.timelineDot, { backgroundColor: meta.color }]} />
-                                        {index < Math.min(coachInsights.length, 8) - 1 && <View style={styles.timelineLine} />}
+                                        {index < Math.min(coachInsights.length, 4) - 1 && <View style={styles.timelineLine} />}
                                     </View>
                                     <View style={styles.timelineBody}>
                                         <View style={styles.signalTitleRow}>
@@ -567,7 +530,7 @@ export default function CoachScreen() {
                                         <Text style={styles.signalMeta}>
                                             {formatBestSet(insight.previousBest)} {"->"} {formatBestSet(insight.currentBest)}
                                         </Text>
-                                        <Text style={styles.signalReason}>{insight.reason}</Text>
+                                        <Text style={styles.signalReason} numberOfLines={2}>{insight.reason}</Text>
                                         {!!insight.metadata?.interventionAdvice && (
                                             <Text style={styles.interventionText}>{insight.metadata.interventionAdvice}</Text>
                                         )}
@@ -580,122 +543,31 @@ export default function CoachScreen() {
                 </View>
             )}
 
-            {isCoachPlus ? (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>AI Koç Sorusu</Text>
-                    <View style={styles.askCard}>
-                        <View style={styles.reportTopRow}>
-                            <View style={styles.askHeaderCopy}>
-                                <Text style={styles.reportTitle}>Coach+ soru hakkı</Text>
-                                <Text style={styles.panelText}>
-                                    Kısa ve loglarına bağlı sorular sor. Bütçe dolarsa sistem güvenli fallback cevaba döner.
-                                </Text>
-                            </View>
-                            {!!aiStatus && (
-                                <View style={styles.statusPill}>
-                                    <Text style={styles.statusText}>
-                                        {coachChatUsed}/{coachChatLimit || 50}
-                                    </Text>
-                                </View>
-                            )}
-                        </View>
-                        <TextInput
-                            style={styles.askInput}
-                            value={coachQuestion}
-                            onChangeText={setCoachQuestion}
-                            placeholder="Örn: Bu hafta takipteki hareketler için ne yapmalıyım?"
-                            placeholderTextColor={colors.textMuted}
-                            multiline
-                            maxLength={1200}
-                        />
-                        <TouchableOpacity
-                            style={[styles.primaryButton, (!coachQuestion.trim() || askLoading) && styles.disabledButton]}
-                            activeOpacity={0.85}
-                            disabled={!coachQuestion.trim() || askLoading}
-                            onPress={handleAskCoach}
-                        >
-                            <Ionicons name="send-outline" size={18} color={colors.background} />
-                            <Text style={styles.primaryButtonText}>{askLoading ? "Soruluyor" : "Koça Sor"}</Text>
-                        </TouchableOpacity>
-                        {!!coachAnswer && (
-                            <View style={styles.answerBox}>
-                                <View style={styles.narrationHeader}>
-                                    <Ionicons
-                                        name={coachAnswer.source === "openai" ? "sparkles-outline" : "shield-checkmark-outline"}
-                                        size={18}
-                                        color={colors.accent}
-                                    />
-                                    <Text style={styles.narrationTitle}>
-                                        {coachAnswer.source === "openai" ? "AI Koç cevabı" : "Güvenli koç cevabı"}
-                                    </Text>
-                                </View>
-                                <Text style={styles.narrationSummary}>{coachAnswer.text}</Text>
-                                {!!coachAnswer.reason && (
-                                    <Text style={styles.answerMeta}>
-                                        Kaynak: {coachAnswer.reason === "feature_limit_denied" ? "Soru hakkı" : coachAnswer.reason === "budget_denied" ? "Bütçe koruması" : coachAnswer.reason === "provider_disabled" ? "Mock mod" : "Fallback"}
-                                    </Text>
-                                )}
-                            </View>
-                        )}
-                        {!!aiStatus && (
-                            <Text style={styles.answerMeta}>
-                                Kalan soru: {coachChatRemaining}. Tahmini kalan AI bütçesi: ${((aiStatus.remainingMicros || 0) / 1000000).toFixed(2)}
-                            </Text>
-                        )}
-                        {aiMessages.length > 0 && (
-                            <View style={styles.messageHistory}>
-                                <Text style={styles.reportTitle}>Son sorular</Text>
-                                {aiMessages.slice(0, 5).map((message) => (
-                                    <View key={message.id} style={styles.messageItem}>
-                                        <Text style={styles.messageQuestion}>{message.question}</Text>
-                                        <Text style={styles.messageAnswer} numberOfLines={3}>{message.answer}</Text>
-                                    </View>
-                                ))}
-                            </View>
-                        )}
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Coach+ yakinda</Text>
+                <View style={styles.lockedCoachCard}>
+                    <View style={styles.lockedIcon}>
+                        <Ionicons name="sparkles-outline" size={22} color={colors.accent} />
+                    </View>
+                    <View style={styles.lockedCopy}>
+                        <Text style={styles.reportTitle}>AI sohbet katmani beta hazirlikta</Text>
+                        <Text style={styles.panelText}>
+                            Coach+ su an aktif satis paketi degil. Premium koc motoru urunlesirken AI soru-cevap katmani kalite, maliyet ve guvenlik testleri tamamlanana kadar pasif tanitilacak.
+                        </Text>
                     </View>
                 </View>
-            ) : (
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Coach+ AI Beta</Text>
-                    <View style={styles.lockedCoachCard}>
-                        <View style={styles.lockedIcon}>
-                            <Ionicons name="lock-closed-outline" size={22} color={colors.accent} />
-                        </View>
-                        <View style={styles.lockedCopy}>
-                            <Text style={styles.reportTitle}>AI soru hakkı beta sürecinde</Text>
-                            <Text style={styles.panelText}>
-                                Coach+ katmanını şimdilik ürün olarak satmıyoruz. AI soru-cevap akışı yeterince olgunlaşana kadar beta ve kontrollü erişimle test edilecek.
-                            </Text>
-                            <View style={styles.lockedFeatures}>
-                                <View style={styles.planItem}>
-                                    <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
-                                    <Text style={styles.planItemText}>Program ve log bağlamına göre cevap</Text>
-                                </View>
-                                <View style={styles.planItem}>
-                                    <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
-                                    <Text style={styles.planItemText}>Otomatik değişiklik yok, karar kullanıcıda</Text>
-                                </View>
-                                <View style={styles.planItem}>
-                                    <Ionicons name="checkmark-circle" size={14} color={colors.accent} />
-                                    <Text style={styles.planItemText}>Beta sürecinde kontrollü soru ve maliyet limiti</Text>
-                                </View>
-                            </View>
-                        </View>
-                    </View>
-                </View>
-            )}
+            </View>
 
             <View style={styles.compareSection}>
                 <View style={styles.dashboardHeader}>
                     <View>
-                        <Text style={styles.sectionTitle}>Paket farkı</Text>
+                        <Text style={styles.sectionTitle}>Paket farki</Text>
                         <Text style={styles.dashboardSubtitle}>Koç motoru ayrı, AI sohbet katmanı ayrı değer üretir.</Text>
                     </View>
                 </View>
                 <View style={styles.planGrid}>
                     <PlanCard
-                        title="Pro"
+                        title="Premium"
                         subtitle="Akıllı Koç Motoru"
                         badge="Rule engine"
                         icon="analytics-outline"
@@ -707,14 +579,15 @@ export default function CoachScreen() {
                         ]}
                         colors={colors}
                         active={tier === "pro"}
+                        onPress={() => navigation.navigate("PremiumProgramWizard")}
                     />
                     <PlanCard
                         title="Coach+"
                         subtitle="AI Koç Katmanı"
-                        badge="Beta"
+                        badge="Pasif"
                         icon="sparkles-outline"
                         items={[
-                            "Pro içindeki tüm koç motoru özellikleri",
+                            "Premium içindeki tüm koç motoru özellikleri",
                             "Log ve rapor bağlamına göre AI cevapları",
                             "Bütçe korumalı, kontrollü beta soru hakkı",
                             "Olgunlaşınca ücretli katmana taşınacak sohbet deneyimi",
@@ -727,7 +600,7 @@ export default function CoachScreen() {
                 <View style={styles.pricingNote}>
                     <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
                     <Text style={styles.noteText}>
-                        Pro koç motoru ürünleşmeye hazırlanır; Coach+ AI soru-cevap ise doğru kaliteye ulaşana kadar beta olarak test edilir.
+                        Premium koc motoru urunlesmeye hazirlanir; Coach+ AI soru-cevap ise dogru kaliteye ulasana kadar beta olarak test edilir.
                     </Text>
                 </View>
             </View>
@@ -801,6 +674,7 @@ function PlanCard({
     colors,
     active = false,
     highlighted = false,
+    onPress,
 }: {
     title: string;
     subtitle: string;
@@ -810,10 +684,11 @@ function PlanCard({
     colors: any;
     active?: boolean;
     highlighted?: boolean;
+    onPress?: () => void;
 }) {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    return (
-        <View style={[styles.planCard, highlighted && styles.planCardHighlighted]}>
+    const content = (
+        <>
             <View style={styles.planHeader}>
                 <View style={[styles.planIcon, highlighted && styles.planIconHighlighted]}>
                     <Ionicons name={icon} size={19} color={highlighted ? colors.background : colors.accent} />
@@ -841,6 +716,20 @@ function PlanCard({
                     </View>
                 ))}
             </View>
+        </>
+    );
+
+    if (onPress) {
+        return (
+            <AnimatedPressable style={[styles.planCard, highlighted && styles.planCardHighlighted]} onPress={onPress} pressedScale={0.985}>
+                {content}
+            </AnimatedPressable>
+        );
+    }
+
+    return (
+        <View style={[styles.planCard, highlighted && styles.planCardHighlighted]}>
+            {content}
         </View>
     );
 }

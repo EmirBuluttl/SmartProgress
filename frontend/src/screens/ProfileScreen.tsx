@@ -42,7 +42,9 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 
 const AVAILABLE_COLORS = [
+    "#3B82F6", // Blue
     "#CCFF00", // Default Lime
+    "#0F172A", // Navy
     "#00F0FF", // Cyan
     "#FF0055", // Neon Pink
     "#FFB800", // Gold/Orange
@@ -61,7 +63,7 @@ type TrainingLevel = typeof TRAINING_LEVEL_OPTIONS[number]["key"];
 export default function ProfileScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { user, logout, updateUser } = useAuth();
-    const { colors, setAccentColor } = useTheme();
+    const { colors, themeMode, setAccentColor, setThemeMode } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
@@ -559,6 +561,34 @@ export default function ProfileScreen() {
                     </View>
                     <View style={[styles.currentColorDot, { backgroundColor: colors.accent }]} />
                 </TouchableOpacity>
+
+                <View style={styles.settingRow}>
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name={themeMode === "dark" ? "moon-outline" : "sunny-outline"} size={20} color={colors.textSecondary} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Tema Modu</Text>
+                            <Text style={styles.settingDesc}>Koyu veya acik gorunum</Text>
+                        </View>
+                    </View>
+                    <View style={styles.themeModeToggle}>
+                        <TouchableOpacity
+                            style={[styles.themeModeOption, themeMode === "dark" && styles.themeModeOptionActive]}
+                            onPress={() => setThemeMode("dark")}
+                            activeOpacity={0.82}
+                        >
+                            <Ionicons name="moon-outline" size={14} color={themeMode === "dark" ? colors.background : colors.textSecondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.themeModeOption, themeMode === "light" && styles.themeModeOptionActive]}
+                            onPress={() => setThemeMode("light")}
+                            activeOpacity={0.82}
+                        >
+                            <Ionicons name="sunny-outline" size={14} color={themeMode === "light" ? colors.background : colors.textSecondary} />
+                        </TouchableOpacity>
+                    </View>
+                </View>
             </GymCard>
 
             {/* ─── My Programs ─── */}
@@ -567,7 +597,7 @@ export default function ProfileScreen() {
                 actionLabel="Tümü"
                 onAction={() => navigation.navigate("ProgramList")}
             />
-            {programs.length > 0 ? programs.map((prog, index) => (
+            {programs.length > 0 ? programs.slice(0, 3).map((prog, index) => (
                 <TouchableOpacity
                     key={prog.id}
                     onPress={() => navigation.navigate("ProgramDetail", { programId: prog.id })}
@@ -614,7 +644,7 @@ export default function ProfileScreen() {
             )}
 
             {/* ─── Personal Records ─── */}
-            <SectionHeader title="Rekorlarım" actionLabel="Tümü" onAction={() => (navigation as any).navigate("Records")} />
+            <SectionHeader title="En İyi Setlerim" actionLabel="Tümü" onAction={() => (navigation as any).navigate("Records")} />
             <GymCard style={styles.prList}>
                 {prs.length > 0 ? prs.map((pr, index) => (
                     <View key={index}>
@@ -1145,6 +1175,26 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderRadius: 12,
         borderWidth: 2,
         borderColor: colors.border,
+    },
+    themeModeToggle: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        padding: 3,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+    },
+    themeModeOption: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    themeModeOptionActive: {
+        backgroundColor: colors.accent,
     },
     programCard: {
         marginBottom: spacing.sm,
