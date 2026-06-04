@@ -31,6 +31,7 @@ import PrivacyModal from "../components/PrivacyModal";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+import { DEFAULT_PRE_WORKOUT_WARMUP_STEPS } from "../data/warmupRoutine";
 import { useAuth } from "../store/AuthContext";
 
 // ─── Helpers ─────────────────────────────────
@@ -632,6 +633,7 @@ export default function ProgramCreateScreen() {
             const programData = {
                 ...(frequency !== null ? { frequency } : {}),
                 ...(isPublic ? { splitType: splitType ?? selectedSplit } : {}),
+                warmupRoutine: editProgramData?.data?.warmupRoutine || DEFAULT_PRE_WORKOUT_WARMUP_STEPS,
                 days: days.map((d) => ({
                     label: d.label,
                     isRestDay: !!d.isRestDay,

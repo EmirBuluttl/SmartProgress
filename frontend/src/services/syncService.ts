@@ -88,6 +88,7 @@ function sessionToPayload(session: WorkoutSession): SyncWorkoutPayload {
             totalDuration: session.totalDuration,
             totalVolume,
             cardioBlocks: session.cardioBlocks ?? [],
+            warmupRoutine: session.warmupRoutine,
             programId: session.programId,
             dayIndex: session.dayIndex,
         },

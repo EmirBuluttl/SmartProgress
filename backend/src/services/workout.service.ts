@@ -89,6 +89,21 @@ const cardioBlockSchema = z.object({
     stages: z.array(cardioStageSchema).optional(),
 });
 
+const warmupRoutineStepSchema = z.object({
+    id: z.string().max(120),
+    title: z.string().max(160),
+    description: z.string().max(500).optional(),
+    durationSeconds: z.number().int().nonnegative().optional(),
+    completed: z.boolean().optional(),
+});
+
+const warmupRoutineSchema = z.object({
+    status: z.enum(["pending", "completed", "skipped", "cancelled"]),
+    startedAt: z.string().optional(),
+    completedAt: z.string().optional(),
+    steps: z.array(warmupRoutineStepSchema).optional(),
+});
+
 const workoutDataSchema = z.object({
     exercises: z
         .array(workoutExerciseSchema)
@@ -96,6 +111,7 @@ const workoutDataSchema = z.object({
     totalDuration: coerceInt.optional(),
     totalVolume: coerceNumber.optional(),
     cardioBlocks: z.array(cardioBlockSchema).optional(),
+    warmupRoutine: warmupRoutineSchema.optional(),
     programId: z.string().uuid().optional(),
     dayIndex: z.number().int().nonnegative().optional(),
     caloriesBurned: z.number().nonnegative().optional(),

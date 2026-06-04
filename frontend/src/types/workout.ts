@@ -104,6 +104,21 @@ export interface CardioBlock {
     stages: CardioStage[];
 }
 
+export interface WarmupRoutineStep {
+    id: string;
+    title: string;
+    description?: string;
+    durationSeconds?: number;
+    completed?: boolean;
+}
+
+export interface WarmupRoutineLog {
+    status: "pending" | "completed" | "skipped" | "cancelled";
+    startedAt?: string;
+    completedAt?: string;
+    steps: WarmupRoutineStep[];
+}
+
 export interface ProgramDay {
     label: string;             // "Gün 1 — Anterior"
     exercises: TargetExercise[];
@@ -113,11 +128,13 @@ export interface ProgramDay {
 export interface CycleProgramData {
     frequency: number;         // sessions per week, e.g. 3
     days: ProgramDay[];
+    warmupRoutine?: WarmupRoutineStep[];
 }
 
 // Legacy flat structure (backwards compat)
 export interface LegacyProgramData {
     exercises: TargetExercise[];
+    warmupRoutine?: WarmupRoutineStep[];
 }
 
 export type ProgramData = CycleProgramData | LegacyProgramData;
@@ -144,6 +161,7 @@ export interface WorkoutSession {
     cardioBlocks?: CardioBlock[];
     activeCardioBlockId?: string;
     activeCardioStage?: CardioStage;
+    warmupRoutine?: WarmupRoutineLog;
     status: SessionStatus;
     programId?: string;    // linked program (for cycle advance)
     dayIndex?: number;     // which day was trained
@@ -196,6 +214,7 @@ export interface SyncWorkoutPayload {
         totalDuration?: number;
         totalVolume?: number;
         cardioBlocks?: CardioBlock[];
+        warmupRoutine?: WarmupRoutineLog;
         programId?: string;
         dayIndex?: number;
     };

@@ -44,6 +44,13 @@ export type RootStackParamList = {
         dayIndex?: number;
         programData?: {
             frequency?: number;
+            warmupRoutine?: {
+                id: string;
+                title: string;
+                description?: string;
+                durationSeconds?: number;
+                completed?: boolean;
+            }[];
             days?: {
                 label: string;
                 exercises: {

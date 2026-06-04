@@ -47,6 +47,7 @@ import NoticeModal from "../components/NoticeModal";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
 import { summarizeCardioBlocks } from "../utils/cardio";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+import { DEFAULT_PRE_WORKOUT_WARMUP_STEPS } from "../data/warmupRoutine";
 
 // ─── Constants ───────────────────────────────
 
@@ -287,6 +288,7 @@ function normalizeProgramData(raw: any): ProgramData | null {
         return {
             frequency: typeof data.frequency === "number" ? data.frequency : data.days.length,
             days: data.days,
+            warmupRoutine: Array.isArray(data.warmupRoutine) ? data.warmupRoutine : undefined,
         };
     }
 
@@ -294,6 +296,7 @@ function normalizeProgramData(raw: any): ProgramData | null {
     if (Array.isArray(data.exercises)) {
         return {
             exercises: data.exercises,
+            warmupRoutine: Array.isArray(data.warmupRoutine) ? data.warmupRoutine : undefined,
         } as ProgramData;
     }
 
@@ -422,6 +425,7 @@ export default function WorkoutSessionScreen() {
     const [emptyFinishModalVisible, setEmptyFinishModalVisible] = useState(false);
     const [qualityModalVisible, setQualityModalVisible] = useState(false);
     const [qualityWarnings, setQualityWarnings] = useState<string[]>([]);
+    const [preWorkoutWarmupVisible, setPreWorkoutWarmupVisible] = useState(false);
     const [exitModalVisible, setExitModalVisible] = useState(false);
     const [exitModalHasData, setExitModalHasData] = useState(false);
     const [addExerciseModalVisible, setAddExerciseModalVisible] = useState(false);
@@ -456,6 +460,7 @@ export default function WorkoutSessionScreen() {
     const freeWorkoutNameOverrideRef = useRef<string | null>(null);
     const qualityCheckedSessionRef = useRef<WorkoutSession | null>(null);
     const preWorkoutReminderShownRef = useRef(false);
+    const preWorkoutWarmupShownRef = useRef(false);
 
     const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe") => {
         let nextKey = "";
@@ -762,6 +767,14 @@ export default function WorkoutSessionScreen() {
                         ...createSession(),
                         title,
                         exercises: newExercises,
+                        warmupRoutine: {
+                            status: "pending",
+                            startedAt: new Date().toISOString(),
+                            steps: (((normalized as any).warmupRoutine || DEFAULT_PRE_WORKOUT_WARMUP_STEPS) as any[]).map((step) => ({
+                                ...step,
+                                completed: false,
+                            })),
+                        },
                         programId: programId,
                         dayIndex,
                     };
@@ -860,6 +873,21 @@ export default function WorkoutSessionScreen() {
         user?.settings?.pre_workout_reminder_note,
     ]);
 
+    useEffect(() => {
+        if (
+            preWorkoutWarmupShownRef.current ||
+            route.params?.mode === "free" ||
+            session.warmupRoutine?.status !== "pending" ||
+            !Array.isArray(session.warmupRoutine.steps) ||
+            session.warmupRoutine.steps.length === 0
+        ) {
+            return;
+        }
+
+        preWorkoutWarmupShownRef.current = true;
+        setPreWorkoutWarmupVisible(true);
+    }, [route.params?.mode, session.id, session.warmupRoutine?.status, session.warmupRoutine?.steps]);
+
     // ─── Debounced Auto-Save ─────────────────
     useEffect(() => {
         if (!restored || finishingRef.current) return;
@@ -947,6 +975,37 @@ export default function WorkoutSessionScreen() {
         setNoteDraft("");
         updateSession((prev) => ({ ...prev, notes: undefined }));
         setNoteModalVisible(false);
+    }, [updateSession]);
+
+    const toggleWarmupRoutineStep = useCallback((stepId: string) => {
+        updateSession((prev) => ({
+            ...prev,
+            warmupRoutine: prev.warmupRoutine
+                ? {
+                    ...prev.warmupRoutine,
+                    steps: prev.warmupRoutine.steps.map((step) =>
+                        step.id === stepId ? { ...step, completed: !step.completed } : step,
+                    ),
+                }
+                : prev.warmupRoutine,
+        }));
+    }, [updateSession]);
+
+    const setWarmupRoutineStatus = useCallback((status: "completed" | "skipped" | "cancelled") => {
+        updateSession((prev) => ({
+            ...prev,
+            warmupRoutine: prev.warmupRoutine
+                ? {
+                    ...prev.warmupRoutine,
+                    status,
+                    completedAt: new Date().toISOString(),
+                    steps: status === "completed"
+                        ? prev.warmupRoutine.steps.map((step) => ({ ...step, completed: true }))
+                        : prev.warmupRoutine.steps,
+                }
+                : prev.warmupRoutine,
+        }));
+        setPreWorkoutWarmupVisible(false);
     }, [updateSession]);
 
     const updateSet = useCallback(
@@ -1313,8 +1372,11 @@ export default function WorkoutSessionScreen() {
             Number(block.totalCalories) > 0 ||
             (Array.isArray(block.stages) && block.stages.length > 0),
         );
+        const hasCompletedWarmupRoutine = currentSession.warmupRoutine?.status === "completed" &&
+            Array.isArray(currentSession.warmupRoutine.steps) &&
+            currentSession.warmupRoutine.steps.some((step) => step.completed);
 
-        if (validExercises.length === 0 && validCardioBlocks.length === 0) {
+        if (validExercises.length === 0 && validCardioBlocks.length === 0 && !hasCompletedWarmupRoutine) {
             setEmptyFinishModalVisible(true);
             return;
         }
@@ -1441,6 +1503,27 @@ export default function WorkoutSessionScreen() {
             finishingRef.current = false;
         }
     };
+
+    const saveWarmupRoutineOnly = useCallback(async () => {
+        const currentSession = materializeSessionInputs();
+        if (!currentSession.warmupRoutine?.steps?.length) {
+            setPreWorkoutWarmupVisible(false);
+            return;
+        }
+
+        setPreWorkoutWarmupVisible(false);
+        await finishWorkout({
+            ...currentSession,
+            title: `${currentSession.title} - Isinma Rutini`,
+            exercises: [],
+            warmupRoutine: {
+                ...currentSession.warmupRoutine,
+                status: "completed",
+                completedAt: new Date().toISOString(),
+                steps: currentSession.warmupRoutine.steps.map((step) => ({ ...step, completed: true })),
+            },
+        });
+    }, [finishWorkout, materializeSessionInputs]);
 
     const cancelWorkout = async () => {
         pendingExitActionRef.current = null;
@@ -2077,6 +2160,65 @@ export default function WorkoutSessionScreen() {
             style={styles.container}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
+            <Modal
+                visible={preWorkoutWarmupVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setPreWorkoutWarmupVisible(false)}
+            >
+                <View style={styles.addExerciseOverlay}>
+                    <View style={styles.addExerciseModal}>
+                        <View style={styles.setSettingsHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.addExerciseTitle}>Antrenman oncesi isinma</Text>
+                                <Text style={styles.setSettingsSubtitle}>
+                                    Bu rutin W setlerinden bagimsizdir. Once genel hazirligi tamamla, sonra ana antrenmana gec.
+                                </Text>
+                            </View>
+                            <TouchableOpacity
+                                onPress={() => setPreWorkoutWarmupVisible(false)}
+                                style={styles.setSettingsCloseBtn}
+                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                                <Ionicons name="close" size={20} color={colors.textMuted} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <View style={styles.warmupRoutineList}>
+                            {(session.warmupRoutine?.steps || []).map((step) => (
+                                <TouchableOpacity
+                                    key={step.id}
+                                    style={[styles.warmupRoutineStep, step.completed && styles.warmupRoutineStepDone]}
+                                    onPress={() => toggleWarmupRoutineStep(step.id)}
+                                    activeOpacity={0.78}
+                                >
+                                    <View style={[styles.warmupRoutineCheck, step.completed && styles.warmupRoutineCheckDone]}>
+                                        {step.completed ? <Ionicons name="checkmark" size={15} color={colors.background} /> : null}
+                                    </View>
+                                    <View style={{ flex: 1 }}>
+                                        <Text style={styles.warmupRoutineStepTitle}>{step.title}</Text>
+                                        {step.description ? (
+                                            <Text style={styles.warmupRoutineStepDesc}>{step.description}</Text>
+                                        ) : null}
+                                    </View>
+                                </TouchableOpacity>
+                            ))}
+                        </View>
+
+                        <View style={styles.warmupRoutineActions}>
+                            <TouchableOpacity style={styles.secondaryActionBtn} onPress={() => setWarmupRoutineStatus("skipped")}>
+                                <Text style={styles.secondaryActionText}>Atla</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={styles.secondaryActionBtn} onPress={saveWarmupRoutineOnly}>
+                                <Text style={styles.secondaryActionText}>Kaydet ve Cik</Text>
+                            </TouchableOpacity>
+                        </View>
+                        <TouchableOpacity style={styles.modalPrimaryBtn} onPress={() => setWarmupRoutineStatus("completed")}>
+                            <Text style={styles.modalPrimaryText}>Rutini Tamamla</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
             <ActionConfirmModal
                 visible={emptyFinishModalVisible}
                 title="Henüz veri girmediniz"
@@ -3271,6 +3413,71 @@ const createStyles = (colors: any) => StyleSheet.create({
     setSettingsControls: {
         flex: 1,
         gap: spacing.xs,
+    },
+    warmupRoutineList: {
+        gap: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    warmupRoutineStep: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+    },
+    warmupRoutineStepDone: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    warmupRoutineCheck: {
+        width: 24,
+        height: 24,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.borderLight,
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: 2,
+    },
+    warmupRoutineCheckDone: {
+        backgroundColor: colors.accent,
+        borderColor: colors.accent,
+    },
+    warmupRoutineStepTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    warmupRoutineStepDesc: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 19,
+        marginTop: 3,
+    },
+    warmupRoutineActions: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        marginBottom: spacing.sm,
+    },
+    secondaryActionBtn: {
+        flex: 1,
+        minHeight: 44,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: spacing.sm,
+    },
+    secondaryActionText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        textAlign: "center",
     },
     segmentedControl: {
         flexDirection: "row",
