@@ -26,6 +26,7 @@ import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import GymCard from "../components/GymCard";
 import { summarizeCardioBlocks } from "../utils/cardio";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 const FAVORITES_KEY = "workout_favorites";
 const ORDER_KEY = "workout_display_order";
@@ -149,7 +150,7 @@ export default function WorkoutHistoryScreen() {
                 <View style={styles.cardRow}>
                     <Pressable
                         style={styles.cardContent}
-                        onPress={() => (navigation as any).navigate("WorkoutDetail", { workout: item })}
+                        onPress={() => navigateWithFeedback(() => (navigation as any).navigate("WorkoutDetail", { workout: item }))}
                     >
                         <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
                         <Text style={styles.dateText}>

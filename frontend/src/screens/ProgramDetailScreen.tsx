@@ -31,6 +31,7 @@ import {
     navigateToWorkoutRespectingActiveSession,
     type StartableProgram,
 } from "../utils/workoutNavigation";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -221,22 +222,24 @@ export default function ProgramDetailScreen() {
 
     const navigateToDayDetail = (dayIndex: number) => {
         if (!program?.data?.days?.[dayIndex]) return;
+        const programData = program.data;
+        const day = programData.days[dayIndex];
         setSelectedDayIndex(null);
-        navigation.navigate("ProgramDayDetail", {
+        navigateWithFeedback(() => navigation.navigate("ProgramDayDetail", {
             programId: program.id,
             programName: program.name,
             dayIndex,
-            day: program.data.days[dayIndex],
-            programData: program.data as any,
-        });
+            day,
+            programData: programData as any,
+        }));
     };
 
     const handleEdit = () => {
         if (!program) return;
-        navigation.navigate("ProgramCreate", {
+        navigateWithFeedback(() => navigation.navigate("ProgramCreate", {
             editProgramId: program.id,
             editProgramData: program,
-        });
+        }), { variant: "modal" });
     };
 
     const handleDayTap = (dayIndex: number) => {
@@ -439,7 +442,8 @@ export default function ProgramDetailScreen() {
                                 style={s.ownerPill}
                                 activeOpacity={0.75}
                                 onPress={() => {
-                                    if (program.user?.id) navigation.navigate("PublicProfile", { userId: program.user.id });
+                                    const userId = program.user?.id;
+                                    if (userId) navigateWithFeedback(() => navigation.navigate("PublicProfile", { userId }));
                                 }}
                             >
                                 {program.user?.avatarUrl ? (

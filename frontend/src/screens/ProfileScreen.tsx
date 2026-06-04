@@ -648,7 +648,7 @@ export default function ProfileScreen() {
             {topPrograms.length > 0 ? topPrograms.map((prog, index) => (
                 <TouchableOpacity
                     key={prog.id}
-                    onPress={() => navigation.navigate("ProgramDetail", { programId: prog.id })}
+                    onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: prog.id }))}
                     style={styles.programCard}
                     activeOpacity={0.8}
                 >
@@ -692,7 +692,7 @@ export default function ProfileScreen() {
             )}
 
             {/* ─── Personal Records ─── */}
-            <SectionHeader title="En İyi Setlerim" actionLabel="Tümü" onAction={() => (navigation as any).navigate("Records")} />
+            <SectionHeader title="En İyi Setlerim" actionLabel="Tümü" onAction={() => navigateWithFeedback(() => (navigation as any).navigate("Records"))} />
             <GymCard style={styles.prList}>
                 {prs.length > 0 ? prs.map((pr, index) => (
                     <View key={index}>

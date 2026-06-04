@@ -34,6 +34,7 @@ import {
     navigateToWorkoutRespectingActiveSession,
     type StartableProgram,
 } from "../utils/workoutNavigation";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 // ─── Stagger wrapper — her kart index * 50ms delay ile girer ───
 function StaggerCard({ index, children }: { index: number; children: React.ReactNode }) {
@@ -134,7 +135,7 @@ export default function ProgramListScreen() {
                 </TouchableOpacity>
                 <Text style={styles.headerTitle}>Programlarım</Text>
                 <TouchableOpacity
-                    onPress={() => navigation.navigate("ProgramCreate")}
+                    onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramCreate"), { variant: "modal" })}
                     style={styles.iconBtn}
                     activeOpacity={0.75}
                 >
@@ -148,7 +149,7 @@ export default function ProgramListScreen() {
                     <Text style={styles.emptyText}>Henüz bir programınız yok.</Text>
                     <TouchableOpacity
                         style={styles.createBtn}
-                        onPress={() => navigation.navigate("ProgramCreate")}
+                        onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramCreate"), { variant: "modal" })}
                         activeOpacity={0.75}
                     >
                         <Text style={styles.createBtnText}>Program Oluştur</Text>
@@ -163,7 +164,7 @@ export default function ProgramListScreen() {
                         <StaggerCard index={index}>
                         <TouchableOpacity
                         activeOpacity={0.75}
-                            onPress={() => navigation.navigate("ProgramDetail", { programId: item.id })}
+                            onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: item.id }))}
                         >
                         <GymCard elevated style={styles.card}>
                             <View style={styles.cardHeader}>

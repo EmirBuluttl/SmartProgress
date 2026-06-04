@@ -17,6 +17,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "PublicProfile">;
 type Route = RouteProp<RootStackParamList, "PublicProfile">;
@@ -111,7 +112,7 @@ export default function PublicProfileScreen() {
                                 <TouchableOpacity
                                     key={program.id}
                                     activeOpacity={0.8}
-                                    onPress={() => navigation.navigate("ProgramDetail", { programId: program.id })}
+                                    onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: program.id }))}
                                 >
                                     <GymCard style={styles.programCard}>
                                         <Text style={styles.programName}>{program.name}</Text>

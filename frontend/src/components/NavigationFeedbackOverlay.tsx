@@ -1,5 +1,5 @@
 import React from "react";
-import { Animated, StyleSheet, View } from "react-native";
+import { Animated, Easing, StyleSheet, View } from "react-native";
 import { useTheme } from "../hooks/ThemeContext";
 import {
     NavigationFeedbackVariant,
@@ -26,31 +26,37 @@ export default function NavigationFeedbackOverlay() {
             modalLift.setValue(0);
 
             Animated.parallel([
-                Animated.sequence([
-                    Animated.timing(opacity, {
-                        toValue: 1,
-                        duration: 110,
-                        useNativeDriver: true,
-                    }),
-                    Animated.delay(135),
-                    Animated.timing(opacity, {
-                        toValue: 0,
-                        duration: 260,
-                        useNativeDriver: true,
-                    }),
-                ]),
+                Animated.timing(opacity, {
+                    toValue: 1,
+                    duration: 95,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                    isInteraction: false,
+                }),
                 Animated.timing(sweep, {
                     toValue: 1,
-                    duration: 430,
+                    duration: 220,
+                    easing: Easing.out(Easing.cubic),
                     useNativeDriver: true,
+                    isInteraction: false,
                 }),
                 Animated.timing(modalLift, {
                     toValue: 1,
-                    duration: 390,
+                    duration: 220,
+                    easing: Easing.out(Easing.cubic),
                     useNativeDriver: true,
+                    isInteraction: false,
                 }),
-            ]).start(({ finished }) => {
-                if (finished) setVisible(false);
+            ]).start(() => {
+                Animated.timing(opacity, {
+                    toValue: 0,
+                    duration: 145,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                    isInteraction: false,
+                }).start(({ finished }) => {
+                    if (finished) setVisible(false);
+                });
             });
         });
     }, [modalLift, opacity, sweep]);
@@ -59,15 +65,15 @@ export default function NavigationFeedbackOverlay() {
 
     const detailTranslate = sweep.interpolate({
         inputRange: [0, 1],
-        outputRange: [92, -32],
+        outputRange: [26, -10],
     });
     const modalTranslate = modalLift.interpolate({
         inputRange: [0, 1],
-        outputRange: [96, -8],
+        outputRange: [22, -2],
     });
     const modalScale = modalLift.interpolate({
         inputRange: [0, 1],
-        outputRange: [0.98, 1.01],
+        outputRange: [0.985, 1],
     });
 
     return (
@@ -93,7 +99,7 @@ export default function NavigationFeedbackOverlay() {
                             backgroundColor: colors.accent,
                             opacity: opacity.interpolate({
                                 inputRange: [0, 1],
-                                outputRange: [0, 0.2],
+                                outputRange: [0, 0.14],
                             }),
                             transform: [{ translateY: modalTranslate }, { scaleX: modalScale }],
                         },
@@ -107,7 +113,7 @@ export default function NavigationFeedbackOverlay() {
                             backgroundColor: colors.accent,
                             opacity: opacity.interpolate({
                                 inputRange: [0, 1],
-                                outputRange: [0, 0.16],
+                                outputRange: [0, 0.14],
                             }),
                             transform: [{ translateX: detailTranslate }],
                         },
@@ -125,21 +131,21 @@ const styles = StyleSheet.create({
     detailSweep: {
         position: "absolute",
         top: 0,
-        right: -80,
+        right: -18,
         bottom: 0,
-        width: 120,
+        width: 28,
         zIndex: 1000,
-        borderTopLeftRadius: 48,
-        borderBottomLeftRadius: 48,
+        borderTopLeftRadius: 18,
+        borderBottomLeftRadius: 18,
     },
     modalSweep: {
         position: "absolute",
-        left: 18,
-        right: 18,
-        bottom: -34,
-        height: 86,
+        left: 28,
+        right: 28,
+        bottom: -10,
+        height: 24,
         zIndex: 1000,
-        borderTopLeftRadius: 28,
-        borderTopRightRadius: 28,
+        borderTopLeftRadius: 18,
+        borderTopRightRadius: 18,
     },
 });

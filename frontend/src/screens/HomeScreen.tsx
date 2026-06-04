@@ -313,13 +313,13 @@ export default function HomeScreen() {
 
     const openCurrentProgramDayDetail = () => {
         if (!favoriteProgram || !currentDay) return;
-        navigation.navigate("ProgramDayDetail", {
+        navigateWithFeedback(() => navigation.navigate("ProgramDayDetail", {
             programId: favoriteProgram.id,
             programName: favoriteProgram.name,
             dayIndex: currentDayIndex,
             day: currentDay,
             programData: favoriteProgram.data,
-        });
+        }));
     };
 
     const openNotification = async (notification: any) => {
@@ -335,7 +335,7 @@ export default function HomeScreen() {
 
         if (notification.actionScreen === "ProgramDetail" && notification.actionParams?.programId) {
             setNotificationsVisible(false);
-            navigation.navigate("ProgramDetail", { programId: notification.actionParams.programId });
+            navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: notification.actionParams.programId }));
         } else if (notification.actionScreen === "MyProgress") {
             requestMainTabSwitch("MyProgress");
             setNotificationsVisible(false);
@@ -636,7 +636,7 @@ export default function HomeScreen() {
                     renderItem={({ item }) => (
                         <AnimatedPressable
                             pressedScale={0.985}
-                            onPress={() => navigation.navigate("WorkoutDetail", { workout: item })}
+                            onPress={() => navigateWithFeedback(() => navigation.navigate("WorkoutDetail", { workout: item }))}
                         >
                             <GymCard elevated style={[styles.workoutCard, { width: WORKOUT_CARD_WIDTH }]}>
                                 <View style={styles.workoutCardHeader}>
@@ -689,11 +689,11 @@ export default function HomeScreen() {
                         <Animated.View key={prog.id} style={programActivationStyle(prog.id)}>
                         <AnimatedPressable
                             pressedScale={0.985}
-                            onPress={() => {
+                            onPress={() => navigateWithFeedback(() => {
                                 navigation.navigate("ProgramDetail", {
                                     programId: prog.id,
                                 });
-                            }}
+                            })}
                             onLongPress={() => toggleFavoriteProgram(prog.id)}
                         >
                             <GymCard style={styles.programCard} elevated>
@@ -753,7 +753,7 @@ export default function HomeScreen() {
                         <AnimatedPressable
                             key={prog.id}
                             pressedScale={0.985}
-                            onPress={() => navigation.navigate("ProgramDetail", { programId: prog.id })}
+                            onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: prog.id }))}
                         >
                             <GymCard style={styles.communityCard} elevated>
                                 <View style={styles.programHeader}>

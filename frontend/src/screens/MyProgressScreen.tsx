@@ -31,6 +31,7 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { useCountUp } from "../hooks/useCountUp";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const RECORD_LINKS_KEY = "personal_record_video_links";
@@ -529,7 +530,7 @@ export default function MyProgressScreen() {
                     <SectionHeader
                         title="En İyi Setlerim"
                         actionLabel="Tümünü Gör"
-                        onAction={() => navigation.navigate("Records")}
+                        onAction={() => navigateWithFeedback(() => (navigation as any).navigate("Records"))}
                     />
                     {prs.length > 0 ? (
                         prs.slice(0, 5).map((pr, index) => (

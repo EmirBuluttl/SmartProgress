@@ -17,6 +17,7 @@ import { programApi, parseApiError } from "../services/api";
 import GymCard from "../components/GymCard";
 import NoticeModal from "../components/NoticeModal";
 import type { RootStackParamList } from "../navigation/RootNavigator";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type SortMode = "stars" | "newest" | "oldest";
@@ -126,7 +127,7 @@ export default function CommunityProgramsScreen() {
         try {
             const res = await programApi.copyToLibrary(program.id);
             setNotice({ title: "Kitapliga eklendi", message: "Program kutuphanene eklendi." });
-            navigation.navigate("ProgramDetail", { programId: res.data.id });
+            navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: res.data.id }));
         } catch (err) {
             const apiError = parseApiError(err);
             setNotice({ title: "Eklenemedi", message: apiError.message });
@@ -206,7 +207,7 @@ export default function CommunityProgramsScreen() {
                 renderItem={({ item }) => (
                     <TouchableOpacity
                         activeOpacity={0.86}
-                        onPress={() => navigation.navigate("ProgramDetail", { programId: item.id })}
+                        onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: item.id }))}
                     >
                         <GymCard elevated style={styles.card}>
                             <View style={styles.cardHeader}>

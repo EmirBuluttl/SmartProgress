@@ -29,7 +29,7 @@ function emitNavigationFeedback(variant: NavigationFeedbackVariant) {
 
 export function navigateWithFeedback(navigate: () => void, options: NavigationFeedbackOptions = {}) {
     const variant = options.variant ?? "detail";
-    const preDelayMs = options.preDelayMs ?? 135;
+    const preDelayMs = options.preDelayMs ?? 45;
     emitNavigationFeedback(variant);
     setTimeout(navigate, preDelayMs);
 }
