@@ -43,7 +43,10 @@ import { countProgressEvents } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { requestMainTabSwitch } from "../utils/mainTabEvents";
-import { navigateToWorkoutRespectingActiveSession } from "../utils/workoutNavigation";
+import {
+    navigateToFreeWorkoutRespectingActiveSession,
+    navigateToWorkoutRespectingActiveSession,
+} from "../utils/workoutNavigation";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -787,7 +790,7 @@ export default function HomeScreen() {
             secondaryLabel="Hayır"
             onPrimary={() => {
                 setQuickWorkoutConfirmVisible(false);
-                navigateToWorkoutRespectingActiveSession(navigation, { mode: "free" });
+                navigateToFreeWorkoutRespectingActiveSession(navigation);
             }}
             onSecondary={() => setQuickWorkoutConfirmVisible(false)}
             onDismiss={() => setQuickWorkoutConfirmVisible(false)}

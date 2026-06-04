@@ -145,6 +145,7 @@ export default function WarmupSessionScreen() {
 
     const abandonWarmup = useCallback(async () => {
         if (!session?.warmupRoutine) return;
+        setExitModalVisible(false);
         closingRef.current = true;
         await persist({
             ...session,
@@ -158,8 +159,9 @@ export default function WarmupSessionScreen() {
     }, [navigation, persist, session]);
 
     const saveAndExit = useCallback(async () => {
-        if (session) await persist(session);
+        setExitModalVisible(false);
         closingRef.current = true;
+        if (session) await persist(session);
         navigation.navigate("MainTabs");
     }, [navigation, persist, session]);
 

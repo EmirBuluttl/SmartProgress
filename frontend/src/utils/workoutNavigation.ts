@@ -6,6 +6,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 type WorkoutSessionParams = RootStackParamList["WorkoutSession"];
 type NavigationLike = {
     navigate: (screen: "WorkoutSession", params?: WorkoutSessionParams) => void;
+    push?: (...args: any[]) => void;
 };
 
 export const ACTIVE_PROGRAM_KEY = "active_program_id";
@@ -83,5 +84,21 @@ export async function navigateToWorkoutRespectingActiveSession(
     }
 
     navigation.navigate("WorkoutSession", params);
+    return { restoredActiveSession: false };
+}
+
+export async function navigateToFreeWorkoutRespectingActiveSession(navigation: NavigationLike) {
+    const activeSession = await restoreActiveSession();
+    if (activeSession) {
+        navigation.navigate("WorkoutSession", {});
+        return { restoredActiveSession: true };
+    }
+
+    const params: WorkoutSessionParams = { mode: "free" };
+    if (navigation.push) {
+        navigation.push("WorkoutSession", params);
+    } else {
+        navigation.navigate("WorkoutSession", params);
+    }
     return { restoredActiveSession: false };
 }
