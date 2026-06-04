@@ -228,12 +228,16 @@ export default function HomeScreen() {
         ? (currentDayIndex + 1) % cycleData.days.length
         : 0;
     const nextDay = cycleData?.days?.[nextDayIndex];
+    const activeDayReminder = favoriteProgram
+        ? user?.settings?.pre_workout_reminders_by_program?.[favoriteProgram.id]?.days?.[String(currentDayIndex)]
+        : undefined;
+    const activeDayReminderNote = String(activeDayReminder?.note || "").trim();
     const preWorkoutReminderNotification =
-        user?.settings?.pre_workout_reminder_enabled === true && favoriteProgram && currentDay
+        activeDayReminder?.enabled === true && !!activeDayReminderNote && favoriteProgram && currentDay
             ? {
                 id: "local-pre-workout-reminder",
                 title: "Antrenman hatirlatmasi",
-                message: `${favoriteProgram.name} icin siradaki gun: ${currentDay.label}. ${user?.settings?.pre_workout_reminder_note || "Baslamadan once isinma ve form notlarini kontrol et."}`,
+                message: `${favoriteProgram.name} icin ${currentDay.label}: ${activeDayReminderNote}`,
                 actionLabel: "Programi ac",
                 actionScreen: "ProgramDetail",
                 actionParams: { programId: favoriteProgram.id },

@@ -851,10 +851,16 @@ export default function WorkoutSessionScreen() {
     }, [recentlyAddedExerciseId]);
 
     useEffect(() => {
-        const note = String(user?.settings?.pre_workout_reminder_note || "").trim();
+        const programId = route.params?.programId;
+        const dayIndex = route.params?.dayIndex ?? 0;
+        const dayReminder = programId
+            ? user?.settings?.pre_workout_reminders_by_program?.[programId]?.days?.[String(dayIndex)]
+            : undefined;
+        const note = String(dayReminder?.note || "").trim();
         if (
             preWorkoutReminderShownRef.current ||
-            user?.settings?.pre_workout_reminder_enabled !== true ||
+            !programId ||
+            dayReminder?.enabled !== true ||
             !note ||
             session.exercises.length === 0
         ) {
@@ -867,10 +873,11 @@ export default function WorkoutSessionScreen() {
             message: note,
         });
     }, [
+        route.params?.dayIndex,
+        route.params?.programId,
         session.exercises.length,
         session.id,
-        user?.settings?.pre_workout_reminder_enabled,
-        user?.settings?.pre_workout_reminder_note,
+        user?.settings?.pre_workout_reminders_by_program,
     ]);
 
     useEffect(() => {

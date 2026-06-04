@@ -70,6 +70,7 @@ const DEFAULT_USER_SETTINGS = {
     show_rpe_rir_info: true,
     pre_workout_reminder_enabled: false,
     pre_workout_reminder_note: "",
+    pre_workout_reminders_by_program: {},
     onboarding_completed: false,
 };
 

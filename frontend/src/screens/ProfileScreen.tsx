@@ -80,9 +80,6 @@ export default function ProfileScreen() {
     const [showRpeRirInfo, setShowRpeRirInfo] = useState(
         user?.settings?.show_rpe_rir_info !== false
     );
-    const [preWorkoutReminderEnabled, setPreWorkoutReminderEnabled] = useState(
-        user?.settings?.pre_workout_reminder_enabled === true
-    );
     const [preWorkoutReminderNote, setPreWorkoutReminderNote] = useState(
         user?.settings?.pre_workout_reminder_note || ""
     );
@@ -98,6 +95,10 @@ export default function ProfileScreen() {
     const [prs, setPrs] = useState<any[]>([]);
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    React.useEffect(() => {
+        setTrainingLevel((user?.settings?.training_level as TrainingLevel) || "beginner");
+    }, [user?.settings?.training_level]);
 
     const persistSettings = async (patch: Record<string, any>, warningLabel: string) => {
         const newSettings = { ...user?.settings, ...patch };
@@ -396,77 +397,45 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
-                <View style={styles.settingRow}>
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    onPress={() => navigation.navigate("PreWorkoutReminders")}
+                    activeOpacity={0.78}
+                >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name="clipboard-outline" size={20} color={colors.accent} />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.settingTitle}>Antrenman Oncesi Not</Text>
+                            <Text style={styles.settingTitle}>Antrenman Gunu Hatirlaticilari</Text>
                             <Text style={styles.settingDesc} numberOfLines={2}>
-                                {preWorkoutReminderNote || "Session basinda kendine kisa bir hatirlatma goster"}
+                                Aktif programindaki her gun icin ayri antrenman oncesi not kur
                             </Text>
                         </View>
                     </View>
-                    <View style={styles.settingActionCluster}>
-                        <TouchableOpacity
-                            style={styles.smallOutlineBtn}
-                            onPress={() => {
-                                setReminderDraft(preWorkoutReminderNote);
-                                setReminderModalVisible(true);
-                            }}
-                            activeOpacity={0.75}
-                        >
-                            <Text style={styles.smallOutlineBtnText}>Duzenle</Text>
-                        </TouchableOpacity>
-                        <Switch
-                            value={preWorkoutReminderEnabled}
-                            onValueChange={(val) => {
-                                setPreWorkoutReminderEnabled(val);
-                                persistSettings({ pre_workout_reminder_enabled: val }, "pre-workout reminder setting");
-                            }}
-                            trackColor={{
-                                false: colors.surfaceElevated,
-                                true: colors.accentMuted,
-                            }}
-                            thumbColor={preWorkoutReminderEnabled ? colors.accent : colors.textMuted}
-                        />
-                    </View>
-                </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
 
                 <View style={styles.settingDivider} />
 
-                <View style={styles.settingBlock}>
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    onPress={() => navigation.navigate("TrainingLevel")}
+                    activeOpacity={0.78}
+                >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name="speedometer-outline" size={20} color={colors.accent} />
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.settingTitle}>Kullanici Seviyesi</Text>
-                            <Text style={styles.settingDesc}>Koç ve rehber anlatimlari bu seviyeye gore sakinlesir</Text>
+                            <Text style={styles.settingDesc}>
+                                Secili seviye: {TRAINING_LEVEL_OPTIONS.find((option) => option.key === trainingLevel)?.label || "Baslangic"}
+                            </Text>
                         </View>
                     </View>
-                    <View style={styles.levelSegmentRow}>
-                        {TRAINING_LEVEL_OPTIONS.map((option) => {
-                            const selected = trainingLevel === option.key;
-                            return (
-                                <TouchableOpacity
-                                    key={option.key}
-                                    style={[styles.levelSegment, selected && styles.levelSegmentActive]}
-                                    onPress={() => {
-                                        setTrainingLevel(option.key);
-                                        persistSettings({ training_level: option.key }, "training level");
-                                    }}
-                                    activeOpacity={0.75}
-                                >
-                                    <Text style={[styles.levelSegmentText, selected && styles.levelSegmentTextActive]}>
-                                        {option.label}
-                                    </Text>
-                                </TouchableOpacity>
-                            );
-                        })}
-                    </View>
-                </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
 
                 <View style={styles.settingDivider} />
 

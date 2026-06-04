@@ -26,6 +26,10 @@ interface User {
         show_rpe_rir_info?: boolean;
         pre_workout_reminder_enabled?: boolean;
         pre_workout_reminder_note?: string;
+        pre_workout_reminders_by_program?: Record<string, {
+            programName?: string;
+            days?: Record<string, { enabled?: boolean; note?: string }>;
+        }>;
         onboarding_completed?: boolean;
         onboarding_profile?: Record<string, any>;
         onboardingProfile?: Record<string, any>;

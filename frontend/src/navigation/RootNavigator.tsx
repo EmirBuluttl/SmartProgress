@@ -30,6 +30,8 @@ import PremiumProgramWizardScreen from "../screens/PremiumProgramWizardScreen";
 import CoachWeeklyReportScreen from "../screens/CoachWeeklyReportScreen";
 import CoachInsightHistoryScreen from "../screens/CoachInsightHistoryScreen";
 import ExerciseLibraryScreen from "../screens/ExerciseLibraryScreen";
+import PreWorkoutRemindersScreen from "../screens/PreWorkoutRemindersScreen";
+import TrainingLevelScreen from "../screens/TrainingLevelScreen";
 import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
 import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
 
@@ -113,6 +115,8 @@ export type RootStackParamList = {
     CoachWeeklyReport: undefined;
     CoachInsightHistory: undefined;
     ExerciseLibrary: undefined;
+    PreWorkoutReminders: undefined;
+    TrainingLevel: undefined;
 };
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
@@ -262,6 +266,16 @@ function AppNavigator() {
             <AppStack.Screen
                 name="ExerciseLibrary"
                 component={ExerciseLibraryScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="PreWorkoutReminders"
+                component={PreWorkoutRemindersScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="TrainingLevel"
+                component={TrainingLevelScreen}
                 options={{ animation: "slide_from_right" }}
             />
         </AppStack.Navigator>
