@@ -54,7 +54,7 @@ function bestWorkingSet(exercise: any): CoachBestSet | null {
 
 function hashWorkoutSources(logs: { id: string; updatedAt: Date }[]) {
     return createHash("sha256")
-        .update(["coach-report-v3", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
+        .update(["coach-report-v4", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
         .digest("hex");
 }
 
@@ -140,17 +140,28 @@ export class CoachReportService {
         const chronologicalAnalysisLogs = [...analysisLogs].sort((a, b) => a.logDate.getTime() - b.logDate.getTime());
         for (const log of chronologicalAnalysisLogs) {
             const exercises = Array.isArray((log.data as any)?.exercises) ? (log.data as any).exercises : [];
+            const bestByExerciseInLog = new Map<string, { name: string; best: CoachBestSet }>();
             for (const exercise of exercises) {
                 const key = exerciseHistoryKey(exercise);
                 if (!key) continue;
                 const best = bestWorkingSet(exercise);
                 if (!best) continue;
+                const existing = bestByExerciseInLog.get(key);
+                if (!existing || best.weight > existing.best.weight || (best.weight === existing.best.weight && best.reps > existing.best.reps)) {
+                    bestByExerciseInLog.set(key, {
+                        name: String(exercise?.name || "Hareket"),
+                        best,
+                    });
+                }
+            }
+
+            for (const [key, entry] of bestByExerciseInLog) {
                 const history = historyByExercise.get(key) || [];
                 history.push({
                     logId: log.id,
                     logDate: log.logDate,
-                    name: String(exercise?.name || "Hareket"),
-                    best,
+                    name: entry.name,
+                    best: entry.best,
                 });
                 historyByExercise.set(key, history);
             }
