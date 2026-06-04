@@ -132,10 +132,11 @@ export default function WarmupRoutineBuilderScreen() {
                     : undefined,
             };
         });
+        const { warmupRoutineResult, ...programCreateParams } = route.params.programCreateParams || {};
         navigation.navigate({
             name: "ProgramCreate",
             params: {
-                ...(route.params.programCreateParams || {}),
+                ...programCreateParams,
                 warmupRoutineResult: { days: cleanedDays },
             },
             merge: true,
@@ -274,10 +275,10 @@ const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").
     dayChipTextActive: { color: colors.accent },
     dayDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: colors.accent },
     sectionCard: { padding: spacing.lg, borderRadius: borderRadius.lg, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surface, marginBottom: spacing.md },
-    sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.md, marginBottom: spacing.md },
+    sectionHeader: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: spacing.sm, marginBottom: spacing.md },
     sectionTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
-    sectionDesc: { color: colors.textMuted, fontSize: fontSize.sm, lineHeight: 18, marginTop: 3 },
-    addBtn: { width: 36, height: 36, borderRadius: borderRadius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center" },
+    sectionDesc: { color: colors.textMuted, fontSize: fontSize.sm, lineHeight: 18, marginTop: 3, maxWidth: 230 },
+    addBtn: { width: 34, height: 34, borderRadius: borderRadius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", marginLeft: spacing.xs },
     exerciseCard: { padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm },
     exerciseTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
     exerciseIndex: { width: 24, color: colors.accent, fontWeight: fontWeight.bold, textAlign: "center" },

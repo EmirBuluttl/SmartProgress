@@ -48,8 +48,13 @@ function formatDate(iso: string): string {
 }
 
 function getEffortHeader(sets: any[] = []): string {
-    const hasDuration = sets.some((set) => set.effortMode === "duration");
-    const hasReps = sets.some((set) => set.effortMode !== "duration");
+    const modes = sets.map((set) => {
+        const hasDuration = set?.effortMode === "duration" || Number(set?.durationSeconds || 0) > 0;
+        const hasReps = Number(set?.reps || 0) > 0 || !hasDuration;
+        return hasDuration && !hasReps ? "duration" : hasDuration && hasReps ? "mixed" : "reps";
+    });
+    const hasDuration = modes.some((mode) => mode === "duration" || mode === "mixed");
+    const hasReps = modes.some((mode) => mode === "reps" || mode === "mixed");
     if (hasDuration && hasReps) return "TEKRAR/SURE";
     return hasDuration ? "SURE" : "TEKRAR";
 }
@@ -168,7 +173,7 @@ export default function WorkoutDetailScreen() {
                                 <View style={styles.setHeaderRow}>
                                     <Text style={[styles.setHeaderCell, { flex: 0.4 }]}>SET</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 1 }]}>AĞIRLIK</Text>
-                                    <Text style={[styles.setHeaderCell, { flex: 0.95 }]} numberOfLines={1}>{getEffortHeader(ex.sets || [])}</Text>
+                                    <Text style={[styles.setHeaderCell, styles.effortHeaderCell, { flex: 1.1 }]} numberOfLines={1}>{getEffortHeader(ex.sets || [])}</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 0.6 }]}>RPE</Text>
                                     <Text style={[styles.setHeaderCell, { flex: 0.6 }]}>RIR</Text>
                                 </View>
@@ -192,7 +197,7 @@ export default function WorkoutDetailScreen() {
                                         <Text style={[styles.setCell, styles.setCellAccent, { flex: 1 }]}>
                                             {set.weightMode === "bodyweight" ? "BW" : set.weight > 0 ? `${set.weight} ${set.unit || "kg"}` : "—"}
                                         </Text>
-                                        <Text style={[styles.setCell, { flex: 0.95 }]}>
+                                        <Text style={[styles.setCell, { flex: 1.1 }]}>
                                             {set.effortMode === "duration"
                                                 ? formatSetDuration(set.durationSeconds)
                                                 : set.reps > 0 ? `${set.reps}` : "—"}
@@ -364,6 +369,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         letterSpacing: 0.5,
     },
+    effortHeaderCell: {
+        minWidth: 72,
+        paddingRight: spacing.xs,
+    },
     setRow: {
         flexDirection: "row",
         paddingVertical: spacing.sm,
@@ -379,6 +388,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     setCell: {
         fontSize: fontSize.md,
         color: colors.text,
+        paddingRight: spacing.xs,
     },
     setCellAccent: {
         color: colors.accent,

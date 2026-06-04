@@ -54,8 +54,8 @@ function AnimatedTabIcon({
 
     useEffect(() => {
         Animated.timing(scale, {
-            toValue: focused ? 1.08 : 1,
-            duration: 180,
+            toValue: focused ? 1.04 : 1,
+            duration: 240,
             useNativeDriver: true,
         }).start();
     }, [focused, scale]);
@@ -164,7 +164,7 @@ export default function TabNavigator({ route }: any) {
         };
     }, []);
 
-    const switchToTab = (index: number, animated = true, lockMs = animated ? 420 : 700) => {
+    const switchToTab = (index: number, animated = true, lockMs = animated ? 520 : 700) => {
         isScrollingRef.current = true;
         lockedIndexRef.current = index;
         lockUntilRef.current = Date.now() + lockMs;
@@ -183,7 +183,7 @@ export default function TabNavigator({ route }: any) {
                 lockedIndexRef.current = null;
                 isScrollingRef.current = false;
             }
-        }, animated ? 380 : 90);
+        }, animated ? 480 : 90);
         setTimeout(() => {
             scrollViewRef.current?.scrollTo({
                 x: index * screenWidth,
@@ -205,14 +205,14 @@ export default function TabNavigator({ route }: any) {
         setTimeout(() => {
             Animated.timing(externalSwitchOpacity, {
                 toValue: 0,
-                duration: 180,
+                duration: 260,
                 useNativeDriver: true,
             }).start(({ finished }) => {
                 if (finished) {
                     setExternalSwitchVisible(false);
                 }
             });
-        }, 280);
+        }, 360);
     };
 
     useEffect(() => {

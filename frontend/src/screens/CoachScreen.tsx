@@ -338,52 +338,6 @@ export default function CoachScreen() {
                 </Animated.View>
             )}
 
-            {isFree ? (
-                <Animated.View style={[styles.section, flowAnimStyle]}>
-                    <Text style={styles.sectionTitle}>Neler gelecek?</Text>
-                    <FeatureRow
-                        icon="map-outline"
-                        title="Kişisel program wizard"
-                        description="Seviye, frekans, ağrı durumu ve öncelikli kaslarına göre program kurulum akışı."
-                        colors={colors}
-                    />
-                    <FeatureRow
-                        icon="trending-up-outline"
-                        title="Progress ve plato takibi"
-                        description="Kilo, tekrar, RIR ve log düzenine göre takipte veya müdahale adayı olan hareketler."
-                        colors={colors}
-                    />
-                    <FeatureRow
-                        icon="document-text-outline"
-                        title="Haftalık koç raporu"
-                        description="Yeterli log varsa haftanın en iyi progress'i, takipteki hareketler ve gelecek hedefler."
-                        colors={colors}
-                    />
-                </Animated.View>
-            ) : (
-                <Animated.View style={[styles.section, flowAnimStyle]}>
-                    <Text style={styles.sectionTitle}>Koç akışı</Text>
-                    <FeatureRow
-                        icon="analytics-outline"
-                        title="Logları oku"
-                        description="Çalışma setlerinden en iyi performansı çıkarır; ısınma ve süre setlerini progress hesabına karıştırmaz."
-                        colors={colors}
-                    />
-                    <FeatureRow
-                        icon="git-compare-outline"
-                        title="Önceki seansla kıyasla"
-                        description="Ağırlık, tekrar ve RIR sinyalini hareket bazlı okuyup progress, düşüş veya plato adayını ayırır."
-                        colors={colors}
-                    />
-                    <FeatureRow
-                        icon="construct-outline"
-                        title="Aksiyon öner"
-                        description="RIR rahatlatma, hacim azaltma veya set artırma adaylarını kullanıcı onayına bırakır."
-                        colors={colors}
-                    />
-                </Animated.View>
-            )}
-
             <Animated.View style={[styles.section, reportAnimStyle]}>
                 <Text style={styles.sectionTitle}>Haftalık rapor</Text>
                 <View style={styles.reportCard}>
@@ -509,18 +463,19 @@ export default function CoachScreen() {
                 <View style={styles.section}>
                     <View style={styles.reportTopRow}>
                         <Text style={styles.sectionTitle}>Son koç sinyalleri</Text>
-                        <TouchableOpacity onPress={() => navigation.navigate("CoachInsightHistory")} activeOpacity={0.82}>
-                            <Text style={[styles.answerMeta, { color: colors.accent }]}>Tümünü gör</Text>
+                        <TouchableOpacity style={styles.viewAllSignalsBtn} onPress={() => navigation.navigate("CoachInsightHistory")} activeOpacity={0.82}>
+                            <Text style={styles.viewAllSignalsText}>Tumunu gor</Text>
+                            <Ionicons name="chevron-forward" size={14} color={colors.background} />
                         </TouchableOpacity>
                     </View>
                     <View style={styles.timelineCard}>
-                        {coachInsights.slice(0, 4).map((insight, index) => {
+                        {coachInsights.slice(0, 3).map((insight, index) => {
                             const meta = getInsightMeta(insight.type, colors);
                             return (
                                 <View key={insight.id} style={styles.timelineItem}>
                                     <View style={styles.timelineRail}>
                                         <View style={[styles.timelineDot, { backgroundColor: meta.color }]} />
-                                        {index < Math.min(coachInsights.length, 4) - 1 && <View style={styles.timelineLine} />}
+                                        {index < Math.min(coachInsights.length, 3) - 1 && <View style={styles.timelineLine} />}
                                     </View>
                                     <View style={styles.timelineBody}>
                                         <View style={styles.signalTitleRow}>
@@ -530,7 +485,7 @@ export default function CoachScreen() {
                                         <Text style={styles.signalMeta}>
                                             {formatBestSet(insight.previousBest)} {"->"} {formatBestSet(insight.currentBest)}
                                         </Text>
-                                        <Text style={styles.signalReason} numberOfLines={2}>{insight.reason}</Text>
+                                        <Text style={styles.signalReason} numberOfLines={1}>{insight.reason}</Text>
                                         {!!insight.metadata?.interventionAdvice && (
                                             <Text style={styles.interventionText}>{insight.metadata.interventionAdvice}</Text>
                                         )}
@@ -579,7 +534,7 @@ export default function CoachScreen() {
                         ]}
                         colors={colors}
                         active={tier === "pro"}
-                        onPress={() => navigation.navigate("PremiumProgramWizard")}
+                        onPress={() => navigation.navigate("PremiumDetail")}
                     />
                     <PlanCard
                         title="Coach+"
@@ -604,6 +559,52 @@ export default function CoachScreen() {
                     </Text>
                 </View>
             </View>
+
+            {isFree ? (
+                <Animated.View style={[styles.section, flowAnimStyle]}>
+                    <Text style={styles.sectionTitle}>Neler gelecek?</Text>
+                    <FeatureRow
+                        icon="map-outline"
+                        title="Kişisel program wizard"
+                        description="Seviye, frekans, ağrı durumu ve öncelikli kaslarına göre program kurulum akışı."
+                        colors={colors}
+                    />
+                    <FeatureRow
+                        icon="trending-up-outline"
+                        title="Progress ve plato takibi"
+                        description="Kilo, tekrar, RIR ve log düzenine göre takipte veya müdahale adayı olan hareketler."
+                        colors={colors}
+                    />
+                    <FeatureRow
+                        icon="document-text-outline"
+                        title="Haftalık koç raporu"
+                        description="Yeterli log varsa haftanın en iyi progress'i, takipteki hareketler ve gelecek hedefler."
+                        colors={colors}
+                    />
+                </Animated.View>
+            ) : (
+                <Animated.View style={[styles.section, flowAnimStyle]}>
+                    <Text style={styles.sectionTitle}>Koç akışı</Text>
+                    <FeatureRow
+                        icon="analytics-outline"
+                        title="Logları oku"
+                        description="Çalışma setlerinden en iyi performansı çıkarır; ısınma ve süre setlerini progress hesabına karıştırmaz."
+                        colors={colors}
+                    />
+                    <FeatureRow
+                        icon="git-compare-outline"
+                        title="Önceki seansla kıyasla"
+                        description="Ağırlık, tekrar ve RIR sinyalini hareket bazlı okuyup progress, düşüş veya plato adayını ayırır."
+                        colors={colors}
+                    />
+                    <FeatureRow
+                        icon="construct-outline"
+                        title="Aksiyon öner"
+                        description="RIR rahatlatma, hacim azaltma veya set artırma adaylarını kullanıcı onayına bırakır."
+                        colors={colors}
+                    />
+                </Animated.View>
+            )}
 
             <View style={styles.noteBox}>
                 <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
@@ -1212,6 +1213,21 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
+    },
+    viewAllSignalsBtn: {
+        minHeight: 34,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accent,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+    },
+    viewAllSignalsText: {
+        color: colors.background,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.heavy,
     },
     lockedCoachCard: {
         flexDirection: "row",

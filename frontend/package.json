@@ -10,7 +10,8 @@
     "ios": "expo start --ios",
     "lint": "eslint src --ext .ts,.tsx",
     "test:coach-engine": "node scripts/coach-rule-engine-smoke.mjs",
-    "test:progress-engine": "node scripts/progress-rule-engine-smoke.mjs"
+    "test:progress-engine": "node scripts/progress-rule-engine-smoke.mjs",
+    "test:workout-metrics": "node scripts/workout-metrics-smoke.mjs"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "2.2.0",

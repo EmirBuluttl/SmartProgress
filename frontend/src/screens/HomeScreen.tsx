@@ -80,6 +80,9 @@ export default function HomeScreen() {
     const hasLoadedDashboard = React.useRef(false);
     const scrollRef = useRef<ScrollView | null>(null);
     const shouldRestoreScroll = useRef(false);
+    const activationLift = useRef(new Animated.Value(0)).current;
+    const activeCardPulse = useRef(new Animated.Value(0)).current;
+    const [activatedProgramId, setActivatedProgramId] = useState<string | null>(null);
 
     const loadDashboard = async () => {
         try {
@@ -213,10 +216,37 @@ export default function HomeScreen() {
 
     const toggleFavoriteProgram = async (id: string) => {
         const next = favoriteId === id ? null : id;
+        setActivatedProgramId(id);
         setFavoriteId(next);
         if (next) await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, next);
         else await AsyncStorage.removeItem(ACTIVE_PROGRAM_KEY);
         await AsyncStorage.removeItem(FAVORITES_KEY);
+        activationLift.setValue(0);
+        activeCardPulse.setValue(0);
+        Animated.parallel([
+            Animated.sequence([
+                Animated.timing(activationLift, { toValue: 1, duration: 160, useNativeDriver: true }),
+                Animated.timing(activationLift, { toValue: 0, duration: 220, useNativeDriver: true }),
+            ]),
+            Animated.sequence([
+                Animated.timing(activeCardPulse, { toValue: 1, duration: 180, useNativeDriver: true }),
+                Animated.timing(activeCardPulse, { toValue: 0, duration: 180, useNativeDriver: true }),
+                Animated.timing(activeCardPulse, { toValue: 1, duration: 180, useNativeDriver: true }),
+                Animated.timing(activeCardPulse, { toValue: 0, duration: 220, useNativeDriver: true }),
+            ]),
+        ]).start(() => setActivatedProgramId(null));
+    };
+
+    const programActivationStyle = (id: string) => activatedProgramId === id
+        ? {
+            transform: [{ translateY: activationLift.interpolate({ inputRange: [0, 1], outputRange: [0, -18] }) }],
+            opacity: activationLift.interpolate({ inputRange: [0, 1], outputRange: [1, 0.72] }),
+        }
+        : undefined;
+
+    const activeCardPulseStyle = {
+        transform: [{ scale: activeCardPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.018] }) }],
+        opacity: activeCardPulse.interpolate({ inputRange: [0, 1], outputRange: [1, 0.86] }),
     };
 
     // ─── Cycle-aware next workout ───────────────
@@ -400,6 +430,7 @@ export default function HomeScreen() {
             {/* ─── Sıradaki Antrenman (Cycle-Based) ─── */}
             {favoriteProgram && isCurrentProgramCycle && currentDay && (
                 <Animated.View style={mainCardAnimStyle}>
+                <Animated.View style={activeCardPulseStyle}>
                 <TouchableOpacity activeOpacity={0.94} onPress={openCurrentProgramDayDetail}>
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
@@ -512,11 +543,13 @@ export default function HomeScreen() {
                 </GymCard>
                 </TouchableOpacity>
                 </Animated.View>
+                </Animated.View>
             )}
 
             {/* ─── Aktif Program (Non-Cycle) ─── */}
             {favoriteProgram && !isCurrentProgramCycle && (
                 <Animated.View style={mainCardAnimStyle}>
+                <Animated.View style={activeCardPulseStyle}>
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
                         <View style={styles.todayBadge}>
@@ -544,6 +577,7 @@ export default function HomeScreen() {
                         style={{ marginTop: spacing.md, minHeight: 56 }}
                     />
                 </GymCard>
+                </Animated.View>
                 </Animated.View>
             )}
 
@@ -625,8 +659,8 @@ export default function HomeScreen() {
                     const dayIdx = prog.currentDayIndex ?? 0;
                     const dayCount = isCycle ? prog.data.days.length : 0;
                     return (
+                        <Animated.View key={prog.id} style={programActivationStyle(prog.id)}>
                         <AnimatedPressable
-                            key={prog.id}
                             pressedScale={0.985}
                             onPress={() => {
                                 navigation.navigate("ProgramDetail", {
@@ -661,6 +695,7 @@ export default function HomeScreen() {
                                 </Text>
                             </GymCard>
                         </AnimatedPressable>
+                        </Animated.View>
                     );
                 })
             ) : (
@@ -1000,6 +1035,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         gap: spacing.md,
+        flexWrap: "nowrap",
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
@@ -1011,6 +1047,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         width: 42,
         height: 42,
         borderRadius: 21,
+        flexShrink: 0,
         backgroundColor: colors.accent,
         alignItems: "center",
         justifyContent: "center",
@@ -1023,6 +1060,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     quickWorkoutTextBlock: {
         flex: 1,
         minWidth: 0,
+        justifyContent: "center",
     },
     quickWorkoutSubtitle: {
         marginTop: 2,
