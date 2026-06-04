@@ -15,7 +15,7 @@ import {
     Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
+import { useFocusEffect, useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { programApi, parseApiError } from "../services/api";
@@ -32,6 +32,7 @@ import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
 import { useAuth } from "../store/AuthContext";
+import { consumeWarmupRoutineDraft } from "../utils/warmupRoutineDraftStore";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -200,17 +201,18 @@ export default function ProgramCreateScreen() {
         }
     }, []);
 
-    useEffect(() => {
-        const result = route.params?.warmupRoutineResult;
-        if (!result?.days) return;
-        setDays((prev) =>
-            prev.map((day, index) => ({
-                ...day,
-                warmupRoutine: result.days[index]?.warmupRoutine,
-            })),
-        );
-        navigation.setParams({ warmupRoutineResult: undefined });
-    }, [navigation, route.params?.warmupRoutineResult]);
+    useFocusEffect(
+        useCallback(() => {
+            const result = consumeWarmupRoutineDraft(route.key);
+            if (!result?.days) return;
+            setDays((prev) =>
+                prev.map((day, index) => ({
+                    ...day,
+                    warmupRoutine: result.days[index]?.warmupRoutine,
+                })),
+            );
+        }, [route.key]),
+    );
 
     // --- Frequency deviation warning ---
     const workoutDayCount = days.filter((d) => !d.isRestDay).length;
@@ -292,10 +294,9 @@ export default function ProgramCreateScreen() {
     };
 
     const openWarmupRoutineBuilder = () => {
-        const { warmupRoutineResult, ...programCreateParams } = route.params || {};
         navigation.navigate("WarmupRoutineBuilder", {
             initialDayIndex: activeDayIdx,
-            programCreateParams,
+            returnKey: route.key,
             days: days.map((day) => ({
                 label: day.label,
                 isRestDay: day.isRestDay,

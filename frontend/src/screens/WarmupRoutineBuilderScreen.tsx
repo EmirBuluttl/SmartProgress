@@ -17,6 +17,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import type { CardioType, TargetExercise, WarmupRoutineTemplate } from "../types/workout";
+import { setWarmupRoutineDraft } from "../utils/warmupRoutineDraftStore";
 
 type Route = RouteProp<RootStackParamList, "WarmupRoutineBuilder">;
 type Navigation = NativeStackNavigationProp<RootStackParamList>;
@@ -132,13 +133,8 @@ export default function WarmupRoutineBuilderScreen() {
                     : undefined,
             };
         });
-        navigation.navigate({
-            name: "ProgramCreate",
-            params: {
-                warmupRoutineResult: { days: cleanedDays },
-            },
-            merge: true,
-        });
+        setWarmupRoutineDraft(route.params.returnKey, { days: cleanedDays });
+        navigation.goBack();
     };
 
     return (

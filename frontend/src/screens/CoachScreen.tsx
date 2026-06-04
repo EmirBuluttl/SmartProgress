@@ -545,12 +545,6 @@ export default function CoachScreen() {
                         active={isCoachPlus}
                     />
                 </View>
-                <View style={styles.pricingNote}>
-                    <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
-                    <Text style={styles.noteText}>
-                        Premium koc motoru urunlesmeye hazirlanir; Coach+ AI soru-cevap ise dogru kaliteye ulasana kadar beta olarak test edilir.
-                    </Text>
-                </View>
             </View>
 
             <View style={styles.section}>
@@ -613,6 +607,13 @@ export default function CoachScreen() {
                     />
                 </Animated.View>
             )}
+
+            <View style={styles.pricingNote}>
+                <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
+                <Text style={styles.noteText}>
+                    Premium koc motoru urunlesmeye hazirlanir; Coach+ AI soru-cevap ise dogru kaliteye ulasana kadar beta olarak test edilir.
+                </Text>
+            </View>
 
             <View style={styles.noteBox}>
                 <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
@@ -1065,6 +1066,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         gap: spacing.sm,
+        marginTop: spacing.xs,
     },
     planBadge: {
         alignSelf: "flex-start",

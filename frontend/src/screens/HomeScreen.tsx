@@ -795,7 +795,7 @@ export default function HomeScreen() {
                             </TouchableOpacity>
                         </View>
                     </View>
-                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.notificationFilterRow}>
+                    <View style={styles.notificationFilterBar}>
                         {([
                             ["all", "Tümü"],
                             ["progress", "Progress"],
@@ -812,7 +812,7 @@ export default function HomeScreen() {
                                 <Text style={[styles.notificationFilterText, notificationFilter === key && styles.notificationFilterTextActive]}>{label}</Text>
                             </TouchableOpacity>
                         ))}
-                    </ScrollView>
+                    </View>
                     {filteredNotifications.length === 0 ? (
                         <View style={styles.notificationEmpty}>
                             <Ionicons name="notifications-off-outline" size={34} color={colors.textMuted} />
@@ -948,11 +948,17 @@ const createStyles = (colors: any) => StyleSheet.create({
         maxHeight: "76%",
     },
     notificationList: {
-        maxHeight: 420,
+        maxHeight: 390,
+        flexGrow: 0,
     },
-    notificationFilterRow: {
+    notificationFilterBar: {
+        flexDirection: "row",
+        flexWrap: "wrap",
         gap: spacing.sm,
         paddingBottom: spacing.md,
+        marginBottom: spacing.md,
+        borderBottomWidth: 1,
+        borderBottomColor: colors.border,
     },
     notificationFilterChip: {
         minHeight: 34,
@@ -1096,22 +1102,22 @@ const createStyles = (colors: any) => StyleSheet.create({
     quickWorkoutCard: {
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.sm,
         flexWrap: "nowrap",
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: borderRadius.lg,
-        paddingHorizontal: spacing.md,
-        paddingVertical: spacing.sm,
-        minHeight: 58,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+        minHeight: 54,
         marginBottom: spacing.lg,
     },
     quickWorkoutIcon: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
+        width: 42,
+        height: 42,
+        borderRadius: 14,
         flexShrink: 0,
+        marginRight: spacing.sm,
         backgroundColor: colors.accent,
         alignItems: "center",
         justifyContent: "center",
@@ -1125,10 +1131,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
         minWidth: 0,
         justifyContent: "center",
+        paddingRight: spacing.sm,
     },
     quickWorkoutSubtitle: {
         marginTop: 2,
-        fontSize: fontSize.sm,
+        fontSize: fontSize.xs,
+        lineHeight: 16,
         color: colors.textSecondary,
     },
     statsRow: { flexDirection: "row", marginBottom: spacing.xl },
