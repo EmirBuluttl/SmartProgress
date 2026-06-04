@@ -107,17 +107,14 @@ export default function CoachScreen() {
     const { animStyle: flowAnimStyle } = useScreenEnter({ delay: 200 });
     const { animStyle: reportAnimStyle } = useScreenEnter({ delay: 260 });
     const isFree = tier === "free";
-    const isCoachPlus = tier === "coach_plus";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
     const [coachInsights, setCoachInsights] = React.useState<any[]>([]);
-    const [aiStatus, setAiStatus] = React.useState<any | null>(null);
     const [reportLoading, setReportLoading] = React.useState(false);
     const coachNarration = weeklyReport?.coachNarration;
     const trialExpiresAt = user?.settings?.pro_trial_expires_at ? new Date(user.settings.pro_trial_expires_at) : null;
     const trialDaysLeft = trialExpiresAt && Number.isFinite(trialExpiresAt.getTime())
         ? Math.max(0, Math.ceil((trialExpiresAt.getTime() - Date.now()) / 86400000))
         : null;
-    const coachChatRemaining = aiStatus?.coachChat?.remaining || 0;
     const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 2));
     const proWizardUsesRemaining = Math.max(0, Number(user?.settings?.pro_wizard_uses_remaining ?? PRO_WIZARD_USES));
     const wizardUsesRemaining = isFree ? freeWizardUsesRemaining : proWizardUsesRemaining;
@@ -157,17 +154,6 @@ export default function CoachScreen() {
         [exerciseAnalyses],
     );
 
-    const loadAiStatus = React.useCallback(async () => {
-        if (!isCoachPlus) return;
-        try {
-            const response = await coachApi.aiStatus();
-            setAiStatus(response.data || null);
-        } catch (error) {
-            setAiStatus(null);
-        }
-    }, [isCoachPlus]);
-
-
     const loadCoachInsights = React.useCallback(async () => {
         try {
             const response = await coachApi.insights({ limit: 12 });
@@ -192,11 +178,10 @@ export default function CoachScreen() {
         };
         loadReport();
         loadCoachInsights();
-        loadAiStatus();
         return () => {
             mounted = false;
         };
-    }, [loadAiStatus, loadCoachInsights]);
+    }, [loadCoachInsights]);
 
 
     return (
@@ -210,7 +195,7 @@ export default function CoachScreen() {
                     <MaterialCommunityIcons name="brain" size={30} color={colors.background} />
                 </View>
                 <View style={styles.headerCopy}>
-                    <Text style={styles.eyebrow}>{isCoachPlus ? "AI KOÇ" : "AKILLI KOÇ"}</Text>
+                    <Text style={styles.eyebrow}>AKILLI KOÇ</Text>
                     <Text style={styles.title}>Koç</Text>
                     <Text style={styles.subtitle}>
                         {isFree
@@ -232,7 +217,7 @@ export default function CoachScreen() {
                         </View>
                     </View>
                     <Text style={styles.panelText}>
-                        Yeni hesaplarda Premium deneme süresi açık gelir. Deneme bittiyse de iki kez kişisel program wizard'ını kullanabilirsin; Coach+ AI soru-cevap katmanı beta olarak ayrı tutulur.
+                        Yeni hesaplarda Premium deneme suresi acik gelir. Deneme bittiyse de iki kez kisisel program wizard'ini kullanabilirsin.
                     </Text>
                     <View style={styles.accessSummaryRow}>
                         <View style={styles.accessSummaryItem}>
@@ -259,7 +244,7 @@ export default function CoachScreen() {
                 <Animated.View style={[styles.activeHero, heroAnimStyle]}>
                     <View style={styles.panelTopRow}>
                         <View style={styles.activeHeroCopy}>
-                            <Text style={styles.panelLabel}>{isCoachPlus ? "Coach+ beta erisimi" : "Premium erisimi"}</Text>
+                            <Text style={styles.panelLabel}>Premium erisimi</Text>
                             <Text style={styles.panelTitle}>Koç takibi aktif</Text>
                         </View>
                         <View style={styles.statusPill}>
@@ -275,8 +260,8 @@ export default function CoachScreen() {
                             <Text style={styles.accessSummaryText}>{wizardUsesRemaining} wizard hakkı</Text>
                         </View>
                         <View style={styles.accessSummaryItem}>
-                            <Ionicons name={isCoachPlus ? "chatbubbles-outline" : "analytics-outline"} size={16} color={colors.accent} />
-                            <Text style={styles.accessSummaryText}>{isCoachPlus ? `${coachChatRemaining} AI soru` : "Rule engine aktif"}</Text>
+                            <Ionicons name="analytics-outline" size={16} color={colors.accent} />
+                            <Text style={styles.accessSummaryText}>Rule engine aktif</Text>
                         </View>
                     </View>
                     <View style={styles.activeHeroActions}>
@@ -506,11 +491,30 @@ export default function CoachScreen() {
                 </View>
             )}
 
+            <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Akilli Program Wizard</Text>
+                <AnimatedPressable
+                    style={styles.lockedCoachCard}
+                    pressedScale={0.985}
+                    onPress={() => navigation.navigate("PremiumProgramWizard")}
+                >
+                    <View style={styles.lockedIcon}>
+                        <Ionicons name="map-outline" size={22} color={colors.accent} />
+                    </View>
+                    <View style={styles.lockedCopy}>
+                        <Text style={styles.reportTitle}>Programini koc motoruyla kur</Text>
+                        <Text style={styles.panelText}>
+                            Seviye, haftalik gun, sakatlik bilgisi ve kas onceliklerine gore Premium program taslagini hazirlar.
+                        </Text>
+                    </View>
+                </AnimatedPressable>
+            </View>
+
             <View style={styles.compareSection}>
                 <View style={styles.dashboardHeader}>
                     <View>
                         <Text style={styles.sectionTitle}>Paket farki</Text>
-                        <Text style={styles.dashboardSubtitle}>Koç motoru ayrı, AI sohbet katmanı ayrı değer üretir.</Text>
+                        <Text style={styles.dashboardSubtitle}>Premium koc motoru launch icin odakta; Coach+ pasif hazirlikta kalir.</Text>
                     </View>
                 </View>
                 <View style={styles.planGrid}>
@@ -532,33 +536,18 @@ export default function CoachScreen() {
                     />
                     <PlanCard
                         title="Coach+"
-                        subtitle="AI Koç Katmanı"
+                        subtitle="Yakinda"
                         badge="Pasif"
                         icon="sparkles-outline"
                         items={[
-                            "Premium içindeki tüm koç motoru özellikleri",
-                            "Log ve rapor bağlamına göre AI cevapları",
-                            "Bütçe korumalı, kontrollü beta soru hakkı",
-                            "Olgunlaşınca ücretli katmana taşınacak sohbet deneyimi",
+                            "Premium koc motoru oturduktan sonra acilacak",
+                            "Sohbet katmani kalite ve guvenlik testinde kalacak",
+                            "Launch'ta aktif satis vaadi olarak sunulmayacak",
+                            "Simdilik ana urun Premium wizard ve rapor akisi",
                         ]}
                         colors={colors}
-                        active={isCoachPlus}
+                        active={false}
                     />
-                </View>
-            </View>
-
-            <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Coach+ yakinda</Text>
-                <View style={styles.lockedCoachCard}>
-                    <View style={styles.lockedIcon}>
-                        <Ionicons name="sparkles-outline" size={22} color={colors.accent} />
-                    </View>
-                    <View style={styles.lockedCopy}>
-                        <Text style={styles.reportTitle}>AI sohbet katmani beta hazirlikta</Text>
-                        <Text style={styles.panelText}>
-                            Coach+ su an aktif satis paketi degil. Premium koc motoru urunlesirken AI soru-cevap katmani kalite, maliyet ve guvenlik testleri tamamlanana kadar pasif tanitilacak.
-                        </Text>
-                    </View>
                 </View>
             </View>
 
@@ -611,7 +600,7 @@ export default function CoachScreen() {
             <View style={styles.pricingNote}>
                 <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
                 <Text style={styles.noteText}>
-                    Premium koc motoru urunlesmeye hazirlanir; Coach+ AI soru-cevap ise dogru kaliteye ulasana kadar beta olarak test edilir.
+                    Premium koc motoru urunlesmeye hazirlanir; Coach+ ise kalite ve guvenlik testleri tamamlanana kadar pasif tutulur.
                 </Text>
             </View>
 

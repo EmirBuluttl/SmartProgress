@@ -270,6 +270,7 @@ export default function HomeScreen() {
         activeDayReminder?.enabled === true && !!activeDayReminderNote && favoriteProgram && currentDay
             ? {
                 id: "local-pre-workout-reminder",
+                type: "reminder",
                 title: "Antrenman hatirlatmasi",
                 message: `${favoriteProgram.name} icin ${currentDay.label}: ${activeDayReminderNote}`,
                 actionLabel: "Programi ac",
@@ -405,16 +406,18 @@ export default function HomeScreen() {
                 onPress={() => navigateToWorkoutRespectingActiveSession(navigation, { mode: "free" })}
                 pressedScale={0.99}
             >
-                <View style={styles.quickWorkoutIcon}>
-                    <Ionicons name="flash-outline" size={20} color={colors.background} />
+                <View style={styles.quickWorkoutInner}>
+                    <View style={styles.quickWorkoutIcon}>
+                        <Ionicons name="flash-outline" size={20} color={colors.background} />
+                    </View>
+                    <View style={styles.quickWorkoutTextBlock}>
+                        <Text style={styles.quickWorkoutTitle} numberOfLines={1}>Serbest antrenman</Text>
+                        <Text style={styles.quickWorkoutSubtitle} numberOfLines={1}>
+                            Program seçmeden hareket ekleyip logla
+                        </Text>
+                    </View>
+                    <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
                 </View>
-                <View style={styles.quickWorkoutTextBlock}>
-                    <Text style={styles.quickWorkoutTitle} numberOfLines={1}>Serbest antrenman</Text>
-                    <Text style={styles.quickWorkoutSubtitle} numberOfLines={1}>
-                        Program seçmeden hareket ekleyip logla
-                    </Text>
-                </View>
-                <Ionicons name="chevron-forward" size={18} color={colors.textMuted} />
             </AnimatedPressable>
             </Animated.View>
 
@@ -1100,17 +1103,19 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     avatarText: { color: colors.accent, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     quickWorkoutCard: {
-        flexDirection: "row",
-        alignItems: "center",
-        flexWrap: "nowrap",
         backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.border,
         borderRadius: borderRadius.lg,
+        marginBottom: spacing.lg,
+    },
+    quickWorkoutInner: {
+        flexDirection: "row",
+        alignItems: "center",
+        flexWrap: "nowrap",
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
         minHeight: 54,
-        marginBottom: spacing.lg,
     },
     quickWorkoutIcon: {
         width: 42,

@@ -92,6 +92,7 @@ export default function TabNavigator({ route }: any) {
     const activeIndexRef = useRef(0);
     const lockedIndexRef = useRef<number | null>(null);
     const lockUntilRef = useRef(0);
+    const currentOffsetRef = useRef(0);
     const externalSwitchOpacity = useRef(new Animated.Value(0)).current;
 
     const tabs = [
@@ -165,30 +166,31 @@ export default function TabNavigator({ route }: any) {
     }, []);
 
     const switchToTab = (index: number, animated = true, lockMs = animated ? 680 : 700) => {
+        const targetOffset = index * screenWidth;
         isScrollingRef.current = true;
         lockedIndexRef.current = index;
         lockUntilRef.current = Date.now() + lockMs;
         activeIndexRef.current = index;
         setActiveIndex(index);
         scrollViewRef.current?.scrollTo({
-            x: index * screenWidth,
+            x: targetOffset,
             animated,
         });
+        if (!animated) {
+            setTimeout(() => {
+                scrollViewRef.current?.scrollTo({
+                    x: targetOffset,
+                    animated: false,
+                });
+            }, 90);
+        }
         setTimeout(() => {
-            scrollViewRef.current?.scrollTo({
-                x: index * screenWidth,
-                animated: false,
-            });
-            if (Date.now() >= lockUntilRef.current) {
-                lockedIndexRef.current = null;
-                isScrollingRef.current = false;
+            if (Math.abs(currentOffsetRef.current - targetOffset) > 2) {
+                scrollViewRef.current?.scrollTo({
+                    x: targetOffset,
+                    animated: false,
+                });
             }
-        }, animated ? 640 : 90);
-        setTimeout(() => {
-            scrollViewRef.current?.scrollTo({
-                x: index * screenWidth,
-                animated: false,
-            });
             lockedIndexRef.current = null;
             isScrollingRef.current = false;
         }, lockMs);
@@ -229,8 +231,9 @@ export default function TabNavigator({ route }: any) {
     }, [screenWidth]);
 
     const handleScroll = (event: any) => {
-        if (isScrollingRef.current) return;
         const xOffset = event.nativeEvent.contentOffset.x;
+        currentOffsetRef.current = xOffset;
+        if (isScrollingRef.current) return;
         const index = Math.round(xOffset / screenWidth);
         if (Date.now() < lockUntilRef.current && lockedIndexRef.current !== null && index !== lockedIndexRef.current) {
             scrollViewRef.current?.scrollTo({

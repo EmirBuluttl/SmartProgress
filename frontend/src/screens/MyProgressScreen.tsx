@@ -17,7 +17,7 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { LineChart } from "react-native-chart-kit";
 import { Ionicons } from "@expo/vector-icons";
-import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
+import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -291,6 +291,11 @@ export default function MyProgressScreen() {
         return selected?.label || "Progress";
     }, [chartMetric, metricOptions]);
 
+    const filterSummaryText = React.useMemo(
+        () => `Grafik: ${chartTitle} · Kapsam: ${splitFilter} · Zaman: ${filter}`,
+        [chartTitle, splitFilter, filter],
+    );
+
     const chartSuffix = chartMetric === "progress:all" || chartMetric.startsWith("exercise:") || chartMetric.startsWith("muscle:")
         ? "%"
         : chartMetric === "body:weight"
@@ -417,8 +422,8 @@ export default function MyProgressScreen() {
                 <Animated.View style={[styles.filterSummaryCard, filtersAnimStyle]}>
                     <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.filterSummaryLabel}>Gorunum</Text>
-                        <Text style={styles.filterSummaryValue} numberOfLines={1}>
-                            {chartTitle} ? {splitFilter} ? {filter}
+                        <Text style={styles.filterSummaryValue} numberOfLines={2}>
+                            {filterSummaryText}
                         </Text>
                     </View>
                     <AnimatedPressable style={styles.filterOpenBtn} onPress={() => setFilterModalVisible(true)} pressedScale={0.96}>
@@ -731,6 +736,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.text,
         fontSize: fontSize.sm,
         fontWeight: fontWeight.semibold,
+        lineHeight: lineHeight.sm,
         marginTop: 2,
     },
     filterOpenBtn: {

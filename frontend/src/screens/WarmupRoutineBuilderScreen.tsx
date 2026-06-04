@@ -84,11 +84,11 @@ export default function WarmupRoutineBuilderScreen() {
         });
     };
 
-    const updateExerciseSet = (exerciseId: string, targetReps: string) => {
+    const updateExerciseSet = (exerciseId: string, patch: Partial<TargetExercise["targetSets"][number]>) => {
         updateRoutine({
             exercises: exercises.map((exercise) =>
                 exercise.id === exerciseId
-                    ? { ...exercise, targetSets: [{ ...(exercise.targetSets[0] || {}), targetReps }] }
+                    ? { ...exercise, targetSets: [{ ...(exercise.targetSets[0] || {}), ...patch }] }
                     : exercise,
             ),
         });
@@ -203,13 +203,29 @@ export default function WarmupRoutineBuilderScreen() {
                                     <Ionicons name="trash-outline" size={18} color={colors.error} />
                                 </TouchableOpacity>
                             </View>
-                            <TextInput
-                                style={styles.repsInput}
-                                value={exercise.targetSets[0]?.targetReps || ""}
-                                onChangeText={(targetReps) => updateExerciseSet(exercise.id, targetReps)}
-                                placeholder="Tekrar / sure hedefi: 12-15 veya 45 sn"
-                                placeholderTextColor={colors.textMuted}
-                            />
+                            <View style={styles.targetInputRow}>
+                                <View style={styles.targetInputWrap}>
+                                    <Text style={styles.targetInputLabel}>Kg</Text>
+                                    <TextInput
+                                        style={styles.targetInput}
+                                        value={exercise.targetSets[0]?.targetWeight || ""}
+                                        onChangeText={(targetWeight) => updateExerciseSet(exercise.id, { targetWeight })}
+                                        placeholder="ops."
+                                        placeholderTextColor={colors.textMuted}
+                                        keyboardType="decimal-pad"
+                                    />
+                                </View>
+                                <View style={[styles.targetInputWrap, styles.targetInputWrapWide]}>
+                                    <Text style={styles.targetInputLabel}>Tekrar / sure</Text>
+                                    <TextInput
+                                        style={styles.targetInput}
+                                        value={exercise.targetSets[0]?.targetReps || ""}
+                                        onChangeText={(targetReps) => updateExerciseSet(exercise.id, { targetReps })}
+                                        placeholder="12-15 veya 45 sn"
+                                        placeholderTextColor={colors.textMuted}
+                                    />
+                                </View>
+                            </View>
                         </View>
                     ))}
                     {exercises.length === 0 ? <Text style={styles.emptyText}>Bu gun icin isinma hareketi yok.</Text> : null}
@@ -275,10 +291,14 @@ const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").
     addBtn: { width: 34, height: 34, borderRadius: borderRadius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", marginLeft: spacing.xs },
     exerciseCard: { padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm },
     exerciseTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
-    exerciseIndex: { width: 24, color: colors.accent, fontWeight: fontWeight.bold, textAlign: "center" },
-    exerciseInput: { flex: 1, minHeight: 42, color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, fontWeight: fontWeight.semibold },
-    repsInput: { marginTop: spacing.sm, minHeight: 40, color: colors.text, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
-    smallIconBtn: { width: 34, height: 34, borderRadius: borderRadius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
+    exerciseIndex: { width: 22, flexShrink: 0, color: colors.accent, fontWeight: fontWeight.bold, textAlign: "center" },
+    exerciseInput: { flex: 1, minWidth: 0, minHeight: 42, color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, fontWeight: fontWeight.semibold },
+    targetInputRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.sm },
+    targetInputWrap: { flexGrow: 1, flexBasis: 92, minWidth: 86 },
+    targetInputWrapWide: { flexBasis: 150, minWidth: 130 },
+    targetInputLabel: { color: colors.textMuted, fontSize: fontSize.xs, fontWeight: fontWeight.bold, marginBottom: 4 },
+    targetInput: { minHeight: 40, color: colors.text, borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.sm },
+    smallIconBtn: { width: 34, height: 34, flexShrink: 0, borderRadius: borderRadius.md, alignItems: "center", justifyContent: "center", backgroundColor: colors.surface },
     emptyText: { color: colors.textMuted, fontSize: fontSize.sm, marginTop: spacing.sm },
     cardioTypeGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
     cardioTypeChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceElevated },
