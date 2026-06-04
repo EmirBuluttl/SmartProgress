@@ -32,6 +32,8 @@ import CoachInsightHistoryScreen from "../screens/CoachInsightHistoryScreen";
 import ExerciseLibraryScreen from "../screens/ExerciseLibraryScreen";
 import PreWorkoutRemindersScreen from "../screens/PreWorkoutRemindersScreen";
 import TrainingLevelScreen from "../screens/TrainingLevelScreen";
+import WarmupRoutineBuilderScreen from "../screens/WarmupRoutineBuilderScreen";
+import WarmupSessionScreen from "../screens/WarmupSessionScreen";
 import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
 import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
 
@@ -55,6 +57,7 @@ export type RootStackParamList = {
             }[];
             days?: {
                 label: string;
+                warmupRoutine?: any;
                 exercises: {
                     id: string;
                     exerciseId?: string;
@@ -68,6 +71,7 @@ export type RootStackParamList = {
             }[];
         };
     };
+    WarmupSession: undefined;
     CardioSession: { cardioBlockId?: string } | undefined;
     WorkoutSummary: {
         programId?: string;
@@ -84,7 +88,14 @@ export type RootStackParamList = {
     ProgramCreate: {
         editProgramId?: string;
         editProgramData?: any;
+        warmupRoutineResult?: {
+            days: { label: string; isRestDay?: boolean; warmupRoutine?: any }[];
+        };
     } | undefined;
+    WarmupRoutineBuilder: {
+        days: { label: string; isRestDay?: boolean; warmupRoutine?: any }[];
+        initialDayIndex?: number;
+    };
     WorkoutHistory: undefined;
     ProgramList: undefined;
     CommunityPrograms: undefined;
@@ -186,8 +197,25 @@ function AppNavigator() {
                 }}
             />
             <AppStack.Screen
+                name="WarmupSession"
+                component={WarmupSessionScreen}
+                options={{
+                    presentation: "fullScreenModal",
+                    animation: "slide_from_right",
+                    gestureEnabled: false,
+                }}
+            />
+            <AppStack.Screen
                 name="ProgramCreate"
                 component={ProgramCreateScreen}
+                options={{
+                    presentation: "fullScreenModal",
+                    animation: "slide_from_bottom",
+                }}
+            />
+            <AppStack.Screen
+                name="WarmupRoutineBuilder"
+                component={WarmupRoutineBuilderScreen}
                 options={{
                     presentation: "fullScreenModal",
                     animation: "slide_from_bottom",

@@ -102,6 +102,8 @@ const warmupRoutineSchema = z.object({
     startedAt: z.string().optional(),
     completedAt: z.string().optional(),
     steps: z.array(warmupRoutineStepSchema).optional(),
+    exercises: z.array(workoutExerciseSchema).optional(),
+    cardioBlocks: z.array(cardioBlockSchema).optional(),
 });
 
 const workoutDataSchema = z.object({

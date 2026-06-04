@@ -27,6 +27,9 @@ import {
     WorkoutSet,
     TargetSet,
     ProgramData,
+    CardioBlock,
+    WarmupRoutineLog,
+    WarmupRoutineTemplate,
 } from "../types/workout";
 import DraggableFlatList, {
     ScaleDecorator,
@@ -197,6 +200,35 @@ function hasLoggedCardioData(session: WorkoutSession): boolean {
     );
 }
 
+function hasLoggedWarmupRoutineData(routine?: WarmupRoutineLog): boolean {
+    if (!routine) return false;
+    return !!routine.steps?.some((step) => step.completed) ||
+        !!routine.exercises?.some((exercise) =>
+            exercise.name.trim().length > 0 &&
+            exercise.sets.some(hasLoggedSetData),
+        ) ||
+        !!routine.cardioBlocks?.some((block) =>
+            Number(block.totalDuration) > 0 ||
+            Number(block.totalDistance) > 0 ||
+            Number(block.totalSteps) > 0 ||
+            Number(block.totalCalories) > 0 ||
+            !!block.completedAt ||
+            (Array.isArray(block.stages) && block.stages.length > 0),
+        );
+}
+
+function hasWarmupRoutineContent(routine?: WarmupRoutineLog): boolean {
+    if (!routine) return false;
+    return !!routine.steps?.length || !!routine.exercises?.length || !!routine.cardioBlocks?.length;
+}
+
+function hasMainWorkoutLoggedData(session: WorkoutSession): boolean {
+    return hasLoggedCardioData(session) || session.exercises.some((exercise) =>
+        exercise.name.trim().length > 0 &&
+        exercise.sets.some(hasLoggedSetData),
+    );
+}
+
 function closeActiveCardioIfNeeded(session: WorkoutSession): WorkoutSession {
     const activeStage = session.activeCardioStage;
     const activeBlockId = session.activeCardioBlockId;
@@ -249,10 +281,7 @@ function isWorkoutSessionLike(value: unknown): value is WorkoutSession {
 }
 
 function hasLoggedWorkoutData(session: WorkoutSession): boolean {
-    return hasLoggedCardioData(session) || session.exercises.some((exercise) =>
-        exercise.name.trim().length > 0 &&
-        exercise.sets.some(hasLoggedSetData),
-    );
+    return hasMainWorkoutLoggedData(session) || hasLoggedWarmupRoutineData(session.warmupRoutine);
 }
 
 function getElapsedSeconds(session: WorkoutSession): number {
@@ -287,7 +316,7 @@ function normalizeProgramData(raw: any): ProgramData | null {
         return {
             frequency: typeof data.frequency === "number" ? data.frequency : data.days.length,
             days: data.days,
-            warmupRoutine: Array.isArray(data.warmupRoutine) ? data.warmupRoutine : undefined,
+            warmupRoutine: data.warmupRoutine,
         };
     }
 
@@ -295,7 +324,7 @@ function normalizeProgramData(raw: any): ProgramData | null {
     if (Array.isArray(data.exercises)) {
         return {
             exercises: data.exercises,
-            warmupRoutine: Array.isArray(data.warmupRoutine) ? data.warmupRoutine : undefined,
+            warmupRoutine: data.warmupRoutine,
         } as ProgramData;
     }
 
@@ -303,6 +332,63 @@ function normalizeProgramData(raw: any): ProgramData | null {
         keys: Object.keys(data || {}),
     });
     return null;
+}
+
+function buildWarmupRoutineLog(template: WarmupRoutineTemplate | any[] | undefined): WarmupRoutineLog | undefined {
+    if (!template) return undefined;
+    const startedAt = new Date().toISOString();
+
+    if (Array.isArray(template)) {
+        if (template.length === 0) return undefined;
+        return {
+            status: "pending",
+            startedAt,
+            steps: template.map((step: any) => ({ ...step, completed: false })),
+        };
+    }
+
+    const exercises: WorkoutExercise[] = (template.exercises || [])
+        .filter((exercise: any) => String(exercise?.name || "").trim())
+        .map((exercise: any) => ({
+            id: uid(),
+            exerciseId: exercise.exerciseId,
+            name: String(exercise.name || "").trim(),
+            targetReps: exercise.targetSets?.[0]?.targetReps,
+            sets: (exercise.targetSets?.length ? exercise.targetSets : [{ targetReps: "10-15" }]).map((targetSet: TargetSet) => ({
+                id: uid(),
+                weight: 0,
+                reps: 0,
+                weightMode: "kg" as const,
+                effortMode: String(targetSet?.targetReps || "").toLowerCase().includes("sn") ? "duration" as const : "reps" as const,
+                durationSeconds: 0,
+                rpe: 0,
+                unit: "kg" as const,
+                completed: false,
+                targetReps: targetSet?.targetReps,
+                targetWeight: targetSet?.targetWeight,
+                targetRPE: targetSet?.targetRPE,
+                targetRIR: targetSet?.targetRIR,
+            })),
+        }));
+
+    const cardioBlocks: CardioBlock[] = (template.cardioBlocks || []).map((block: any) => ({
+        id: block.id || uid(),
+        type: block.type || "other",
+        title: block.title || "Kardiyo",
+        startedAt,
+        totalDuration: Number(block.totalDuration) || 0,
+        stages: [],
+    }));
+
+    if (exercises.length === 0 && cardioBlocks.length === 0 && !(template.steps || []).length) return undefined;
+
+    return {
+        status: "pending",
+        startedAt,
+        steps: template.steps?.map((step: any) => ({ ...step, completed: false })),
+        exercises,
+        cardioBlocks,
+    };
 }
 
 type TrackingMode = "none" | "rpe" | "rir" | "both";
@@ -770,16 +856,7 @@ export default function WorkoutSessionScreen() {
                         ...createSession(),
                         title,
                         exercises: newExercises,
-                        warmupRoutine: Array.isArray(dayWarmupRoutine) && dayWarmupRoutine.length > 0
-                            ? {
-                                status: "pending",
-                                startedAt: new Date().toISOString(),
-                                steps: dayWarmupRoutine.map((step: any) => ({
-                                    ...step,
-                                    completed: false,
-                                })),
-                            }
-                            : undefined,
+                        warmupRoutine: buildWarmupRoutineLog(dayWarmupRoutine),
                         programId: programId,
                         dayIndex,
                     };
@@ -890,15 +967,14 @@ export default function WorkoutSessionScreen() {
             preWorkoutWarmupShownRef.current ||
             route.params?.mode === "free" ||
             session.warmupRoutine?.status !== "pending" ||
-            !Array.isArray(session.warmupRoutine.steps) ||
-            session.warmupRoutine.steps.length === 0
+            !hasWarmupRoutineContent(session.warmupRoutine)
         ) {
             return;
         }
 
         preWorkoutWarmupShownRef.current = true;
         setPreWorkoutWarmupVisible(true);
-    }, [route.params?.mode, session.id, session.warmupRoutine?.status, session.warmupRoutine?.steps]);
+    }, [route.params?.mode, session.id, session.warmupRoutine]);
 
     // ─── Debounced Auto-Save ─────────────────
     useEffect(() => {
@@ -989,20 +1065,6 @@ export default function WorkoutSessionScreen() {
         setNoteModalVisible(false);
     }, [updateSession]);
 
-    const toggleWarmupRoutineStep = useCallback((stepId: string) => {
-        updateSession((prev) => ({
-            ...prev,
-            warmupRoutine: prev.warmupRoutine
-                ? {
-                    ...prev.warmupRoutine,
-                    steps: prev.warmupRoutine.steps.map((step) =>
-                        step.id === stepId ? { ...step, completed: !step.completed } : step,
-                    ),
-                }
-                : prev.warmupRoutine,
-        }));
-    }, [updateSession]);
-
     const setWarmupRoutineStatus = useCallback(async (status: "completed" | "skipped" | "cancelled") => {
         const currentSession = materializeSessionInputs();
         const nextSession = {
@@ -1013,7 +1075,7 @@ export default function WorkoutSessionScreen() {
                     status,
                     completedAt: new Date().toISOString(),
                     steps: status === "completed"
-                        ? currentSession.warmupRoutine.steps.map((step) => ({ ...step, completed: true }))
+                        ? currentSession.warmupRoutine.steps?.map((step) => ({ ...step, completed: true }))
                         : currentSession.warmupRoutine.steps,
                 }
                 : currentSession.warmupRoutine,
@@ -1022,6 +1084,26 @@ export default function WorkoutSessionScreen() {
         await saveActiveSession({ ...nextSession, totalDuration: elapsed });
         setPreWorkoutWarmupVisible(false);
     }, [elapsed, materializeSessionInputs]);
+
+    const openWarmupSession = useCallback(async () => {
+        const currentSession = materializeSessionInputs();
+        if (!currentSession.warmupRoutine || hasMainWorkoutLoggedData(currentSession)) {
+            setPreWorkoutWarmupVisible(false);
+            return;
+        }
+        const nextSession = {
+            ...currentSession,
+            warmupRoutine: {
+                ...currentSession.warmupRoutine,
+                status: "pending" as const,
+                startedAt: currentSession.warmupRoutine.startedAt || new Date().toISOString(),
+            },
+        };
+        setSession(nextSession);
+        await saveActiveSession({ ...nextSession, totalDuration: elapsed });
+        setPreWorkoutWarmupVisible(false);
+        navigation.navigate("WarmupSession");
+    }, [elapsed, materializeSessionInputs, navigation]);
 
     const updateSet = useCallback(
         (exerciseId: string, setId: string, field: keyof WorkoutSet, value: string | number | boolean | undefined) => {
@@ -1399,8 +1481,7 @@ export default function WorkoutSessionScreen() {
             (Array.isArray(block.stages) && block.stages.length > 0),
         );
         const hasCompletedWarmupRoutine = currentSession.warmupRoutine?.status === "completed" &&
-            Array.isArray(currentSession.warmupRoutine.steps) &&
-            currentSession.warmupRoutine.steps.some((step) => step.completed);
+            hasLoggedWarmupRoutineData(currentSession.warmupRoutine);
 
         if (validExercises.length === 0 && validCardioBlocks.length === 0 && !hasCompletedWarmupRoutine) {
             setEmptyFinishModalVisible(true);
@@ -1530,27 +1611,6 @@ export default function WorkoutSessionScreen() {
         }
     };
 
-    const saveWarmupRoutineOnly = useCallback(async () => {
-        const currentSession = materializeSessionInputs();
-        if (!currentSession.warmupRoutine?.steps?.length) {
-            setPreWorkoutWarmupVisible(false);
-            return;
-        }
-
-        setPreWorkoutWarmupVisible(false);
-        await finishWorkout({
-            ...currentSession,
-            title: `${currentSession.title} - Isinma Rutini`,
-            exercises: [],
-            warmupRoutine: {
-                ...currentSession.warmupRoutine,
-                status: "completed",
-                completedAt: new Date().toISOString(),
-                steps: currentSession.warmupRoutine.steps.map((step) => ({ ...step, completed: true })),
-            },
-        });
-    }, [finishWorkout, materializeSessionInputs]);
-
     const cancelWorkout = async () => {
         pendingExitActionRef.current = null;
         setExitModalHasData(hasLoggedWorkoutData(materializeSessionInputs()));
@@ -1677,6 +1737,16 @@ export default function WorkoutSessionScreen() {
                     {session.notes ? "Notu düzenle" : "Not ekle"}
                 </Text>
             </TouchableOpacity>
+            {session.warmupRoutine && session.warmupRoutine.status !== "completed" && !hasMainWorkoutLoggedData(session) ? (
+                <TouchableOpacity
+                    style={styles.sessionNoteBtn}
+                    onPress={openWarmupSession}
+                    activeOpacity={0.85}
+                >
+                    <Ionicons name="flame-outline" size={18} color={colors.accent} />
+                    <Text style={styles.sessionNoteBtnText}>Isinma rutinim</Text>
+                </TouchableOpacity>
+            ) : null}
             {session.notes ? (
                 <Text style={styles.sessionNotePreview} numberOfLines={2}>
                     {session.notes}
@@ -2215,65 +2285,16 @@ export default function WorkoutSessionScreen() {
             style={styles.container}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
         >
-            <Modal
+            <ActionConfirmModal
                 visible={preWorkoutWarmupVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setPreWorkoutWarmupVisible(false)}
-            >
-                <View style={styles.addExerciseOverlay}>
-                    <View style={styles.addExerciseModal}>
-                        <View style={styles.setSettingsHeader}>
-                            <View style={{ flex: 1 }}>
-                                <Text style={styles.addExerciseTitle}>Antrenman oncesi isinma</Text>
-                                <Text style={styles.setSettingsSubtitle}>
-                                    Bu rutin W setlerinden bagimsizdir. Once genel hazirligi tamamla, sonra ana antrenmana gec.
-                                </Text>
-                            </View>
-                            <TouchableOpacity
-                                onPress={() => setPreWorkoutWarmupVisible(false)}
-                                style={styles.setSettingsCloseBtn}
-                                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                            >
-                                <Ionicons name="close" size={20} color={colors.textMuted} />
-                            </TouchableOpacity>
-                        </View>
-
-                        <View style={styles.warmupRoutineList}>
-                            {(session.warmupRoutine?.steps || []).map((step) => (
-                                <TouchableOpacity
-                                    key={step.id}
-                                    style={[styles.warmupRoutineStep, step.completed && styles.warmupRoutineStepDone]}
-                                    onPress={() => toggleWarmupRoutineStep(step.id)}
-                                    activeOpacity={0.78}
-                                >
-                                    <View style={[styles.warmupRoutineCheck, step.completed && styles.warmupRoutineCheckDone]}>
-                                        {step.completed ? <Ionicons name="checkmark" size={15} color={colors.background} /> : null}
-                                    </View>
-                                    <View style={{ flex: 1 }}>
-                                        <Text style={styles.warmupRoutineStepTitle}>{step.title}</Text>
-                                        {step.description ? (
-                                            <Text style={styles.warmupRoutineStepDesc}>{step.description}</Text>
-                                        ) : null}
-                                    </View>
-                                </TouchableOpacity>
-                            ))}
-                        </View>
-
-                        <View style={styles.warmupRoutineActions}>
-                            <TouchableOpacity style={styles.secondaryActionBtn} onPress={() => setWarmupRoutineStatus("skipped")}>
-                                <Text style={styles.secondaryActionText}>Atla</Text>
-                            </TouchableOpacity>
-                            <TouchableOpacity style={styles.secondaryActionBtn} onPress={saveWarmupRoutineOnly}>
-                                <Text style={styles.secondaryActionText}>Kaydet ve Cik</Text>
-                            </TouchableOpacity>
-                        </View>
-                        <TouchableOpacity style={styles.modalPrimaryBtn} onPress={() => setWarmupRoutineStatus("completed")}>
-                            <Text style={styles.modalPrimaryText}>Rutini Tamamla</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
+                title="Isinma rutinin var"
+                message="Bu gun icin tanimli isinma rutinini baslatabilir veya atlayip ana antrenmana gecebilirsin."
+                primaryLabel="Isinmaya Basla"
+                secondaryLabel="Atla"
+                onPrimary={openWarmupSession}
+                onSecondary={() => setWarmupRoutineStatus("skipped")}
+                onDismiss={() => setPreWorkoutWarmupVisible(false)}
+            />
             <ActionConfirmModal
                 visible={emptyFinishModalVisible}
                 title="Henüz veri girmediniz"

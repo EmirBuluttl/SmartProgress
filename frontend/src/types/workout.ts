@@ -116,26 +116,34 @@ export interface WarmupRoutineLog {
     status: "pending" | "completed" | "skipped" | "cancelled";
     startedAt?: string;
     completedAt?: string;
-    steps: WarmupRoutineStep[];
+    steps?: WarmupRoutineStep[];
+    exercises?: WorkoutExercise[];
+    cardioBlocks?: CardioBlock[];
+}
+
+export interface WarmupRoutineTemplate {
+    exercises?: TargetExercise[];
+    cardioBlocks?: Pick<CardioBlock, "id" | "type" | "title" | "totalDuration">[];
+    steps?: WarmupRoutineStep[];
 }
 
 export interface ProgramDay {
     label: string;             // "Gün 1 — Anterior"
     exercises: TargetExercise[];
     isRestDay?: boolean;       // Off / dinlenme günü işareti
-    warmupRoutine?: WarmupRoutineStep[];
+    warmupRoutine?: WarmupRoutineTemplate;
 }
 
 export interface CycleProgramData {
     frequency: number;         // sessions per week, e.g. 3
     days: ProgramDay[];
-    warmupRoutine?: WarmupRoutineStep[];
+    warmupRoutine?: WarmupRoutineTemplate | WarmupRoutineStep[];
 }
 
 // Legacy flat structure (backwards compat)
 export interface LegacyProgramData {
     exercises: TargetExercise[];
-    warmupRoutine?: WarmupRoutineStep[];
+    warmupRoutine?: WarmupRoutineTemplate | WarmupRoutineStep[];
 }
 
 export type ProgramData = CycleProgramData | LegacyProgramData;

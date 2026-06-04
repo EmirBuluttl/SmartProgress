@@ -19,7 +19,7 @@ import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { programApi, parseApiError } from "../services/api";
-import type { TargetExercise, TargetSet } from "../types/workout";
+import type { TargetExercise, TargetSet, WarmupRoutineTemplate } from "../types/workout";
 import {
     spacing,
     borderRadius,
@@ -31,7 +31,6 @@ import PrivacyModal from "../components/PrivacyModal";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
-import { DEFAULT_PRE_WORKOUT_WARMUP_STEPS } from "../data/warmupRoutine";
 import { useAuth } from "../store/AuthContext";
 
 // ─── Helpers ─────────────────────────────────
@@ -110,7 +109,12 @@ interface ProgramDay {
     label: string;
     exercises: TargetExercise[];
     isRestDay?: boolean;
-    warmupRoutine?: typeof DEFAULT_PRE_WORKOUT_WARMUP_STEPS;
+    warmupRoutine?: WarmupRoutineTemplate;
+}
+
+function hasWarmupRoutine(routine?: WarmupRoutineTemplate): boolean {
+    if (!routine) return false;
+    return !!routine.exercises?.length || !!routine.cardioBlocks?.length || !!routine.steps?.length;
 }
 
 // ─── Screen ──────────────────────────────────
@@ -178,7 +182,7 @@ export default function ProgramCreateScreen() {
                 setDays(rawDays.map((d: any) => ({
                     label: d.label || "",
                     isRestDay: !!d.isRestDay,
-                    warmupRoutine: Array.isArray(d.warmupRoutine) ? d.warmupRoutine : undefined,
+                    warmupRoutine: d.warmupRoutine,
                     exercises: (d.exercises || []).map((ex: any) => ({
                         id: ex.id || Math.random().toString(36).slice(2),
                         exerciseId: ex.exerciseId,
@@ -195,6 +199,18 @@ export default function ProgramCreateScreen() {
             }
         }
     }, []);
+
+    useEffect(() => {
+        const result = route.params?.warmupRoutineResult;
+        if (!result?.days) return;
+        setDays((prev) =>
+            prev.map((day, index) => ({
+                ...day,
+                warmupRoutine: result.days[index]?.warmupRoutine,
+            })),
+        );
+        navigation.setParams({ warmupRoutineResult: undefined });
+    }, [navigation, route.params?.warmupRoutineResult]);
 
     // --- Frequency deviation warning ---
     const workoutDayCount = days.filter((d) => !d.isRestDay).length;
@@ -275,18 +291,15 @@ export default function ProgramCreateScreen() {
         setDays((prev) => prev.map((d, i) => (i === index ? { ...d, label } : d)));
     };
 
-    const setDayWarmupEnabled = (index: number, enabled: boolean) => {
-        setDays((prev) =>
-            prev.map((day, i) => {
-                if (i !== index) return day;
-                return {
-                    ...day,
-                    warmupRoutine: enabled
-                        ? (day.warmupRoutine?.length ? day.warmupRoutine : DEFAULT_PRE_WORKOUT_WARMUP_STEPS.map((step) => ({ ...step })))
-                        : undefined,
-                };
-            }),
-        );
+    const openWarmupRoutineBuilder = () => {
+        navigation.navigate("WarmupRoutineBuilder", {
+            initialDayIndex: activeDayIdx,
+            days: days.map((day) => ({
+                label: day.label,
+                isRestDay: day.isRestDay,
+                warmupRoutine: day.warmupRoutine,
+            })),
+        });
     };
 
     // ─── Exercise Management ──────────────────
@@ -652,7 +665,7 @@ export default function ProgramCreateScreen() {
                 days: days.map((d) => ({
                     label: d.label,
                     isRestDay: !!d.isRestDay,
-                    warmupRoutine: !d.isRestDay && d.warmupRoutine?.length ? d.warmupRoutine : undefined,
+                    warmupRoutine: !d.isRestDay && hasWarmupRoutine(d.warmupRoutine) ? d.warmupRoutine : undefined,
                     exercises: d.isRestDay ? [] : d.exercises.map((ex) => ({
                         id: ex.id,
                         exerciseId: ex.exerciseId,
@@ -972,26 +985,26 @@ export default function ProgramCreateScreen() {
                     {!activeDay.isRestDay && (
                         <View style={styles.warmupRoutineCard}>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.warmupRoutineTitle}>Antrenman oncesi isinma rutini</Text>
+                                <Text style={styles.warmupRoutineTitle}>Isinma rutini</Text>
                                 <Text style={styles.warmupRoutineDesc}>
-                                    W setlerinden bagimsizdir. Sadece bu gun baslatilirken hatirlatilir.
+                                    Bu gun icin hareket veya kardiyo iceren ayri bir rutin olustur.
                                 </Text>
                             </View>
                             <TouchableOpacity
                                 style={[
                                     styles.warmupRoutineToggle,
-                                    !!activeDay.warmupRoutine?.length && styles.warmupRoutineToggleActive,
+                                    (!!activeDay.warmupRoutine?.exercises?.length || !!activeDay.warmupRoutine?.cardioBlocks?.length) && styles.warmupRoutineToggleActive,
                                 ]}
-                                onPress={() => setDayWarmupEnabled(activeDayIdx, !(activeDay.warmupRoutine?.length))}
+                                onPress={openWarmupRoutineBuilder}
                                 activeOpacity={0.78}
                             >
                                 <Text
                                     style={[
                                         styles.warmupRoutineToggleText,
-                                        !!activeDay.warmupRoutine?.length && styles.warmupRoutineToggleTextActive,
+                                        (!!activeDay.warmupRoutine?.exercises?.length || !!activeDay.warmupRoutine?.cardioBlocks?.length) && styles.warmupRoutineToggleTextActive,
                                     ]}
                                 >
-                                    {activeDay.warmupRoutine?.length ? "Acik" : "Kapali"}
+                                    {!!activeDay.warmupRoutine?.exercises?.length || !!activeDay.warmupRoutine?.cardioBlocks?.length ? "Duzenle" : "Olustur"}
                                 </Text>
                             </TouchableOpacity>
                         </View>
