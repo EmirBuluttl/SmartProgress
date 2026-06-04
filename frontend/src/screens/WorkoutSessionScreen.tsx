@@ -15,6 +15,7 @@ import {
     KeyboardAvoidingView,
     AppState,
     Modal,
+    Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -57,6 +58,7 @@ import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibr
 const DEFAULT_SPORT_ID = "00000000-0000-0000-0000-000000000001";
 const AUTOSAVE_DEBOUNCE_MS = 500;
 const ADDED_EXERCISE_HIGHLIGHT_MS = 1400;
+const ADDED_EXERCISE_FADE_OUT_MS = 900;
 
 // ─── ID Generator ────────────────────────────
 
@@ -518,6 +520,7 @@ export default function WorkoutSessionScreen() {
     const [newExerciseName, setNewExerciseName] = useState("");
     const [newExerciseLibraryItem, setNewExerciseLibraryItem] = useState<ExerciseLibraryItem | null>(null);
     const [newExerciseIndex, setNewExerciseIndex] = useState(0);
+    const recentlyAddedExerciseGlow = useRef(new Animated.Value(0)).current;
     const [noteModalVisible, setNoteModalVisible] = useState(false);
     const [noteDraft, setNoteDraft] = useState("");
     const [cardioListVisible, setCardioListVisible] = useState(false);
@@ -925,12 +928,23 @@ export default function WorkoutSessionScreen() {
     useEffect(() => {
         if (!recentlyAddedExerciseId) return;
 
+        recentlyAddedExerciseGlow.stopAnimation();
+        recentlyAddedExerciseGlow.setValue(1);
         const timer = setTimeout(() => {
-            setRecentlyAddedExerciseId(null);
+            Animated.timing(recentlyAddedExerciseGlow, {
+                toValue: 0,
+                duration: ADDED_EXERCISE_FADE_OUT_MS,
+                useNativeDriver: true,
+            }).start(({ finished }) => {
+                if (finished) setRecentlyAddedExerciseId(null);
+            });
         }, ADDED_EXERCISE_HIGHLIGHT_MS);
 
-        return () => clearTimeout(timer);
-    }, [recentlyAddedExerciseId]);
+        return () => {
+            clearTimeout(timer);
+            recentlyAddedExerciseGlow.stopAnimation();
+        };
+    }, [recentlyAddedExerciseGlow, recentlyAddedExerciseId]);
 
     useEffect(() => {
         const programId = route.params?.programId;
@@ -2021,8 +2035,16 @@ export default function WorkoutSessionScreen() {
             <View style={[
                     styles.exerciseCard,
                     isActive && styles.activeExerciseCard,
-                    recentlyAddedExerciseId === exercise.id && styles.recentlyAddedExerciseCard,
                 ]}>
+                    {recentlyAddedExerciseId === exercise.id ? (
+                        <Animated.View
+                            pointerEvents="none"
+                            style={[
+                                styles.recentlyAddedExerciseGlow,
+                                { opacity: recentlyAddedExerciseGlow },
+                            ]}
+                        />
+                    ) : null}
                     <View style={styles.exerciseHeader}>
                         {isWeb ? (
                             <View style={[styles.dragHandle, styles.webExerciseOrderHandle]}>
@@ -2987,6 +3009,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: spacing.lg,
         borderWidth: 1,
         borderColor: colors.border,
+        overflow: "hidden",
+        position: "relative",
     },
     exerciseHeader: {
         flexDirection: "row",
@@ -3192,9 +3216,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         shadowOpacity: 0.3,
         shadowRadius: 8,
     },
-    recentlyAddedExerciseCard: {
+    recentlyAddedExerciseGlow: {
+        ...StyleSheet.absoluteFillObject,
+        borderWidth: 1,
         borderColor: colors.accent,
         backgroundColor: colors.accentMuted,
+        borderRadius: borderRadius.lg,
     },
     webExerciseOrderHandle: {
         gap: 2,

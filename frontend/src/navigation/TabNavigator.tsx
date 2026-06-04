@@ -16,6 +16,7 @@ import {
     TouchableOpacity,
     Keyboard,
 } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
@@ -25,8 +26,47 @@ import MyProgressScreen from "../screens/MyProgressScreen";
 import CoachScreen from "../screens/CoachScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import { MainTabKey, subscribeMainTabSwitch } from "../utils/mainTabEvents";
+import AppTourOverlay, { AppTourStep } from "../components/AppTourOverlay";
 
 const tabScales: Record<string, Animated.Value> = {};
+const APP_TOUR_COMPLETED_KEY = "@smartprogress_app_tour_completed";
+const APP_TOUR_STEPS: (AppTourStep & { tabIndex: number })[] = [
+    {
+        tabIndex: 0,
+        tabLabel: "Ana Sayfa",
+        icon: "home-outline",
+        title: "Antrenmanına buradan başlarsın",
+        body: "Sıradaki antrenman, serbest antrenman ve son kayıtların ana ekranda hızlıca görünür.",
+    },
+    {
+        tabIndex: 0,
+        tabLabel: "Programlarım",
+        icon: "reader-outline",
+        title: "Aktif programını takip et",
+        body: "Program kartlarını kullanarak gün detaylarını açabilir, takip ettiğin programı değiştirebilirsin.",
+    },
+    {
+        tabIndex: 1,
+        tabLabel: "MyProgress",
+        icon: "analytics-outline",
+        title: "Gelişimini grafiklerle oku",
+        body: "Progress yüzdeleri, en iyi setlerin, vücut ölçülerin ve kalori kayıtların burada toparlanır.",
+    },
+    {
+        tabIndex: 2,
+        tabLabel: "Koç",
+        icon: "bulb-outline",
+        title: "Koç sinyallerini takip et",
+        body: "Premium wizard, haftalık rapor ve plato/progress sinyalleri bu merkezde toplanır.",
+    },
+    {
+        tabIndex: 3,
+        tabLabel: "Profil",
+        icon: "person-outline",
+        title: "Profil ve ayarlarını yönet",
+        body: "Seviye, tema, ölçü, kalori ve kişisel ayarlarını buradan düzenleyebilirsin.",
+    },
+];
 
 function getTabScale(routeName: string): Animated.Value {
     if (!tabScales[routeName]) {
@@ -87,6 +127,8 @@ export default function TabNavigator({ route }: any) {
     const [activeIndex, setActiveIndex] = useState(0);
     const [keyboardVisible, setKeyboardVisible] = useState(false);
     const [externalSwitchVisible, setExternalSwitchVisible] = useState(false);
+    const [tourVisible, setTourVisible] = useState(false);
+    const [tourStepIndex, setTourStepIndex] = useState(0);
     const scrollViewRef = useRef<ScrollView | null>(null);
     const isScrollingRef = useRef(false);
     const activeIndexRef = useRef(0);
@@ -125,6 +167,21 @@ export default function TabNavigator({ route }: any) {
             component: ProfileScreen,
         },
     ];
+
+    useEffect(() => {
+        let mounted = true;
+        AsyncStorage.getItem(APP_TOUR_COMPLETED_KEY)
+            .then((stored) => {
+                if (!mounted || stored === "true") return;
+                setTimeout(() => {
+                    if (mounted) setTourVisible(true);
+                }, 700);
+            })
+            .catch(() => undefined);
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     // Handle deep navigation or tab switches from external screens
     const screenParam = route?.params?.screen;
@@ -199,6 +256,22 @@ export default function TabNavigator({ route }: any) {
     const handleTabPress = (index: number) => {
         if (index === activeIndexRef.current) return;
         switchToTab(index, true, 680);
+    };
+
+    const completeTour = async () => {
+        setTourVisible(false);
+        await AsyncStorage.setItem(APP_TOUR_COMPLETED_KEY, "true");
+    };
+
+    const handleTourNext = () => {
+        const nextIndex = tourStepIndex + 1;
+        if (nextIndex >= APP_TOUR_STEPS.length) {
+            completeTour();
+            return;
+        }
+        setTourStepIndex(nextIndex);
+        const nextStep = APP_TOUR_STEPS[nextIndex];
+        switchToTab(nextStep.tabIndex, true, 680);
     };
 
     const showExternalSwitchCover = () => {
@@ -279,6 +352,15 @@ export default function TabNavigator({ route }: any) {
                     <View style={styles.externalSwitchAccent} />
                 </Animated.View>
             ) : null}
+
+            <AppTourOverlay
+                visible={tourVisible}
+                step={APP_TOUR_STEPS[tourStepIndex]}
+                current={tourStepIndex}
+                total={APP_TOUR_STEPS.length}
+                onNext={handleTourNext}
+                onSkip={completeTour}
+            />
 
             {/* Custom Bottom Tab Bar */}
             <View style={[styles.tabBar, keyboardVisible && { display: "none" }]}>

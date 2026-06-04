@@ -2,6 +2,7 @@ import React from "react";
 import {
     KeyboardAvoidingView,
     Platform,
+    Animated,
     ScrollView,
     StyleSheet,
     Text,
@@ -50,6 +51,8 @@ export default function WarmupRoutineBuilderScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [days, setDays] = React.useState(route.params.days || []);
     const [activeDayIndex, setActiveDayIndex] = React.useState(route.params.initialDayIndex || 0);
+    const [recentlyAddedId, setRecentlyAddedId] = React.useState<string | null>(null);
+    const recentGlow = React.useRef(new Animated.Value(0)).current;
 
     const activeDay = days[activeDayIndex] || days.find((day) => !day.isRestDay);
     const routine: WarmupRoutineTemplate = activeDay?.warmupRoutine || { exercises: [], cardioBlocks: [] };
@@ -74,7 +77,30 @@ export default function WarmupRoutineBuilderScreen() {
 
     const clearRoutine = () => updateRoutine({ exercises: [], cardioBlocks: [], steps: undefined });
 
-    const addExercise = () => updateRoutine({ exercises: [...exercises, makeExercise()] });
+    React.useEffect(() => {
+        if (!recentlyAddedId) return;
+        recentGlow.stopAnimation();
+        recentGlow.setValue(1);
+        const timer = setTimeout(() => {
+            Animated.timing(recentGlow, {
+                toValue: 0,
+                duration: 850,
+                useNativeDriver: true,
+            }).start(({ finished }) => {
+                if (finished) setRecentlyAddedId(null);
+            });
+        }, 900);
+        return () => {
+            clearTimeout(timer);
+            recentGlow.stopAnimation();
+        };
+    }, [recentGlow, recentlyAddedId]);
+
+    const addExercise = () => {
+        const nextExercise = makeExercise();
+        setRecentlyAddedId(nextExercise.id);
+        updateRoutine({ exercises: [...exercises, nextExercise] });
+    };
 
     const updateExercise = (exerciseId: string, patch: Partial<TargetExercise>) => {
         updateRoutine({
@@ -99,10 +125,12 @@ export default function WarmupRoutineBuilderScreen() {
     };
 
     const addCardio = (type: CardioType, title: string) => {
+        const id = uid();
+        setRecentlyAddedId(id);
         updateRoutine({
             cardioBlocks: [
                 ...cardioBlocks,
-                { id: uid(), type, title, totalDuration: 300 },
+                { id, type, title, totalDuration: 300 },
             ],
         });
     };
@@ -190,6 +218,9 @@ export default function WarmupRoutineBuilderScreen() {
 
                     {exercises.map((exercise, index) => (
                         <View key={exercise.id} style={styles.exerciseCard}>
+                            {recentlyAddedId === exercise.id ? (
+                                <Animated.View pointerEvents="none" style={[styles.recentGlow, { opacity: recentGlow }]} />
+                            ) : null}
                             <View style={styles.exerciseTop}>
                                 <Text style={styles.exerciseIndex}>{index + 1}</Text>
                                 <TextInput
@@ -243,6 +274,9 @@ export default function WarmupRoutineBuilderScreen() {
                     </View>
                     {cardioBlocks.map((block) => (
                         <View key={block.id} style={styles.cardioRow}>
+                            {recentlyAddedId === block.id ? (
+                                <Animated.View pointerEvents="none" style={[styles.recentGlow, { opacity: recentGlow }]} />
+                            ) : null}
                             <Text style={styles.cardioTitle}>{block.title}</Text>
                             <TextInput
                                 style={styles.cardioDurationInput}
@@ -289,7 +323,7 @@ const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").
     sectionTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     sectionDesc: { color: colors.textMuted, fontSize: fontSize.sm, lineHeight: 18, marginTop: 3, maxWidth: 230 },
     addBtn: { width: 34, height: 34, borderRadius: borderRadius.md, backgroundColor: colors.accent, alignItems: "center", justifyContent: "center", marginLeft: spacing.xs },
-    exerciseCard: { padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm },
+    exerciseCard: { padding: spacing.md, borderRadius: borderRadius.md, backgroundColor: colors.surfaceElevated, borderWidth: 1, borderColor: colors.border, marginTop: spacing.sm, overflow: "hidden", position: "relative" },
     exerciseTop: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
     exerciseIndex: { width: 22, flexShrink: 0, color: colors.accent, fontWeight: fontWeight.bold, textAlign: "center" },
     exerciseInput: { flex: 1, minWidth: 0, minHeight: 42, color: colors.text, borderBottomWidth: 1, borderBottomColor: colors.border, fontWeight: fontWeight.semibold },
@@ -303,7 +337,8 @@ const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").
     cardioTypeGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
     cardioTypeChip: { paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.border, backgroundColor: colors.surfaceElevated },
     cardioTypeText: { color: colors.textSecondary, fontWeight: fontWeight.semibold },
-    cardioRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md, padding: spacing.sm, borderRadius: borderRadius.md, backgroundColor: colors.surfaceElevated },
+    cardioRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, marginTop: spacing.md, padding: spacing.sm, borderRadius: borderRadius.md, backgroundColor: colors.surfaceElevated, overflow: "hidden", position: "relative" },
+    recentGlow: { ...StyleSheet.absoluteFillObject, borderRadius: borderRadius.md, borderWidth: 1, borderColor: colors.accent, backgroundColor: colors.accentMuted },
     cardioTitle: { flex: 1, color: colors.text, fontWeight: fontWeight.bold },
     cardioDurationInput: { width: 74, minHeight: 38, color: colors.text, textAlign: "center", borderRadius: borderRadius.sm, borderWidth: 1, borderColor: colors.border },
     clearBtn: { alignSelf: "center", padding: spacing.md },

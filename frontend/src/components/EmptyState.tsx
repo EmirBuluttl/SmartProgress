@@ -36,8 +36,15 @@ export default function EmptyState({
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const float = React.useRef(new Animated.Value(0)).current;
+    const appear = React.useRef(new Animated.Value(0)).current;
 
     React.useEffect(() => {
+        Animated.timing(appear, {
+            toValue: 1,
+            duration: 360,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+        }).start();
         const loop = Animated.loop(
             Animated.sequence([
                 Animated.timing(float, { toValue: -5, duration: 1500, easing: Easing.inOut(Easing.quad), useNativeDriver: true }),
@@ -46,10 +53,22 @@ export default function EmptyState({
         );
         loop.start();
         return () => loop.stop();
-    }, [float]);
+    }, [appear, float]);
+
+    const containerStyle = {
+        opacity: appear,
+        transform: [
+            {
+                translateY: appear.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [12, 0],
+                }),
+            },
+        ],
+    };
 
     return (
-        <View style={[styles.container, style]}>
+        <Animated.View style={[styles.container, containerStyle, style]}>
             <Animated.View style={[styles.iconWrap, { transform: [{ translateY: float }] }]}>
                 <Ionicons name={icon} size={40} color={colors.textMuted} />
             </Animated.View>
@@ -66,7 +85,7 @@ export default function EmptyState({
                     <Text style={styles.actionText}>{actionLabel}</Text>
                 </AnimatedPressable>
             ) : null}
-        </View>
+        </Animated.View>
     );
 }
 
