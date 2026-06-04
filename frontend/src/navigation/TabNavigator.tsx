@@ -16,7 +16,6 @@ import {
     TouchableOpacity,
     Keyboard,
 } from "react-native";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
 import { fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
@@ -27,9 +26,9 @@ import CoachScreen from "../screens/CoachScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import { MainTabKey, subscribeMainTabSwitch } from "../utils/mainTabEvents";
 import AppTourOverlay, { AppTourStep } from "../components/AppTourOverlay";
+import { hasCompletedAppTour, markAppTourCompleted, subscribeAppTourRequest } from "../utils/appTourEvents";
 
 const tabScales: Record<string, Animated.Value> = {};
-const APP_TOUR_COMPLETED_KEY = "@smartprogress_app_tour_completed";
 const APP_TOUR_STEPS: (AppTourStep & { tabIndex: number })[] = [
     {
         tabIndex: 0,
@@ -170,9 +169,9 @@ export default function TabNavigator({ route }: any) {
 
     useEffect(() => {
         let mounted = true;
-        AsyncStorage.getItem(APP_TOUR_COMPLETED_KEY)
-            .then((stored) => {
-                if (!mounted || stored === "true") return;
+        hasCompletedAppTour()
+            .then((completed) => {
+                if (!mounted || completed) return;
                 setTimeout(() => {
                     if (mounted) setTourVisible(true);
                 }, 700);
@@ -182,6 +181,14 @@ export default function TabNavigator({ route }: any) {
             mounted = false;
         };
     }, []);
+
+    useEffect(() => {
+        return subscribeAppTourRequest(() => {
+            setTourStepIndex(0);
+            switchToTab(0, true, 680);
+            setTimeout(() => setTourVisible(true), 260);
+        });
+    }, [screenWidth]);
 
     // Handle deep navigation or tab switches from external screens
     const screenParam = route?.params?.screen;
@@ -260,7 +267,7 @@ export default function TabNavigator({ route }: any) {
 
     const completeTour = async () => {
         setTourVisible(false);
-        await AsyncStorage.setItem(APP_TOUR_COMPLETED_KEY, "true");
+        await markAppTourCompleted();
     };
 
     const handleTourNext = () => {

@@ -47,6 +47,7 @@ import {
     navigateToFreeWorkoutRespectingActiveSession,
     navigateToWorkoutRespectingActiveSession,
 } from "../utils/workoutNavigation";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -68,6 +69,10 @@ export default function HomeScreen() {
     const { animStyle: statsAnimStyle } = useScreenEnter({ delay: 140 });
     const { animStyle: mainCardAnimStyle } = useScreenEnter({ delay: 200 });
     const { animStyle: listAnimStyle } = useScreenEnter({ delay: 260 });
+    const navigateStatic = React.useCallback(
+        (screen: keyof RootStackParamList) => navigateWithFeedback(() => navigation.navigate(screen as any)),
+        [navigation],
+    );
 
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [programs, setPrograms] = useState<any[]>([]);
@@ -617,7 +622,7 @@ export default function HomeScreen() {
             <SectionHeader
                 title="Son Antrenmanlar"
                 actionLabel="Tümü"
-                onAction={() => navigation.navigate("WorkoutHistory")}
+                onAction={() => navigateStatic("WorkoutHistory")}
             />
             {workouts.length > 0 ? (
                 <Animated.View style={listAnimStyle}>
@@ -662,12 +667,12 @@ export default function HomeScreen() {
             <SectionHeader
                 title="Programlarım"
                 actionLabel={programs.length > 3 ? "Tümü" : "Yeni Oluştur"}
-                onAction={() => programs.length > 3 ? navigation.navigate("ProgramList") : navigation.navigate("ProgramCreate")}
+                onAction={() => programs.length > 3 ? navigateStatic("ProgramList") : navigateStatic("ProgramCreate")}
             />
             {programs.length > 3 && (
                 <TouchableOpacity
                     style={styles.inlineCreateBtn}
-                    onPress={() => navigation.navigate("ProgramCreate")}
+                    onPress={() => navigateStatic("ProgramCreate")}
                     activeOpacity={0.8}
                 >
                     <Ionicons name="add-circle-outline" size={18} color={colors.accent} />
@@ -726,7 +731,7 @@ export default function HomeScreen() {
             <SectionHeader
                 title="Topluluk Programları"
                 actionLabel="Keşfet"
-                onAction={() => navigation.navigate("CommunityPrograms")}
+                onAction={() => navigateStatic("CommunityPrograms")}
             />
             {communityPrograms.length > 0 ? (
                 communityPrograms.map((prog) => {

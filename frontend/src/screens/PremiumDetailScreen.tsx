@@ -11,6 +11,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 export default function PremiumDetailScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -18,6 +19,10 @@ export default function PremiumDetailScreen() {
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { animStyle } = useScreenEnter();
+    const navigateStatic = React.useCallback(
+        (screen: keyof RootStackParamList) => navigateWithFeedback(() => navigation.navigate(screen as any)),
+        [navigation],
+    );
 
     return (
         <ScrollView
@@ -48,7 +53,7 @@ export default function PremiumDetailScreen() {
                 </Text>
                 <AccentButton
                     title="Akilli Program Wizard'i Ac"
-                    onPress={() => navigation.navigate("PremiumProgramWizard")}
+                    onPress={() => navigateStatic("PremiumProgramWizard")}
                     style={styles.cta}
                 />
             </GymCard>
@@ -94,7 +99,7 @@ export default function PremiumDetailScreen() {
                 </View>
             </GymCard>
 
-            <AnimatedPressable style={styles.secondaryBtn} pressedScale={0.985} onPress={() => navigation.navigate("CoachWeeklyReport")}>
+            <AnimatedPressable style={styles.secondaryBtn} pressedScale={0.985} onPress={() => navigateStatic("CoachWeeklyReport")}>
                 <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                 <Text style={styles.secondaryText}>Haftalik raporu gor</Text>
             </AnimatedPressable>

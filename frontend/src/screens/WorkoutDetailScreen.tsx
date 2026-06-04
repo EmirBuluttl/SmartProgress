@@ -212,12 +212,23 @@ export default function WorkoutDetailScreen() {
                                 {(() => {
                                     let warmupCount = 0;
                                     let workingCount = 0;
+                                    const labelsBySource = new Map<string, string>();
                                     return getDisplaySetRows(ex.sets || []).map((row: any, sIdx: number) => {
                                         const set = row.set;
                                         const isWarmup = !!set.isWarmup;
-                                        if (isWarmup) warmupCount++;
-                                        else workingCount++;
-                                        const label = `${isWarmup ? `W${warmupCount}` : `${workingCount}`}${row.side === "left" ? "L" : row.side === "right" ? "R" : ""}`;
+                                        const sourceKey = `${isWarmup ? "warmup" : "working"}-${row.sourceIndex}`;
+                                        let baseLabel = labelsBySource.get(sourceKey);
+                                        if (!baseLabel) {
+                                            if (isWarmup) {
+                                                warmupCount++;
+                                                baseLabel = `W${warmupCount}`;
+                                            } else {
+                                                workingCount++;
+                                                baseLabel = `${workingCount}`;
+                                            }
+                                            labelsBySource.set(sourceKey, baseLabel);
+                                        }
+                                        const label = `${baseLabel}${row.side === "left" ? "L" : row.side === "right" ? "R" : ""}`;
                                         return (
                                     <View key={`${row.sourceIndex}-${row.side || "both"}`} style={[
                                         styles.setRow,

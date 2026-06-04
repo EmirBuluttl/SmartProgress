@@ -33,6 +33,8 @@ import SectionHeader from "../components/SectionHeader";
 import AccentButton from "../components/AccentButton";
 import AnimatedPressable from "../components/AnimatedPressable";
 import NoticeModal from "../components/NoticeModal";
+import { requestAppTourReplay } from "../utils/appTourEvents";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
@@ -74,6 +76,10 @@ export default function ProfileScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
     const { animStyle } = useScreenEnter();
+    const navigateStatic = React.useCallback(
+        (screen: keyof RootStackParamList) => navigateWithFeedback(() => navigation.navigate(screen as any)),
+        [navigation],
+    );
 
     const [notificationsEnabled, setNotificationsEnabled] = useState(false);
     const [rememberRepsEnabled, setRememberRepsEnabled] = useState(
@@ -341,7 +347,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                     style={styles.settingRow}
                     activeOpacity={0.75}
-                    onPress={() => navigation.navigate("BodyMeasurements")}
+                    onPress={() => navigateStatic("BodyMeasurements")}
                 >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
@@ -358,7 +364,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                     style={styles.settingRow}
                     activeOpacity={0.75}
-                    onPress={() => navigation.navigate("Nutrition")}
+                    onPress={() => navigateStatic("Nutrition")}
                 >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
@@ -420,7 +426,7 @@ export default function ProfileScreen() {
 
                 <TouchableOpacity
                     style={styles.settingRow}
-                    onPress={() => navigation.navigate("PreWorkoutReminders")}
+                    onPress={() => navigateStatic("PreWorkoutReminders")}
                     activeOpacity={0.78}
                 >
                     <View style={styles.settingInfo}>
@@ -441,7 +447,7 @@ export default function ProfileScreen() {
 
                 <TouchableOpacity
                     style={styles.settingRow}
-                    onPress={() => navigation.navigate("TrainingLevel")}
+                    onPress={() => navigateStatic("TrainingLevel")}
                     activeOpacity={0.78}
                 >
                     <View style={styles.settingInfo}>
@@ -453,6 +459,28 @@ export default function ProfileScreen() {
                             <Text style={styles.settingDesc}>
                                 Secili seviye: {TRAINING_LEVEL_OPTIONS.find((option) => option.key === trainingLevel)?.label || "Baslangic"}
                             </Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    onPress={() => {
+                        requestAppTourReplay();
+                        navigateWithFeedback(() => (navigation as any).navigate("MainTabs", { screen: "Home", switchKey: Date.now() }));
+                    }}
+                    activeOpacity={0.78}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="play-circle-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Uygulama Turunu Tekrar Izle</Text>
+                            <Text style={styles.settingDesc}>Ana akisi, MyProgress'i, kocu ve profil ayarlarini tekrar tanit</Text>
                         </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
@@ -489,7 +517,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                     style={styles.settingRow}
                     activeOpacity={0.75}
-                    onPress={() => navigation.navigate("ExerciseLibrary")}
+                    onPress={() => navigateStatic("ExerciseLibrary")}
                 >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
@@ -614,7 +642,7 @@ export default function ProfileScreen() {
             <SectionHeader
                 title="Programlarım"
                 actionLabel="Tümü"
-                onAction={() => navigation.navigate("ProgramList")}
+                onAction={() => navigateStatic("ProgramList")}
             />
             {topPrograms.length > 0 ? topPrograms.map((prog, index) => (
                 <TouchableOpacity

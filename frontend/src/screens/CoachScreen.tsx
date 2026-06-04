@@ -11,6 +11,7 @@ import { RootStackParamList } from "../navigation/RootNavigator";
 import { coachApi } from "../services/api";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import AnimatedPressable from "../components/AnimatedPressable";
+import { navigateWithFeedback } from "../utils/navigationFeedback";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
 
@@ -106,6 +107,10 @@ export default function CoachScreen() {
     const { animStyle: dashboardAnimStyle } = useScreenEnter({ delay: 140 });
     const { animStyle: flowAnimStyle } = useScreenEnter({ delay: 200 });
     const { animStyle: reportAnimStyle } = useScreenEnter({ delay: 260 });
+    const navigateStatic = React.useCallback(
+        (screen: keyof RootStackParamList) => navigateWithFeedback(() => navigation.navigate(screen as any)),
+        [navigation],
+    );
     const isFree = tier === "free";
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
     const [coachInsights, setCoachInsights] = React.useState<any[]>([]);
@@ -234,7 +239,7 @@ export default function CoachScreen() {
                     <AnimatedPressable
                         style={styles.primaryButton}
                         pressedScale={0.985}
-                        onPress={() => navigation.navigate("PremiumProgramWizard")}
+                        onPress={() => navigateStatic("PremiumProgramWizard")}
                     >
                         <Ionicons name="map-outline" size={18} color={colors.background} />
                         <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Dene</Text>
@@ -268,7 +273,7 @@ export default function CoachScreen() {
                         <AnimatedPressable
                             style={[styles.primaryButton, styles.heroPrimaryButton]}
                             pressedScale={0.985}
-                            onPress={() => navigation.navigate("PremiumProgramWizard")}
+                            onPress={() => navigateStatic("PremiumProgramWizard")}
                         >
                             <Ionicons name="map-outline" size={18} color={colors.background} />
                             <Text style={styles.primaryButtonText}>Akıllı Program Wizard'ı Aç</Text>
@@ -276,7 +281,7 @@ export default function CoachScreen() {
                         <AnimatedPressable
                             style={styles.heroSecondaryButton}
                             pressedScale={0.985}
-                            onPress={() => navigation.navigate("CoachWeeklyReport")}
+                            onPress={() => navigateStatic("CoachWeeklyReport")}
                         >
                             <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                             <Text style={styles.heroSecondaryText}>Haftalık Rapor</Text>
@@ -323,7 +328,7 @@ export default function CoachScreen() {
                     <AnimatedPressable
                         style={styles.secondaryActionBtn}
                         pressedScale={0.985}
-                        onPress={() => navigation.navigate("CoachWeeklyReport")}
+                        onPress={() => navigateStatic("CoachWeeklyReport")}
                     >
                         <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                         <Text style={styles.secondaryActionText}>Haftalık raporu aç</Text>
@@ -442,7 +447,7 @@ export default function CoachScreen() {
                             <AnimatedPressable
                                 style={styles.secondaryActionBtn}
                                 pressedScale={0.985}
-                                onPress={() => navigation.navigate("CoachWeeklyReport")}
+                                onPress={() => navigateStatic("CoachWeeklyReport")}
                             >
                                 <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                                 <Text style={styles.secondaryActionText}>Detaylı haftalık raporu aç</Text>
@@ -456,7 +461,7 @@ export default function CoachScreen() {
                 <View style={styles.section}>
                     <View style={styles.reportTopRow}>
                         <Text style={styles.sectionTitle}>Son koç sinyalleri</Text>
-                        <TouchableOpacity style={styles.viewAllSignalsBtn} onPress={() => navigation.navigate("CoachInsightHistory")} activeOpacity={0.82}>
+                        <TouchableOpacity style={styles.viewAllSignalsBtn} onPress={() => navigateStatic("CoachInsightHistory")} activeOpacity={0.82}>
                             <Text style={styles.viewAllSignalsText}>Tumunu gor</Text>
                             <Ionicons name="chevron-forward" size={14} color={colors.background} />
                         </TouchableOpacity>
@@ -522,7 +527,7 @@ export default function CoachScreen() {
                         <AnimatedPressable
                             style={styles.primaryButton}
                             pressedScale={0.985}
-                            onPress={() => navigation.navigate("PremiumProgramWizard")}
+                            onPress={() => navigateStatic("PremiumProgramWizard")}
                         >
                             <Ionicons name="map-outline" size={18} color={colors.background} />
                             <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Dene</Text>
@@ -556,7 +561,7 @@ export default function CoachScreen() {
                             <AnimatedPressable
                                 style={[styles.primaryButton, styles.heroPrimaryButton]}
                                 pressedScale={0.985}
-                                onPress={() => navigation.navigate("PremiumProgramWizard")}
+                                onPress={() => navigateStatic("PremiumProgramWizard")}
                             >
                                 <Ionicons name="map-outline" size={18} color={colors.background} />
                                 <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Ac</Text>
@@ -564,7 +569,7 @@ export default function CoachScreen() {
                             <AnimatedPressable
                                 style={styles.heroSecondaryButton}
                                 pressedScale={0.985}
-                                onPress={() => navigation.navigate("CoachWeeklyReport")}
+                                onPress={() => navigateStatic("CoachWeeklyReport")}
                             >
                                 <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                                 <Text style={styles.heroSecondaryText}>Haftalik Rapor</Text>
@@ -596,7 +601,7 @@ export default function CoachScreen() {
                         colors={colors}
                         active={tier === "pro"}
                         highlighted
-                        onPress={() => navigation.navigate("PremiumDetail")}
+                        onPress={() => navigateStatic("PremiumDetail")}
                     />
                     <PlanCard
                         title="Coach+"
