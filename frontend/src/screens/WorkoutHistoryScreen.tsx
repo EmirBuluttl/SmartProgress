@@ -120,6 +120,7 @@ export default function WorkoutHistoryScreen() {
 
     const handleDelete = async (id: string) => {
         const previous = workouts;
+        setPendingDeleteId(null);
         setWorkouts((current) => current.filter((w) => w.id !== id));
 
         try {
@@ -130,7 +131,6 @@ export default function WorkoutHistoryScreen() {
             const apiError = parseApiError(err);
             setNotice({ title: "Silinemedi", message: apiError.message || "Silme islemi basarisiz." });
         }
-        setPendingDeleteId(null);
     };
 
     const handleClearOrder = async () => {
