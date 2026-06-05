@@ -132,6 +132,11 @@ export const authApi = {
         avatarUrl?: string | null;
         settings?: Record<string, any>;
     }) => api.patch("/auth/me", data),
+
+    syncEntitlements: (data?: { appUserId?: string }) =>
+        api.post("/auth/sync-entitlements", data || {}),
+
+    deleteAccount: () => api.delete("/auth/me"),
 };
 
 // ─── Workout Endpoints ───────────────────────

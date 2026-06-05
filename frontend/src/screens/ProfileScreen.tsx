@@ -16,6 +16,7 @@ import {
     Dimensions,
     Platform,
     Modal,
+    Linking,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -42,6 +43,9 @@ import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
+const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL || "https://smartprogress.online/privacy";
+const SUPPORT_URL = process.env.EXPO_PUBLIC_SUPPORT_URL || "mailto:support@smartprogress.online";
+const ACCOUNT_DELETION_URL = process.env.EXPO_PUBLIC_ACCOUNT_DELETION_URL || "https://smartprogress.online/account-deletion";
 
 const AVAILABLE_COLORS = [
     "#3B82F6", // Blue
@@ -104,6 +108,7 @@ export default function ProfileScreen() {
     const [reminderDraft, setReminderDraft] = useState("");
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
     const [photoSourceVisible, setPhotoSourceVisible] = useState(false);
+    const [deleteAccountPending, setDeleteAccountPending] = useState(false);
 
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 5 });
     const [programs, setPrograms] = useState<any[]>([]);
@@ -264,6 +269,27 @@ export default function ProfileScreen() {
         await logout();
     };
 
+    const openExternal = async (url: string, title: string) => {
+        try {
+            await Linking.openURL(url);
+        } catch {
+            setNotice({ title: "Açılamadı", message: `${title} bağlantısı açılamadı.` });
+        }
+    };
+
+    const handleDeleteAccount = async () => {
+        setDeleteAccountPending(false);
+        try {
+            await authApi.deleteAccount();
+            await logout();
+        } catch {
+            setNotice({
+                title: "Hesap silinemedi",
+                message: "Hesap ve veriler silinirken bir sorun oluştu. Lütfen destek ile iletişime geç.",
+            });
+        }
+    };
+
     const firstName = user?.firstName || "Sporcu";
     const lastName = user?.lastName || "";
     const email = user?.email || "sporcu@smartprogress.com";
@@ -386,25 +412,6 @@ export default function ProfileScreen() {
                 <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
-                            <Ionicons name="sparkles" size={20} color={colors.accent} />
-                        </View>
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.settingTitle}>Premium Üyelik</Text>
-                            <Text style={styles.settingDesc}>
-                                AI destekli öneriler yeni patch ile hazırlanıyor
-                            </Text>
-                        </View>
-                    </View>
-                    <View style={styles.comingSoonBadge}>
-                        <Text style={styles.comingSoonText}>Yakında</Text>
-                    </View>
-                </View>
-
-                <View style={styles.settingDivider} />
-
-                <View style={styles.settingRow}>
-                    <View style={styles.settingInfo}>
-                        <View style={styles.settingIconWrap}>
                             <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
                         </View>
                         <View style={{ flex: 1 }}>
@@ -482,6 +489,25 @@ export default function ProfileScreen() {
                         <View style={{ flex: 1 }}>
                             <Text style={styles.settingTitle}>Uygulama Turunu Tekrar Izle</Text>
                             <Text style={styles.settingDesc}>Ana akisi, MyProgress'i, kocu ve profil ayarlarini tekrar tanit</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    onPress={() => navigateStatic("PremiumDetail")}
+                    activeOpacity={0.78}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="card-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Premium Aboneliği</Text>
+                            <Text style={styles.settingDesc}>Store trial, satın alma ve restore işlemlerini yönet</Text>
                         </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
@@ -637,6 +663,82 @@ export default function ProfileScreen() {
                         </TouchableOpacity>
                     </View>
                 </View>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    activeOpacity={0.78}
+                    onPress={() => openExternal(PRIVACY_URL, "Gizlilik politikası")}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="shield-checkmark-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Gizlilik Politikası</Text>
+                            <Text style={styles.settingDesc}>Verilerin nasıl işlendiğini ve saklandığını görüntüle</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    activeOpacity={0.78}
+                    onPress={() => openExternal(SUPPORT_URL, "Destek")}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="help-buoy-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Destek</Text>
+                            <Text style={styles.settingDesc}>Abonelik, hesap ve veri talepleri için destek al</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    activeOpacity={0.78}
+                    onPress={() => openExternal(ACCOUNT_DELETION_URL, "Hesap silme sayfası")}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="document-text-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Veri Silme Web Yolu</Text>
+                            <Text style={styles.settingDesc}>Uygulamaya erişemeyen kullanıcılar için hesap silme kaynağı</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    activeOpacity={0.78}
+                    onPress={() => setDeleteAccountPending(true)}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={[styles.settingIconWrap, { borderColor: colors.error, backgroundColor: `${colors.error}12` }]}>
+                            <Ionicons name="trash-outline" size={20} color={colors.error} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={[styles.settingTitle, { color: colors.error }]}>Hesabı ve Verileri Sil</Text>
+                            <Text style={styles.settingDesc}>Hesabın ve ilişkili antrenman/program verilerin kalıcı olarak silinir</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
             </GymCard>
 
             {/* ─── My Programs ─── */}
@@ -850,6 +952,17 @@ export default function ProfileScreen() {
             title={notice?.title || ""}
             message={notice?.message || ""}
             onClose={() => setNotice(null)}
+        />
+        <ActionConfirmModal
+            visible={deleteAccountPending}
+            title="Hesabı sil?"
+            message="Bu işlem hesabını, antrenmanlarını, programlarını ve ilişkili verilerini kalıcı olarak siler. Geri alınamaz."
+            primaryLabel="Evet, sil"
+            secondaryLabel="Vazgeç"
+            onPrimary={handleDeleteAccount}
+            onSecondary={() => setDeleteAccountPending(false)}
+            onDismiss={() => setDeleteAccountPending(false)}
+            destructivePrimary
         />
         <ActionConfirmModal
             visible={photoSourceVisible}
@@ -1191,17 +1304,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     levelSegmentTextActive: {
         color: colors.accent,
-    },
-    comingSoonBadge: {
-        paddingHorizontal: spacing.sm,
-        paddingVertical: spacing.xs,
-        borderRadius: borderRadius.full,
-        backgroundColor: colors.accentMuted,
-    },
-    comingSoonText: {
-        color: colors.accent,
-        fontSize: fontSize.xs,
-        fontWeight: fontWeight.bold,
     },
     smallOutlineBtn: {
         minHeight: 34,

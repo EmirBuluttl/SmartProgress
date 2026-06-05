@@ -49,6 +49,10 @@ const updateProfileSchema = z.object({
     settings: z.record(z.any()).optional(),
 });
 
+const syncEntitlementsSchema = z.object({
+    appUserId: z.string().uuid().optional(),
+});
+
 // ─── Controller ──────────────────────────────
 
 export class AuthController {
@@ -140,6 +144,31 @@ export class AuthController {
 
             const profile = await authService.updateProfile(userId, parsed.data);
             res.status(200).json(profile);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async syncEntitlements(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const parsed = syncEntitlementsSchema.safeParse(req.body || {});
+            if (!parsed.success) {
+                throw new ValidationError("Validation failed", parsed.error.flatten());
+            }
+
+            const profile = await authService.syncEntitlements(userId, parsed.data);
+            res.status(200).json(profile);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async deleteAccount(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const result = await authService.deleteAccount(userId);
+            res.status(200).json(result);
         } catch (error) {
             next(error);
         }

@@ -44,6 +44,10 @@ export interface UpdateProfileDto {
     settings?: Record<string, any>;
 }
 
+export interface SyncEntitlementsDto {
+    appUserId?: string;
+}
+
 export interface AuthResponse {
     token: string;
     user: {
@@ -74,7 +78,6 @@ const DEFAULT_USER_SETTINGS = {
     onboarding_completed: false,
 };
 
-const PRO_TRIAL_DAYS = 30;
 const FREE_WIZARD_USES = 2;
 const PASSWORD_RESET_EXPIRES_MINUTES = 30;
 const PASSWORD_RESET_MESSAGE =
@@ -84,19 +87,11 @@ function hashResetToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
 }
 
-function addDays(date: Date, days: number): Date {
-    return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
-}
-
 function buildDefaultUserSettings() {
-    const startedAt = new Date();
-    const expiresAt = addDays(startedAt, PRO_TRIAL_DAYS);
     return {
         ...DEFAULT_USER_SETTINGS,
-        pro_trial_started_at: startedAt.toISOString(),
-        pro_trial_expires_at: expiresAt.toISOString(),
         free_wizard_uses_remaining: FREE_WIZARD_USES,
-        coach_plus_beta: true,
+        coach_plus_beta: false,
     };
 }
 
@@ -116,6 +111,36 @@ function effectiveSubscription(user: { subscriptionTier: string; subscriptionSta
         subscriptionTier: user.subscriptionTier,
         subscriptionStatus: user.subscriptionStatus,
     };
+}
+
+function revenueCatSubscriberUrl(appUserId: string) {
+    return `https://api.revenuecat.com/v1/subscribers/${encodeURIComponent(appUserId)}`;
+}
+
+async function fetchRevenueCatPremiumStatus(appUserId: string): Promise<{ active: boolean; raw?: unknown }> {
+    if (!env.REVENUECAT_SECRET_API_KEY) {
+        throw new ValidationError("RevenueCat secret key is not configured.");
+    }
+
+    const response = await fetch(revenueCatSubscriberUrl(appUserId), {
+        method: "GET",
+        headers: {
+            Authorization: `Bearer ${env.REVENUECAT_SECRET_API_KEY}`,
+            "Content-Type": "application/json",
+        },
+    });
+
+    if (!response.ok) {
+        throw new ValidationError("RevenueCat entitlement could not be verified.");
+    }
+
+    const data: any = await response.json();
+    const entitlementId = env.REVENUECAT_PREMIUM_ENTITLEMENT_ID;
+    const entitlement = data?.subscriber?.entitlements?.[entitlementId];
+    const expiresDate = entitlement?.expires_date ? new Date(entitlement.expires_date) : null;
+    const isActive = !!entitlement && (!expiresDate || expiresDate.getTime() > Date.now());
+
+    return { active: isActive, raw: data };
 }
 
 async function sendPasswordResetEmail(email: string, resetUrl: string): Promise<boolean> {
@@ -205,8 +230,8 @@ export class AuthService {
             firstName: dto.firstName,
             lastName: dto.lastName,
             settings: buildDefaultUserSettings(),
-            subscriptionTier: "PRO",
-            subscriptionStatus: "TRIAL",
+            subscriptionTier: "FREE",
+            subscriptionStatus: "INACTIVE",
         });
         const subscription = effectiveSubscription(user);
 
@@ -335,6 +360,55 @@ export class AuthService {
             subscriptionTier: subscription.subscriptionTier,
             subscriptionStatus: subscription.subscriptionStatus,
         };
+    }
+
+    async syncEntitlements(userId: string, dto: SyncEntitlementsDto = {}): Promise<AuthResponse["user"]> {
+        const user = await userRepository.findById(userId);
+        if (!user) {
+            throw new NotFoundError("User not found");
+        }
+
+        const appUserId = dto.appUserId || user.id;
+        if (appUserId !== user.id) {
+            throw new ValidationError("RevenueCat app user id does not match the authenticated user.");
+        }
+
+        const revenueCatStatus = await fetchRevenueCatPremiumStatus(appUserId);
+        const settings = {
+            ...(user.settings as any || {}),
+            revenuecat_last_sync_at: new Date().toISOString(),
+            revenuecat_entitlement_id: env.REVENUECAT_PREMIUM_ENTITLEMENT_ID,
+        };
+
+        const updated = await userRepository.updateById(userId, {
+            subscriptionTier: revenueCatStatus.active ? "PRO" : "FREE",
+            subscriptionStatus: revenueCatStatus.active ? "ACTIVE" : "INACTIVE",
+            settings,
+        });
+
+        const subscription = effectiveSubscription(updated);
+        return {
+            id: updated.id,
+            email: updated.email,
+            firstName: updated.firstName,
+            lastName: updated.lastName,
+            nickname: updated.nickname,
+            avatarUrl: updated.avatarUrl,
+            role: updated.role,
+            settings: updated.settings,
+            subscriptionTier: subscription.subscriptionTier,
+            subscriptionStatus: subscription.subscriptionStatus,
+        };
+    }
+
+    async deleteAccount(userId: string): Promise<{ message: string }> {
+        const user = await userRepository.findById(userId);
+        if (!user) {
+            throw new NotFoundError("User not found");
+        }
+
+        await userRepository.deleteById(userId);
+        return { message: "Account and associated data deleted." };
     }
 
     async requestPasswordReset(dto: ForgotPasswordDto): Promise<{

@@ -26,6 +26,10 @@ export const env = {
     RESEND_API_KEY: process.env.RESEND_API_KEY || "",
     BREVO_API_KEY: process.env.BREVO_API_KEY || "",
 
+    // RevenueCat
+    REVENUECAT_SECRET_API_KEY: process.env.REVENUECAT_SECRET_API_KEY || "",
+    REVENUECAT_PREMIUM_ENTITLEMENT_ID: process.env.REVENUECAT_PREMIUM_ENTITLEMENT_ID || "premium",
+
     // AI provider
     AI_PROVIDER: process.env.AI_PROVIDER || "mock",
     OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",

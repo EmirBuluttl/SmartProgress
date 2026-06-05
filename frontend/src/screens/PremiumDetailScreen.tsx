@@ -12,9 +12,19 @@ import { useTheme } from "../hooks/ThemeContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
+import { useAuth } from "../store/AuthContext";
+import NoticeModal from "../components/NoticeModal";
+import {
+    getPremiumOfferings,
+    isRevenueCatConfigured,
+    purchasePremiumPackage,
+    restorePremiumPurchases,
+} from "../services/revenueCat";
+import { authApi, parseApiError } from "../services/api";
 
 export default function PremiumDetailScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
+    const { user, updateUser } = useAuth();
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -24,6 +34,94 @@ export default function PremiumDetailScreen() {
             navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
         [navigation],
     );
+    const [purchasePackage, setPurchasePackage] = React.useState<any | null>(null);
+    const [loadingOffer, setLoadingOffer] = React.useState(false);
+    const [busy, setBusy] = React.useState(false);
+    const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
+
+    React.useEffect(() => {
+        if (!user?.id || !isRevenueCatConfigured()) return;
+        let mounted = true;
+        setLoadingOffer(true);
+        getPremiumOfferings(user.id)
+            .then((result) => {
+                if (mounted) setPurchasePackage(result.packages[0] || null);
+            })
+            .catch(() => {
+                if (mounted) setPurchasePackage(null);
+            })
+            .finally(() => {
+                if (mounted) setLoadingOffer(false);
+            });
+        return () => {
+            mounted = false;
+        };
+    }, [user?.id]);
+
+    const syncBackendEntitlement = React.useCallback(async () => {
+        const response = await authApi.syncEntitlements({ appUserId: user?.id });
+        updateUser(response.data);
+    }, [updateUser, user?.id]);
+
+    const handlePurchase = async () => {
+        if (!user?.id) return;
+        if (!isRevenueCatConfigured()) {
+            setNotice({
+                title: "Mağaza bağlantısı hazır değil",
+                message: "RevenueCat public key değerleri production env içine eklenmeden satın alma başlatılamaz.",
+            });
+            return;
+        }
+        if (!purchasePackage) {
+            setNotice({
+                title: "Paket bulunamadı",
+                message: "RevenueCat offering içinde Premium paketi görünmüyor. Store ürünlerini ve entitlement eşleşmesini kontrol et.",
+            });
+            return;
+        }
+        setBusy(true);
+        try {
+            const result = await purchasePremiumPackage(purchasePackage);
+            if (result.active) {
+                await syncBackendEntitlement();
+                setNotice({ title: "Premium aktif", message: "Premium erişimin başarıyla açıldı." });
+            } else {
+                setNotice({ title: "Satın alma tamamlandı", message: "Premium entitlement henüz aktif görünmüyor. Birazdan tekrar restore etmeyi dene." });
+            }
+        } catch (error: any) {
+            if (error?.userCancelled) return;
+            setNotice({ title: "Satın alma başarısız", message: error?.message || "Mağaza işlemi tamamlanamadı." });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const handleRestore = async () => {
+        if (!user?.id) return;
+        if (!isRevenueCatConfigured()) {
+            setNotice({
+                title: "Restore hazır değil",
+                message: "RevenueCat public key değerleri production env içine eklenmeden restore çalışmaz.",
+            });
+            return;
+        }
+        setBusy(true);
+        try {
+            const result = await restorePremiumPurchases(user.id);
+            if (result.active) {
+                await syncBackendEntitlement();
+                setNotice({ title: "Satın alma geri yüklendi", message: "Premium erişimin tekrar aktif edildi." });
+            } else {
+                await syncBackendEntitlement().catch(() => undefined);
+                setNotice({ title: "Aktif Premium bulunamadı", message: "Bu mağaza hesabında aktif Premium abonelik görünmüyor." });
+            }
+        } catch (error) {
+            const apiError = parseApiError(error);
+            setNotice({ title: "Restore başarısız", message: apiError.message });
+        } finally {
+            setBusy(false);
+        }
+    };
 
     return (
         <ScrollView
@@ -53,10 +151,13 @@ export default function PremiumDetailScreen() {
                     Premium, AI sohbetten once gelen asil sistemdir: program kurar, haftalik raporlar, progress/plato/dusus sinyallerini yakalar ve aksiyon adaylarini kullanici onayina birakir.
                 </Text>
                 <AccentButton
-                    title="Akilli Program Wizard'i Ac"
-                    onPress={() => navigateStatic("PremiumProgramWizard", "modal")}
+                    title={busy ? "İşleniyor..." : purchasePackage?.product?.priceString ? `Premium'u Başlat · ${purchasePackage.product.priceString}` : "Premium'u Başlat"}
+                    onPress={handlePurchase}
                     style={styles.cta}
                 />
+                <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={busy || loadingOffer} activeOpacity={0.78}>
+                    <Text style={styles.restoreText}>Satın almayı geri yükle</Text>
+                </TouchableOpacity>
             </GymCard>
 
             <View style={styles.featureGrid}>
@@ -104,6 +205,13 @@ export default function PremiumDetailScreen() {
                 <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                 <Text style={styles.secondaryText}>Haftalik raporu gor</Text>
             </AnimatedPressable>
+
+            <NoticeModal
+                visible={!!notice}
+                title={notice?.title || ""}
+                message={notice?.message || ""}
+                onClose={() => setNotice(null)}
+            />
         </ScrollView>
     );
 }
@@ -156,6 +264,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     heroTitle: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
     heroText: { color: colors.textSecondary, fontSize: fontSize.md, lineHeight: 22 },
     cta: { width: "100%", marginTop: spacing.xs },
+    restoreBtn: { alignSelf: "center", paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
+    restoreText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     featureGrid: { gap: spacing.md },
     featureCard: {
         borderRadius: borderRadius.lg,

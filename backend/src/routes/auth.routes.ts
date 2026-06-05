@@ -16,6 +16,8 @@ router.post("/reset-password", (req, res, next) => authController.resetPassword(
 // Protected routes
 router.get("/me", authenticate, (req, res, next) => authController.me(req, res, next));
 router.patch("/me", authenticate, (req, res, next) => authController.updateProfile(req, res, next));
+router.post("/sync-entitlements", authenticate, (req, res, next) => authController.syncEntitlements(req, res, next));
+router.delete("/me", authenticate, (req, res, next) => authController.deleteAccount(req, res, next));
 
 export default router;
 
