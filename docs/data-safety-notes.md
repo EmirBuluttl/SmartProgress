@@ -20,7 +20,7 @@ Bu dosya Play Console Data Safety ve App Store privacy formu için teknik nottur
 ## Deletion
 
 - In-app deletion path: Profile > Hesabı ve Verileri Sil.
-- Web deletion resource: `https://smartprogress.online/account-deletion`.
+- Web deletion resource: `https://app.smartprogress.online/account-deletion`.
 - Backend account deletion removes the user and related relational data through cascade rules.
 
 ## Third Parties

@@ -35,6 +35,7 @@ import PreWorkoutRemindersScreen from "../screens/PreWorkoutRemindersScreen";
 import TrainingLevelScreen from "../screens/TrainingLevelScreen";
 import WarmupRoutineBuilderScreen from "../screens/WarmupRoutineBuilderScreen";
 import WarmupSessionScreen from "../screens/WarmupSessionScreen";
+import LegalInfoScreen from "../screens/LegalInfoScreen";
 import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
 import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
 
@@ -128,6 +129,9 @@ export type RootStackParamList = {
     ExerciseLibrary: undefined;
     PreWorkoutReminders: undefined;
     TrainingLevel: undefined;
+    PrivacyPolicy: undefined;
+    Support: undefined;
+    AccountDeletion: undefined;
 };
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
@@ -309,6 +313,21 @@ function AppNavigator() {
             <AppStack.Screen
                 name="TrainingLevel"
                 component={TrainingLevelScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="PrivacyPolicy"
+                component={LegalInfoScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="Support"
+                component={LegalInfoScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="AccountDeletion"
+                component={LegalInfoScreen}
                 options={{ animation: "slide_from_right" }}
             />
         </AppStack.Navigator>

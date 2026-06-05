@@ -35,8 +35,8 @@
 ## Legal / Support URLs
 
 Varsayılan launch URL'leri:
-- Privacy: `https://smartprogress.online/privacy`
-- Support: `mailto:support@smartprogress.online`
-- Account deletion: `https://smartprogress.online/account-deletion`
+- Privacy: `https://app.smartprogress.online/privacy`
+- Support: `https://app.smartprogress.online/support`
+- Account deletion: `https://app.smartprogress.online/account-deletion`
 
 Bu sayfalar public launch öncesi canlı ve erişilebilir olmalı.

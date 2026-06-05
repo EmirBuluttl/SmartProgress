@@ -24,9 +24,9 @@
             "env": {
                 "EXPO_PUBLIC_API_URL": "https://api.smartprogress.online",
                 "EXPO_PUBLIC_REVENUECAT_PREMIUM_ENTITLEMENT_ID": "premium",
-                "EXPO_PUBLIC_PRIVACY_URL": "https://smartprogress.online/privacy",
-                "EXPO_PUBLIC_SUPPORT_URL": "mailto:support@smartprogress.online",
-                "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://smartprogress.online/account-deletion"
+                "EXPO_PUBLIC_PRIVACY_URL": "https://app.smartprogress.online/privacy",
+                "EXPO_PUBLIC_SUPPORT_URL": "https://app.smartprogress.online/support",
+                "EXPO_PUBLIC_ACCOUNT_DELETION_URL": "https://app.smartprogress.online/account-deletion"
             }
         }
     },

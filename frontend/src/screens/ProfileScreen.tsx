@@ -43,9 +43,9 @@ import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
-const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL || "https://smartprogress.online/privacy";
-const SUPPORT_URL = process.env.EXPO_PUBLIC_SUPPORT_URL || "mailto:support@smartprogress.online";
-const ACCOUNT_DELETION_URL = process.env.EXPO_PUBLIC_ACCOUNT_DELETION_URL || "https://smartprogress.online/account-deletion";
+const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL || "https://app.smartprogress.online/privacy";
+const SUPPORT_URL = process.env.EXPO_PUBLIC_SUPPORT_URL || "https://app.smartprogress.online/support";
+const ACCOUNT_DELETION_URL = process.env.EXPO_PUBLIC_ACCOUNT_DELETION_URL || "https://app.smartprogress.online/account-deletion";
 
 const AVAILABLE_COLORS = [
     "#3B82F6", // Blue

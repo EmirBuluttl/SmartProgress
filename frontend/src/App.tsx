@@ -23,6 +23,9 @@ const linking: any = {
             Login: "login",
             Register: "register",
             ForgotPassword: "reset-password",
+            PrivacyPolicy: "privacy",
+            Support: "support",
+            AccountDeletion: "account-deletion",
             MainTabs: {
                 screens: {
                     Home: "",
