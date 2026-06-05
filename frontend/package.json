@@ -8,6 +8,12 @@
     "web": "expo start --web",
     "android": "expo start --android",
     "ios": "expo start --ios",
+    "expo:config": "expo config --type public",
+    "eas:version": "eas --version",
+    "eas:build:android:preview": "eas build --platform android --profile preview",
+    "eas:build:android:production": "eas build --platform android --profile production",
+    "eas:build:ios:production": "eas build --platform ios --profile production",
+    "store:check": "node scripts/store-readiness-check.mjs",
     "lint": "eslint src --ext .ts,.tsx",
     "test:coach-engine": "node scripts/coach-rule-engine-smoke.mjs",
     "test:progress-engine": "node scripts/progress-rule-engine-smoke.mjs",
@@ -39,6 +45,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.10",
+    "eas-cli": "^20.0.0",
     "typescript": "~5.9.2"
   }
 }

@@ -9,6 +9,7 @@ Frontend:
 - `npm run test:coach-engine`
 - `npm run test:progress-engine`
 - `npm run test:workout-metrics`
+- `npm run store:check`
 
 Backend:
 - `npm run build`
