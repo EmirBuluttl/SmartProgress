@@ -1,11 +1,12 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { authApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import { useTheme } from "../hooks/ThemeContext";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import NoticeModal from "../components/NoticeModal";
 
@@ -38,6 +39,7 @@ export default function TrainingLevelScreen() {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const [selected, setSelected] = React.useState<LevelKey>((user?.settings?.training_level as LevelKey) || "beginner");
     const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
 
@@ -54,7 +56,7 @@ export default function TrainingLevelScreen() {
     };
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+        <Animated.View style={[styles.container, { paddingTop: insets.top + spacing.lg }, animStyle]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
                     <Ionicons name="chevron-back" size={24} color={colors.text} />
@@ -101,7 +103,7 @@ export default function TrainingLevelScreen() {
                 message={notice?.message || ""}
                 onClose={() => setNotice(null)}
             />
-        </View>
+        </Animated.View>
     );
 }
 

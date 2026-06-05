@@ -1,10 +1,11 @@
 import React from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Animated, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { coachApi } from "../services/api";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 const PROGRESS_GREEN = "#22C55E";
 
@@ -74,6 +75,7 @@ export default function CoachInsightHistoryScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const [loading, setLoading] = React.useState(true);
     const [insights, setInsights] = React.useState<any[]>([]);
     const [activeFilter, setActiveFilter] = React.useState<InsightFilter>("all");
@@ -116,7 +118,7 @@ export default function CoachInsightHistoryScreen() {
     }, []);
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        <Animated.ScrollView style={[styles.container, animStyle]} contentContainerStyle={styles.content}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
                     <Ionicons name="chevron-back" size={22} color={colors.text} />
@@ -262,7 +264,7 @@ export default function CoachInsightHistoryScreen() {
                     })}
                 </View>
             )}
-        </ScrollView>
+        </Animated.ScrollView>
     );
 }
 

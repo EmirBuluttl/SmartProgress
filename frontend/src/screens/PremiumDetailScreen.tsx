@@ -18,7 +18,7 @@ export default function PremiumDetailScreen() {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const { animStyle } = useScreenEnter();
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const navigateStatic = React.useCallback(
         (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
             navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),

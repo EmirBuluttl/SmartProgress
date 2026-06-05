@@ -1,6 +1,7 @@
 import React from "react";
 import {
     ActivityIndicator,
+    Animated,
     ScrollView,
     StyleSheet,
     Text,
@@ -15,6 +16,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { bodyMeasurementApi, parseApiError } from "../services/api";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 import GymCard from "../components/GymCard";
 import NoticeModal from "../components/NoticeModal";
 
@@ -47,6 +49,7 @@ export default function BodyMeasurementsScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const today = new Date().toISOString().slice(0, 10);
 
     const [records, setRecords] = React.useState<any[]>([]);
@@ -131,7 +134,7 @@ export default function BodyMeasurementsScreen() {
     const trendUnit = selectedMeta?.[2] ?? "";
 
     return (
-        <View style={styles.root}>
+        <Animated.View style={[styles.root, animStyle]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton} activeOpacity={0.75}>
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
@@ -253,7 +256,7 @@ export default function BodyMeasurementsScreen() {
                 message={notice?.message ?? ""}
                 onClose={() => setNotice(null)}
             />
-        </View>
+        </Animated.View>
     );
 }
 

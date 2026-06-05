@@ -69,6 +69,7 @@ export default function CoachWeeklyReportScreen() {
     const { animStyle: headerAnimStyle } = useScreenEnter({ delay: 0 });
     const { animStyle: heroAnimStyle } = useScreenEnter({ delay: 90 });
     const { animStyle: filterAnimStyle } = useScreenEnter({ delay: 160 });
+    const { animStyle: screenAnimStyle } = useScreenEnter({ variant: "slide" });
 
     React.useEffect(() => {
         let mounted = true;
@@ -171,7 +172,7 @@ export default function CoachWeeklyReportScreen() {
     };
 
     return (
-        <ScrollView style={styles.container} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]} showsVerticalScrollIndicator={false}>
+        <Animated.ScrollView style={[styles.container, screenAnimStyle]} contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]} showsVerticalScrollIndicator={false}>
             <Animated.View style={[styles.header, headerAnimStyle]}>
                 <AnimatedPressable style={styles.backButtonPressable} onPress={() => navigation.goBack()} pressedScale={0.96}>
                     <View style={styles.backButton}>
@@ -319,7 +320,7 @@ export default function CoachWeeklyReportScreen() {
                     )}
                 </>
             )}
-        </ScrollView>
+        </Animated.ScrollView>
     );
 }
 

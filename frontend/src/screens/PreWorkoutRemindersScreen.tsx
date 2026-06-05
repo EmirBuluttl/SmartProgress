@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Animated, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { authApi, programApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import { useTheme } from "../hooks/ThemeContext";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { ACTIVE_PROGRAM_KEY } from "../utils/workoutNavigation";
 import NoticeModal from "../components/NoticeModal";
@@ -23,6 +24,7 @@ export default function PreWorkoutRemindersScreen() {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
 
     const [loading, setLoading] = React.useState(true);
     const [programs, setPrograms] = React.useState<any[]>([]);
@@ -90,7 +92,7 @@ export default function PreWorkoutRemindersScreen() {
     };
 
     return (
-        <View style={[styles.container, { paddingTop: insets.top + spacing.lg }]}>
+        <Animated.View style={[styles.container, { paddingTop: insets.top + spacing.lg }, animStyle]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
                     <Ionicons name="chevron-back" size={24} color={colors.text} />
@@ -154,7 +156,7 @@ export default function PreWorkoutRemindersScreen() {
                 message={notice?.message || ""}
                 onClose={() => setNotice(null)}
             />
-        </View>
+        </Animated.View>
     );
 }
 

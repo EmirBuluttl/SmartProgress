@@ -1,6 +1,7 @@
 import React from "react";
 import {
     ActivityIndicator,
+    Animated,
     Dimensions,
     ScrollView,
     StyleSheet,
@@ -15,6 +16,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { nutritionApi, parseApiError } from "../services/api";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 import GymCard from "../components/GymCard";
 import NoticeModal from "../components/NoticeModal";
 
@@ -44,6 +46,7 @@ export default function NutritionScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const today = new Date().toISOString().slice(0, 10);
 
     const [logs, setLogs] = React.useState<any[]>([]);
@@ -124,7 +127,7 @@ export default function NutritionScreen() {
     const latest = logs[0];
 
     return (
-        <View style={styles.root}>
+        <Animated.View style={[styles.root, animStyle]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton} activeOpacity={0.75}>
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
@@ -257,7 +260,7 @@ export default function NutritionScreen() {
                 message={notice?.message ?? ""}
                 onClose={() => setNotice(null)}
             />
-        </View>
+        </Animated.View>
     );
 }
 

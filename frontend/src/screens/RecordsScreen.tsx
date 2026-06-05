@@ -43,6 +43,7 @@ export default function RecordsScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const { animStyle: headerAnimStyle } = useScreenEnter({ delay: 0 });
     const { animStyle: filterAnimStyle } = useScreenEnter({ delay: 90 });
 
@@ -184,14 +185,14 @@ export default function RecordsScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.container, { justifyContent: "center", alignItems: "center" }]}>
+            <Animated.View style={[styles.container, { justifyContent: "center", alignItems: "center" }, animStyle]}>
                 <ActivityIndicator size="large" color={colors.accent} />
-            </View>
+            </Animated.View>
         );
     }
 
     return (
-            <View style={styles.container}>
+            <Animated.View style={[styles.container, animStyle]}>
             {/* Header */}
             <Animated.View style={[styles.header, { paddingTop: insets.top + spacing.md }, headerAnimStyle]}>
                 <TouchableOpacity
@@ -287,7 +288,7 @@ export default function RecordsScreen() {
                     </AnimatedPressable>
                 </View>
             </PremiumModalSurface>
-        </View>
+        </Animated.View>
     );
 }
 

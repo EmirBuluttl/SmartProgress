@@ -13,6 +13,7 @@ import {
     ActivityIndicator,
     RefreshControl,
     Image,
+    Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -32,6 +33,7 @@ import {
     type StartableProgram,
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -83,6 +85,7 @@ export default function ProgramDetailScreen() {
     const route = useRoute<Route>();
     const { programId } = route.params;
     const { colors } = useTheme();
+    const { animStyle } = useScreenEnter({ variant: "slide" });
 
     const [program, setProgram] = useState<ProgramData | null>(null);
     const [loading, setLoading] = useState(true);
@@ -310,9 +313,9 @@ export default function ProgramDetailScreen() {
 
     if (loading) {
         return (
-            <View style={s.centered}>
+            <Animated.View style={[s.centered, animStyle]}>
                 <ActivityIndicator size="large" color={colors.accent} />
-            </View>
+            </Animated.View>
         );
     }
 
@@ -333,7 +336,7 @@ export default function ProgramDetailScreen() {
     const selectedDay = selectedDayIndex !== null ? days[selectedDayIndex] : null;
 
     return (
-        <View style={s.container}>
+        <Animated.View style={[s.container, animStyle]}>
             {/* ─── Header ─── */}
             <View style={s.header}>
                 <TouchableOpacity
@@ -679,7 +682,7 @@ export default function ProgramDetailScreen() {
                     if (shouldGoBack) navigation.goBack();
                 }}
             />
-        </View>
+        </Animated.View>
     );
 }
 

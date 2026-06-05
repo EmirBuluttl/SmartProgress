@@ -5,6 +5,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
@@ -21,6 +22,7 @@ import {
     getActiveProgramId,
     navigateToWorkoutRespectingActiveSession,
 } from "../utils/workoutNavigation";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 type Route = RouteProp<RootStackParamList, "ProgramDayDetail">;
 type Nav = NativeStackNavigationProp<RootStackParamList>;
@@ -31,6 +33,7 @@ export default function ProgramDayDetailScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { programId, programName, dayIndex, day, programData } = route.params;
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const [inactiveStartModalVisible, setInactiveStartModalVisible] = React.useState(false);
 
     const programToStart = React.useMemo(() => ({
@@ -67,7 +70,7 @@ export default function ProgramDayDetailScreen() {
     };
 
     return (
-        <View style={styles.root}>
+        <Animated.View style={[styles.root, animStyle]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.headerButton}>
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
@@ -147,7 +150,7 @@ export default function ProgramDayDetailScreen() {
                 onSecondary={startWithoutTracking}
                 onDismiss={() => setInactiveStartModalVisible(false)}
             />
-        </View>
+        </Animated.View>
     );
 }
 

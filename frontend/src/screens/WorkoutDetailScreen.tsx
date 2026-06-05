@@ -9,6 +9,7 @@ import {
     ScrollView,
     StyleSheet,
     TouchableOpacity,
+    Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -18,6 +19,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import { calculateLoadScoreFromExercises } from "../utils/workoutMetrics";
 import { CARDIO_TYPE_LABELS, summarizeCardioBlock, summarizeCardioBlocks } from "../utils/cardio";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 type Route = RouteProp<RootStackParamList, "WorkoutDetail">;
 
@@ -96,6 +98,7 @@ export default function WorkoutDetailScreen() {
     const route = useRoute<Route>();
     const { colors } = useTheme();
     const { workout } = route.params;
+    const { animStyle } = useScreenEnter({ variant: "slide" });
 
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -107,7 +110,7 @@ export default function WorkoutDetailScreen() {
     const loadScore = calculateLoadScoreFromExercises(exercises);
 
     return (
-        <View style={styles.root}>
+        <Animated.View style={[styles.root, animStyle]}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
@@ -263,7 +266,7 @@ export default function WorkoutDetailScreen() {
 
                 <View style={{ height: spacing.xxxl }} />
             </ScrollView>
-        </View>
+        </Animated.View>
     );
 }
 

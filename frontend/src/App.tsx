@@ -14,7 +14,6 @@ import { useSync } from "./hooks/useSync";
 import { ThemeProvider } from "./hooks/ThemeContext";
 import { colors } from "./constants/theme";
 import AppErrorBoundary from "./components/AppErrorBoundary";
-import NavigationFeedbackOverlay from "./components/NavigationFeedbackOverlay";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const linking: any = {
@@ -49,7 +48,6 @@ function AppContent() {
                 <StatusBar style="light" />
                 <RootNavigator />
             </NavigationContainer>
-            <NavigationFeedbackOverlay />
         </View>
     );
 }

@@ -43,7 +43,7 @@ export default function WorkoutHistoryScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const insets = useSafeAreaInsets();
-    const { animStyle } = useScreenEnter();
+    const { animStyle } = useScreenEnter({ variant: "slide" });
 
     const [workouts, setWorkouts] = useState<WorkoutItem[]>([]);
     const [favorites, setFavorites] = useState<Set<string>>(new Set());

@@ -7,6 +7,7 @@ import {
     FlatList,
     ActivityIndicator,
     Image,
+    Animated,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -18,6 +19,7 @@ import GymCard from "../components/GymCard";
 import NoticeModal from "../components/NoticeModal";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 type SortMode = "stars" | "newest" | "oldest";
@@ -66,6 +68,7 @@ export default function CommunityProgramsScreen() {
     const navigation = useNavigation<Nav>();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
 
     const [programs, setPrograms] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -138,14 +141,14 @@ export default function CommunityProgramsScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.root, styles.center]}>
+            <Animated.View style={[styles.root, styles.center, animStyle]}>
                 <ActivityIndicator size="large" color={colors.accent} />
-            </View>
+            </Animated.View>
         );
     }
 
     return (
-        <View style={styles.root}>
+        <Animated.View style={[styles.root, animStyle]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
@@ -285,7 +288,7 @@ export default function CommunityProgramsScreen() {
                 message={notice?.message ?? ""}
                 onClose={() => setNotice(null)}
             />
-        </View>
+        </Animated.View>
     );
 }
 

@@ -48,6 +48,7 @@ export default function ProgramListScreen() {
     const navigation = useNavigation<Nav>();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const [programs, setPrograms] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
     const [activeId, setActiveId] = React.useState<string | null>(null);
@@ -120,14 +121,14 @@ export default function ProgramListScreen() {
 
     if (loading) {
         return (
-            <View style={[styles.root, { justifyContent: "center", alignItems: "center" }]}>
+            <Animated.View style={[styles.root, { justifyContent: "center", alignItems: "center" }, animStyle]}>
                 <ActivityIndicator size="large" color={colors.accent} />
-            </View>
+            </Animated.View>
         );
     }
 
     return (
-        <View style={styles.root}>
+        <Animated.View style={[styles.root, animStyle]}>
             {/* Header */}
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn} activeOpacity={0.75}>
@@ -237,7 +238,7 @@ export default function ProgramListScreen() {
                 onSecondary={startPendingWithoutTracking}
                 onDismiss={() => setPendingStart(null)}
             />
-        </View>
+        </Animated.View>
     );
 }
 

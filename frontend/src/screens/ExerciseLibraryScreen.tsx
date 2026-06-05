@@ -7,6 +7,7 @@ import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibr
 import { getExerciseMetadata, riskLevelLabel, skillDemandLabel, stabilityLabel } from "../data/exerciseMetadata";
 import { displayExerciseTarget, displayMuscleGroup, MUSCLE_GROUPS, patternPurpose, relatedPatternsForExercise } from "../data/exerciseTaxonomy";
 import { useTheme } from "../hooks/ThemeContext";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 import { COACH_PATTERN_LABELS, type CoachPatternKey } from "../services/coachRuleEngine";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
@@ -168,6 +169,7 @@ export default function ExerciseLibraryScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const [filter, setFilter] = React.useState<FilterKey>("all");
     const [region, setRegion] = React.useState<LibraryRegion>("all");
     const [difficulty, setDifficulty] = React.useState<DifficultyFilter>("all");
@@ -308,7 +310,7 @@ export default function ExerciseLibraryScreen() {
 
     return (
         <>
-            <ScrollView style={styles.container} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <Animated.ScrollView style={[styles.container, animStyle]} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
                 <Animated.View style={[styles.headerBlock, headerMotionStyle]}>
                     <View style={styles.header}>
                         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -398,7 +400,7 @@ export default function ExerciseLibraryScreen() {
                         </AnimatedPressable>
                     ))}
                 </Animated.View>
-            </ScrollView>
+            </Animated.ScrollView>
 
             <PremiumModalSurface visible={!!selected} onDismiss={() => setSelected(null)} containerStyle={styles.modalCard}>
                         {selected && (

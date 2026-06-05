@@ -1,6 +1,7 @@
 import React from "react";
 import {
     ActivityIndicator,
+    Animated,
     Image,
     ScrollView,
     StyleSheet,
@@ -18,6 +19,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
+import { useScreenEnter } from "../hooks/useScreenEnter";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "PublicProfile">;
 type Route = RouteProp<RootStackParamList, "PublicProfile">;
@@ -31,6 +33,7 @@ export default function PublicProfileScreen() {
     const route = useRoute<Route>();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const { animStyle } = useScreenEnter({ variant: "slide" });
     const [profile, setProfile] = React.useState<any | null>(null);
     const [loading, setLoading] = React.useState(true);
 
@@ -50,16 +53,16 @@ export default function PublicProfileScreen() {
 
     if (loading) {
         return (
-            <View style={styles.centered}>
+            <Animated.View style={[styles.centered, animStyle]}>
                 <ActivityIndicator color={colors.accent} size="large" />
-            </View>
+            </Animated.View>
         );
     }
 
     if (!profile) return null;
 
     return (
-        <View style={styles.container}>
+        <Animated.View style={[styles.container, animStyle]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
                     <Ionicons name="arrow-back" size={24} color={colors.text} />
@@ -132,7 +135,7 @@ export default function PublicProfileScreen() {
                     </>
                 )}
             </ScrollView>
-        </View>
+        </Animated.View>
     );
 }
 
