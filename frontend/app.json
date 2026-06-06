@@ -32,7 +32,8 @@
       },
       "permissions": [
         "CAMERA",
-        "READ_MEDIA_IMAGES"
+        "READ_MEDIA_IMAGES",
+        "POST_NOTIFICATIONS"
       ],
       "package": "com.smartprogress.app"
     },
@@ -45,6 +46,9 @@
         "projectId": "d906eb1c-04ce-4a31-863f-e4cb7458804d"
       }
     },
-    "owner": "emircartman"
+    "owner": "emircartman",
+    "plugins": [
+      "expo-notifications"
+    ]
   }
 }

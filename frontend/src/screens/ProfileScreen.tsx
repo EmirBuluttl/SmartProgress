@@ -40,6 +40,7 @@ import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import { areLocalNotificationsEnabled, setLocalNotificationsEnabled } from "../services/localNotificationService";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const AVAILABLE_COLORS = [
@@ -114,6 +115,16 @@ export default function ProfileScreen() {
     React.useEffect(() => {
         setTrainingLevel((user?.settings?.training_level as TrainingLevel) || "beginner");
     }, [user?.settings?.training_level]);
+
+    React.useEffect(() => {
+        let mounted = true;
+        areLocalNotificationsEnabled().then((enabled) => {
+            if (mounted) setNotificationsEnabled(enabled);
+        });
+        return () => {
+            mounted = false;
+        };
+    }, []);
 
     const persistSettings = async (patch: Record<string, any>, warningLabel: string) => {
         const newSettings = { ...user?.settings, ...patch };
@@ -284,6 +295,20 @@ export default function ProfileScreen() {
         });
     };
 
+    const handleNotificationsToggle = async (enabled: boolean) => {
+        setNotificationsEnabled(enabled);
+        const applied = await setLocalNotificationsEnabled(enabled);
+        if (!applied) {
+            setNotificationsEnabled(false);
+            setNotice({
+                title: "Bildirim izni gerekli",
+                message: "Telefon bildirimlerini kullanmak icin cihaz ayarlarindan SmartProgress bildirim iznini acman gerekiyor.",
+            });
+            return;
+        }
+        persistSettings({ notifications_enabled: enabled }, "local notifications setting");
+    };
+
     const firstName = user?.firstName || "Sporcu";
     const lastName = user?.lastName || "";
     const email = user?.email || "sporcu@smartprogress.com";
@@ -415,7 +440,7 @@ export default function ProfileScreen() {
                     </View>
                     <Switch
                         value={notificationsEnabled}
-                        onValueChange={setNotificationsEnabled}
+                        onValueChange={handleNotificationsToggle}
                         trackColor={{
                             false: colors.surfaceElevated,
                             true: colors.accentMuted,

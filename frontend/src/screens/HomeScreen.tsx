@@ -48,6 +48,7 @@ import {
     navigateToWorkoutRespectingActiveSession,
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
+import { scheduleTodayPreWorkoutReminderIfNeeded } from "../services/localNotificationService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -293,6 +294,20 @@ export default function HomeScreen() {
     const displayedNotifications = preWorkoutReminderNotification
         ? [preWorkoutReminderNotification, ...notifications.filter((item) => item.id !== preWorkoutReminderNotification.id)]
         : notifications;
+
+    React.useEffect(() => {
+        if (!preWorkoutReminderNotification || !favoriteProgram || !currentDay) return;
+        scheduleTodayPreWorkoutReminderIfNeeded({
+            programId: favoriteProgram.id,
+            programName: favoriteProgram.name,
+            dayIndex: currentDayIndex,
+            dayLabel: currentDay.label,
+            note: activeDayReminderNote,
+        }).catch((error) => {
+            console.warn("[HomeScreen] Pre-workout local notification could not be scheduled:", error);
+        });
+    }, [activeDayReminderNote, currentDay, currentDayIndex, favoriteProgram]);
+
     const filteredNotifications = displayedNotifications.filter((item) => {
         if (notificationFilter === "all") return true;
         const haystack = `${item.type || ""} ${item.title || ""} ${item.message || ""} ${item.actionScreen || ""}`.toLocaleLowerCase("tr-TR");

@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { StatusBar } from "expo-status-bar";
 import { NavigationContainer } from "@react-navigation/native";
+import { createNavigationContainerRef } from "@react-navigation/native";
 import { registerRootComponent } from "expo";
 import { AuthProvider } from "./store/AuthContext";
 import RootNavigator from "./navigation/RootNavigator";
@@ -14,6 +15,7 @@ import { useSync } from "./hooks/useSync";
 import { ThemeProvider } from "./hooks/ThemeContext";
 import { colors } from "./constants/theme";
 import AppErrorBoundary from "./components/AppErrorBoundary";
+import { registerLocalNotificationResponseHandler, setupLocalNotificationChannels } from "./services/localNotificationService";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const linking: any = {
@@ -38,13 +40,28 @@ const linking: any = {
     },
 };
 
+const navigationRef = createNavigationContainerRef<any>();
+
 function AppContent() {
     // Auto-sync pending workouts on mount & connectivity change
     useSync();
 
+    React.useEffect(() => {
+        setupLocalNotificationChannels().catch(() => undefined);
+        const unregister = registerLocalNotificationResponseHandler({
+            navigate: (screen, params) => {
+                if (navigationRef.isReady()) {
+                    navigationRef.navigate(screen, params);
+                }
+            },
+        });
+        return unregister;
+    }, []);
+
     return (
         <View style={styles.appShell}>
             <NavigationContainer
+                ref={navigationRef}
                 linking={linking}
                 documentTitle={{ enabled: false }}
             >

@@ -12,6 +12,7 @@ import {
     STORAGE_KEYS,
 } from "../types/workout";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
+import { cancelActiveWorkoutNotification, scheduleActiveWorkoutNotification } from "./localNotificationService";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -349,6 +350,7 @@ export async function saveActiveSession(session: WorkoutSession): Promise<void> 
         STORAGE_KEYS.ACTIVE_SESSION,
         JSON.stringify(normalized),
     );
+    await scheduleActiveWorkoutNotification(normalized);
 }
 
 /**
@@ -368,4 +370,5 @@ export async function restoreActiveSession(): Promise<WorkoutSession | null> {
  */
 export async function clearActiveSession(): Promise<void> {
     await AsyncStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+    await cancelActiveWorkoutNotification();
 }
