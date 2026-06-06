@@ -185,7 +185,7 @@ export default function TabNavigator({ route }: any) {
     useEffect(() => {
         return subscribeAppTourRequest(() => {
             setTourStepIndex(0);
-            switchToTab(0, true, 680);
+            switchToTab(0, true, 460);
             setTimeout(() => setTourVisible(true), 260);
         });
     }, [screenWidth]);
@@ -229,7 +229,7 @@ export default function TabNavigator({ route }: any) {
         };
     }, []);
 
-    const switchToTab = (index: number, animated = true, lockMs = animated ? 680 : 700) => {
+    const switchToTab = (index: number, animated = true, lockMs = animated ? 460 : 180) => {
         const targetOffset = index * screenWidth;
         isScrollingRef.current = true;
         lockedIndexRef.current = index;
@@ -246,7 +246,7 @@ export default function TabNavigator({ route }: any) {
                     x: targetOffset,
                     animated: false,
                 });
-            }, 90);
+            }, 40);
         }
         setTimeout(() => {
             if (Math.abs(currentOffsetRef.current - targetOffset) > 2) {
@@ -262,7 +262,7 @@ export default function TabNavigator({ route }: any) {
 
     const handleTabPress = (index: number) => {
         if (index === activeIndexRef.current) return;
-        switchToTab(index, true, 680);
+        switchToTab(index, true, 460);
     };
 
     const completeTour = async () => {
@@ -278,7 +278,7 @@ export default function TabNavigator({ route }: any) {
         }
         setTourStepIndex(nextIndex);
         const nextStep = APP_TOUR_STEPS[nextIndex];
-        switchToTab(nextStep.tabIndex, true, 680);
+        switchToTab(nextStep.tabIndex, true, 460);
     };
 
     const showExternalSwitchCover = () => {
@@ -304,8 +304,7 @@ export default function TabNavigator({ route }: any) {
             if (targetIdx !== -1) {
                 showExternalSwitchCover();
                 switchToTab(targetIdx, false);
-                setTimeout(() => switchToTab(targetIdx, false), 160);
-                setTimeout(() => switchToTab(targetIdx, false), 360);
+                setTimeout(() => switchToTab(targetIdx, false), 120);
             }
         });
     }, [screenWidth]);

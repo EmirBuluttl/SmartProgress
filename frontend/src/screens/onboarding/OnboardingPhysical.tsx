@@ -1,9 +1,10 @@
 import React, { useRef, useEffect, useCallback } from "react";
 import {
     View, Text, StyleSheet, TouchableOpacity,
-    ScrollView, NativeSyntheticEvent, NativeScrollEvent, Dimensions,
+    ScrollView, NativeSyntheticEvent, NativeScrollEvent, Dimensions, Platform,
 } from "react-native";
 import { useOnboarding } from "./OnboardingContext";
+import { useTheme } from "../../hooks/ThemeContext";
 
 const { width: SW } = Dimensions.get('window');
 
@@ -28,8 +29,8 @@ const WLB      = Array.from({ length: 485 }, (_, i) => i + 66);
 
 // ── Scroll Picker ──────────────────────────────
 function Picker({
-    values, value, onChange,
-}: { values: number[]; value: number; onChange: (v: number) => void }) {
+    values, value, onChange, accent,
+}: { values: number[]; value: number; onChange: (v: number) => void; accent?: string }) {
     const ref = useRef<ScrollView>(null);
     const mounted = useRef(false);
 
@@ -60,9 +61,9 @@ function Picker({
             {/* Two-line center indicator (not a box) */}
             <View style={pk.indOverlay} pointerEvents="none">
                 <View style={pk.indCenter}>
-                    <View style={pk.indLine} />
+                    <View style={[pk.indLine, { backgroundColor: accent || T.accent }]} />
                     <View style={{ flex: 1 }} />
-                    <View style={pk.indLine} />
+                    <View style={[pk.indLine, { backgroundColor: accent || T.accent }]} />
                 </View>
             </View>
             <ScrollView
@@ -75,6 +76,10 @@ function Picker({
                 onScrollEndDrag={snap}
                 contentContainerStyle={{ paddingHorizontal: PAD }}
                 scrollEventThrottle={16}
+                nestedScrollEnabled
+                directionalLockEnabled
+                disableIntervalMomentum
+                keyboardShouldPersistTaps="handled"
             >
                 {values.map((v) => {
                     const dist = Math.abs(v - value);
@@ -85,7 +90,7 @@ function Picker({
                             <Text style={[pk.num, {
                                 fontSize: isC ? 26 : dist === 1 ? 20 : 15,
                                 fontWeight: isC ? '800' : '400',
-                                color: isC ? T.accent : T.text,
+                                color: isC ? (accent || T.accent) : T.text,
                                 opacity: op,
                             }]}>{v}</Text>
                         </View>
@@ -115,13 +120,14 @@ function Section({
     label: string; value: number; unit: string; altUnit?: string;
     values: number[]; onToggle?: () => void; onChange: (v: number) => void;
 }) {
+    const { colors } = useTheme();
     return (
         <View style={sec.root}>
             <View style={sec.labelRow}>
                 <Text style={sec.label}>{label}</Text>
                 {altUnit && onToggle && (
                     <TouchableOpacity onPress={onToggle} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                        <Text style={sec.unitToggle}>{unit} / {altUnit}</Text>
+                        <Text style={[sec.unitToggle, { color: colors.accent }]}>{unit} / {altUnit}</Text>
                     </TouchableOpacity>
                 )}
             </View>
@@ -129,7 +135,7 @@ function Section({
                 <Text style={sec.bigNum}>{value}</Text>
                 <Text style={sec.unit}>{unit}</Text>
             </View>
-            <Picker values={values} value={value} onChange={onChange} />
+            <Picker values={values} value={value} onChange={onChange} accent={colors.accent} />
         </View>
     );
 }
@@ -151,6 +157,7 @@ interface Props { onNext: () => void; onBack: () => void; }
 
 export default function OnboardingPhysical({ onNext, onBack }: Props) {
     const { data, update } = useOnboarding();
+    const { colors } = useTheme();
 
     const toggleH = () => data.heightUnit === 'cm'
         ? update({ height: Math.round(data.height / 2.54), heightUnit: 'ft' })
@@ -162,7 +169,13 @@ export default function OnboardingPhysical({ onNext, onBack }: Props) {
 
     return (
         <View style={s.root}>
-            <ScrollView style={s.scroll} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <ScrollView
+                style={s.scroll}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                nestedScrollEnabled
+                directionalLockEnabled={Platform.OS === "ios"}
+            >
                 <View style={s.heading}>
                     <Text style={s.label}>FİZİKSEL BİLGİLER</Text>
                     <Text style={s.title}>Seni tanıyalım.</Text>
@@ -190,7 +203,7 @@ export default function OnboardingPhysical({ onNext, onBack }: Props) {
                 <TouchableOpacity style={s.skip} onPress={onNext}>
                     <Text style={s.skipText}>Atla</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={s.next} onPress={onNext} activeOpacity={0.82}>
+                <TouchableOpacity style={[s.next, { backgroundColor: colors.accent }]} onPress={onNext} activeOpacity={0.82}>
                     <Text style={s.nextText}>Devam Et</Text>
                 </TouchableOpacity>
             </View>

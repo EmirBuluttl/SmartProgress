@@ -1,11 +1,23 @@
 import { Platform } from "react-native";
-import Purchases, { LOG_LEVEL, PurchasesPackage } from "react-native-purchases";
+import type { PurchasesPackage } from "react-native-purchases";
 
 const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || "";
 const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || "";
 export const PREMIUM_ENTITLEMENT_ID = process.env.EXPO_PUBLIC_REVENUECAT_PREMIUM_ENTITLEMENT_ID || "premium";
 
 let configuredForUserId: string | null = null;
+
+function getPurchasesModule() {
+    try {
+        const module = require("react-native-purchases");
+        return {
+            Purchases: module.default || module,
+            LOG_LEVEL: module.LOG_LEVEL,
+        };
+    } catch {
+        return null;
+    }
+}
 
 function getPlatformKey() {
     if (Platform.OS === "ios") return IOS_API_KEY;
@@ -23,9 +35,11 @@ export async function configureRevenueCat(userId: string) {
     const apiKey = getPlatformKey();
     if (!apiKey) return false;
     if (configuredForUserId === userId) return true;
+    const module = getPurchasesModule();
+    if (!module?.Purchases) return false;
 
-    await Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.WARN);
-    Purchases.configure({ apiKey, appUserID: userId });
+    await module.Purchases.setLogLevel(__DEV__ ? module.LOG_LEVEL.DEBUG : module.LOG_LEVEL.WARN);
+    module.Purchases.configure({ apiKey, appUserID: userId });
     configuredForUserId = userId;
     return true;
 }
@@ -33,7 +47,9 @@ export async function configureRevenueCat(userId: string) {
 export async function getPremiumOfferings(userId: string) {
     const configured = await configureRevenueCat(userId);
     if (!configured) return { current: null, packages: [] as PurchasesPackage[] };
-    const offerings = await Purchases.getOfferings();
+    const module = getPurchasesModule();
+    if (!module?.Purchases) return { current: null, packages: [] as PurchasesPackage[] };
+    const offerings = await module.Purchases.getOfferings();
     return {
         current: offerings.current,
         packages: offerings.current?.availablePackages || [],
@@ -46,7 +62,9 @@ export function hasPremiumEntitlement(customerInfo: any) {
 }
 
 export async function purchasePremiumPackage(aPackage: PurchasesPackage) {
-    const result = await Purchases.purchasePackage(aPackage);
+    const module = getPurchasesModule();
+    if (!module?.Purchases) throw new Error("Mağaza bağlantısı bu cihazda hazır değil.");
+    const result = await module.Purchases.purchasePackage(aPackage);
     return {
         customerInfo: result.customerInfo,
         active: hasPremiumEntitlement(result.customerInfo),
@@ -56,13 +74,17 @@ export async function purchasePremiumPackage(aPackage: PurchasesPackage) {
 export async function restorePremiumPurchases(userId: string) {
     const configured = await configureRevenueCat(userId);
     if (!configured) return { customerInfo: null, active: false };
-    const customerInfo = await Purchases.restorePurchases();
+    const module = getPurchasesModule();
+    if (!module?.Purchases) return { customerInfo: null, active: false };
+    const customerInfo = await module.Purchases.restorePurchases();
     return { customerInfo, active: hasPremiumEntitlement(customerInfo) };
 }
 
 export async function refreshPremiumCustomerInfo(userId: string) {
     const configured = await configureRevenueCat(userId);
     if (!configured) return { customerInfo: null, active: false };
-    const customerInfo = await Purchases.getCustomerInfo();
+    const module = getPurchasesModule();
+    if (!module?.Purchases) return { customerInfo: null, active: false };
+    const customerInfo = await module.Purchases.getCustomerInfo();
     return { customerInfo, active: hasPremiumEntitlement(customerInfo) };
 }

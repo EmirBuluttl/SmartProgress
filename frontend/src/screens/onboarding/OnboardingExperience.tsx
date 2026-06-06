@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-nati
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, FadeIn } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboarding, ExperienceLevel } from "./OnboardingContext";
+import { useTheme } from "../../hooks/ThemeContext";
 
 const T = {
     bg: '#0D0D0D', surface: '#141414',
@@ -69,6 +70,7 @@ interface Props { onNext: () => void; onBack: () => void; }
 
 export default function OnboardingExperience({ onNext, onBack }: Props) {
     const { data, update } = useOnboarding();
+    const { colors } = useTheme();
     const [show, setShow] = useState(!!data.experienceLevel);
 
     const select = useCallback((id: ExperienceLevel) => {
@@ -103,13 +105,13 @@ export default function OnboardingExperience({ onNext, onBack }: Props) {
                         <View style={s.points}>
                             {sel.guidance.points.map((p, i) => (
                                 <View key={i} style={s.pointRow}>
-                                    <View style={s.pointDot} />
+                                    <View style={[s.pointDot, { backgroundColor: colors.accent }]} />
                                     <Text style={s.pointText}>{p}</Text>
                                 </View>
                             ))}
                         </View>
                         <Text style={s.guidNote}>Ayarlardan istediğin zaman değiştirebilirsin.</Text>
-                        <TouchableOpacity style={s.yesBtn} onPress={() => go(true)} activeOpacity={0.82}>
+                        <TouchableOpacity style={[s.yesBtn, { backgroundColor: colors.accent }]} onPress={() => go(true)} activeOpacity={0.82}>
                             <Text style={s.yesTxt}>{sel.guidance.yes}</Text>
                         </TouchableOpacity>
                         <TouchableOpacity style={s.noBtn} onPress={() => go(false)} activeOpacity={0.7}>

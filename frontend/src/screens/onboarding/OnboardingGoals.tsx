@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useOnboarding, WorkoutGoal } from "./OnboardingContext";
+import { useTheme } from "../../hooks/ThemeContext";
 
 const T = {
     bg: '#0D0D0D', surface: '#141414',
@@ -53,6 +54,7 @@ interface Props { onNext: () => void; onBack: () => void; }
 
 export default function OnboardingGoals({ onNext, onBack }: Props) {
     const { data, update } = useOnboarding();
+    const { colors } = useTheme();
     const can = data.workoutGoal !== null;
 
     return (
@@ -77,12 +79,12 @@ export default function OnboardingGoals({ onNext, onBack }: Props) {
                             return (
                                 <TouchableOpacity
                                     key={f}
-                                    style={[s.freqBtn, active && s.freqBtnActive]}
+                                    style={[s.freqBtn, active && { borderColor: colors.accent, backgroundColor: colors.accentMuted }]}
                                     onPress={() => update({ weeklyFrequency: f })}
                                     activeOpacity={0.8}
                                 >
-                                    <Text style={[s.freqNum, active && { color: T.accent }]}>{f}</Text>
-                                    <Text style={[s.freqGun, active && { color: T.accent }]}>gün</Text>
+                                    <Text style={[s.freqNum, active && { color: colors.accent }]}>{f}</Text>
+                                    <Text style={[s.freqGun, active && { color: colors.accent }]}>gün</Text>
                                 </TouchableOpacity>
                             );
                         })}
@@ -91,7 +93,7 @@ export default function OnboardingGoals({ onNext, onBack }: Props) {
                 </View>
 
                 <TouchableOpacity
-                    style={[s.nextBtn, !can && s.nextBtnOff]}
+                    style={[s.nextBtn, { backgroundColor: colors.accent }, !can && s.nextBtnOff]}
                     onPress={can ? onNext : undefined}
                     activeOpacity={0.82}
                 >

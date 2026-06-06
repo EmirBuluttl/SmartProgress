@@ -38,9 +38,10 @@ export default function PremiumDetailScreen() {
     const [loadingOffer, setLoadingOffer] = React.useState(false);
     const [busy, setBusy] = React.useState(false);
     const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
+    const storeReady = isRevenueCatConfigured();
 
     React.useEffect(() => {
-        if (!user?.id || !isRevenueCatConfigured()) return;
+        if (!user?.id || !storeReady) return;
         let mounted = true;
         setLoadingOffer(true);
         getPremiumOfferings(user.id)
@@ -56,7 +57,7 @@ export default function PremiumDetailScreen() {
         return () => {
             mounted = false;
         };
-    }, [user?.id]);
+    }, [storeReady, user?.id]);
 
     const syncBackendEntitlement = React.useCallback(async () => {
         const response = await authApi.syncEntitlements({ appUserId: user?.id });
@@ -151,13 +152,29 @@ export default function PremiumDetailScreen() {
                     Premium, AI sohbetten once gelen asil sistemdir: program kurar, haftalik raporlar, progress/plato/dusus sinyallerini yakalar ve aksiyon adaylarini kullanici onayina birakir.
                 </Text>
                 <AccentButton
-                    title={busy ? "İşleniyor..." : purchasePackage?.product?.priceString ? `Premium'u Başlat · ${purchasePackage.product.priceString}` : "Premium'u Başlat"}
+                    title={
+                        !storeReady
+                            ? "Mağaza Bağlantısı Hazırlanıyor"
+                            : busy
+                                ? "İşleniyor..."
+                                : purchasePackage?.product?.priceString
+                                    ? `Premium'u Başlat · ${purchasePackage.product.priceString}`
+                                    : "Premium'u Başlat"
+                    }
                     onPress={handlePurchase}
                     style={styles.cta}
                 />
                 <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={busy || loadingOffer} activeOpacity={0.78}>
                     <Text style={styles.restoreText}>Satın almayı geri yükle</Text>
                 </TouchableOpacity>
+                {!storeReady ? (
+                    <View style={styles.storePendingBox}>
+                        <Ionicons name="storefront-outline" size={18} color={colors.accent} />
+                        <Text style={styles.storePendingText}>
+                            Android/iOS mağaza onayları tamamlanana kadar satın alma pasif. Premium ekranı güvenli şekilde açık kalır.
+                        </Text>
+                    </View>
+                ) : null}
             </GymCard>
 
             <View style={styles.featureGrid}>
@@ -266,6 +283,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     cta: { width: "100%", marginTop: spacing.xs },
     restoreBtn: { alignSelf: "center", paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
     restoreText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    storePendingBox: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.accentMuted,
+    },
+    storePendingText: { flex: 1, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 19 },
     featureGrid: { gap: spacing.md },
     featureCard: {
         borderRadius: borderRadius.lg,

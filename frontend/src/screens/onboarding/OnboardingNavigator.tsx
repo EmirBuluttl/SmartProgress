@@ -20,12 +20,14 @@ import OnboardingExperience from "./OnboardingExperience";
 import OnboardingGoals from "./OnboardingGoals";
 import OnboardingReady from "./OnboardingReady";
 import { colors, spacing, fontSize, fontWeight, borderRadius } from "../../constants/theme";
+import { useTheme } from "../../hooks/ThemeContext";
 
 const TOTAL = 6;
 const PROGRESS_STEPS = 4; // 2-5 arası sayfalar için progress bar
 
 // ── Progress bar ──────────────────────────────
 function ProgressBar({ step }: { step: number }) {
+    const { colors: themeColors } = useTheme();
     const pct = useSharedValue((step / PROGRESS_STEPS) * 100);
 
     useEffect(() => {
@@ -41,7 +43,7 @@ function ProgressBar({ step }: { step: number }) {
 
     return (
         <View style={pb.track}>
-            <Animated.View style={[pb.fill, fillStyle]} />
+            <Animated.View style={[pb.fill, { backgroundColor: themeColors.accent, shadowColor: themeColors.accent }, fillStyle]} />
         </View>
     );
 }

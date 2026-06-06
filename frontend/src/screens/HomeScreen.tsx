@@ -631,6 +631,11 @@ export default function HomeScreen() {
                     data={sortNewestFirst(workouts)}
                     horizontal
                     showsHorizontalScrollIndicator={false}
+                    nestedScrollEnabled
+                    directionalLockEnabled
+                    disableIntervalMomentum
+                    decelerationRate="fast"
+                    scrollEventThrottle={16}
                     keyExtractor={(item) => item.id}
                     contentContainerStyle={styles.workoutList}
                     renderItem={({ item }) => (

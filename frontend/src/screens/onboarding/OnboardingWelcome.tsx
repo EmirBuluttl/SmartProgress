@@ -5,6 +5,7 @@ import Animated, {
     withRepeat, withSequence, withTiming, Easing,
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
+import { useTheme } from "../../hooks/ThemeContext";
 
 const T = {
     bg: '#0D0D0D', surface: '#141414',
@@ -23,6 +24,7 @@ const FEATURES = [
 interface Props { firstName: string; onNext: () => void; }
 
 export default function OnboardingWelcome({ firstName, onNext }: Props) {
+    const { colors } = useTheme();
     const badgeScale = useSharedValue(1);
 
     useEffect(() => {
@@ -44,7 +46,7 @@ export default function OnboardingWelcome({ firstName, onNext }: Props) {
             {/* Monogram */}
             <View style={s.topRow}>
                 <Animated.View style={[s.badgeWrap, badgeStyle]}>
-                    <View style={s.badge}>
+                    <View style={[s.badge, { backgroundColor: colors.accent }]}>
                         <Ionicons name="barbell" size={15} color="#000" />
                     </View>
                 </Animated.View>
@@ -55,7 +57,7 @@ export default function OnboardingWelcome({ firstName, onNext }: Props) {
             <View style={s.hero}>
                 <Text style={s.heroLine}>Antrenmanını</Text>
                 <Text style={s.heroLine}>bir üst seviyeye</Text>
-                <Text style={[s.heroLine, { color: T.accent }]}>taşı.</Text>
+                <Text style={[s.heroLine, { color: colors.accent }]}>taşı.</Text>
                 <Text style={s.heroSub}>
                     {firstName ? `Merhaba ${firstName}. ` : ''}Seni tanıyalım, hedeflerine göre programını oluşturalım.
                 </Text>
@@ -65,7 +67,7 @@ export default function OnboardingWelcome({ firstName, onNext }: Props) {
             <View style={s.features}>
                 {FEATURES.map((f, i) => (
                     <View key={i} style={s.featureRow}>
-                        <View style={s.dot} />
+                        <View style={[s.dot, { backgroundColor: colors.accent }]} />
                         <Text style={s.featureText}>{f}</Text>
                     </View>
                 ))}
@@ -73,7 +75,7 @@ export default function OnboardingWelcome({ firstName, onNext }: Props) {
 
             {/* CTA */}
             <View style={s.footer}>
-                <TouchableOpacity style={s.btn} onPress={onNext} activeOpacity={0.82}>
+                <TouchableOpacity style={[s.btn, { backgroundColor: colors.accent }]} onPress={onNext} activeOpacity={0.82}>
                     <Text style={s.btnText}>Başlayalım</Text>
                     <Ionicons name="arrow-forward" size={18} color="#000" />
                 </TouchableOpacity>

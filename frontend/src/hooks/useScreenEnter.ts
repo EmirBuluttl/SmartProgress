@@ -19,7 +19,7 @@ export function useScreenEnter({ delay = 0, variant = "fadeUp" }: ScreenEnterOpt
             const anim = Animated.parallel([
                 Animated.timing(opacity, {
                     toValue: 1,
-                    duration: variant === "slide" ? 320 : 280,
+                    duration: variant === "slide" ? 220 : 220,
                     delay,
                     easing: Easing.out(Easing.quad),
                     useNativeDriver: true,
@@ -27,7 +27,7 @@ export function useScreenEnter({ delay = 0, variant = "fadeUp" }: ScreenEnterOpt
                 variant === "slide"
                     ? Animated.timing(translate, {
                         toValue: 0,
-                        duration: 360,
+                        duration: 240,
                         delay,
                         easing: Easing.out(Easing.cubic),
                         useNativeDriver: true,

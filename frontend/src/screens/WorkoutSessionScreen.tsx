@@ -2064,8 +2064,15 @@ export default function WorkoutSessionScreen() {
                                 </TouchableOpacity>
                             </View>
                         ) : (
-                            <TouchableOpacity onLongPress={drag} delayLongPress={200} style={styles.dragHandle}>
-                                <Ionicons name="reorder-two" size={24} color={colors.textSecondary} />
+                            <TouchableOpacity
+                                onLongPress={drag}
+                                delayLongPress={120}
+                                activeOpacity={0.75}
+                                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                                style={[styles.dragHandle, styles.mobileDragHandle]}
+                            >
+                                <Ionicons name="reorder-three" size={24} color={isActive ? colors.accent : colors.textSecondary} />
+                                <Text style={[styles.dragHintText, isActive && { color: colors.accent }]}>Taşı</Text>
                             </TouchableOpacity>
                         )}
 
@@ -2632,12 +2639,14 @@ export default function WorkoutSessionScreen() {
                             })()}
                         </ScrollView>
 
-                        <TouchableOpacity
-                            style={styles.modalPrimaryBtn}
-                            onPress={() => setSetSettingsExercise(null)}
-                        >
-                            <Text style={styles.modalPrimaryText}>Tamam</Text>
-                        </TouchableOpacity>
+                        <View style={styles.setSettingsFooter}>
+                            <TouchableOpacity
+                                style={[styles.modalPrimaryBtn, styles.setSettingsDoneBtn]}
+                                onPress={() => setSetSettingsExercise(null)}
+                            >
+                                <Text style={styles.modalPrimaryText}>Tamam</Text>
+                            </TouchableOpacity>
+                        </View>
                     </View>
                 </View>
             </Modal>
@@ -2870,6 +2879,10 @@ export default function WorkoutSessionScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="always"
                     containerStyle={styles.scrollView}
+                    activationDistance={6}
+                    autoscrollThreshold={80}
+                    autoscrollSpeed={120}
+                    dragItemOverflow
                 />
             )}
         </KeyboardAvoidingView>
@@ -3208,6 +3221,22 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingLeft: spacing.xs,
         justifyContent: "center",
     },
+    mobileDragHandle: {
+        minWidth: 44,
+        minHeight: 46,
+        alignItems: "center",
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceLight,
+        borderWidth: 1,
+        borderColor: colors.border,
+        paddingHorizontal: spacing.xs,
+    },
+    dragHintText: {
+        color: colors.textMuted,
+        fontSize: 9,
+        fontWeight: fontWeight.bold,
+        marginTop: -3,
+    },
     activeExerciseCard: {
         borderColor: colors.accent,
         elevation: 8,
@@ -3371,6 +3400,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     addExerciseModal: {
         width: "100%",
         maxWidth: 440,
+        maxHeight: "86%",
         borderRadius: borderRadius.lg,
         backgroundColor: colors.surface,
         borderWidth: 1,
@@ -3502,11 +3532,22 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
     },
     setSettingsList: {
-        maxHeight: 360,
+        maxHeight: 320,
     },
     setSettingsListContent: {
         gap: spacing.sm,
-        paddingBottom: spacing.sm,
+        paddingBottom: spacing.md,
+    },
+    setSettingsFooter: {
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        backgroundColor: colors.surface,
+    },
+    setSettingsDoneBtn: {
+        flex: 0,
+        minHeight: 48,
+        width: "100%",
     },
     setSettingsRow: {
         flexDirection: "row",
