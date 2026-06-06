@@ -41,10 +41,6 @@ function compareBestSet(a: CoachBestSet, b: CoachBestSet) {
     return (b.weight - a.weight) || (b.reps - a.reps);
 }
 
-function toDateBucket(date: Date): string {
-    return date.toISOString().slice(0, 10);
-}
-
 function buildCoachSet(set: any, side?: "left" | "right"): CoachBestSet | null {
     const sideData = side ? set?.[side] || {} : {};
     const source = side
@@ -104,7 +100,7 @@ function bestWorkingSets(exercise: any): { keySuffix: string; name: string; best
 
 function hashWorkoutSources(logs: { id: string; updatedAt: Date }[]) {
     return createHash("sha256")
-        .update(["coach-report-v5", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
+        .update(["coach-report-v6", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
         .digest("hex");
 }
 
@@ -195,7 +191,7 @@ export class CoachReportService {
                 if (!baseKey) continue;
                 for (const entry of bestWorkingSets(exercise)) {
                     const historyKey = `${baseKey}${entry.keySuffix}`;
-                    const bucketKey = `${historyKey}:${toDateBucket(log.logDate)}`;
+                    const bucketKey = `${historyKey}:${log.id}`;
                     const existing = bestByExerciseDay.get(bucketKey);
                     if (!existing || compareBestSet(existing.best, entry.best) > 0) {
                         bestByExerciseDay.set(bucketKey, {

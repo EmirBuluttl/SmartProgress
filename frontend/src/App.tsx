@@ -48,12 +48,16 @@ function AppContent() {
 
     React.useEffect(() => {
         setupLocalNotificationChannels().catch(() => undefined);
+        const navigateWhenReady = (screen: any, params?: any, attempt = 0) => {
+            if (navigationRef.isReady()) {
+                navigationRef.navigate(screen, params);
+                return;
+            }
+            if (attempt >= 10) return;
+            setTimeout(() => navigateWhenReady(screen, params, attempt + 1), 250);
+        };
         const unregister = registerLocalNotificationResponseHandler({
-            navigate: (screen, params) => {
-                if (navigationRef.isReady()) {
-                    navigationRef.navigate(screen, params);
-                }
-            },
+            navigate: navigateWhenReady,
         });
         return unregister;
     }, []);

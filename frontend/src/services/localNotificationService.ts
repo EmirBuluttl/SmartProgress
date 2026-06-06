@@ -5,6 +5,7 @@ import type { WorkoutSession } from "../types/workout";
 
 const NOTIFICATIONS_ENABLED_KEY = "smartprogress_local_notifications_enabled";
 const ACTIVE_WORKOUT_NOTIFICATION_ID_KEY = "smartprogress_active_workout_notification_id";
+const ACTIVE_WORKOUT_SESSION_ID_KEY = "smartprogress_active_workout_session_id";
 const PRE_WORKOUT_NOTIFICATION_PREFIX = "smartprogress_pre_workout_notification";
 
 const ACTIVE_WORKOUT_CHANNEL_ID = "active-workout";
@@ -45,6 +46,7 @@ async function cancelStoredNotification(key: string) {
     const id = await getStoredNotificationId(key);
     if (id) {
         await Notifications.cancelScheduledNotificationAsync(id).catch(() => undefined);
+        await Notifications.dismissNotificationAsync(id).catch(() => undefined);
         await AsyncStorage.removeItem(key);
     }
 }
@@ -110,6 +112,10 @@ export async function scheduleActiveWorkoutNotification(session: WorkoutSession)
     if (!session?.id || session.status !== "active") return;
 
     await setupLocalNotificationChannels();
+    const existingSessionId = await AsyncStorage.getItem(ACTIVE_WORKOUT_SESSION_ID_KEY);
+    const existingNotificationId = await AsyncStorage.getItem(ACTIVE_WORKOUT_NOTIFICATION_ID_KEY);
+    if (existingSessionId === session.id && existingNotificationId) return;
+
     await cancelStoredNotification(ACTIVE_WORKOUT_NOTIFICATION_ID_KEY);
 
     const title = session.title?.trim() || "Antrenman devam ediyor";
@@ -125,18 +131,19 @@ export async function scheduleActiveWorkoutNotification(session: WorkoutSession)
         },
         trigger: {
             type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
-            seconds: 300,
-            repeats: true,
+            seconds: 3,
             channelId: ACTIVE_WORKOUT_CHANNEL_ID,
         },
     });
 
     await AsyncStorage.setItem(ACTIVE_WORKOUT_NOTIFICATION_ID_KEY, notificationId);
+    await AsyncStorage.setItem(ACTIVE_WORKOUT_SESSION_ID_KEY, session.id);
 }
 
 export async function cancelActiveWorkoutNotification() {
     if (!isNativeNotificationsAvailable()) return;
     await cancelStoredNotification(ACTIVE_WORKOUT_NOTIFICATION_ID_KEY);
+    await AsyncStorage.removeItem(ACTIVE_WORKOUT_SESSION_ID_KEY);
 }
 
 function getReminderStorageKey(input: Pick<ReminderInput, "programId" | "dayIndex">, dateKey = new Date().toISOString().slice(0, 10)) {
@@ -183,7 +190,8 @@ export async function cancelAllPreWorkoutReminderNotifications() {
 export function registerLocalNotificationResponseHandler(navigation: NavigationLike) {
     if (!isNativeNotificationsAvailable()) return () => undefined;
 
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
+    const handleResponse = (response: Notifications.NotificationResponse | null | undefined) => {
+        if (!response) return;
         const data = response.notification.request.content.data || {};
         const action = String((data as any).action || "");
 
@@ -198,7 +206,13 @@ export function registerLocalNotificationResponseHandler(navigation: NavigationL
         }
 
         navigation.navigate("MainTabs", { screen: "Home" });
-    });
+    };
+
+    Notifications.getLastNotificationResponseAsync()
+        .then(handleResponse)
+        .catch(() => undefined);
+
+    const subscription = Notifications.addNotificationResponseReceivedListener(handleResponse);
 
     return () => subscription.remove();
 }

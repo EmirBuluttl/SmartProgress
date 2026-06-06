@@ -236,10 +236,11 @@ async function createProgressNotificationIfNeeded(userId: string, workout: Worko
         const currentBest = getBestLoggedSet(exercise);
         if (!currentBest) continue;
 
-        const previousExercise = previousLogs
+        const previousBest = previousLogs
             .flatMap((log) => Array.isArray((log.data as any)?.exercises) ? (log.data as any).exercises : [])
-            .find((candidate: any) => normalizeExerciseName(candidate?.name) === key);
-        const previousBest = getBestLoggedSet(previousExercise);
+            .filter((candidate: any) => normalizeExerciseName(candidate?.name) === key)
+            .map((candidate: any) => getBestLoggedSet(candidate))
+            .find((best) => !!best);
         if (!previousBest) continue;
 
         if (currentBest.weight > previousBest.weight || currentBest.reps > previousBest.reps) {
