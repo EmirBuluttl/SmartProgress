@@ -12,14 +12,14 @@ const { width: SW, height: SH } = Dimensions.get('window');
 const T = {
     bg: '#0D0D0D', surface: '#141414',
     border: 'rgba(255,255,255,0.06)',
-    accent: '#CCFF00', accentFill: 'rgba(204,255,0,0.05)',
+    accent: '#3B82F6', accentFill: 'rgba(59, 130, 246,0.05)',
     text: '#FFFFFF', sub: 'rgba(255,255,255,0.45)', muted: 'rgba(255,255,255,0.22)',
     r: 16, px: 28,
 } as const;
 
 const GOAL_L: Record<string, string> = { muscle: 'Kas Kazanımı', strength: 'Güç Artışı', fat_loss: 'Yağ Yakma', fitness: 'Genel Fitness', performance: 'Sportif Performans' };
 const LEVEL_L: Record<string, string> = { beginner: 'Başlangıç', intermediate: 'Orta Seviye', advanced: 'İleri Seviye' };
-const COLS = ['#CCFF00', '#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#C084FC'];
+const COLS = ['#3B82F6', '#FF6B6B', '#4ECDC4', '#FFE66D', '#A8E6CF', '#C084FC'];
 
 function Piece({ x, delay, color }: { x: number; delay: number; color: string }) {
     const y = useSharedValue(-16);

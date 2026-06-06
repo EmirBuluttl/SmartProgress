@@ -226,7 +226,7 @@ export default function NutritionScreen() {
                                 decimalPlaces: selectedField === "calories" ? 0 : 1,
                                 color: (opacity = 1) => {
                                     const hexMatch = colors.accent.match(/\w\w/g);
-                                    if (!hexMatch) return `rgba(204, 255, 0, ${opacity})`;
+                                    if (!hexMatch) return `rgba(59, 130, 246, ${opacity})`;
                                     const [r, g, b] = hexMatch.map((h: string) => parseInt(h, 16));
                                     return `rgba(${r}, ${g}, ${b}, ${opacity})`;
                                 },

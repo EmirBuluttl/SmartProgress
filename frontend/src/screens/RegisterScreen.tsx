@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────
 // RegisterScreen — Kayıt Ol
-// Modern Dark Gym — #CCFF00 accent
+// Modern Dark Gym — #3B82F6 accent
 // ─────────────────────────────────────────────
 import React, { useState, useRef } from "react";
 import {

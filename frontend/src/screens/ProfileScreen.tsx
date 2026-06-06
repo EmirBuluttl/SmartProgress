@@ -45,7 +45,7 @@ import { areLocalNotificationsEnabled, setLocalNotificationsEnabled } from "../s
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const AVAILABLE_COLORS = [
     "#3B82F6", // Blue
-    "#CCFF00", // Default Lime
+    "#3B82F6", // Default Lime
     "#0F172A", // Navy
     "#00F0FF", // Cyan
     "#FF0055", // Neon Pink
@@ -1029,7 +1029,7 @@ function HeatmapCalendar({ workouts, colors, heatmapStyles }: { workouts: any[],
         colors.accent + "80", // 2 = medium
         colors.accent + "C0", // 3 = high
         colors.accent,        // 4 = very high
-        "#CCFF00",  // 5 — peak
+        "#3B82F6",  // 5 — peak
     ];
 
     // Build date -> volume map

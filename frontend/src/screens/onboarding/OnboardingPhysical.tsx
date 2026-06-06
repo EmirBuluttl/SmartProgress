@@ -11,7 +11,7 @@ const { width: SW } = Dimensions.get('window');
 const T = {
     bg: '#0D0D0D', surface: '#141414',
     border: 'rgba(255,255,255,0.06)',
-    accent: '#CCFF00', accentFill: 'rgba(204,255,0,0.05)',
+    accent: '#3B82F6', accentFill: 'rgba(59, 130, 246,0.05)',
     text: '#FFFFFF', sub: 'rgba(255,255,255,0.45)', muted: 'rgba(255,255,255,0.22)',
     r: 16, px: 28,
 } as const;
@@ -135,7 +135,7 @@ const pk = StyleSheet.create({
         alignItems: 'center', zIndex: 1,
     },
     indCenter: { width: ITEM_W, flex: 1 },
-    indLine: { height: 1, backgroundColor: 'rgba(204,255,0,0.6)' },
+    indLine: { height: 1, backgroundColor: 'rgba(59, 130, 246,0.6)' },
     item: { width: ITEM_W, height: 70, alignItems: 'center', justifyContent: 'center' },
     num: { letterSpacing: -0.5 },
 });

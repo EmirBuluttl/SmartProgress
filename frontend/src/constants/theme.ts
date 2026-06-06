@@ -11,12 +11,12 @@ export const colors = {
     surfaceElevated: "#2E2E2E",
 
     // Accent
-    accent: "#CCFF00",
-    accentDark: "#A3CC00",
-    accentMuted: "rgba(204, 255, 0, 0.15)",
-    accentFill: "rgba(204, 255, 0, 0.05)",
-    accentSubtle: "rgba(204, 255, 0, 0.08)",
-    accentBorder: "rgba(204, 255, 0, 0.20)",
+    accent: "#3B82F6",
+    accentDark: "#2563EB",
+    accentMuted: "rgba(59, 130, 246, 0.15)",
+    accentFill: "rgba(59, 130, 246, 0.05)",
+    accentSubtle: "rgba(59, 130, 246, 0.08)",
+    accentBorder: "rgba(59, 130, 246, 0.20)",
 
     // Text
     text: "#FFFFFF",
