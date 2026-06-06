@@ -16,7 +16,6 @@ import {
     Dimensions,
     Platform,
     Modal,
-    Linking,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -43,10 +42,6 @@ import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
-const PRIVACY_URL = process.env.EXPO_PUBLIC_PRIVACY_URL || "https://app.smartprogress.online/privacy";
-const SUPPORT_URL = process.env.EXPO_PUBLIC_SUPPORT_URL || "https://app.smartprogress.online/support";
-const ACCOUNT_DELETION_URL = process.env.EXPO_PUBLIC_ACCOUNT_DELETION_URL || "https://app.smartprogress.online/account-deletion";
-
 const AVAILABLE_COLORS = [
     "#3B82F6", // Blue
     "#CCFF00", // Default Lime
@@ -267,14 +262,6 @@ export default function ProfileScreen() {
         );
         if (!confirmed) return;
         await logout();
-    };
-
-    const openExternal = async (url: string, title: string) => {
-        try {
-            await Linking.openURL(url);
-        } catch {
-            setNotice({ title: "Açılamadı", message: `${title} bağlantısı açılamadı.` });
-        }
     };
 
     const handleDeleteAccount = async () => {
@@ -669,7 +656,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                     style={styles.settingRow}
                     activeOpacity={0.78}
-                    onPress={() => openExternal(PRIVACY_URL, "Gizlilik politikası")}
+                    onPress={() => navigateStatic("PrivacyPolicy")}
                 >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
@@ -680,7 +667,7 @@ export default function ProfileScreen() {
                             <Text style={styles.settingDesc}>Verilerin nasıl işlendiğini ve saklandığını görüntüle</Text>
                         </View>
                     </View>
-                    <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
 
                 <View style={styles.settingDivider} />
@@ -688,7 +675,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                     style={styles.settingRow}
                     activeOpacity={0.78}
-                    onPress={() => openExternal(SUPPORT_URL, "Destek")}
+                    onPress={() => navigateStatic("Support")}
                 >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
@@ -699,7 +686,7 @@ export default function ProfileScreen() {
                             <Text style={styles.settingDesc}>Abonelik, hesap ve veri talepleri için destek al</Text>
                         </View>
                     </View>
-                    <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
 
                 <View style={styles.settingDivider} />
@@ -707,7 +694,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                     style={styles.settingRow}
                     activeOpacity={0.78}
-                    onPress={() => openExternal(ACCOUNT_DELETION_URL, "Hesap silme sayfası")}
+                    onPress={() => navigateStatic("AccountDeletion")}
                 >
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
@@ -718,7 +705,7 @@ export default function ProfileScreen() {
                             <Text style={styles.settingDesc}>Uygulamaya erişemeyen kullanıcılar için hesap silme kaynağı</Text>
                         </View>
                     </View>
-                    <Ionicons name="open-outline" size={20} color={colors.textMuted} />
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
 
                 <View style={styles.settingDivider} />

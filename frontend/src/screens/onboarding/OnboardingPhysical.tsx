@@ -73,12 +73,12 @@ function Picker({
                 snapToInterval={ITEM_W}
                 decelerationRate="fast"
                 onMomentumScrollEnd={snap}
-                onScrollEndDrag={snap}
                 contentContainerStyle={{ paddingHorizontal: PAD }}
                 scrollEventThrottle={16}
                 nestedScrollEnabled
                 directionalLockEnabled
-                disableIntervalMomentum
+                bounces={false}
+                overScrollMode="never"
                 keyboardShouldPersistTaps="handled"
             >
                 {values.map((v) => {

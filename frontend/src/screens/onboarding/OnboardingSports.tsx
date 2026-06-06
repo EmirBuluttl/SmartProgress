@@ -2,6 +2,7 @@ import React, { useCallback } from "react";
 import { View, Text, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
 import Animated, { useSharedValue, useAnimatedStyle, withSpring } from "react-native-reanimated";
 import { useOnboarding } from "./OnboardingContext";
+import { useTheme } from "../../hooks/ThemeContext";
 
 const T = {
     bg: '#0D0D0D', surface: '#141414',
@@ -31,6 +32,7 @@ const SPORTS = [
 function SportCard({ sport, selected, onPress }: {
     sport: typeof SPORTS[0]; selected: boolean; onPress: () => void;
 }) {
+    const { colors } = useTheme();
     const scale = useSharedValue(1);
     const handlePress = useCallback(() => {
         scale.value = withSpring(0.95, { damping: 12, stiffness: 300 }, () => {
@@ -43,17 +45,23 @@ function SportCard({ sport, selected, onPress }: {
     return (
         <Animated.View style={[{ flex: 1 }, animStyle]}>
             <TouchableOpacity
-                style={[s.card, selected && s.cardSel]}
+                style={[
+                    s.card,
+                    selected && {
+                        borderColor: colors.accentBorder,
+                        backgroundColor: colors.accentMuted,
+                    },
+                ]}
                 onPress={handlePress}
                 activeOpacity={1}
             >
                 {selected && (
-                    <View style={s.check}>
+                    <View style={[s.check, { backgroundColor: colors.accent }]}>
                         <Text style={s.checkText}>✓</Text>
                     </View>
                 )}
                 <Text style={s.emoji}>{sport.emoji}</Text>
-                <Text style={[s.cardLabel, selected && { color: T.accent }]}>{sport.label}</Text>
+                <Text style={[s.cardLabel, selected && { color: colors.accent }]}>{sport.label}</Text>
                 <Text style={s.cardSub}>{sport.sub}</Text>
             </TouchableOpacity>
         </Animated.View>
@@ -70,6 +78,7 @@ interface Props { onNext: () => void; onBack: () => void; }
 
 export default function OnboardingSports({ onNext, onBack }: Props) {
     const { data, update } = useOnboarding();
+    const { colors } = useTheme();
     const toggle = useCallback((id: string) => {
         const next = data.sports.includes(id) ? data.sports.filter(x => x !== id) : [...data.sports, id];
         update({ sports: next });
@@ -82,8 +91,8 @@ export default function OnboardingSports({ onNext, onBack }: Props) {
                 <View style={s.labelRow}>
                     <Text style={s.label}>SPOR TÜRLERİ</Text>
                     {data.sports.length > 0 && (
-                        <View style={s.badge}>
-                            <Text style={s.badgeText}>{data.sports.length} seçildi</Text>
+                        <View style={[s.badge, { borderColor: colors.accentBorder }]}>
+                            <Text style={[s.badgeText, { color: colors.accent }]}>{data.sports.length} seçildi</Text>
                         </View>
                     )}
                 </View>
@@ -102,7 +111,7 @@ export default function OnboardingSports({ onNext, onBack }: Props) {
 
             <View style={s.footer}>
                 <TouchableOpacity
-                    style={[s.nextBtn, !can && s.nextBtnOff]}
+                    style={[s.nextBtn, { backgroundColor: colors.accent }, !can && s.nextBtnOff]}
                     onPress={can ? onNext : undefined}
                     activeOpacity={0.82}
                 >

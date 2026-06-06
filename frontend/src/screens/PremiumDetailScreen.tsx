@@ -162,9 +162,10 @@ export default function PremiumDetailScreen() {
                                     : "Premium'u Başlat"
                     }
                     onPress={handlePurchase}
+                    disabled={!storeReady || busy || loadingOffer}
                     style={styles.cta}
                 />
-                <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={busy || loadingOffer} activeOpacity={0.78}>
+                <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={!storeReady || busy || loadingOffer} activeOpacity={0.78}>
                     <Text style={styles.restoreText}>Satın almayı geri yükle</Text>
                 </TouchableOpacity>
                 {!storeReady ? (

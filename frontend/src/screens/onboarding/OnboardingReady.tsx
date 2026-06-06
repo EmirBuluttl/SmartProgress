@@ -6,6 +6,7 @@ import Animated, {
 } from "react-native-reanimated";
 import { Ionicons } from "@expo/vector-icons";
 import { useOnboarding } from "./OnboardingContext";
+import { useTheme } from "../../hooks/ThemeContext";
 
 const { width: SW, height: SH } = Dimensions.get('window');
 const T = {
@@ -53,6 +54,11 @@ interface Props { onFinish: () => void; firstName: string; }
 
 export default function OnboardingReady({ onFinish, firstName }: Props) {
     const { data } = useOnboarding();
+    const { colors } = useTheme();
+    const confettiColors = React.useMemo(
+        () => [colors.accent, "#FF6B6B", "#4ECDC4", "#FFE66D", "#A8E6CF", "#C084FC"],
+        [colors.accent],
+    );
 
     const checkScale = useSharedValue(0);
     const checkOp = useSharedValue(0);
@@ -90,12 +96,12 @@ export default function OnboardingReady({ onFinish, firstName }: Props) {
         <View style={s.root}>
             {/* Confetti — layout dışı */}
             <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                {PIECES.map(p => <Piece key={p.id} x={p.x} delay={p.delay} color={p.color} />)}
+                {PIECES.map(p => <Piece key={p.id} x={p.x} delay={p.delay} color={confettiColors[p.id % confettiColors.length]} />)}
             </View>
 
             {/* Check */}
-            <Animated.View style={[s.checkWrap, checkStyle]}>
-                <View style={s.checkCircle}>
+            <Animated.View style={[s.checkWrap, { shadowColor: colors.accent }, checkStyle]}>
+                <View style={[s.checkCircle, { backgroundColor: colors.accent }]}>
                     <Ionicons name="checkmark" size={52} color="#000" />
                 </View>
             </Animated.View>
@@ -112,7 +118,7 @@ export default function OnboardingReady({ onFinish, firstName }: Props) {
                         <Text style={s.summaryLabel}>PROFİLİN</Text>
                         {summary.map((it, i) => (
                             <View key={i} style={s.summaryRow}>
-                                <Ionicons name={it.icon} size={14} color={T.accent} />
+                                <Ionicons name={it.icon} size={14} color={colors.accent} />
                                 <Text style={s.summaryKey}>{it.label}</Text>
                                 <Text style={s.summaryVal}>{it.val}</Text>
                             </View>
@@ -123,7 +129,11 @@ export default function OnboardingReady({ onFinish, firstName }: Props) {
 
             {/* Buttons */}
             <Animated.View style={[s.btns, btnStyle]}>
-                <TouchableOpacity style={s.mainBtn} onPress={onFinish} activeOpacity={0.82}>
+                <TouchableOpacity
+                    style={[s.mainBtn, { backgroundColor: colors.accent, shadowColor: colors.accent }]}
+                    onPress={onFinish}
+                    activeOpacity={0.82}
+                >
                     <Ionicons name="barbell" size={18} color="#000" />
                     <Text style={s.mainTxt}>Antrenmanıma Başla</Text>
                 </TouchableOpacity>
