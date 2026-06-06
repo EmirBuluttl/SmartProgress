@@ -211,14 +211,6 @@ export default function HomeScreen() {
         }, []),
     );
 
-    if (loading) {
-        return (
-            <View style={[styles.container, { paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.lg }]}>
-                <SkeletonList count={4} />
-            </View>
-        );
-    }
-
     const firstName = user?.firstName || "Sporcu";
     const lastName = user?.lastName || "";
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
@@ -307,6 +299,14 @@ export default function HomeScreen() {
             console.warn("[HomeScreen] Pre-workout local notification could not be scheduled:", error);
         });
     }, [activeDayReminderNote, currentDay, currentDayIndex, favoriteProgram]);
+
+    if (loading) {
+        return (
+            <View style={[styles.container, { paddingTop: insets.top + spacing.lg, paddingHorizontal: spacing.lg }]}>
+                <SkeletonList count={4} />
+            </View>
+        );
+    }
 
     const filteredNotifications = displayedNotifications.filter((item) => {
         if (notificationFilter === "all") return true;
