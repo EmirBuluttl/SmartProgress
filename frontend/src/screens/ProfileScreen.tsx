@@ -277,6 +277,13 @@ export default function ProfileScreen() {
         }
     };
 
+    const showPremiumPendingNotice = () => {
+        setNotice({
+            title: "Premium hazirlaniyor",
+            message: "Google Play/App Store ve RevenueCat onaylari tamamlanana kadar abonelik ekrani pasif. Bu surecte Premium satin alma veya restore islemi baslatilmayacak.",
+        });
+    };
+
     const firstName = user?.firstName || "Sporcu";
     const lastName = user?.lastName || "";
     const email = user?.email || "sporcu@smartprogress.com";
@@ -485,7 +492,7 @@ export default function ProfileScreen() {
 
                 <TouchableOpacity
                     style={styles.settingRow}
-                    onPress={() => navigateStatic("PremiumDetail")}
+                    onPress={showPremiumPendingNotice}
                     activeOpacity={0.78}
                 >
                     <View style={styles.settingInfo}>

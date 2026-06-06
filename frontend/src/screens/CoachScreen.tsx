@@ -12,6 +12,7 @@ import { coachApi } from "../services/api";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
+import NoticeModal from "../components/NoticeModal";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
 
@@ -116,6 +117,7 @@ export default function CoachScreen() {
     const [weeklyReport, setWeeklyReport] = React.useState<any | null>(null);
     const [coachInsights, setCoachInsights] = React.useState<any[]>([]);
     const [reportLoading, setReportLoading] = React.useState(false);
+    const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
     const coachNarration = weeklyReport?.coachNarration;
     const trialExpiresAt = user?.settings?.pro_trial_expires_at ? new Date(user.settings.pro_trial_expires_at) : null;
     const trialDaysLeft = trialExpiresAt && Number.isFinite(trialExpiresAt.getTime())
@@ -189,8 +191,16 @@ export default function CoachScreen() {
         };
     }, [loadCoachInsights]);
 
+    const showPremiumPendingNotice = React.useCallback(() => {
+        setNotice({
+            title: "Premium hazirlaniyor",
+            message: "Abonelik altyapisi store onaylari ve RevenueCat baglantisi tamamlanana kadar pasif. Su an Premium karti satin alma ekrani acmaz.",
+        });
+    }, []);
+
 
     return (
+        <>
         <Animated.ScrollView
             style={[styles.container, animStyle]}
             contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]}
@@ -602,7 +612,7 @@ export default function CoachScreen() {
                         colors={colors}
                         active={tier === "pro"}
                         highlighted
-                        onPress={() => navigateStatic("PremiumDetail")}
+                        onPress={showPremiumPendingNotice}
                     />
                     <PlanCard
                         title="Coach+"
@@ -681,6 +691,13 @@ export default function CoachScreen() {
                 </Text>
             </View>
         </Animated.ScrollView>
+        <NoticeModal
+            visible={!!notice}
+            title={notice?.title || ""}
+            message={notice?.message || ""}
+            onClose={() => setNotice(null)}
+        />
+        </>
     );
 }
 
