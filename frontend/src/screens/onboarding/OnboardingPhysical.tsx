@@ -33,6 +33,12 @@ function Picker({
 }: { values: number[]; value: number; onChange: (v: number) => void; accent?: string }) {
     const ref = useRef<ScrollView>(null);
     const mounted = useRef(false);
+    const interacting = useRef(false);
+    const emittedValue = useRef(value);
+
+    useEffect(() => {
+        emittedValue.current = value;
+    }, [value]);
 
     useEffect(() => {
         const idx = values.indexOf(value);
@@ -45,16 +51,34 @@ function Picker({
 
     useEffect(() => {
         if (!mounted.current) return;
+        if (interacting.current) return;
         const idx = values.indexOf(value);
         if (idx >= 0) ref.current?.scrollTo({ x: idx * ITEM_W, animated: true });
     }, [value, values]);
 
+    const valueFromOffset = useCallback((x: number) => {
+        const idx = Math.max(0, Math.min(values.length - 1, Math.round(x / ITEM_W)));
+        return { idx, nextValue: values[idx] };
+    }, [values]);
+
+    const emitValueFromOffset = useCallback((x: number) => {
+        const { nextValue } = valueFromOffset(x);
+        if (nextValue !== emittedValue.current) {
+            emittedValue.current = nextValue;
+            onChange(nextValue);
+        }
+    }, [onChange, valueFromOffset]);
+
     const snap = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const x = e.nativeEvent.contentOffset.x;
-        const idx = Math.max(0, Math.min(values.length - 1, Math.round(x / ITEM_W)));
-        if (values[idx] !== value) onChange(values[idx]);
+        const { idx, nextValue } = valueFromOffset(x);
+        interacting.current = false;
+        if (nextValue !== emittedValue.current) {
+            emittedValue.current = nextValue;
+            onChange(nextValue);
+        }
         ref.current?.scrollTo({ x: idx * ITEM_W, animated: true });
-    }, [values, value, onChange]);
+    }, [onChange, valueFromOffset]);
 
     return (
         <View style={pk.wrap}>
@@ -72,6 +96,9 @@ function Picker({
                 showsHorizontalScrollIndicator={false}
                 snapToInterval={ITEM_W}
                 decelerationRate="fast"
+                onScrollBeginDrag={() => { interacting.current = true; }}
+                onMomentumScrollBegin={() => { interacting.current = true; }}
+                onScroll={(e) => emitValueFromOffset(e.nativeEvent.contentOffset.x)}
                 onMomentumScrollEnd={snap}
                 contentContainerStyle={{ paddingHorizontal: PAD }}
                 scrollEventThrottle={16}

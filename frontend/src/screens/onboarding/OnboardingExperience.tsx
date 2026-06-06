@@ -32,6 +32,7 @@ const LEVELS = [
 ];
 
 function LevelCard({ lv, selected, onPress }: { lv: typeof LEVELS[0]; selected: boolean; onPress: () => void }) {
+    const { colors } = useTheme();
     const scale = useSharedValue(1);
     const handle = useCallback(() => {
         scale.value = withSpring(0.97, { damping: 12, stiffness: 300 }, () => { scale.value = withSpring(1, { damping: 14 }); });
@@ -39,25 +40,24 @@ function LevelCard({ lv, selected, onPress }: { lv: typeof LEVELS[0]; selected: 
     }, [onPress]);
     const anim = useAnimatedStyle(() => ({ transform: [{ scale: scale.value }] }));
 
-    const c = lv.color;
     return (
         <Animated.View style={anim}>
             <TouchableOpacity
-                style={[s.lvCard, selected && { borderColor: c + '70', backgroundColor: c + '08' }]}
+                style={[s.lvCard, selected && { borderColor: colors.accentBorder, backgroundColor: colors.accentMuted }]}
                 onPress={handle} activeOpacity={1}
             >
                 <Text style={s.lvEmoji}>{lv.emoji}</Text>
                 <View style={{ flex: 1, gap: 4 }}>
                     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
-                        <Text style={[s.lvLabel, selected && { color: c }]}>{lv.label}</Text>
-                        <View style={[s.yearBadge, { borderColor: c + '50' }]}>
-                            <Text style={[s.yearText, { color: c }]}>{lv.years}</Text>
+                        <Text style={[s.lvLabel, selected && { color: colors.accent }]}>{lv.label}</Text>
+                        <View style={[s.yearBadge, { borderColor: colors.accentBorder }]}>
+                            <Text style={[s.yearText, { color: colors.accent }]}>{lv.years}</Text>
                         </View>
                     </View>
                     <Text style={s.lvDesc}>{lv.desc}</Text>
                 </View>
                 {selected && (
-                    <View style={[s.checkDot, { backgroundColor: c }]}>
+                    <View style={[s.checkDot, { backgroundColor: colors.accent }]}>
                         <Text style={s.checkTxt}>✓</Text>
                     </View>
                 )}
@@ -99,7 +99,7 @@ export default function OnboardingExperience({ onNext, onBack }: Props) {
                 </View>
 
                 {show && sel && (
-                    <Animated.View entering={FadeIn.duration(240)} style={s.guidCard}>
+                    <Animated.View entering={FadeIn.duration(240)} style={[s.guidCard, { borderColor: colors.accentBorder }]}>
                         <Text style={s.guidLabel}>ÖNERİLEN ARAÇLAR</Text>
                         <Text style={s.guidTitle}>{sel.guidance.title}</Text>
                         <View style={s.points}>
