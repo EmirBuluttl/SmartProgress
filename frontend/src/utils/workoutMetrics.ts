@@ -270,6 +270,221 @@ export function buildProgressTrend(workouts: AnyWorkout[]): ProgressPoint[] {
     });
 }
 
+// ─── ISO Week Utilities ──────────────────────────────────────────────────────
+
+function getISOWeekKey(date: Date): string {
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    const dayOfWeek = d.getUTCDay() || 7;
+    d.setUTCDate(d.getUTCDate() + 4 - dayOfWeek);
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNum = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, "0")}`;
+}
+
+function getISOWeekStart(weekKey: string): Date {
+    const [yearStr, weekStr] = weekKey.split("-W");
+    const year = parseInt(yearStr, 10);
+    const week = parseInt(weekStr, 10);
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const jan4Day = jan4.getUTCDay() || 7;
+    return new Date(Date.UTC(year, 0, 4 - jan4Day + 1 + (week - 1) * 7));
+}
+
+function getWeekLabel(weekKey: string): string {
+    return getISOWeekStart(weekKey).toLocaleDateString("tr-TR", {
+        day: "2-digit",
+        month: "short",
+        timeZone: "UTC",
+    });
+}
+
+// ─── ESS: Estimated Strength Score ───────────────────────────────────────────
+// Formula: weight × (1 + reps × 0.025)
+// Allows cross-rep comparison. 80kg×10 ≈ 100kg×1 in relative load.
+// RPE/RIR modifier is optional — adjusts for how hard the set felt.
+
+export function calculateESS(
+    weight: number,
+    reps: number,
+    rpe?: number | null,
+    rir?: number | null,
+): number {
+    if (weight <= 0 || reps <= 0) return 0;
+    const base = weight * (1 + reps * 0.025);
+    const numRpe = typeof rpe === "number" && Number.isFinite(rpe) && rpe > 0 ? rpe : null;
+    const numRir = typeof rir === "number" && Number.isFinite(rir) && rir >= 0 ? rir : null;
+    let modifier = 1;
+    if (numRpe !== null) {
+        modifier = 1 + (10 - Math.min(10, numRpe)) * 0.03;
+    } else if (numRir !== null) {
+        modifier = 1 + Math.min(5, numRir) * 0.03;
+    }
+    return Math.round(base * modifier * 10) / 10;
+}
+
+function getBestESSFromExercise(exercise: AnyExercise): number {
+    let best = 0;
+    for (const set of exercise.sets || []) {
+        if (set.isWarmup || set.effortMode === "duration") continue;
+        const w = toNumber(set.weight);
+        const r = toNumber(set.reps);
+        if (w <= 0 || r <= 0) continue;
+        const rpe = set.rpe != null ? toNumber(set.rpe) : null;
+        const rir = set.rir != null ? toNumber(set.rir) : null;
+        const ess = calculateESS(
+            w,
+            r,
+            rpe !== null && rpe > 0 ? rpe : null,
+            rir !== null && rir >= 0 ? rir : null,
+        );
+        if (ess > best) best = ess;
+    }
+    return best;
+}
+
+// ─── Weekly Types ─────────────────────────────────────────────────────────────
+
+export interface WeeklyPoint {
+    weekKey: string;
+    weekLabel: string; // "09 Haz" format
+    ess: number;
+    deltaPercent: number; // week-over-week % change (0 if no previous)
+    comparable: boolean;  // false for baseline (first week)
+}
+
+export interface ExerciseSnapshot {
+    exercise: string;
+    ess: number;
+    deltaPercent: number;
+}
+
+// ─── Weekly Exercise Trend ────────────────────────────────────────────────────
+// Per exercise, best ESS per ISO week, sorted chronologically.
+
+export function buildWeeklyExerciseTrend(
+    workouts: AnyWorkout[],
+    exerciseName: string,
+): WeeklyPoint[] {
+    const target = normalizeExerciseName(exerciseName);
+    const byWeek = new Map<string, number>();
+
+    for (const workout of workouts) {
+        const date = new Date(workout.logDate || 0);
+        if (!Number.isFinite(date.getTime())) continue;
+        const weekKey = getISOWeekKey(date);
+        const exercise = getWorkoutExercises(workout).find(
+            (e) => normalizeExerciseName(e.name) === target,
+        );
+        if (!exercise) continue;
+        const ess = getBestESSFromExercise(exercise);
+        if (ess <= 0) continue;
+        if ((byWeek.get(weekKey) || 0) < ess) byWeek.set(weekKey, ess);
+    }
+
+    const sorted = Array.from(byWeek.entries()).sort(([a], [b]) => a.localeCompare(b));
+
+    return sorted.map(([weekKey, ess], i) => {
+        const prev = i > 0 ? sorted[i - 1][1] : null;
+        return {
+            weekKey,
+            weekLabel: getWeekLabel(weekKey),
+            ess,
+            deltaPercent:
+                prev != null && prev > 0
+                    ? Math.round(((ess - prev) / prev) * 1000) / 10
+                    : 0,
+            comparable: prev !== null,
+        };
+    });
+}
+
+// ─── Weekly Muscle Group Trend ────────────────────────────────────────────────
+// Average of best ESS per exercise per week for a given set of exercises.
+
+export function buildWeeklyMuscleTrend(
+    workouts: AnyWorkout[],
+    exerciseNames: string[],
+): WeeklyPoint[] {
+    const targets = new Set(exerciseNames.map(normalizeExerciseName));
+    const byWeek = new Map<string, number[]>();
+
+    for (const workout of workouts) {
+        const date = new Date(workout.logDate || 0);
+        if (!Number.isFinite(date.getTime())) continue;
+        const weekKey = getISOWeekKey(date);
+        for (const exercise of getWorkoutExercises(workout)) {
+            if (!targets.has(normalizeExerciseName(exercise.name))) continue;
+            const ess = getBestESSFromExercise(exercise);
+            if (ess <= 0) continue;
+            if (!byWeek.has(weekKey)) byWeek.set(weekKey, []);
+            byWeek.get(weekKey)!.push(ess);
+        }
+    }
+
+    const sorted = Array.from(byWeek.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .map(([weekKey, vals]) => ({
+            weekKey,
+            ess: Math.round((vals.reduce((s, v) => s + v, 0) / vals.length) * 10) / 10,
+        }));
+
+    return sorted.map(({ weekKey, ess }, i) => {
+        const prev = i > 0 ? sorted[i - 1].ess : null;
+        return {
+            weekKey,
+            weekLabel: getWeekLabel(weekKey),
+            ess,
+            deltaPercent:
+                prev != null && prev > 0
+                    ? Math.round(((ess - prev) / prev) * 1000) / 10
+                    : 0,
+            comparable: prev !== null,
+        };
+    });
+}
+
+// ─── Weekly Snapshot (this week vs previous week) ─────────────────────────────
+
+export function buildWeeklySnapshot(workouts: AnyWorkout[]): ExerciseSnapshot[] {
+    const now = new Date();
+    const thisWeek = getISOWeekKey(now);
+    const lastWeekDate = new Date(now);
+    lastWeekDate.setDate(now.getDate() - 7);
+    const lastWeek = getISOWeekKey(lastWeekDate);
+
+    const thisMap = new Map<string, number>();
+    const prevMap = new Map<string, number>();
+
+    for (const workout of workouts) {
+        const date = new Date(workout.logDate || 0);
+        if (!Number.isFinite(date.getTime())) continue;
+        const weekKey = getISOWeekKey(date);
+        if (weekKey !== thisWeek && weekKey !== lastWeek) continue;
+        const map = weekKey === thisWeek ? thisMap : prevMap;
+        for (const exercise of getWorkoutExercises(workout)) {
+            const name = String(exercise.name || "").trim();
+            if (!name) continue;
+            const ess = getBestESSFromExercise(exercise);
+            if (ess <= 0) continue;
+            if ((map.get(name) || 0) < ess) map.set(name, ess);
+        }
+    }
+
+    const result: ExerciseSnapshot[] = [];
+    for (const [exercise, ess] of thisMap.entries()) {
+        const prev = prevMap.get(exercise);
+        const deltaPercent =
+            prev != null && prev > 0
+                ? Math.round(((ess - prev) / prev) * 1000) / 10
+                : 0;
+        result.push({ exercise, ess, deltaPercent });
+    }
+
+    return result.sort((a, b) => Math.abs(b.deltaPercent) - Math.abs(a.deltaPercent));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export function buildExerciseScoreTrend(workouts: AnyWorkout[], exerciseName: string): ExerciseProgressPoint[] {
     const target = normalizeExerciseName(exerciseName);
     let best: PersonalRecord | undefined;
