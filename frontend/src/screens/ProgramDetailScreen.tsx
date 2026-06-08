@@ -14,6 +14,7 @@ import {
     RefreshControl,
     Image,
     Animated,
+    InteractionManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -21,8 +22,8 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { parseApiError, programApi, workoutApi } from "../services/api";
-import { getCachedWorkouts } from "../services/workoutCacheService";
+import { parseApiError, programApi } from "../services/api";
+import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import {
@@ -35,6 +36,7 @@ import {
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import { getCachedProgramById, getProgramDetailSnapshot, invalidateProgramCache } from "../services/programCacheService";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -105,14 +107,26 @@ export default function ProgramDetailScreen() {
 
     const fetchProgram = useCallback(async () => {
         try {
-            const [progRes, workoutRes] = await Promise.all([
-                programApi.getById(programId),
-                getCachedWorkouts(200),
-            ]);
-            setProgram(progRes.data as ProgramData);
-            const allWorkouts = workoutRes || [];
-            const count = allWorkouts.filter((w: any) => w.data?.programId === programId).length;
-            setWorkoutCount(count);
+            const cachedProgram = getProgramDetailSnapshot(programId);
+            if (cachedProgram) {
+                setProgram(cachedProgram as ProgramData);
+                setLoading(false);
+            }
+
+            const cachedWorkouts = getWorkoutCacheSnapshot(100);
+            if (cachedWorkouts.length > 0) {
+                setWorkoutCount(cachedWorkouts.filter((w: any) => w.data?.programId === programId).length);
+            }
+
+            const progRes = await getCachedProgramById(programId);
+            setProgram(progRes as ProgramData);
+            setLoading(false);
+
+            InteractionManager.runAfterInteractions(async () => {
+                const allWorkouts = await getCachedWorkouts(100);
+                const count = (allWorkouts || []).filter((w: any) => w.data?.programId === programId).length;
+                setWorkoutCount(count);
+            });
         } catch (err: any) {
             console.error("[ProgramDetail] fetch error:", err?.message);
             setNotice({ title: "Program yuklenemedi", message: "Program bilgileri yuklenemedi.", goBackOnClose: true });
@@ -124,7 +138,7 @@ export default function ProgramDetailScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            setLoading(true);
+            if (!getProgramDetailSnapshot(programId)) setLoading(true);
             fetchProgram();
         }, [fetchProgram]),
     );
@@ -139,6 +153,7 @@ export default function ProgramDetailScreen() {
         setDeleting(true);
         try {
             await programApi.deleteProgram(programId);
+            invalidateProgramCache(programId);
             navigation.goBack();
         } catch (err: any) {
             const apiError = parseApiError(err);

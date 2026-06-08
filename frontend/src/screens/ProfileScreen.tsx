@@ -26,7 +26,7 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
-import { workoutApi, programApi, authApi } from "../services/api";
+import { workoutApi, authApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
@@ -44,6 +44,7 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { areLocalNotificationsEnabled, reschedulePreWorkoutRemindersForProgram, setLocalNotificationsEnabled } from "../services/localNotificationService";
 import { getCachedWorkouts } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const AVAILABLE_COLORS = [
@@ -231,16 +232,19 @@ export default function ProfileScreen() {
 
     const loadProfileData = async () => {
         try {
+            const cachedPrograms = getProgramListSnapshot();
+            if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
+
             const [userRes, progRes, workRes] = await Promise.all([
                 authApi.getProfile(),
-                programApi.listMine(),
+                getCachedMyPrograms(),
                 getCachedWorkouts(50)
             ]);
 
             if (userRes.data) {
                 updateUser(userRes.data);
             }
-            setPrograms(progRes.data.programs || []);
+            setPrograms(progRes || []);
 
             const workouts = workRes || [];
             setWorkouts(workouts);
@@ -251,7 +255,7 @@ export default function ProfileScreen() {
                 setPrs(allPrs.slice(0, 3));
 
                 const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
-                const streak = calculateWorkoutStreak(workouts, progRes.data.programs || [], activeProgramId);
+                const streak = calculateWorkoutStreak(workouts, progRes || [], activeProgramId);
 
                 setStats({
                     totalWorkouts: workouts.length || 0,

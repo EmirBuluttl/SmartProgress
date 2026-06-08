@@ -55,6 +55,11 @@ export async function getCachedWorkouts(limit = 200, options: { forceRefresh?: b
     return workouts.slice(0, limit);
 }
 
+export function getWorkoutCacheSnapshot(limit = 200) {
+    if (!cache?.workouts?.length) return [];
+    return cache.workouts.slice(0, limit);
+}
+
 export function invalidateWorkoutCache() {
     cache = null;
     invalidateWorkoutAnalyticsCache();

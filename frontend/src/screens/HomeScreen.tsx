@@ -17,6 +17,7 @@ import {
     Modal,
     NativeSyntheticEvent,
     NativeScrollEvent,
+    InteractionManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -26,7 +27,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { workoutApi, programApi, authApi, notificationApi } from "../services/api";
+import { programApi, authApi, notificationApi } from "../services/api";
 import { useAuth } from "../store/AuthContext";
 import { isCycleProgram } from "../types/workout";
 import GymCard from "../components/GymCard";
@@ -48,8 +49,9 @@ import {
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { cancelAllPreWorkoutReminderNotifications, reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
-import { getCachedWorkouts, invalidateWorkoutCache } from "../services/workoutCacheService";
+import { getCachedWorkouts, getWorkoutCacheSnapshot, invalidateWorkoutCache } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -102,45 +104,50 @@ export default function HomeScreen() {
         try {
             // Sync any pending workouts first so they appear in the list
             try {
-                await syncPendingWorkouts();
-                invalidateWorkoutCache();
+                syncPendingWorkouts()
+                    .then((syncResult) => {
+                        if (syncResult.synced <= 0) return;
+                        invalidateWorkoutCache();
+                        getCachedWorkouts(30, { forceRefresh: true })
+                            .then((freshWorkouts) => setWorkouts(sortNewestFirst(freshWorkouts || []).slice(0, 20)))
+                            .catch(() => undefined);
+                    })
+                    .catch((syncErr) => {
+                        console.warn("[HomeScreen] Pending sync failed:", syncErr);
+                    });
             } catch (syncErr) {
-                console.warn("[HomeScreen] Pending sync hatası:", syncErr);
+                console.warn("[HomeScreen] Pending sync failed:", syncErr);
             }
+
+            const cachedPrograms = getProgramListSnapshot();
+            const cachedWorkouts = getWorkoutCacheSnapshot(30);
+            if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
+            if (cachedWorkouts.length > 0) setWorkouts(sortNewestFirst(cachedWorkouts).slice(0, 20));
 
             const [userRes, workoutRes, progRes] = await Promise.all([
                 authApi.getProfile(),
-                getCachedWorkouts(100),
-                programApi.listMine(),
+                getCachedWorkouts(30),
+                getCachedMyPrograms(),
             ]);
             const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 20);
             if (userRes.data) updateUser(userRes.data);
             setWorkouts(fetchedWorkouts);
 
-            const myPrograms = progRes.data.programs || [];
-            console.log(
-                "[HomeScreen] Loaded programs from listMine:",
-                JSON.stringify(
-                    myPrograms.map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        hasData: !!p.data,
-                    })),
-                    null,
-                    2,
-                ),
-            );
+            const myPrograms = progRes || [];
             setPrograms(myPrograms);
 
             const activeProgramId =
                 (await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY)) ||
                 (await AsyncStorage.getItem(FAVORITES_KEY));
             const streak = calculateWorkoutStreak(fetchedWorkouts, myPrograms || [], activeProgramId);
-            const analytics = getWorkoutAnalyticsSnapshot(workoutRes || []);
             setStats({
                 totalWorkouts: (workoutRes || []).length,
                 currentStreak: streak,
-                totalPRs: analytics.progressEvents,
+                totalPRs: 0,
+            });
+            InteractionManager.runAfterInteractions(() => {
+                const analytics = getWorkoutAnalyticsSnapshot(workoutRes || []);
+                setStats((prev) => ({ ...prev, totalPRs: analytics.progressEvents }));
             });
 
             try {

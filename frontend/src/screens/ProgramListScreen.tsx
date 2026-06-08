@@ -18,7 +18,6 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { programApi } from "../services/api";
 import GymCard from "../components/GymCard";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -35,6 +34,7 @@ import {
     type StartableProgram,
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
+import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
 
 // ─── Stagger wrapper — her kart index * 50ms delay ile girer ───
 function StaggerCard({ index, children }: { index: number; children: React.ReactNode }) {
@@ -56,22 +56,11 @@ export default function ProgramListScreen() {
 
     const load = async () => {
         try {
-            const res = await programApi.listMine();
+            const cachedPrograms = getProgramListSnapshot();
+            if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
+            const list = await getCachedMyPrograms();
             const active = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
             const legacy = await AsyncStorage.getItem(LEGACY_ACTIVE_PROGRAM_KEY);
-            const list = res.data.programs || [];
-            console.log(
-                "[ProgramList] Loaded programs from listMine:",
-                JSON.stringify(
-                    list.map((p: any) => ({
-                        id: p.id,
-                        name: p.name,
-                        hasData: !!p.data,
-                    })),
-                    null,
-                    2,
-                ),
-            );
             setPrograms(list);
             setActiveId(active || legacy);
         } catch (err) {
