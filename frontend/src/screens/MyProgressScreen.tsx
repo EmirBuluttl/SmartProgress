@@ -23,16 +23,14 @@ import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { bodyMeasurementApi, nutritionApi } from "../services/api";
 import { getCachedWorkouts } from "../services/workoutCacheService";
+import { getWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
 import {
     buildWeeklyExerciseTrend,
     buildWeeklyMuscleTrend,
-    buildWeeklySnapshot,
     getPersonalRecords,
-    getWorkoutExercises,
-    normalizeExerciseName,
     type WeeklyPoint,
     type ExerciseSnapshot,
 } from "../utils/workoutMetrics";
@@ -174,8 +172,10 @@ export default function MyProgressScreen() {
     const [nutritionLogs, setNutritionLogs] = React.useState<any[]>([]);
     const [weeklyPoints, setWeeklyPoints] = React.useState<WeeklyPoint[]>([]);
     const [weeklySnapshot, setWeeklySnapshot] = React.useState<ExerciseSnapshot[]>([]);
+    const [analyticsSnapshot, setAnalyticsSnapshot] = React.useState<WorkoutAnalyticsSnapshot | null>(null);
     const [animationProgress, setAnimationProgress] = React.useState(0);
     const chartAnimationTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
+    const chartRequestIdRef = React.useRef(0);
     const hasSetDefaultMetric = React.useRef(false);
 
     const [prs, setPrs] = React.useState<any[]>([]);
@@ -220,46 +220,23 @@ export default function MyProgressScreen() {
     // ── Default metric (most-trained exercise) ────────────────────────────────
 
     const defaultMetric = React.useMemo((): ChartMetric => {
-        const counts = new Map<string, { count: number; original: string }>();
-        for (const workout of allWorkouts) {
-            for (const exercise of getWorkoutExercises(workout)) {
-                if (!exercise.name) continue;
-                const key = normalizeExerciseName(exercise.name);
-                const entry = counts.get(key);
-                if (entry) {
-                    entry.count++;
-                } else {
-                    counts.set(key, { count: 1, original: String(exercise.name) });
-                }
-            }
-        }
-        if (counts.size === 0) return "body:weight";
-        let bestKey = "";
-        let bestCount = 0;
-        counts.forEach((entry, key) => {
-            if (entry.count > bestCount) {
-                bestCount = entry.count;
-                bestKey = entry.original;
-            }
-        });
-        return bestKey ? (`exercise:${bestKey}` as ChartMetric) : "body:weight";
-    }, [allWorkouts]);
+        const topExercise = analyticsSnapshot?.exerciseCounts?.[0]?.original;
+        return topExercise ? (`exercise:${topExercise}` as ChartMetric) : "body:weight";
+    }, [analyticsSnapshot]);
 
     React.useEffect(() => {
-        if (allWorkouts.length > 0 && !hasSetDefaultMetric.current) {
+        if (analyticsSnapshot && !hasSetDefaultMetric.current) {
             hasSetDefaultMetric.current = true;
             setChartMetric(defaultMetric);
         }
-    }, [allWorkouts, defaultMetric]);
+    }, [analyticsSnapshot, defaultMetric]);
 
     // ── Metric options ────────────────────────────────────────────────────────
 
     const metricOptions = React.useMemo(() => {
-        const records = getPersonalRecords(allWorkouts);
-        const exercises = Array.from(new Set(records.map((pr) => pr.exercise))).slice(0, 12);
-        const muscleGroups = Array.from(
-            new Set(records.map((pr) => groupForExerciseName(pr.exercise)?.beginnerLabel || "Genel")),
-        ).slice(0, 8);
+        const records = analyticsSnapshot?.personalRecords || [];
+        const exercises = records.map((pr) => pr.exercise).slice(0, 12);
+        const muscleGroups = (analyticsSnapshot?.muscleGroups || []).slice(0, 8);
         return [
             ...exercises.map((e) => ({ key: `exercise:${e}` as ChartMetric, label: e })),
             ...muscleGroups.map((g) => ({ key: `muscle:${g}` as ChartMetric, label: `${g} (kas grubu)` })),
@@ -269,7 +246,7 @@ export default function MyProgressScreen() {
             { key: "nutrition:carbs" as ChartMetric, label: "Karbonhidrat" },
             { key: "nutrition:fat" as ChartMetric, label: "Yağ" },
         ];
-    }, [allWorkouts]);
+    }, [analyticsSnapshot]);
 
     const splitOptions = React.useMemo(() => {
         const labels = Array.from(new Set(allWorkouts.map((w) => String(w.title || "Genel"))));
@@ -348,6 +325,20 @@ export default function MyProgressScreen() {
         startChartAnimation();
     };
 
+    const scheduleChartData = (
+        workouts: any[],
+        measurements: any[],
+        nutrition: any[],
+        activeFilter: TimeFilter,
+        metric: ChartMetric,
+    ) => {
+        const requestId = ++chartRequestIdRef.current;
+        InteractionManager.runAfterInteractions(() => {
+            if (requestId !== chartRequestIdRef.current) return;
+            buildChartData(workouts, measurements, nutrition, activeFilter, metric);
+        });
+    };
+
     // ── Derived chart info ────────────────────────────────────────────────────
 
     const chartTitle = React.useMemo(() => {
@@ -401,10 +392,12 @@ export default function MyProgressScreen() {
             setRecordLinks(rawLinks ? JSON.parse(rawLinks) : {});
 
             InteractionManager.runAfterInteractions(() => {
-                setWeeklySnapshot(buildWeeklySnapshot(workouts));
-                buildChartData(workouts, measurements, nutrition, filter, chartMetric);
-                setPrs(getPersonalRecords(workouts));
+                const analytics = getWorkoutAnalyticsSnapshot(workouts);
+                setAnalyticsSnapshot(analytics);
+                setWeeklySnapshot(analytics.weeklySnapshot);
+                setPrs(analytics.personalRecords);
             });
+            scheduleChartData(workouts, measurements, nutrition, filter, chartMetric);
         } catch (err) {
             console.error("Analytics Load Error", err);
         } finally {
@@ -416,7 +409,7 @@ export default function MyProgressScreen() {
 
     React.useEffect(() => {
         if (allWorkouts.length > 0 || bodyMeasurements.length > 0 || nutritionLogs.length > 0) {
-            buildChartData(allWorkouts, bodyMeasurements, nutritionLogs, filter, chartMetric);
+            scheduleChartData(allWorkouts, bodyMeasurements, nutritionLogs, filter, chartMetric);
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [filter, chartMetric, splitFilter]);

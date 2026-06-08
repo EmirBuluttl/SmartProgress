@@ -1,4 +1,5 @@
 import { workoutApi } from "./api";
+import { invalidateWorkoutAnalyticsCache } from "./workoutAnalyticsCacheService";
 
 const WORKOUT_CACHE_TTL_MS = 5 * 60 * 1000;
 
@@ -56,4 +57,5 @@ export async function getCachedWorkouts(limit = 200, options: { forceRefresh?: b
 
 export function invalidateWorkoutCache() {
     cache = null;
+    invalidateWorkoutAnalyticsCache();
 }

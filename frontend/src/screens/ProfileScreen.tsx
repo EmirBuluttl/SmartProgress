@@ -38,11 +38,12 @@ import { requestAppTourReplay } from "../utils/appTourEvents";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import { confirmDialog } from "../utils/confirm";
-import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } from "../utils/workoutMetrics";
+import { calculateWorkoutLoadScore } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { areLocalNotificationsEnabled, setLocalNotificationsEnabled } from "../services/localNotificationService";
 import { getCachedWorkouts } from "../services/workoutCacheService";
+import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const AVAILABLE_COLORS = [
@@ -245,7 +246,8 @@ export default function ProfileScreen() {
             setWorkouts(workouts);
 
             InteractionManager.runAfterInteractions(async () => {
-                const allPrs = getPersonalRecords(workouts);
+                const analytics = getWorkoutAnalyticsSnapshot(workouts);
+                const allPrs = analytics.personalRecords;
                 setPrs(allPrs.slice(0, 3));
 
                 const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
@@ -254,7 +256,7 @@ export default function ProfileScreen() {
                 setStats({
                     totalWorkouts: workouts.length || 0,
                     currentStreak: streak,
-                    totalPRs: countProgressEvents(workouts)
+                    totalPRs: analytics.progressEvents
                 });
             });
         } catch (error) {

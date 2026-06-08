@@ -39,7 +39,6 @@ import { SkeletonList } from "../components/SkeletonCard";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { useCountUp } from "../hooks/useCountUp";
 import { syncPendingWorkouts } from "../services/syncService";
-import { countProgressEvents } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { requestMainTabSwitch } from "../utils/mainTabEvents";
@@ -50,6 +49,7 @@ import {
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { scheduleTodayPreWorkoutReminderIfNeeded } from "../services/localNotificationService";
 import { getCachedWorkouts, invalidateWorkoutCache } from "../services/workoutCacheService";
+import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -136,10 +136,11 @@ export default function HomeScreen() {
                 (await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY)) ||
                 (await AsyncStorage.getItem(FAVORITES_KEY));
             const streak = calculateWorkoutStreak(fetchedWorkouts, myPrograms || [], activeProgramId);
+            const analytics = getWorkoutAnalyticsSnapshot(workoutRes || []);
             setStats({
-                totalWorkouts: workoutRes.data.count || fetchedWorkouts.length,
+                totalWorkouts: (workoutRes || []).length,
                 currentStreak: streak,
-                totalPRs: countProgressEvents(fetchedWorkouts),
+                totalPRs: analytics.progressEvents,
             });
 
             try {

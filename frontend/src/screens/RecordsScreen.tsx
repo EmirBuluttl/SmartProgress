@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { getCachedWorkouts } from "../services/workoutCacheService";
-import { getPersonalRecords } from "../utils/workoutMetrics";
+import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
@@ -69,7 +69,7 @@ export default function RecordsScreen() {
             const workouts = await getCachedWorkouts(200);
 
             InteractionManager.runAfterInteractions(() => {
-                setRecords(getPersonalRecords(workouts) as PRRecord[]);
+                setRecords(getWorkoutAnalyticsSnapshot(workouts).personalRecords as PRRecord[]);
             });
             const rawLinks = await AsyncStorage.getItem(RECORD_LINKS_KEY);
             setLinks(rawLinks ? JSON.parse(rawLinks) : {});
@@ -261,6 +261,10 @@ export default function RecordsScreen() {
                         data={visibleRecords}
                         keyExtractor={(item) => item.exercise}
                         renderItem={renderItem}
+                        initialNumToRender={10}
+                        maxToRenderPerBatch={8}
+                        windowSize={7}
+                        removeClippedSubviews
                         contentContainerStyle={styles.listContent}
                         showsVerticalScrollIndicator={false}
                         ItemSeparatorComponent={() => <View style={styles.separator} />}

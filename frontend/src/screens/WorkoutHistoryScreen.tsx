@@ -6,6 +6,7 @@ import {
     StyleSheet,
     Pressable,
     ScrollView,
+    FlatList,
     ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -259,13 +260,18 @@ export default function WorkoutHistoryScreen() {
                     <Text style={styles.emptyText}>Henuz antrenman kaydiniz yok.</Text>
                 </View>
             ) : (
-                <ScrollView
+                <FlatList
                     style={styles.listContainer}
+                    data={workouts}
+                    keyExtractor={(item) => item.id}
+                    renderItem={({ item }) => renderWorkout(item)}
                     contentContainerStyle={styles.list}
                     showsVerticalScrollIndicator
-                >
-                    {workouts.map(renderWorkout)}
-                </ScrollView>
+                    initialNumToRender={8}
+                    maxToRenderPerBatch={6}
+                    windowSize={7}
+                    removeClippedSubviews
+                />
             )}
             <ActionConfirmModal
                 visible={!!pendingDeleteId}
