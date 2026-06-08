@@ -100,7 +100,7 @@ function bestWorkingSets(exercise: any): { keySuffix: string; name: string; best
 
 function hashWorkoutSources(logs: { id: string; updatedAt: Date }[]) {
     return createHash("sha256")
-        .update(["coach-report-v6", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
+        .update(["coach-report-v7-session-buckets", ...logs.map((log) => `${log.id}:${log.updatedAt.toISOString()}`)].join("|"))
         .digest("hex");
 }
 
@@ -271,7 +271,7 @@ export class CoachReportService {
                 : `${weekLogs.length} antrenman loglandı. ${progressCount} progress, ${plateauCount} plato adayı, ${regressionCount} gerileme, ${interventionCount} müdahale adayı var.`,
         };
 
-        await coachInsightService.upsertMany(exerciseAnalyses.flatMap((analysis) => {
+        const insightInputs = exerciseAnalyses.flatMap((analysis) => {
             const type = insightTypeForAnalysis(analysis);
             if (!type) return [];
             return {
@@ -292,7 +292,8 @@ export class CoachReportService {
                 signalDate: analysis.signalDate,
                 weekStart,
             };
-        }));
+        });
+        await coachInsightService.syncWeekInsights(userId, weekStart, insightInputs);
 
         return this.upsertWeeklyReport({
             userId,

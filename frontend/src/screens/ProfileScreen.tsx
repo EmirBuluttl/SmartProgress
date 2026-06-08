@@ -41,7 +41,7 @@ import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
-import { areLocalNotificationsEnabled, setLocalNotificationsEnabled } from "../services/localNotificationService";
+import { areLocalNotificationsEnabled, reschedulePreWorkoutRemindersForProgram, setLocalNotificationsEnabled } from "../services/localNotificationService";
 import { getCachedWorkouts } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 
@@ -311,6 +311,19 @@ export default function ProfileScreen() {
                 message: "Telefon bildirimlerini kullanmak icin cihaz ayarlarindan SmartProgress bildirim iznini acman gerekiyor.",
             });
             return;
+        }
+        if (enabled) {
+            const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
+            const activeProgram = programs.find((program) => program.id === activeProgramId) || programs[0];
+            if (activeProgram && Array.isArray(activeProgram.data?.days)) {
+                await reschedulePreWorkoutRemindersForProgram({
+                    programId: activeProgram.id,
+                    programName: activeProgram.name,
+                    currentDayIndex: activeProgram.currentDayIndex || 0,
+                    days: activeProgram.data.days,
+                    reminders: user?.settings?.pre_workout_reminders_by_program?.[activeProgram.id],
+                });
+            }
         }
         persistSettings({ notifications_enabled: enabled }, "local notifications setting");
     };

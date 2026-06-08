@@ -47,7 +47,7 @@ import {
     navigateToWorkoutRespectingActiveSession,
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
-import { scheduleTodayPreWorkoutReminderIfNeeded } from "../services/localNotificationService";
+import { cancelAllPreWorkoutReminderNotifications, reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
 import { getCachedWorkouts, invalidateWorkoutCache } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 
@@ -230,7 +230,19 @@ export default function HomeScreen() {
         else await AsyncStorage.removeItem(ACTIVE_PROGRAM_KEY);
         await AsyncStorage.removeItem(FAVORITES_KEY);
         if (next) {
+            const activeProgram = programs.find((program) => program.id === next);
+            if (activeProgram && Array.isArray(activeProgram.data?.days)) {
+                await reschedulePreWorkoutRemindersForProgram({
+                    programId: activeProgram.id,
+                    programName: activeProgram.name,
+                    currentDayIndex: activeProgram.currentDayIndex || 0,
+                    days: activeProgram.data.days,
+                    reminders: user?.settings?.pre_workout_reminders_by_program?.[activeProgram.id],
+                });
+            }
             scrollRef.current?.scrollTo({ y: 210, animated: true });
+        } else {
+            await cancelAllPreWorkoutReminderNotifications();
         }
         activationLift.setValue(0);
         activeCardPulse.setValue(0);
@@ -291,17 +303,17 @@ export default function HomeScreen() {
         : notifications;
 
     React.useEffect(() => {
-        if (!preWorkoutReminderNotification || !favoriteProgram || !currentDay) return;
-        scheduleTodayPreWorkoutReminderIfNeeded({
+        if (!favoriteProgram || !cycleData?.days?.length) return;
+        reschedulePreWorkoutRemindersForProgram({
             programId: favoriteProgram.id,
             programName: favoriteProgram.name,
-            dayIndex: currentDayIndex,
-            dayLabel: currentDay.label,
-            note: activeDayReminderNote,
+            currentDayIndex,
+            days: cycleData.days,
+            reminders: user?.settings?.pre_workout_reminders_by_program?.[favoriteProgram.id],
         }).catch((error) => {
-            console.warn("[HomeScreen] Pre-workout local notification could not be scheduled:", error);
+            console.warn("[HomeScreen] Pre-workout local notifications could not be scheduled:", error);
         });
-    }, [activeDayReminderNote, currentDay, currentDayIndex, favoriteProgram]);
+    }, [cycleData, currentDayIndex, favoriteProgram, user?.settings?.pre_workout_reminders_by_program]);
 
     if (loading) {
         return (

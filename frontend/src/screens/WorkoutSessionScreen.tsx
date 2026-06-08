@@ -51,6 +51,7 @@ import NoticeModal from "../components/NoticeModal";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
 import { summarizeCardioBlocks } from "../utils/cardio";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
+import { reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
 
 // ─── Constants ───────────────────────────────
 
@@ -1592,6 +1593,13 @@ export default function WorkoutSessionScreen() {
                     dayLabel = programData.days[dayIndex]?.label;
                     nextDayLabel = programData.days[nextIndex]?.label;
                     await programApi.advanceDay(programId);
+                    await reschedulePreWorkoutRemindersForProgram({
+                        programId,
+                        programName: route.params?.programName || "Program",
+                        currentDayIndex: nextIndex,
+                        days: programData.days,
+                        reminders: user?.settings?.pre_workout_reminders_by_program?.[programId],
+                    });
                 } catch (err) {
                     console.warn("[WorkoutSession] advanceDay hatası:", err);
                 }

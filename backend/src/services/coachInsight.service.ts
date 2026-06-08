@@ -39,6 +39,27 @@ function mergeMetadata(
 }
 
 export class CoachInsightService {
+    async syncWeekInsights(userId: string, weekStart: Date, insights: CoachInsightInput[]) {
+        const current = await prisma.coachInsight.findMany({
+            where: { userId, weekStart },
+            select: { id: true, type: true, exerciseName: true, sourceLogId: true },
+        });
+        const keepKeys = new Set(insights.map((insight) =>
+            `${insight.type}|${insight.exerciseName}|${insight.sourceLogId}`,
+        ));
+        const staleIds = current
+            .filter((insight) => !keepKeys.has(`${insight.type}|${insight.exerciseName}|${insight.sourceLogId}`))
+            .map((insight) => insight.id);
+
+        if (staleIds.length > 0) {
+            await prisma.coachInsight.deleteMany({
+                where: { id: { in: staleIds }, userId },
+            });
+        }
+
+        return this.upsertMany(insights);
+    }
+
     async upsertMany(insights: CoachInsightInput[]) {
         if (insights.length === 0) return [];
 

@@ -11,6 +11,7 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { ACTIVE_PROGRAM_KEY } from "../utils/workoutNavigation";
 import NoticeModal from "../components/NoticeModal";
+import { reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
 
 type DayReminderDraft = { enabled?: boolean; note?: string };
 type ProgramReminderDraft = {
@@ -85,6 +86,15 @@ export default function PreWorkoutRemindersScreen() {
         updateUser({ settings });
         try {
             await authApi.updateProfile({ settings });
+            if (activeProgram && Array.isArray(activeProgram.data?.days)) {
+                await reschedulePreWorkoutRemindersForProgram({
+                    programId: activeProgram.id,
+                    programName: activeProgram.name,
+                    currentDayIndex: activeProgram.currentDayIndex || 0,
+                    days: activeProgram.data.days,
+                    reminders: drafts[activeProgram.id],
+                });
+            }
             setNotice({ title: "Kaydedildi", message: "Antrenman gunu hatirlaticilari guncellendi." });
         } catch (error) {
             setNotice({ title: "Kaydedilemedi", message: "Hatirlaticilar kaydedilirken bir sorun olustu." });
