@@ -194,8 +194,9 @@ export default function MyProgressScreen() {
     const startChartAnimation = () => {
         if (chartAnimationTimerRef.current) clearInterval(chartAnimationTimerRef.current);
         setAnimationProgress(0);
-        const duration = 1600;
-        const steps = 60;
+        // 20 adım × 50ms = 1000ms — 3x daha az setState, mobil bridge baskısını azaltır
+        const duration = 1000;
+        const steps = 20;
         const interval = duration / steps;
         let step = 0;
         chartAnimationTimerRef.current = setInterval(() => {
@@ -210,6 +211,7 @@ export default function MyProgressScreen() {
             }
         }, interval);
     };
+
 
     React.useEffect(() => {
         return () => {

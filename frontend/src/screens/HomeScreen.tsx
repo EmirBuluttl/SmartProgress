@@ -27,7 +27,9 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { programApi, authApi, notificationApi } from "../services/api";
+import { programApi, notificationApi } from "../services/api";
+import { getCachedProfile } from "../services/authCacheService";
+import { getCachedNotifications, updateNotificationCache, getNotificationSnapshot } from "../services/notificationCacheService";
 import { useAuth } from "../store/AuthContext";
 import { isCycleProgram } from "../types/workout";
 import GymCard from "../components/GymCard";
@@ -88,8 +90,8 @@ export default function HomeScreen() {
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const [bannerRefresh, setBannerRefresh] = useState(0);
     const [dayPickerOpen, setDayPickerOpen] = useState(false);
-    const [notifications, setNotifications] = useState<any[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
+    const [notifications, setNotifications] = useState<any[]>(() => getNotificationSnapshot().notifications);
+    const [unreadCount, setUnreadCount] = useState<number>(() => getNotificationSnapshot().unreadCount);
     const [notificationsVisible, setNotificationsVisible] = useState(false);
     const [quickWorkoutConfirmVisible, setQuickWorkoutConfirmVisible] = useState(false);
     const [notificationFilter, setNotificationFilter] = useState<"all" | "progress" | "reminder" | "program" | "social">("all");
@@ -100,6 +102,16 @@ export default function HomeScreen() {
     const activeCardPulse = useRef(new Animated.Value(0)).current;
     const [activatedProgramId, setActivatedProgramId] = useState<string | null>(null);
 
+    // ── Memoized render-time hesaplamalar ─────────────────────────────────────
+    // sortNewestFirst her render'da çalışmasın
+    const sortedWorkouts = React.useMemo(() => sortNewestFirst(workouts), [workouts]);
+    // countWorkoutSets her FlatList item render'ında çalışmasın
+    const workoutSetCounts = React.useMemo(() => {
+        const map: Record<string, number> = {};
+        for (const w of workouts) map[w.id] = countWorkoutSets(w);
+        return map;
+    }, [workouts]);
+
     const loadDashboard = async () => {
         markPerf("home_data_ready");
         try {
@@ -109,12 +121,13 @@ export default function HomeScreen() {
             if (cachedWorkouts.length > 0) setWorkouts(sortNewestFirst(cachedWorkouts).slice(0, 20));
 
             const [userRes, workoutRes, progRes] = await Promise.all([
-                authApi.getProfile(),
+                getCachedProfile(),
                 getCachedWorkouts(30),
                 getCachedMyPrograms(),
             ]);
             const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 20);
-            if (userRes.data) updateUser(userRes.data);
+            // getCachedProfile doğrudan data döner (res.data değil)
+            if (userRes) updateUser(userRes);
             setWorkouts(fetchedWorkouts);
 
             const myPrograms = progRes || [];
@@ -163,13 +176,17 @@ export default function HomeScreen() {
 
     const loadNotifications = async () => {
         try {
-            const res = await notificationApi.list({ limit: 20 });
-            setNotifications(res.data.notifications || []);
-            setUnreadCount(res.data.unreadCount || 0);
+            // Önce cache'den anlık göster, sonra background'da fetch et
+            const snapshot = getNotificationSnapshot();
+            if (snapshot.notifications.length > 0) {
+                setNotifications(snapshot.notifications);
+                setUnreadCount(snapshot.unreadCount);
+            }
+            const fresh = await getCachedNotifications();
+            setNotifications(fresh.notifications);
+            setUnreadCount(fresh.unreadCount);
         } catch (err) {
             console.warn("[HomeScreen] Notifications could not be loaded:", err);
-            setNotifications([]);
-            setUnreadCount(0);
         }
     };
 
@@ -348,8 +365,12 @@ export default function HomeScreen() {
         try {
             if (!notification.readAt && !String(notification.id).startsWith("local-")) {
                 const res = await notificationApi.markRead(notification.id);
-                setNotifications(res.data.notifications || []);
-                setUnreadCount(res.data.unreadCount || 0);
+                const nextNotifs = res.data.notifications || [];
+                const nextUnread = res.data.unreadCount || 0;
+                setNotifications(nextNotifs);
+                setUnreadCount(nextUnread);
+                // Cache'i senkronize et — bir sonraki focus'ta ağa gitmesin
+                updateNotificationCache(nextNotifs, nextUnread);
             }
         } catch (err) {
             console.warn("[HomeScreen] Notification could not be marked read:", err);
@@ -369,7 +390,9 @@ export default function HomeScreen() {
     const clearNotifications = async () => {
         try {
             const res = await notificationApi.clear();
-            setNotifications(res.data.notifications || []);
+            const nextNotifs = res.data.notifications || [];
+            setNotifications(nextNotifs);
+            updateNotificationCache(nextNotifs, 0);
         } catch (err) {
             console.warn("[HomeScreen] Failed to clear notifications:", err);
         }
@@ -650,7 +673,7 @@ export default function HomeScreen() {
             {workouts.length > 0 ? (
                 <Animated.View style={listAnimStyle}>
                 <FlatList
-                    data={sortNewestFirst(workouts)}
+                    data={sortedWorkouts}
                     horizontal
                     showsHorizontalScrollIndicator={false}
                     nestedScrollEnabled
@@ -674,7 +697,7 @@ export default function HomeScreen() {
                                 </Text>
                                 <View style={styles.workoutSummaryRow}>
                                     <Text style={styles.workoutSummaryText}>
-                                        {countWorkoutSets(item)} set
+                                        {workoutSetCounts[item.id] ?? 0} set
                                     </Text>
                                     <View style={styles.workoutSummaryDot} />
                                     <Text style={styles.workoutSummaryText}>

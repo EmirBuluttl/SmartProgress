@@ -43,10 +43,10 @@
     },
     "extra": {
       "eas": {
-        "projectId": "d906eb1c-04ce-4a31-863f-e4cb7458804d"
+        "projectId": "a6d4fcd6-fdc0-45c7-ac56-0e0072772783"
       }
     },
-    "owner": "emircartman",
+    "owner": "bruhsound",
     "plugins": [
       "expo-notifications"
     ]
