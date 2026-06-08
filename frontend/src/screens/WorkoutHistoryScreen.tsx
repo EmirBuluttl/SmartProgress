@@ -28,7 +28,7 @@ import NoticeModal from "../components/NoticeModal";
 import GymCard from "../components/GymCard";
 import { summarizeCardioBlocks } from "../utils/cardio";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
-import { getCachedWorkouts, invalidateWorkoutCache } from "../services/workoutCacheService";
+import { getCachedWorkouts, getWorkoutCacheSnapshot, invalidateWorkoutCache } from "../services/workoutCacheService";
 
 const FAVORITES_KEY = "workout_favorites";
 const ORDER_KEY = "workout_display_order";
@@ -65,15 +65,10 @@ export default function WorkoutHistoryScreen() {
 
     const loadData = async () => {
         try {
-            try {
-                await syncPendingWorkouts();
-            } catch (syncErr) {
-                console.warn("[WorkoutHistory] Pending sync failed:", syncErr);
-            }
-
-            invalidateWorkoutCache();
+            const cachedWorkouts = getWorkoutCacheSnapshot(100);
+            if (cachedWorkouts.length > 0) setWorkouts(sortNewestFirst(cachedWorkouts));
             const [workouts, favsStr] = await Promise.all([
-                getCachedWorkouts(100, { forceRefresh: true }),
+                getCachedWorkouts(100),
                 AsyncStorage.getItem(FAVORITES_KEY),
             ]);
 
@@ -98,6 +93,7 @@ export default function WorkoutHistoryScreen() {
         try {
             await resetFailedWorkouts();
             await syncPendingWorkouts();
+            invalidateWorkoutCache();
             await loadData();
         } catch (err) {
             console.error("[WorkoutHistory] Retry sync error:", err);

@@ -1,51 +1,44 @@
-// ─────────────────────────────────────────────
-// SmartProgress — useSync Hook
-// App start & connectivity change auto-sync
-// ─────────────────────────────────────────────
 import { useEffect, useRef } from "react";
+import { InteractionManager } from "react-native";
 import { syncPendingWorkouts } from "../services/syncService";
 import { onConnectivityChange } from "../services/networkService";
 import { useAuth } from "../store/AuthContext";
 
-/**
- * Auto-sync pending workouts:
- * 1. When authenticated and app mounts
- * 2. When connectivity status changes to "online"
- */
 export function useSync(): void {
     const isSyncing = useRef(false);
+    const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const { isAuthenticated } = useAuth();
 
     const attemptSync = async () => {
-        if (!isAuthenticated) return;
-        if (isSyncing.current) return;
-
+        if (!isAuthenticated || isSyncing.current) return;
         isSyncing.current = true;
-        console.log("[useSync] Otomatik senkronizasyon başlatılıyor...");
         try {
-            const synced = await syncPendingWorkouts();
-            console.log("[useSync] Senkronizasyon tamamlandı —", synced, "antrenman gönderildi");
+            await syncPendingWorkouts();
         } catch (error) {
-            console.warn("[useSync] Senkronizasyon hatası:", error);
+            console.warn("[useSync] Background sync failed:", error);
         } finally {
             isSyncing.current = false;
         }
     };
 
-    useEffect(() => {
-        // Sync when authenticated
-        if (isAuthenticated) {
-            attemptSync();
-        }
-
-        // Subscribe to connectivity changes
-        const unsubscribe = onConnectivityChange((online) => {
-            if (online && isAuthenticated) {
+    const scheduleSync = (delay = 2500) => {
+        if (!isAuthenticated) return;
+        if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+        syncTimerRef.current = setTimeout(() => {
+            InteractionManager.runAfterInteractions(() => {
                 attemptSync();
-            }
+            });
+        }, delay);
+    };
+
+    useEffect(() => {
+        scheduleSync(2500);
+        const unsubscribe = onConnectivityChange((online) => {
+            if (online && isAuthenticated) scheduleSync(1800);
         });
 
         return () => {
+            if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
             unsubscribe();
         };
     }, [isAuthenticated]);

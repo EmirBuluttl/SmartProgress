@@ -27,6 +27,7 @@ import ProfileScreen from "../screens/ProfileScreen";
 import { MainTabKey, subscribeMainTabSwitch } from "../utils/mainTabEvents";
 import AppTourOverlay, { AppTourStep } from "../components/AppTourOverlay";
 import { hasCompletedAppTour, markAppTourCompleted, subscribeAppTourRequest } from "../utils/appTourEvents";
+import { logPerf, markPerf } from "../utils/perfLogger";
 
 const tabScales: Record<string, Animated.Value> = {};
 const APP_TOUR_STEPS: (AppTourStep & { tabIndex: number })[] = [
@@ -128,6 +129,7 @@ export default function TabNavigator({ route }: any) {
     const [externalSwitchVisible, setExternalSwitchVisible] = useState(false);
     const [tourVisible, setTourVisible] = useState(false);
     const [tourStepIndex, setTourStepIndex] = useState(0);
+    const [mountedTabs, setMountedTabs] = useState<Set<number>>(() => new Set([0]));
     const scrollViewRef = useRef<ScrollView | null>(null);
     const isScrollingRef = useRef(false);
     const activeIndexRef = useRef(0);
@@ -230,6 +232,11 @@ export default function TabNavigator({ route }: any) {
     }, []);
 
     const switchToTab = (index: number, animated = true, lockMs = animated ? 460 : 180) => {
+        if (!mountedTabs.has(index)) {
+            markPerf(`tab_lazy_mount_${tabs[index]?.key || index}`);
+            setMountedTabs((current) => new Set(current).add(index));
+            requestAnimationFrame(() => logPerf(`tab_lazy_mount_${tabs[index]?.key || index}`, `tab_lazy_mount_${tabs[index]?.key || index}`));
+        }
         const targetOffset = index * screenWidth;
         isScrollingRef.current = true;
         lockedIndexRef.current = index;
@@ -322,6 +329,11 @@ export default function TabNavigator({ route }: any) {
             return;
         }
         if (index !== activeIndexRef.current && index >= 0 && index < tabs.length) {
+            if (!mountedTabs.has(index)) {
+                markPerf(`tab_lazy_mount_${tabs[index]?.key || index}`);
+                setMountedTabs((current) => new Set(current).add(index));
+                requestAnimationFrame(() => logPerf(`tab_lazy_mount_${tabs[index]?.key || index}`, `tab_lazy_mount_${tabs[index]?.key || index}`));
+            }
             activeIndexRef.current = index;
             setActiveIndex(index);
         }
@@ -344,7 +356,7 @@ export default function TabNavigator({ route }: any) {
                     const ScreenComponent = tab.component;
                     return (
                         <View key={tab.key} style={{ width: screenWidth, flex: 1 }}>
-                            <ScreenComponent />
+                            {mountedTabs.has(tabs.findIndex((item) => item.key === tab.key)) ? <ScreenComponent /> : null}
                         </View>
                     );
                 })}

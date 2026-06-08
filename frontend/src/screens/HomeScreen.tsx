@@ -39,7 +39,6 @@ import ActionConfirmModal from "../components/ActionConfirmModal";
 import { SkeletonList } from "../components/SkeletonCard";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { useCountUp } from "../hooks/useCountUp";
-import { syncPendingWorkouts } from "../services/syncService";
 import { calculateWorkoutStreak } from "../utils/streak";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { requestMainTabSwitch } from "../utils/mainTabEvents";
@@ -49,9 +48,10 @@ import {
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { cancelAllPreWorkoutReminderNotifications, reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
-import { getCachedWorkouts, getWorkoutCacheSnapshot, invalidateWorkoutCache } from "../services/workoutCacheService";
+import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
+import { logPerf, markPerf } from "../utils/perfLogger";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -101,24 +101,8 @@ export default function HomeScreen() {
     const [activatedProgramId, setActivatedProgramId] = useState<string | null>(null);
 
     const loadDashboard = async () => {
+        markPerf("home_data_ready");
         try {
-            // Sync any pending workouts first so they appear in the list
-            try {
-                syncPendingWorkouts()
-                    .then((syncResult) => {
-                        if (syncResult.synced <= 0) return;
-                        invalidateWorkoutCache();
-                        getCachedWorkouts(30, { forceRefresh: true })
-                            .then((freshWorkouts) => setWorkouts(sortNewestFirst(freshWorkouts || []).slice(0, 20)))
-                            .catch(() => undefined);
-                    })
-                    .catch((syncErr) => {
-                        console.warn("[HomeScreen] Pending sync failed:", syncErr);
-                    });
-            } catch (syncErr) {
-                console.warn("[HomeScreen] Pending sync failed:", syncErr);
-            }
-
             const cachedPrograms = getProgramListSnapshot();
             const cachedWorkouts = getWorkoutCacheSnapshot(30);
             if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
@@ -162,6 +146,7 @@ export default function HomeScreen() {
         } finally {
             hasLoadedDashboard.current = true;
             setLoading(false);
+            logPerf("home_data_ready", "home_data_ready");
         }
     };
 

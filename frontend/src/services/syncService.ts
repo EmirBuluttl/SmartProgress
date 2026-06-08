@@ -14,6 +14,7 @@ import {
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
 import { cancelActiveWorkoutNotification, scheduleActiveWorkoutNotification } from "./localNotificationService";
 import { invalidateWorkoutCache } from "./workoutCacheService";
+import { measurePerf } from "../utils/perfLogger";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -223,12 +224,22 @@ export interface SyncResult {
 // ─── Sync Engine ─────────────────────────────
 
 const MAX_FAIL_COUNT = 5;
+let syncInFlight: Promise<SyncResult> | null = null;
 
 /**
  * Attempt to sync all pending workouts to the backend.
  * Returns a detailed result with success/failure counts and error messages.
  */
 export async function syncPendingWorkouts(): Promise<SyncResult> {
+    if (syncInFlight) return syncInFlight;
+    syncInFlight = runPendingWorkoutSync().finally(() => {
+        syncInFlight = null;
+    });
+    return syncInFlight;
+}
+
+async function runPendingWorkoutSync(): Promise<SyncResult> {
+    return measurePerf("sync_duration", async () => {
     const result: SyncResult = {
         synced: 0,
         failed: 0,
@@ -303,6 +314,7 @@ export async function syncPendingWorkouts(): Promise<SyncResult> {
 
     console.log("[SyncService] Senkronizasyon tamamlandı —", result.synced, "/", toSync.length, "başarılı");
     return result;
+    });
 }
 
 /**

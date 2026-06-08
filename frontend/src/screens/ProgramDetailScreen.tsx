@@ -37,6 +37,7 @@ import {
 import { navigateWithFeedback } from "../utils/navigationFeedback";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { getCachedProgramById, getProgramDetailSnapshot, invalidateProgramCache } from "../services/programCacheService";
+import { logPerf, markPerf } from "../utils/perfLogger";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -106,6 +107,7 @@ export default function ProgramDetailScreen() {
     const s = React.useMemo(() => createStyles(colors), [colors]);
 
     const fetchProgram = useCallback(async () => {
+        markPerf("program_detail_ready");
         try {
             const cachedProgram = getProgramDetailSnapshot(programId);
             if (cachedProgram) {
@@ -133,6 +135,7 @@ export default function ProgramDetailScreen() {
         } finally {
             setLoading(false);
             setRefreshing(false);
+            logPerf("program_detail_ready", "program_detail_ready");
         }
     }, [programId]);
 

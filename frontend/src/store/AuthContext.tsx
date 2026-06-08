@@ -5,6 +5,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi, parseApiError, setLogoutCallback } from "../services/api";
+import { logPerf, markPerf } from "../utils/perfLogger";
 
 // ─── Types ───────────────────────────────────
 
@@ -91,6 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Restore session from AsyncStorage on mount
     useEffect(() => {
         const restore = async () => {
+            markPerf("auth_restore");
             try {
                 const token = await AsyncStorage.getItem("auth_token");
                 const userJson = await AsyncStorage.getItem("user");
@@ -112,6 +114,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                 }
             } catch {
                 setState((prev) => ({ ...prev, isLoading: false, isAuthenticated: false }));
+            } finally {
+                logPerf("auth_restore", "auth_restore");
             }
         };
         restore();
