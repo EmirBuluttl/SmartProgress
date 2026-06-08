@@ -272,7 +272,10 @@ export async function syncPendingWorkouts(): Promise<SyncResult> {
             await updatePendingStatus(workout.id, "syncing");
 
             const payload = sessionToPayload(workout.session);
-            console.log("[SyncService] Payload hazırlandı:", JSON.stringify(payload, null, 2));
+            console.log("[SyncService] Payload ready:", {
+                pendingId: workout.id,
+                exerciseCount: payload.data.exercises?.length || 0,
+            });
             await workoutApi.sync([payload]);
             invalidateWorkoutCache();
 
@@ -285,7 +288,7 @@ export async function syncPendingWorkouts(): Promise<SyncResult> {
             const errMsg = respData?.error || error?.message || "Bilinmeyen hata";
 
             console.error("[SyncService] ❌ Senkron hatası:", workout.id, "Status:", status);
-            console.error("[SyncService] ❌ Backend yanıtı:", JSON.stringify(respData, null, 2));
+            console.error("[SyncService] Backend response:", respData?.error || respData?.message || respData);
             console.error("[SyncService] ❌ Hata mesajı:", error?.message);
 
             result.failed++;
