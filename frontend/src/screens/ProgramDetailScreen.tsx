@@ -22,6 +22,7 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { parseApiError, programApi, workoutApi } from "../services/api";
+import { getCachedWorkouts } from "../services/workoutCacheService";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import {
@@ -106,10 +107,10 @@ export default function ProgramDetailScreen() {
         try {
             const [progRes, workoutRes] = await Promise.all([
                 programApi.getById(programId),
-                workoutApi.list({ limit: 200 }),
+                getCachedWorkouts(200),
             ]);
             setProgram(progRes.data as ProgramData);
-            const allWorkouts = workoutRes.data?.workouts || [];
+            const allWorkouts = workoutRes || [];
             const count = allWorkouts.filter((w: any) => w.data?.programId === programId).length;
             setWorkoutCount(count);
         } catch (err: any) {

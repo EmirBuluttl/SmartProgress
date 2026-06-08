@@ -13,6 +13,7 @@ import {
     TouchableOpacity,
     TextInput,
     Linking,
+    InteractionManager,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,7 +21,8 @@ import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../cons
 import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { bodyMeasurementApi, nutritionApi, workoutApi } from "../services/api";
+import { bodyMeasurementApi, nutritionApi } from "../services/api";
+import { getCachedWorkouts } from "../services/workoutCacheService";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
@@ -384,22 +386,25 @@ export default function MyProgressScreen() {
     const loadAnalytics = async () => {
         try {
             const [workoutRes, measurementRes, nutritionRes] = await Promise.all([
-                workoutApi.list({ limit: 200 }),
+                getCachedWorkouts(200),
                 bodyMeasurementApi.list({ limit: 180 }),
                 nutritionApi.list({ limit: 180 }),
             ]);
-            const workouts = workoutRes.data.workouts || [];
+            const workouts = workoutRes || [];
             const measurements = measurementRes.data.measurements || [];
             const nutrition = nutritionRes.data.logs || [];
 
             setAllWorkouts(workouts);
             setBodyMeasurements(measurements);
             setNutritionLogs(nutrition);
-            setWeeklySnapshot(buildWeeklySnapshot(workouts));
-            buildChartData(workouts, measurements, nutrition, filter, chartMetric);
-            setPrs(getPersonalRecords(workouts));
             const rawLinks = await AsyncStorage.getItem(RECORD_LINKS_KEY);
             setRecordLinks(rawLinks ? JSON.parse(rawLinks) : {});
+
+            InteractionManager.runAfterInteractions(() => {
+                setWeeklySnapshot(buildWeeklySnapshot(workouts));
+                buildChartData(workouts, measurements, nutrition, filter, chartMetric);
+                setPrs(getPersonalRecords(workouts));
+            });
         } catch (err) {
             console.error("Analytics Load Error", err);
         } finally {

@@ -13,6 +13,7 @@ import {
     TextInput,
     Linking,
     Animated,
+    InteractionManager,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -20,7 +21,7 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { workoutApi } from "../services/api";
+import { getCachedWorkouts } from "../services/workoutCacheService";
 import { getPersonalRecords } from "../utils/workoutMetrics";
 import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
 import AnimatedPressable from "../components/AnimatedPressable";
@@ -65,10 +66,11 @@ export default function RecordsScreen() {
 
     const loadRecords = async () => {
         try {
-            const res = await workoutApi.list({ limit: 200 });
-            const workouts = res.data.workouts || [];
+            const workouts = await getCachedWorkouts(200);
 
-            setRecords(getPersonalRecords(workouts) as PRRecord[]);
+            InteractionManager.runAfterInteractions(() => {
+                setRecords(getPersonalRecords(workouts) as PRRecord[]);
+            });
             const rawLinks = await AsyncStorage.getItem(RECORD_LINKS_KEY);
             setLinks(rawLinks ? JSON.parse(rawLinks) : {});
         } catch (err) {

@@ -16,6 +16,7 @@ import {
     Dimensions,
     Platform,
     Modal,
+    InteractionManager,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -41,6 +42,7 @@ import { calculateWorkoutLoadScore, countProgressEvents, getPersonalRecords } fr
 import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { areLocalNotificationsEnabled, setLocalNotificationsEnabled } from "../services/localNotificationService";
+import { getCachedWorkouts } from "../services/workoutCacheService";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const AVAILABLE_COLORS = [
@@ -231,7 +233,7 @@ export default function ProfileScreen() {
             const [userRes, progRes, workRes] = await Promise.all([
                 authApi.getProfile(),
                 programApi.listMine(),
-                workoutApi.list({ limit: 50 })
+                getCachedWorkouts(50)
             ]);
 
             if (userRes.data) {
@@ -239,19 +241,21 @@ export default function ProfileScreen() {
             }
             setPrograms(progRes.data.programs || []);
 
-            const workouts = workRes.data.workouts || [];
+            const workouts = workRes || [];
             setWorkouts(workouts);
 
-            const allPrs = getPersonalRecords(workouts);
-            setPrs(allPrs.slice(0, 3));
+            InteractionManager.runAfterInteractions(async () => {
+                const allPrs = getPersonalRecords(workouts);
+                setPrs(allPrs.slice(0, 3));
 
-            const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
-            const streak = calculateWorkoutStreak(workouts, progRes.data.programs || [], activeProgramId);
+                const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
+                const streak = calculateWorkoutStreak(workouts, progRes.data.programs || [], activeProgramId);
 
-            setStats({
-                totalWorkouts: workouts.length || 0,
-                currentStreak: streak,
-                totalPRs: countProgressEvents(workouts)
+                setStats({
+                    totalWorkouts: workouts.length || 0,
+                    currentStreak: streak,
+                    totalPRs: countProgressEvents(workouts)
+                });
             });
         } catch (error) {
             console.error("Profile Load Error", error);

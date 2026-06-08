@@ -49,6 +49,7 @@ import {
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { scheduleTodayPreWorkoutReminderIfNeeded } from "../services/localNotificationService";
+import { getCachedWorkouts, invalidateWorkoutCache } from "../services/workoutCacheService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -102,16 +103,17 @@ export default function HomeScreen() {
             // Sync any pending workouts first so they appear in the list
             try {
                 await syncPendingWorkouts();
+                invalidateWorkoutCache();
             } catch (syncErr) {
                 console.warn("[HomeScreen] Pending sync hatası:", syncErr);
             }
 
             const [userRes, workoutRes, progRes] = await Promise.all([
                 authApi.getProfile(),
-                workoutApi.list({ limit: 20 }),
+                getCachedWorkouts(100),
                 programApi.listMine(),
             ]);
-            const fetchedWorkouts = sortNewestFirst(workoutRes.data.workouts || []);
+            const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 20);
             if (userRes.data) updateUser(userRes.data);
             setWorkouts(fetchedWorkouts);
 

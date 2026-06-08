@@ -13,6 +13,7 @@ import {
 } from "../types/workout";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
 import { cancelActiveWorkoutNotification, scheduleActiveWorkoutNotification } from "./localNotificationService";
+import { invalidateWorkoutCache } from "./workoutCacheService";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -273,6 +274,7 @@ export async function syncPendingWorkouts(): Promise<SyncResult> {
             const payload = sessionToPayload(workout.session);
             console.log("[SyncService] Payload hazırlandı:", JSON.stringify(payload, null, 2));
             await workoutApi.sync([payload]);
+            invalidateWorkoutCache();
 
             await removeSyncedWorkout(workout.id);
             result.synced++;
