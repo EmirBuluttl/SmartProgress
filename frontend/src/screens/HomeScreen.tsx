@@ -52,7 +52,7 @@ import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/naviga
 import { cancelAllPreWorkoutReminderNotifications, reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
 import { getCachedWorkouts, getWorkoutCacheSnapshot, subscribeToWorkoutCache } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
-import { getCachedMyPrograms, getProgramListSnapshot, subscribeToProgramCache } from "../services/programCacheService";
+import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 
@@ -83,10 +83,17 @@ export default function HomeScreen() {
     );
 
     const [workouts, setWorkouts] = useState<any[]>([]);
-    const [programs, setPrograms] = useState<any[]>([]);
+    const { data: programs = [] } = useMyProgramsQuery();
     const [communityPrograms, setCommunityPrograms] = useState<any[]>([]);
-    const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 0 });
-    const animatedStreak = useCountUp(stats.currentStreak);
+    const totalWorkouts = workouts.length;
+    const currentStreak = React.useMemo(() => {
+        return calculateWorkoutStreak(workouts, programs, favoriteId);
+    }, [workouts, programs, favoriteId]);
+    const totalPRs = React.useMemo(() => {
+        const analytics = getWorkoutAnalyticsSnapshot(workouts);
+        return analytics.progressEvents;
+    }, [workouts]);
+    const animatedStreak = useCountUp(currentStreak);
     const [loading, setLoading] = useState(true);
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const [bannerRefresh, setBannerRefresh] = useState(0);
@@ -119,14 +126,9 @@ export default function HomeScreen() {
     const loadDashboard = async () => {
         markPerf("home_data_ready");
         try {
-            const cachedPrograms = getProgramListSnapshot();
             const cachedWorkouts = getWorkoutCacheSnapshot(30);
             const cachedProfile = getProfileSnapshot();
 
-            if (cachedPrograms.length > 0) {
-                setPrograms(cachedPrograms);
-                setLoading(false);
-            }
             if (cachedWorkouts.length > 0) {
                 setWorkouts(sortNewestFirst(cachedWorkouts).slice(0, 20));
                 setLoading(false);
@@ -134,18 +136,6 @@ export default function HomeScreen() {
             if (cachedProfile) {
                 setLoading(false);
             }
-
-            const refreshStreakAndStats = async (currentWorkouts: any[], currentPrograms: any[]) => {
-                const activeProgramId =
-                    (await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY)) ||
-                    (await AsyncStorage.getItem(FAVORITES_KEY));
-                const streak = calculateWorkoutStreak(currentWorkouts, currentPrograms, activeProgramId);
-                setStats((prev) => ({
-                    ...prev,
-                    totalWorkouts: currentWorkouts.length,
-                    currentStreak: streak,
-                }));
-            };
 
             // 1. Profile load (independent)
             getCachedProfile()
@@ -163,28 +153,10 @@ export default function HomeScreen() {
                     const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 20);
                     setWorkouts(fetchedWorkouts);
                     setLoading(false);
-
-                    refreshStreakAndStats(workoutRes || [], getProgramListSnapshot());
-
-                    InteractionManager.runAfterInteractions(() => {
-                        const analytics = getWorkoutAnalyticsSnapshot(workoutRes || []);
-                        setStats((prev) => ({ ...prev, totalPRs: analytics.progressEvents }));
-                    });
                 })
                 .catch((err) => console.warn("[HomeScreen] Workouts load failed:", err));
 
-            // 3. Programs load (independent)
-            getCachedMyPrograms()
-                .then((progRes) => {
-                    const myPrograms = progRes || [];
-                    setPrograms(myPrograms);
-                    setLoading(false);
-
-                    refreshStreakAndStats(getWorkoutCacheSnapshot(30), myPrograms);
-                })
-                .catch((err) => console.warn("[HomeScreen] Programs load failed:", err));
-
-            // 4. Community Programs load (independent background)
+            // 3. Community Programs load (independent background)
             programApi.listCommunity({ limit: 3 })
                 .then((communityRes) => {
                     setCommunityPrograms(communityRes.data.programs || []);
@@ -248,12 +220,8 @@ export default function HomeScreen() {
         const unsubWorkouts = subscribeToWorkoutCache(() => {
             loadDashboard().catch(() => undefined);
         });
-        const unsubPrograms = subscribeToProgramCache(() => {
-            loadDashboard().catch(() => undefined);
-        });
         return () => {
             unsubWorkouts();
-            unsubPrograms();
         };
     }, []);
 
@@ -533,20 +501,20 @@ export default function HomeScreen() {
             {/* ─── Stats Row ─── */}
             <Animated.View style={[styles.statsRow, statsAnimStyle]}>
                 <StatBadge
-                    value={stats.totalWorkouts}
+                    value={totalWorkouts}
                     label="Antrenman"
                     icon={<Ionicons name="barbell-outline" size={18} color={colors.accent} />}
                 />
                 <View style={{ width: spacing.sm }} />
                 <StatBadge
-                    value={stats.currentStreak}
+                    value={currentStreak}
                     label="Seri"
                     accentValue
                     icon={<Ionicons name="flame-outline" size={18} color={colors.accent} />}
                 />
                 <View style={{ width: spacing.sm }} />
                 <StatBadge
-                    value={stats.totalPRs}
+                    value={totalPRs}
                     label="Progress"
                     icon={<Ionicons name="trending-up-outline" size={18} color={colors.accent} />}
                 />
