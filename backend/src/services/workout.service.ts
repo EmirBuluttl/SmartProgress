@@ -353,8 +353,47 @@ export class WorkoutService {
         userId: string,
         limit?: number,
         offset?: number,
-    ): Promise<WorkoutLog[]> {
-        return workoutRepository.findByUserId(userId, { limit, offset });
+        summary?: boolean,
+    ): Promise<any[]> {
+        const workouts = await workoutRepository.findByUserId(userId, { limit, offset });
+        if (summary) {
+            return workouts.map((workout) => {
+                const data = workout.data as any;
+                const exercises = Array.isArray(data?.exercises) ? data.exercises : [];
+                const cardioBlocks = Array.isArray(data?.cardioBlocks)
+                    ? data.cardioBlocks.map((block: any) => {
+                          const { stages, ...restBlock } = block;
+                          return restBlock;
+                      })
+                    : undefined;
+                return {
+                    ...workout,
+                    data: {
+                        totalDuration: data?.totalDuration ?? 0,
+                        totalVolume: data?.totalVolume ?? 0,
+                        exerciseCount: exercises.length,
+                        cardioBlocks,
+                        caloriesBurned: data?.caloriesBurned,
+                        distance: data?.distance,
+                        distanceUnit: data?.distanceUnit,
+                        duration: data?.duration,
+                        avgPace: data?.avgPace,
+                        avgHeartRate: data?.avgHeartRate,
+                        elevationGain: data?.elevationGain,
+                    },
+                };
+            });
+        }
+        return workouts;
+    }
+
+    /**
+     * Get a single workout log by ID.
+     */
+    async getWorkoutById(userId: string, id: string): Promise<WorkoutLog | null> {
+        return prisma.workoutLog.findFirst({
+            where: { id, userId },
+        });
     }
 
     /**

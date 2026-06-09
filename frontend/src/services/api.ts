@@ -145,8 +145,10 @@ export const workoutApi = {
     sync: (workouts: SyncWorkoutPayload[]) =>
         api.post("/workouts/sync", { workouts }),
 
-    list: (params?: { limit?: number; offset?: number }) =>
+    list: (params?: { limit?: number; offset?: number; summary?: boolean }) =>
         api.get("/workouts", { params }),
+
+    getById: (id: string) => api.get(`/workouts/${id}`),
 
     delete: (id: string) => api.delete(`/workouts/${id}`),
 };

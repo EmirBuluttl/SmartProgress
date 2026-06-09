@@ -160,6 +160,20 @@ export class CoachReportService {
         const weekEnd = new Date(weekStart);
         weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
 
+        const logsForHash = await prisma.workoutLog.findMany({
+            where: {
+                userId,
+                logDate: { lt: weekEnd },
+            },
+            orderBy: { logDate: "desc" },
+            take: 300,
+            select: { id: true, updatedAt: true },
+        });
+
+        const sourceHash = hashWorkoutSources(logsForHash);
+        const cached = await this.findWeeklyReport(userId, weekStart);
+        if (cached?.sourceHash === sourceHash) return cached;
+
         const [weekLogs, analysisLogs] = await Promise.all([
             prisma.workoutLog.findMany({
                 where: {
@@ -177,10 +191,6 @@ export class CoachReportService {
                 take: 300,
             }),
         ]);
-
-        const sourceHash = hashWorkoutSources(analysisLogs.map((log) => ({ id: log.id, updatedAt: log.updatedAt })));
-        const cached = await this.findWeeklyReport(userId, weekStart);
-        if (cached?.sourceHash === sourceHash) return cached;
 
         const bestByExerciseDay = new Map<string, { historyKey: string; logId: string; logDate: Date; name: string; best: CoachBestSet }>();
         const chronologicalAnalysisLogs = [...analysisLogs].sort((a, b) => a.logDate.getTime() - b.logDate.getTime());

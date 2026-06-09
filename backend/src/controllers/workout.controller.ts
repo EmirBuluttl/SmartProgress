@@ -44,13 +44,35 @@ export class WorkoutController {
             const userId = req.user!.userId;
             const limit = req.query.limit ? parseInt(req.query.limit as string, 10) : undefined;
             const offset = req.query.offset ? parseInt(req.query.offset as string, 10) : undefined;
+            const summary = req.query.summary === "true";
 
-            const workouts = await workoutService.getUserWorkouts(userId, limit, offset);
+            const workouts = await workoutService.getUserWorkouts(userId, limit, offset, summary);
 
             res.status(200).json({
                 count: workouts.length,
                 workouts,
             });
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    /**
+     * GET /:id
+     * Get a specific workout log by ID.
+     */
+    async getById(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const id = req.params.id as string;
+
+            const workout = await workoutService.getWorkoutById(userId, id);
+            if (!workout) {
+                res.status(404).json({ message: "Workout not found" });
+                return;
+            }
+
+            res.status(200).json(workout);
         } catch (error) {
             next(error);
         }

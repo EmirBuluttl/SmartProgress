@@ -52,6 +52,9 @@ export default function WorkoutHistoryScreen() {
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
     const [confirmClearPending, setConfirmClearPending] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [offset, setOffset] = useState(0);
+    const [hasMore, setHasMore] = useState(true);
     const [syncing, setSyncing] = useState(false);
     const [pendingInfo, setPendingInfo] = useState({ pending: 0, failed: 0, permanent: 0 });
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
@@ -63,17 +66,27 @@ export default function WorkoutHistoryScreen() {
         setPendingInfo(await getPendingWorkoutCount());
     };
 
-    const loadData = async () => {
+    const loadInitialData = async (force = false) => {
         try {
-            const cachedWorkouts = getWorkoutCacheSnapshot(100);
-            if (cachedWorkouts.length > 0) setWorkouts(sortNewestFirst(cachedWorkouts));
-            const [workouts, favsStr] = await Promise.all([
-                getCachedWorkouts(100),
+            if (force) {
+                setLoading(true);
+            } else {
+                const cachedWorkouts = getWorkoutCacheSnapshot(20);
+                if (cachedWorkouts.length > 0) {
+                    setWorkouts(sortNewestFirst(cachedWorkouts));
+                }
+            }
+
+            const [res, favsStr] = await Promise.all([
+                workoutApi.list({ limit: 20, offset: 0, summary: true }),
                 AsyncStorage.getItem(FAVORITES_KEY),
             ]);
 
-            setWorkouts(sortNewestFirst(workouts || []));
+            const initialWorkouts = res.data.workouts || [];
+            setWorkouts(initialWorkouts);
             setFavorites(favsStr ? new Set(JSON.parse(favsStr)) : new Set());
+            setOffset(initialWorkouts.length);
+            setHasMore(initialWorkouts.length === 20);
             await loadPendingInfo();
         } catch (err) {
             console.error("[WorkoutHistory] Load error:", err);
@@ -82,9 +95,33 @@ export default function WorkoutHistoryScreen() {
         }
     };
 
+    const loadMoreData = async () => {
+        if (loadingMore || !hasMore) return;
+        setLoadingMore(true);
+        try {
+            const res = await workoutApi.list({ limit: 20, offset, summary: true });
+            const newWorkouts = res.data.workouts || [];
+            if (newWorkouts.length === 0) {
+                setHasMore(false);
+            } else {
+                setWorkouts((prev) => {
+                    const existingIds = new Set(prev.map((w) => w.id));
+                    const filtered = newWorkouts.filter((w: any) => !existingIds.has(w.id));
+                    return [...prev, ...filtered];
+                });
+                setOffset((prev) => prev + newWorkouts.length);
+                setHasMore(newWorkouts.length === 20);
+            }
+        } catch (err) {
+            console.error("[WorkoutHistory] Load more error:", err);
+        } finally {
+            setLoadingMore(false);
+        }
+    };
+
     useFocusEffect(
         useCallback(() => {
-            loadData();
+            loadInitialData();
         }, []),
     );
 
@@ -94,7 +131,7 @@ export default function WorkoutHistoryScreen() {
             await resetFailedWorkouts();
             await syncPendingWorkouts();
             invalidateWorkoutCache();
-            await loadData();
+            await loadInitialData(true);
         } catch (err) {
             console.error("[WorkoutHistory] Retry sync error:", err);
         } finally {
@@ -125,7 +162,7 @@ export default function WorkoutHistoryScreen() {
         try {
             await workoutApi.delete(id);
             invalidateWorkoutCache();
-            await loadData();
+            await loadInitialData(true);
         } catch (err) {
             setWorkouts(previous);
             const apiError = parseApiError(err);
@@ -193,6 +230,15 @@ export default function WorkoutHistoryScreen() {
                     </View>
                 </View>
             </GymCard>
+        );
+    };
+
+    const renderFooter = () => {
+        if (!loadingMore) return null;
+        return (
+            <View style={{ paddingVertical: spacing.md, alignItems: "center" }}>
+                <ActivityIndicator size="small" color={colors.accent} />
+            </View>
         );
     };
 
@@ -267,6 +313,9 @@ export default function WorkoutHistoryScreen() {
                     maxToRenderPerBatch={6}
                     windowSize={7}
                     removeClippedSubviews
+                    onEndReached={loadMoreData}
+                    onEndReachedThreshold={0.4}
+                    ListFooterComponent={renderFooter}
                 />
             )}
             <ActionConfirmModal

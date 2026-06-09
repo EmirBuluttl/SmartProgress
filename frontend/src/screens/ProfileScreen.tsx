@@ -17,6 +17,7 @@ import {
     Platform,
     Modal,
     InteractionManager,
+    ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -359,6 +360,14 @@ export default function ProfileScreen() {
             .slice(0, 3),
         [programs, programUsageDays],
     );
+
+    if (loading) {
+        return (
+            <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }}>
+                <ActivityIndicator size="large" color={colors.accent} />
+            </View>
+        );
+    }
 
     return (
         <>

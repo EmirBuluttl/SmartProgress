@@ -14,6 +14,7 @@ import {
     TextInput,
     Linking,
     InteractionManager,
+    ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -472,7 +473,13 @@ export default function MyProgressScreen() {
         setLinkError("");
     };
 
-    // ── Render ────────────────────────────────────────────────────────────────
+    if (loading) {
+        return (
+            <View style={{ flex: 1, backgroundColor: colors.background, alignItems: "center", justifyContent: "center" }}>
+                <ActivityIndicator size="large" color={colors.accent} />
+            </View>
+        );
+    }
 
     const chartWidth = SCREEN_WIDTH - spacing.lg * 2 - spacing.lg * 2;
 

@@ -47,7 +47,7 @@ function isActivePaidAccess(user: { subscriptionTier?: string | null; subscripti
 
 export class ProgramService {
     private decorateProgram(program: any, userId?: string) {
-        const starCount = program?._count?.programStars ?? 0;
+        const starCount = program?.starCount ?? 0;
         const isStarredByMe = Array.isArray(program?.programStars) && program.programStars.length > 0;
 
         const { _count, programStars, ...rest } = program;

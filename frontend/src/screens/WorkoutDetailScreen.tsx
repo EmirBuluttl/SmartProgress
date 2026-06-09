@@ -2,7 +2,7 @@
 // WorkoutDetailScreen — Antrenman Detayı
 // Tüm egzersizler, setler, ağırlıklar
 // ─────────────────────────────────────────────
-import React from "react";
+import React, { useState } from "react";
 import {
     View,
     Text,
@@ -10,8 +10,11 @@ import {
     StyleSheet,
     TouchableOpacity,
     Animated,
+    ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { workoutApi } from "../services/api";
+import { updateWorkoutInCache } from "../services/workoutCacheService";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
@@ -102,12 +105,53 @@ export default function WorkoutDetailScreen() {
 
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
-    const exercises = workout?.data?.exercises || [];
-    const duration = workout?.data?.totalDuration || workout?.data?.duration || 0;
-    const notes = typeof workout?.notes === "string" ? workout.notes.trim() : "";
-    const cardioBlocks = Array.isArray(workout?.data?.cardioBlocks) ? workout.data.cardioBlocks : [];
+    const [localWorkout, setLocalWorkout] = useState(workout);
+    const [loading, setLoading] = useState(false);
+
+    React.useEffect(() => {
+        const fetchDetails = async () => {
+            if (localWorkout?.id && !localWorkout.data?.exercises) {
+                setLoading(true);
+                try {
+                    const res = await workoutApi.getById(localWorkout.id);
+                    const detailedWorkout = res.data;
+                    setLocalWorkout(detailedWorkout);
+                    updateWorkoutInCache(detailedWorkout);
+                } catch (err) {
+                    console.error("[WorkoutDetail] Error fetching details:", err);
+                } finally {
+                    setLoading(false);
+                }
+            }
+        };
+        fetchDetails();
+    }, [localWorkout?.id]);
+
+    const exercises = localWorkout?.data?.exercises || [];
+    const duration = localWorkout?.data?.totalDuration || localWorkout?.data?.duration || 0;
+    const notes = typeof localWorkout?.notes === "string" ? localWorkout.notes.trim() : "";
+    const cardioBlocks = Array.isArray(localWorkout?.data?.cardioBlocks) ? localWorkout.data.cardioBlocks : [];
 
     const loadScore = calculateLoadScoreFromExercises(exercises);
+
+    if (loading) {
+        return (
+            <Animated.View style={[styles.root, animStyle]}>
+                <View style={styles.header}>
+                    <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+                        <Ionicons name="chevron-back" size={26} color={colors.text} />
+                    </TouchableOpacity>
+                    <View style={{ flex: 1 }}>
+                        <Text style={styles.headerTitle} numberOfLines={1}>{localWorkout.title || "Antrenman"}</Text>
+                        <Text style={styles.headerDate}>{formatDate(localWorkout.logDate)}</Text>
+                    </View>
+                </View>
+                <View style={styles.centered}>
+                    <ActivityIndicator size="large" color={colors.accent} />
+                </View>
+            </Animated.View>
+        );
+    }
 
     return (
         <Animated.View style={[styles.root, animStyle]}>
@@ -117,8 +161,8 @@ export default function WorkoutDetailScreen() {
                     <Ionicons name="chevron-back" size={26} color={colors.text} />
                 </TouchableOpacity>
                 <View style={{ flex: 1 }}>
-                    <Text style={styles.headerTitle} numberOfLines={1}>{workout.title || "Antrenman"}</Text>
-                    <Text style={styles.headerDate}>{formatDate(workout.logDate)}</Text>
+                    <Text style={styles.headerTitle} numberOfLines={1}>{localWorkout.title || "Antrenman"}</Text>
+                    <Text style={styles.headerDate}>{formatDate(localWorkout.logDate)}</Text>
                 </View>
             </View>
 
@@ -446,5 +490,11 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontStyle: "italic",
         textAlign: "center",
         marginTop: spacing.xl,
+    },
+    centered: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.background,
     },
 });

@@ -40,13 +40,25 @@ export class NotificationService {
             },
         });
 
+        const existingPrompts = await prisma.notification.findMany({
+            where: { userId, type: "PROGRAM_SPLIT_TAG_PROMPT" },
+            select: { metadata: true },
+        });
+
+        const existingProgramIds = new Set<string>();
+        for (const prompt of existingPrompts) {
+            const programId = (prompt.metadata as any)?.programId;
+            if (programId) {
+                existingProgramIds.add(String(programId));
+            }
+        }
+
         let created = 0;
         for (const program of programs) {
             const splitType = String((program.data as any)?.splitType || "").trim();
             if (splitType) continue;
 
-            const existing = await notificationRepository.findProgramSplitPrompt(program.userId, program.id);
-            if (existing) continue;
+            if (existingProgramIds.has(program.id)) continue;
 
             await notificationRepository.create({
                 user: { connect: { id: program.userId } },

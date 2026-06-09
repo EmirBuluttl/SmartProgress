@@ -236,6 +236,7 @@ model Program {
   // ── Cycle-Based Fields ─────────────────────
   frequency       Int      @default(7) @map("frequency")          // sessions per week
   currentDayIndex Int      @default(0) @map("current_day_index")  // which day is next
+  starCount       Int      @default(0) @map("star_count")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
 
@@ -245,6 +246,7 @@ model Program {
   @@index([userId])
   @@index([isPublic])
   @@index([sourceProgramId])
+  @@index([starCount])
   @@map("programs")
 }
 

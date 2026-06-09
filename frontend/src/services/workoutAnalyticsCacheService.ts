@@ -1,4 +1,5 @@
 import { groupForExerciseName } from "../data/exerciseTaxonomy";
+import { getWorkoutCacheVersion } from "./workoutCacheService";
 import {
     buildWeeklySnapshot,
     countProgressEvents,
@@ -17,16 +18,17 @@ export type WorkoutAnalyticsSnapshot = {
     muscleGroups: string[];
 };
 
-let cachedWorkoutsRef: any[] | null = null;
+let cachedVersionRef: number | null = null;
 let cachedSnapshot: WorkoutAnalyticsSnapshot | null = null;
 
 export function invalidateWorkoutAnalyticsCache() {
-    cachedWorkoutsRef = null;
+    cachedVersionRef = null;
     cachedSnapshot = null;
 }
 
 export function getWorkoutAnalyticsSnapshot(workouts: any[]): WorkoutAnalyticsSnapshot {
-    if (cachedWorkoutsRef === workouts && cachedSnapshot) return cachedSnapshot;
+    const currentVersion = getWorkoutCacheVersion();
+    if (cachedVersionRef === currentVersion && cachedSnapshot) return cachedSnapshot;
 
     const personalRecords = getPersonalRecords(workouts);
     const exerciseCountMap = new Map<string, { key: string; original: string; count: number }>();
@@ -58,7 +60,7 @@ export function getWorkoutAnalyticsSnapshot(workouts: any[]): WorkoutAnalyticsSn
         ),
     };
 
-    cachedWorkoutsRef = workouts;
+    cachedVersionRef = currentVersion;
     cachedSnapshot = snapshot;
     return snapshot;
 }

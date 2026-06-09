@@ -92,7 +92,7 @@ export class ProgramRepository {
                 : sort === "newest"
                     ? [{ createdAt: "desc" as const }]
                     : [
-                        { programStars: { _count: "desc" as const } },
+                        { starCount: "desc" as const },
                         { createdAt: "desc" as const },
                     ];
 
@@ -129,19 +129,48 @@ export class ProgramRepository {
     }
 
     async starProgram(userId: string, programId: string) {
-        return prisma.programStar.upsert({
-            where: { userId_programId: { userId, programId } },
-            update: {},
-            create: {
-                user: { connect: { id: userId } },
-                program: { connect: { id: programId } },
-            },
+        return prisma.$transaction(async (tx) => {
+            const existingStar = await tx.programStar.findUnique({
+                where: { userId_programId: { userId, programId } },
+            });
+            if (existingStar) {
+                return existingStar;
+            }
+            const star = await tx.programStar.create({
+                data: {
+                    user: { connect: { id: userId } },
+                    program: { connect: { id: programId } },
+                },
+            });
+            await tx.program.update({
+                where: { id: programId },
+                data: { starCount: { increment: 1 } },
+            });
+            return star;
         });
     }
 
     async unstarProgram(userId: string, programId: string) {
-        return prisma.programStar.deleteMany({
-            where: { userId, programId },
+        return prisma.$transaction(async (tx) => {
+            const existingStar = await tx.programStar.findUnique({
+                where: { userId_programId: { userId, programId } },
+            });
+            if (!existingStar) {
+                return { count: 0 };
+            }
+            await tx.programStar.delete({
+                where: { userId_programId: { userId, programId } },
+            });
+            const program = await tx.program.findUnique({
+                where: { id: programId },
+                select: { starCount: true },
+            });
+            const newStarCount = program ? Math.max(0, program.starCount - 1) : 0;
+            await tx.program.update({
+                where: { id: programId },
+                data: { starCount: newStarCount },
+            });
+            return { count: 1 };
         });
     }
 
