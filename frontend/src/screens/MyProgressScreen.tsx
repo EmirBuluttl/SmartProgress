@@ -22,10 +22,10 @@ import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../cons
 import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getCachedWorkouts } from "../services/workoutCacheService";
+import { getCachedWorkouts, subscribeToWorkoutCache } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
-import { getCachedBodyMeasurements } from "../services/bodyMeasurementCacheService";
-import { getCachedNutritionLogs } from "../services/nutritionCacheService";
+import { getCachedBodyMeasurements, subscribeToBodyMeasurementCache } from "../services/bodyMeasurementCacheService";
+import { getCachedNutritionLogs, subscribeToNutritionCache } from "../services/nutritionCacheService";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
@@ -428,6 +428,23 @@ export default function MyProgressScreen() {
             }
         }, []),
     );
+
+    React.useEffect(() => {
+        const unsubWorkouts = subscribeToWorkoutCache(() => {
+            loadAnalytics().catch(() => undefined);
+        });
+        const unsubMeasurements = subscribeToBodyMeasurementCache(() => {
+            loadAnalytics().catch(() => undefined);
+        });
+        const unsubNutrition = subscribeToNutritionCache(() => {
+            loadAnalytics().catch(() => undefined);
+        });
+        return () => {
+            unsubWorkouts();
+            unsubMeasurements();
+            unsubNutrition();
+        };
+    }, []);
 
     // ── PR Modal helpers ──────────────────────────────────────────────────────
 

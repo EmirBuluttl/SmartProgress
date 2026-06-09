@@ -1,7 +1,9 @@
 import { workoutApi } from "./api";
 import { invalidateWorkoutAnalyticsCache } from "./workoutAnalyticsCacheService";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const WORKOUT_CACHE_TTL_MS = 5 * 60 * 1000;
+const WORKOUT_CACHE_STORAGE_KEY = "workout_list_cache_data";
 
 type WorkoutCacheEntry = {
     limit: number;
@@ -12,8 +14,27 @@ type WorkoutCacheEntry = {
 
 let cache: WorkoutCacheEntry | null = null;
 let slicedCache: { [key: string]: { workouts: any[]; parentRef: any[] } } = {};
-// Her cache güncellemesinde artar
 let cacheVersion = 0;
+
+type WorkoutCacheListener = (version: number) => void;
+const listeners = new Set<WorkoutCacheListener>();
+
+export function subscribeToWorkoutCache(listener: WorkoutCacheListener) {
+    listeners.add(listener);
+    return () => {
+        listeners.delete(listener);
+    };
+}
+
+function notifyListeners() {
+    listeners.forEach((listener) => {
+        try {
+            listener(cacheVersion);
+        } catch (err) {
+            console.error("[workoutCacheService] Listener error:", err);
+        }
+    });
+}
 
 function isFresh(entry: WorkoutCacheEntry | null, limit: number) {
     if (!entry) return false;
@@ -35,6 +56,47 @@ function getSlicedWorkouts(limit: number) {
     return sliced;
 }
 
+async function saveToStorage(limit: number, workouts: any[], fetchedAt: number) {
+    try {
+        await AsyncStorage.setItem(
+            WORKOUT_CACHE_STORAGE_KEY,
+            JSON.stringify({ limit, workouts, fetchedAt })
+        );
+    } catch (err) {
+        console.warn("[workoutCacheService] AsyncStorage save failed:", err);
+    }
+}
+
+async function fetchFreshWorkouts(limit: number): Promise<any[]> {
+    const promise = workoutApi.list({ limit })
+        .then((res) => {
+            const workouts = res.data.workouts || [];
+            cache = {
+                limit,
+                workouts,
+                fetchedAt: Date.now(),
+            };
+            slicedCache = {};
+            cacheVersion++;
+            saveToStorage(limit, workouts, Date.now());
+            notifyListeners();
+            return workouts;
+        })
+        .catch((error) => {
+            if (cache?.promise === promise) cache = null;
+            throw error;
+        });
+
+    cache = {
+        limit,
+        workouts: cache?.workouts || [],
+        fetchedAt: cache?.fetchedAt || 0,
+        promise,
+    };
+
+    return promise;
+}
+
 export async function getCachedWorkouts(limit = 200, options: { forceRefresh?: boolean } = {}) {
     if (!options.forceRefresh && isFresh(cache, limit)) {
         return getSlicedWorkouts(limit);
@@ -45,39 +107,46 @@ export async function getCachedWorkouts(limit = 200, options: { forceRefresh?: b
         return getSlicedWorkouts(limit);
     }
 
+    // Load from storage if memory cache is empty
+    if (!cache) {
+        try {
+            const stored = await AsyncStorage.getItem(WORKOUT_CACHE_STORAGE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                if (parsed && Array.isArray(parsed.workouts)) {
+                    cache = {
+                        limit: parsed.limit || limit,
+                        workouts: parsed.workouts,
+                        fetchedAt: parsed.fetchedAt || 0,
+                    };
+                    slicedCache = {};
+                    cacheVersion++;
+                    notifyListeners();
+
+                    // If storage is fresh enough, return immediately
+                    if (!options.forceRefresh && isFresh(cache, limit)) {
+                        return getSlicedWorkouts(limit);
+                    }
+
+                    // Otherwise, trigger background fetch (stale-while-revalidate)
+                    const requestedLimit = Math.max(limit, cache.limit);
+                    fetchFreshWorkouts(requestedLimit).catch(() => undefined);
+                    return getSlicedWorkouts(limit);
+                }
+            }
+        } catch (err) {
+            console.warn("[workoutCacheService] AsyncStorage load error:", err);
+        }
+    }
+
     const requestedLimit = Math.max(limit, cache?.limit || 0);
-    const promise = workoutApi.list({ limit: requestedLimit })
-        .then((res) => {
-            const workouts = res.data.workouts || [];
-            cache = {
-                limit: requestedLimit,
-                workouts,
-                fetchedAt: Date.now(),
-            };
-            cacheVersion++;
-            return workouts;
-        })
-        .catch((error) => {
-            if (cache?.promise === promise) cache = null;
-            throw error;
-        });
-
-    cache = {
-        limit: requestedLimit,
-        workouts: cache?.workouts || [],
-        fetchedAt: cache?.fetchedAt || 0,
-        promise,
-    };
-
-    await promise;
-    return getSlicedWorkouts(limit);
+    return fetchFreshWorkouts(requestedLimit);
 }
 
 export function getWorkoutCacheSnapshot(limit = 200) {
     return getSlicedWorkouts(limit);
 }
 
-/** Her yeni antrenman kaydedildiğinde/silindiğinde artan sürüm numarası */
 export function getWorkoutCacheVersion(): number {
     return cacheVersion;
 }
@@ -91,6 +160,8 @@ export function updateWorkoutInCache(workout: any) {
         };
         slicedCache = {};
         cacheVersion++;
+        saveToStorage(20, [workout], Date.now());
+        notifyListeners();
         return;
     }
     const index = cache.workouts.findIndex((w) => w.id === workout.id);
@@ -101,12 +172,15 @@ export function updateWorkoutInCache(workout: any) {
     }
     slicedCache = {};
     cacheVersion++;
+    saveToStorage(cache.limit, cache.workouts, cache.fetchedAt);
+    notifyListeners();
 }
 
 export function invalidateWorkoutCache() {
     cache = null;
     slicedCache = {};
     cacheVersion++;
+    AsyncStorage.removeItem(WORKOUT_CACHE_STORAGE_KEY).catch(() => undefined);
     invalidateWorkoutAnalyticsCache();
+    notifyListeners();
 }
-

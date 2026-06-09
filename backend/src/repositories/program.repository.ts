@@ -14,11 +14,6 @@ const socialInclude = (userId?: string) => ({
             avatarUrl: true,
         },
     },
-    _count: {
-        select: {
-            programStars: true,
-        },
-    },
     ...(userId
         ? {
             programStars: {

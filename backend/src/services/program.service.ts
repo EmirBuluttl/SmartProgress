@@ -127,7 +127,20 @@ export class ProgramService {
                 return normalizeSplit((program.data as any)?.splitType) === filters.split;
             })
             .slice(0, limit ?? 20)
-            .map((program) => this.decorateProgram(program, userId));
+            .map((program) => {
+                const decorated = this.decorateProgram(program, userId);
+                if (decorated.data) {
+                    const dataObj = decorated.data as any;
+                    const daysLength = Array.isArray(dataObj.days) ? dataObj.days.length : 0;
+                    const exercisesLength = Array.isArray(dataObj.exercises) ? dataObj.exercises.length : 0;
+                    decorated.data = {
+                        splitType: dataObj.splitType,
+                        days: daysLength > 0 ? new Array(daysLength).fill({}) : undefined,
+                        exercises: exercisesLength > 0 ? new Array(exercisesLength).fill({}) : undefined,
+                    };
+                }
+                return decorated;
+            });
     }
 
     /**

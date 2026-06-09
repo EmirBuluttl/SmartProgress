@@ -50,9 +50,9 @@ import {
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { cancelAllPreWorkoutReminderNotifications, reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
-import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
+import { getCachedWorkouts, getWorkoutCacheSnapshot, subscribeToWorkoutCache } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
-import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
+import { getCachedMyPrograms, getProgramListSnapshot, subscribeToProgramCache } from "../services/programCacheService";
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 
@@ -208,6 +208,19 @@ export default function HomeScreen() {
             return () => clearTimeout(restoreTimer);
         }, [])
     );
+
+    React.useEffect(() => {
+        const unsubWorkouts = subscribeToWorkoutCache(() => {
+            loadDashboard().catch(() => undefined);
+        });
+        const unsubPrograms = subscribeToProgramCache(() => {
+            loadDashboard().catch(() => undefined);
+        });
+        return () => {
+            unsubWorkouts();
+            unsubPrograms();
+        };
+    }, []);
 
     const handleScroll = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
         savedHomeScrollY = event.nativeEvent.contentOffset.y;
