@@ -54,6 +54,7 @@ import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutC
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
 import { logPerf, markPerf } from "../utils/perfLogger";
+import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -101,6 +102,9 @@ export default function HomeScreen() {
     const activationLift = useRef(new Animated.Value(0)).current;
     const activeCardPulse = useRef(new Animated.Value(0)).current;
     const [activatedProgramId, setActivatedProgramId] = useState<string | null>(null);
+
+    // 2 dakika TTL: stack ekrandan dönüşte sadece verisi bayatlamış HomeScreen yeniden yükler
+    const { shouldReload: shouldReloadDashboard, markLoaded: markDashboardLoaded } = useStaleDataGuard(2 * 60 * 1000);
 
     // ── Memoized render-time hesaplamalar ─────────────────────────────────────
     // sortNewestFirst her render'da çalışmasın
@@ -193,12 +197,13 @@ export default function HomeScreen() {
     useFocusEffect(
         useCallback(() => {
             shouldRestoreScroll.current = savedHomeScrollY > 0;
-            if (!hasLoadedDashboard.current) {
-                setLoading(true);
+            if (shouldReloadDashboard()) {
+                if (!hasLoadedDashboard.current) setLoading(true);
+                markDashboardLoaded();
+                loadDashboard();
+                loadFavorite();
+                loadNotifications();
             }
-            loadDashboard();
-            loadFavorite();
-            loadNotifications();
             const restoreTimer = setTimeout(restoreScrollPosition, 50);
             return () => clearTimeout(restoreTimer);
         }, [])

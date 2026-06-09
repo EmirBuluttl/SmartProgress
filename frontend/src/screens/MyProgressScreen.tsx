@@ -21,9 +21,10 @@ import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../cons
 import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { bodyMeasurementApi, nutritionApi } from "../services/api";
 import { getCachedWorkouts } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getCachedBodyMeasurements } from "../services/bodyMeasurementCacheService";
+import { getCachedNutritionLogs } from "../services/nutritionCacheService";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
@@ -36,6 +37,7 @@ import {
 } from "../utils/workoutMetrics";
 import { groupForExerciseName } from "../data/exerciseTaxonomy";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
@@ -177,6 +179,9 @@ export default function MyProgressScreen() {
     const chartAnimationTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
     const chartRequestIdRef = React.useRef(0);
     const hasSetDefaultMetric = React.useRef(false);
+
+    // 3 dakika TTL: stack ekrandan dönüşte sadece bayatlamış veri yeniden yüklenir
+    const { shouldReload: shouldReloadAnalytics, markLoaded: markAnalyticsLoaded } = useStaleDataGuard(3 * 60 * 1000);
 
     const [prs, setPrs] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
@@ -378,14 +383,12 @@ export default function MyProgressScreen() {
 
     const loadAnalytics = async () => {
         try {
-            const [workoutRes, measurementRes, nutritionRes] = await Promise.all([
+            const [workoutRes, measurements, nutrition] = await Promise.all([
                 getCachedWorkouts(200),
-                bodyMeasurementApi.list({ limit: 180 }),
-                nutritionApi.list({ limit: 180 }),
+                getCachedBodyMeasurements(180),
+                getCachedNutritionLogs(180),
             ]);
             const workouts = workoutRes || [];
-            const measurements = measurementRes.data.measurements || [];
-            const nutrition = nutritionRes.data.logs || [];
 
             setAllWorkouts(workouts);
             setBodyMeasurements(measurements);
@@ -418,7 +421,10 @@ export default function MyProgressScreen() {
 
     useFocusEffect(
         React.useCallback(() => {
-            loadAnalytics();
+            if (shouldReloadAnalytics()) {
+                markAnalyticsLoaded();
+                loadAnalytics();
+            }
         }, []),
     );
 

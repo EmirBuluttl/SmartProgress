@@ -11,6 +11,8 @@ type WorkoutCacheEntry = {
 };
 
 let cache: WorkoutCacheEntry | null = null;
+// Her invalidate çağrısında artar → useStaleDataGuard yeni antrenmanı algılar
+let cacheVersion = 0;
 
 function isFresh(entry: WorkoutCacheEntry | null, limit: number) {
     if (!entry) return false;
@@ -60,7 +62,14 @@ export function getWorkoutCacheSnapshot(limit = 200) {
     return cache.workouts.slice(0, limit);
 }
 
+/** Her yeni antrenman kaydedildiğinde/silindiğinde artan sürüm numarası */
+export function getWorkoutCacheVersion(): number {
+    return cacheVersion;
+}
+
 export function invalidateWorkoutCache() {
     cache = null;
+    cacheVersion++;
     invalidateWorkoutAnalyticsCache();
 }
+

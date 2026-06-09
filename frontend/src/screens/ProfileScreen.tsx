@@ -45,6 +45,8 @@ import { areLocalNotificationsEnabled, reschedulePreWorkoutRemindersForProgram, 
 import { getCachedWorkouts } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
+import { getCachedProfile } from "../services/authCacheService";
+import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const AVAILABLE_COLORS = [
@@ -115,6 +117,9 @@ export default function ProfileScreen() {
     const [prs, setPrs] = useState<any[]>([]);
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+
+    // 5 dakika TTL: diğer tab ekranlarıyla eş zamanlı reloadü önler
+    const { shouldReload: shouldReloadProfile, markLoaded: markProfileLoaded } = useStaleDataGuard(5 * 60 * 1000);
 
     React.useEffect(() => {
         setTrainingLevel((user?.settings?.training_level as TrainingLevel) || "beginner");
@@ -236,14 +241,13 @@ export default function ProfileScreen() {
             if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
 
             const [userRes, progRes, workRes] = await Promise.all([
-                authApi.getProfile(),
+                getCachedProfile(),
                 getCachedMyPrograms(),
                 getCachedWorkouts(50)
             ]);
 
-            if (userRes.data) {
-                updateUser(userRes.data);
-            }
+            // getCachedProfile doğrudan data döner (res.data değil)
+            if (userRes) updateUser(userRes);
             setPrograms(progRes || []);
 
             const workouts = workRes || [];
@@ -272,7 +276,10 @@ export default function ProfileScreen() {
 
     useFocusEffect(
         React.useCallback(() => {
-            loadProfileData();
+            if (shouldReloadProfile()) {
+                markProfileLoaded();
+                loadProfileData();
+            }
         }, [])
     );
 
