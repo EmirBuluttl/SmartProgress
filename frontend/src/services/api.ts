@@ -190,14 +190,23 @@ export const nutritionApi = {
 
 // ─── Program Endpoints ───────────────────────
 
-let _onProgramMutationCallback: (() => void) | null = null;
+const _programMutationCallbacks = new Set<() => void>();
 export function registerProgramMutationCallback(cb: () => void) {
-    _onProgramMutationCallback = cb;
+    _programMutationCallbacks.add(cb);
+    return () => {
+        _programMutationCallbacks.delete(cb);
+    };
 }
 
 const triggerProgramMutation = <T>(promise: Promise<T>): Promise<T> => {
     return promise.then((res) => {
-        _onProgramMutationCallback?.();
+        _programMutationCallbacks.forEach((cb) => {
+            try {
+                cb();
+            } catch (err) {
+                console.error("[api] Mutation callback error:", err);
+            }
+        });
         return res;
     });
 };
