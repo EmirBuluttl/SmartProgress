@@ -45,7 +45,7 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { areLocalNotificationsEnabled, reschedulePreWorkoutRemindersForProgram, setLocalNotificationsEnabled } from "../services/localNotificationService";
 import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
-import { getCachedMyPrograms, getProgramListSnapshot, subscribeToProgramCache } from "../services/programCacheService";
+import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { getCachedProfile } from "../services/authCacheService";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 
@@ -113,12 +113,22 @@ export default function ProfileScreen() {
     const [photoSourceVisible, setPhotoSourceVisible] = useState(false);
     const [deleteAccountPending, setDeleteAccountPending] = useState(false);
 
-    const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 5 });
-    const [programs, setPrograms] = useState<any[]>([]);
+    const { data: programs = [] } = useMyProgramsQuery();
     const [activeProgramId, setActiveProgramId] = useState<string | null>(null);
-    const [prs, setPrs] = useState<any[]>([]);
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const totalWorkouts = workouts.length;
+    const currentStreak = React.useMemo(() => {
+        return calculateWorkoutStreak(workouts, programs, activeProgramId);
+    }, [workouts, programs, activeProgramId]);
+    const totalPRs = React.useMemo(() => {
+        const analytics = getWorkoutAnalyticsSnapshot(workouts);
+        return analytics.progressEvents;
+    }, [workouts]);
+    const prs = React.useMemo(() => {
+        const analytics = getWorkoutAnalyticsSnapshot(workouts);
+        return analytics.personalRecords.slice(0, 3);
+    }, [workouts]);
 
     // 5 dakika TTL: diğer tab ekranlarıyla eş zamanlı reloadü önler
     const { shouldReload: shouldReloadProfile, markLoaded: markProfileLoaded } = useStaleDataGuard(5 * 60 * 1000);
@@ -137,12 +147,7 @@ export default function ProfileScreen() {
         };
     }, []);
 
-    React.useEffect(() => {
-        const unsub = subscribeToProgramCache(() => {
-            loadProfileData().catch(() => undefined);
-        });
-        return unsub;
-    }, []);
+
 
     const persistSettings = async (patch: Record<string, any>, warningLabel: string) => {
         const newSettings = { ...user?.settings, ...patch };
@@ -246,22 +251,8 @@ export default function ProfileScreen() {
 
     const loadProfileData = async () => {
         try {
-            const cachedPrograms = getProgramListSnapshot();
-            if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
-
-            const refreshProfileStats = async (currentWorkouts: any[], currentPrograms: any[]) => {
-                const analytics = getWorkoutAnalyticsSnapshot(currentWorkouts);
-                setPrs(analytics.personalRecords.slice(0, 3));
-
-                const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
-                const streak = calculateWorkoutStreak(currentWorkouts, currentPrograms, activeProgramId);
-
-                setStats({
-                    totalWorkouts: currentWorkouts.length || 0,
-                    currentStreak: streak,
-                    totalPRs: analytics.progressEvents
-                });
-            };
+            const activeId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
+            setActiveProgramId(activeId);
 
             // 1. Profile load (independent)
             getCachedProfile()
@@ -273,28 +264,12 @@ export default function ProfileScreen() {
                 })
                 .catch((err) => console.warn("[ProfileScreen] Profile load failed:", err));
 
-            // 2. Programs load (independent)
-            getCachedMyPrograms()
-                .then(async (progRes) => {
-                    const myPrograms = progRes || [];
-                    setPrograms(myPrograms);
-                    setLoading(false);
-
-                    const activeId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
-                    setActiveProgramId(activeId);
-
-                    refreshProfileStats(getWorkoutCacheSnapshot(50), myPrograms);
-                })
-                .catch((err) => console.warn("[ProfileScreen] Programs load failed:", err));
-
-            // 3. Workouts load (independent)
+            // 2. Workouts load (independent)
             getCachedWorkouts(50)
                 .then((workRes) => {
                     const workoutsList = workRes || [];
                     setWorkouts(workoutsList);
                     setLoading(false);
-
-                    refreshProfileStats(workoutsList, getProgramListSnapshot());
                 })
                 .catch((err) => console.warn("[ProfileScreen] Workouts load failed:", err));
 
@@ -444,17 +419,17 @@ export default function ProfileScreen() {
             {/* ─── Quick Stats ─── */}
             <View style={styles.quickStats}>
                 <View style={styles.quickStatItem}>
-                    <Text style={styles.quickStatValue}>{stats.totalWorkouts}</Text>
+                    <Text style={styles.quickStatValue}>{totalWorkouts}</Text>
                     <Text style={styles.quickStatLabel}>Antrenman</Text>
                 </View>
                 <View style={styles.quickStatDivider} />
                 <View style={styles.quickStatItem}>
-                    <Text style={styles.quickStatValue}>{stats.currentStreak}</Text>
+                    <Text style={styles.quickStatValue}>{currentStreak}</Text>
                     <Text style={styles.quickStatLabel}>Gün Seri</Text>
                 </View>
                 <View style={styles.quickStatDivider} />
                 <View style={styles.quickStatItem}>
-                    <Text style={styles.quickStatValue}>{stats.totalPRs}</Text>
+                    <Text style={styles.quickStatValue}>{totalPRs}</Text>
                     <Text style={styles.quickStatLabel}>Progress</Text>
                 </View>
             </View>
