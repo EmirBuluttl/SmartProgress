@@ -16,6 +16,8 @@ import { ThemeProvider } from "./hooks/ThemeContext";
 import { colors } from "./constants/theme";
 import AppErrorBoundary from "./components/AppErrorBoundary";
 import { registerLocalNotificationResponseHandler, setupLocalNotificationChannels } from "./services/localNotificationService";
+import { QueryClientProvider } from "@tanstack/react-query";
+import { queryClient } from "./services/queryClient";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const linking: any = {
@@ -80,13 +82,15 @@ function App() {
     return (
         <GestureHandlerRootView style={styles.root}>
             <SafeAreaProvider>
-                <ThemeProvider>
-                    <AppErrorBoundary>
-                        <AuthProvider>
-                            <AppContent />
-                        </AuthProvider>
-                    </AppErrorBoundary>
-                </ThemeProvider>
+                <QueryClientProvider client={queryClient}>
+                    <ThemeProvider>
+                        <AppErrorBoundary>
+                            <AuthProvider>
+                                <AppContent />
+                            </AuthProvider>
+                        </AppErrorBoundary>
+                    </ThemeProvider>
+                </QueryClientProvider>
             </SafeAreaProvider>
         </GestureHandlerRootView>
     );
