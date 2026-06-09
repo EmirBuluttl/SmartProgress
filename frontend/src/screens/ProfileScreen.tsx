@@ -43,7 +43,7 @@ import { calculateWorkoutLoadScore } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { areLocalNotificationsEnabled, reschedulePreWorkoutRemindersForProgram, setLocalNotificationsEnabled } from "../services/localNotificationService";
-import { getCachedWorkouts } from "../services/workoutCacheService";
+import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { getCachedMyPrograms, getProgramListSnapshot, subscribeToProgramCache } from "../services/programCacheService";
 import { getCachedProfile } from "../services/authCacheService";
@@ -249,35 +249,55 @@ export default function ProfileScreen() {
             const cachedPrograms = getProgramListSnapshot();
             if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
 
-            const [userRes, progRes, workRes] = await Promise.all([
-                getCachedProfile(),
-                getCachedMyPrograms(),
-                getCachedWorkouts(50)
-            ]);
-
-            // getCachedProfile doğrudan data döner (res.data değil)
-            if (userRes) updateUser(userRes);
-            setPrograms(progRes || []);
-            const activeId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
-            setActiveProgramId(activeId);
-
-            const workouts = workRes || [];
-            setWorkouts(workouts);
-
-            InteractionManager.runAfterInteractions(async () => {
-                const analytics = getWorkoutAnalyticsSnapshot(workouts);
-                const allPrs = analytics.personalRecords;
-                setPrs(allPrs.slice(0, 3));
+            const refreshProfileStats = async (currentWorkouts: any[], currentPrograms: any[]) => {
+                const analytics = getWorkoutAnalyticsSnapshot(currentWorkouts);
+                setPrs(analytics.personalRecords.slice(0, 3));
 
                 const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
-                const streak = calculateWorkoutStreak(workouts, progRes || [], activeProgramId);
+                const streak = calculateWorkoutStreak(currentWorkouts, currentPrograms, activeProgramId);
 
                 setStats({
-                    totalWorkouts: workouts.length || 0,
+                    totalWorkouts: currentWorkouts.length || 0,
                     currentStreak: streak,
                     totalPRs: analytics.progressEvents
                 });
-            });
+            };
+
+            // 1. Profile load (independent)
+            getCachedProfile()
+                .then((userRes) => {
+                    if (userRes) {
+                        updateUser(userRes);
+                        setLoading(false);
+                    }
+                })
+                .catch((err) => console.warn("[ProfileScreen] Profile load failed:", err));
+
+            // 2. Programs load (independent)
+            getCachedMyPrograms()
+                .then(async (progRes) => {
+                    const myPrograms = progRes || [];
+                    setPrograms(myPrograms);
+                    setLoading(false);
+
+                    const activeId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
+                    setActiveProgramId(activeId);
+
+                    refreshProfileStats(getWorkoutCacheSnapshot(50), myPrograms);
+                })
+                .catch((err) => console.warn("[ProfileScreen] Programs load failed:", err));
+
+            // 3. Workouts load (independent)
+            getCachedWorkouts(50)
+                .then((workRes) => {
+                    const workoutsList = workRes || [];
+                    setWorkouts(workoutsList);
+                    setLoading(false);
+
+                    refreshProfileStats(workoutsList, getProgramListSnapshot());
+                })
+                .catch((err) => console.warn("[ProfileScreen] Workouts load failed:", err));
+
         } catch (error) {
             console.error("Profile Load Error", error);
         } finally {
