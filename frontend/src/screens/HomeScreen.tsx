@@ -85,6 +85,7 @@ export default function HomeScreen() {
     const [workouts, setWorkouts] = useState<any[]>([]);
     const { data: programs = [] } = useMyProgramsQuery();
     const [communityPrograms, setCommunityPrograms] = useState<any[]>([]);
+    const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const totalWorkouts = workouts.length;
     const currentStreak = React.useMemo(() => {
         return calculateWorkoutStreak(workouts, programs, favoriteId);
@@ -95,7 +96,6 @@ export default function HomeScreen() {
     }, [workouts]);
     const animatedStreak = useCountUp(currentStreak);
     const [loading, setLoading] = useState(true);
-    const [favoriteId, setFavoriteId] = useState<string | null>(null);
     const [bannerRefresh, setBannerRefresh] = useState(0);
     const [dayPickerOpen, setDayPickerOpen] = useState(false);
     const [notifications, setNotifications] = useState<any[]>(() => getNotificationSnapshot().notifications);
@@ -249,7 +249,7 @@ export default function HomeScreen() {
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 
     const favoriteProgram = favoriteId
-        ? programs.find((p) => p.id === favoriteId) || null
+        ? programs.find((p: any) => p.id === favoriteId) || null
         : null;
 
     const toggleFavoriteProgram = async (id: string) => {
@@ -260,7 +260,7 @@ export default function HomeScreen() {
         else await AsyncStorage.removeItem(ACTIVE_PROGRAM_KEY);
         await AsyncStorage.removeItem(FAVORITES_KEY);
         if (next) {
-            const activeProgram = programs.find((program) => program.id === next);
+            const activeProgram = programs.find((program: any) => program.id === next);
             if (activeProgram && Array.isArray(activeProgram.data?.days)) {
                 await reschedulePreWorkoutRemindersForProgram({
                     programId: activeProgram.id,
@@ -752,7 +752,7 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             )}
             {programs.length > 0 ? (
-                programs.slice(0, 3).map((prog) => {
+                programs.slice(0, 3).map((prog: any) => {
                     const isCycle = isCycleProgram(prog.data);
                     const dayIdx = prog.currentDayIndex ?? 0;
                     const dayCount = isCycle ? prog.data.days.length : 0;

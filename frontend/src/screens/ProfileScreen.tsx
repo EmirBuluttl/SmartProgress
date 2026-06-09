@@ -331,7 +331,7 @@ export default function ProfileScreen() {
         }
         if (enabled) {
             const activeProgramId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
-            const activeProgram = programs.find((program) => program.id === activeProgramId) || programs[0];
+            const activeProgram = programs.find((program: any) => program.id === activeProgramId) || programs[0];
             if (activeProgram && Array.isArray(activeProgram.data?.days)) {
                 await reschedulePreWorkoutRemindersForProgram({
                     programId: activeProgram.id,
