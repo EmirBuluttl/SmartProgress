@@ -3,7 +3,10 @@ import { notificationRepository } from "../repositories/notification.repository"
 
 export class NotificationService {
     async listForUser(userId: string, limit?: number) {
-        await this.ensureSplitTagPromptNotificationsForUser(userId);
+        // Run split prompt creation in the background
+        this.ensureSplitTagPromptNotificationsForUser(userId).catch((err) => {
+            console.error("[NotificationService] Background split tag prompt error:", err);
+        });
         const [items, unreadCount] = await Promise.all([
             notificationRepository.listByUser(userId, limit),
             notificationRepository.unreadCount(userId),

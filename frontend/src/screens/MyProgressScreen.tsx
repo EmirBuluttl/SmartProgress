@@ -22,10 +22,10 @@ import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../cons
 import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getCachedWorkouts, subscribeToWorkoutCache } from "../services/workoutCacheService";
+import { getCachedWorkouts, subscribeToWorkoutCache, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
-import { getCachedBodyMeasurements, subscribeToBodyMeasurementCache } from "../services/bodyMeasurementCacheService";
-import { getCachedNutritionLogs, subscribeToNutritionCache } from "../services/nutritionCacheService";
+import { getCachedBodyMeasurements, subscribeToBodyMeasurementCache, getBodyMeasurementSnapshot } from "../services/bodyMeasurementCacheService";
+import { getCachedNutritionLogs, subscribeToNutritionCache, getNutritionSnapshot } from "../services/nutritionCacheService";
 import { useAuth } from "../store/AuthContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
@@ -383,6 +383,24 @@ export default function MyProgressScreen() {
     // ── Load analytics ────────────────────────────────────────────────────────
 
     const loadAnalytics = async () => {
+        // Load from caches instantly if available!
+        const cachedWorkouts = getWorkoutCacheSnapshot(200);
+        const cachedMeasurements = getBodyMeasurementSnapshot();
+        const cachedNutrition = getNutritionSnapshot();
+        if (cachedWorkouts.length > 0 || cachedMeasurements.length > 0 || cachedNutrition.length > 0) {
+            setAllWorkouts(cachedWorkouts);
+            setBodyMeasurements(cachedMeasurements);
+            setNutritionLogs(cachedNutrition);
+            InteractionManager.runAfterInteractions(() => {
+                const analytics = getWorkoutAnalyticsSnapshot(cachedWorkouts);
+                setAnalyticsSnapshot(analytics);
+                setWeeklySnapshot(analytics.weeklySnapshot);
+                setPrs(analytics.personalRecords);
+            });
+            scheduleChartData(cachedWorkouts, cachedMeasurements, cachedNutrition, filter, chartMetric);
+            setLoading(false);
+        }
+
         try {
             const [workoutRes, measurements, nutrition] = await Promise.all([
                 getCachedWorkouts(200),

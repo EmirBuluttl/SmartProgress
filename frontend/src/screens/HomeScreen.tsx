@@ -28,7 +28,7 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { programApi, notificationApi } from "../services/api";
-import { getCachedProfile } from "../services/authCacheService";
+import { getCachedProfile, getProfileSnapshot } from "../services/authCacheService";
 import { getCachedNotifications, updateNotificationCache, getNotificationSnapshot } from "../services/notificationCacheService";
 import { useAuth } from "../store/AuthContext";
 import { isCycleProgram } from "../types/workout";
@@ -121,8 +121,19 @@ export default function HomeScreen() {
         try {
             const cachedPrograms = getProgramListSnapshot();
             const cachedWorkouts = getWorkoutCacheSnapshot(30);
-            if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
-            if (cachedWorkouts.length > 0) setWorkouts(sortNewestFirst(cachedWorkouts).slice(0, 20));
+            const cachedProfile = getProfileSnapshot();
+
+            if (cachedPrograms.length > 0) {
+                setPrograms(cachedPrograms);
+                setLoading(false);
+            }
+            if (cachedWorkouts.length > 0) {
+                setWorkouts(sortNewestFirst(cachedWorkouts).slice(0, 20));
+                setLoading(false);
+            }
+            if (cachedProfile) {
+                setLoading(false);
+            }
 
             const [userRes, workoutRes, progRes] = await Promise.all([
                 getCachedProfile(),
@@ -151,13 +162,16 @@ export default function HomeScreen() {
                 setStats((prev) => ({ ...prev, totalPRs: analytics.progressEvents }));
             });
 
-            try {
-                const communityRes = await programApi.listCommunity({ limit: 3 });
-                setCommunityPrograms(communityRes.data.programs || []);
-            } catch (communityErr) {
-                console.warn("[HomeScreen] Community programs could not be loaded:", communityErr);
-                setCommunityPrograms([]);
-            }
+            // Community programs can load in the background without blocking the dashboard render
+            programApi.listCommunity({ limit: 3 })
+                .then((communityRes) => {
+                    setCommunityPrograms(communityRes.data.programs || []);
+                })
+                .catch((communityErr) => {
+                    console.warn("[HomeScreen] Community programs could not be loaded:", communityErr);
+                    setCommunityPrograms([]);
+                });
+
         } catch (error) {
             console.error("[HomeScreen] Failed to load dashboard data:", error);
         } finally {
