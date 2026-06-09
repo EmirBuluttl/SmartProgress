@@ -135,34 +135,56 @@ export default function HomeScreen() {
                 setLoading(false);
             }
 
-            const [userRes, workoutRes, progRes] = await Promise.all([
-                getCachedProfile(),
-                getCachedWorkouts(30),
-                getCachedMyPrograms(),
-            ]);
-            const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 20);
-            // getCachedProfile doğrudan data döner (res.data değil)
-            if (userRes) updateUser(userRes);
-            setWorkouts(fetchedWorkouts);
+            const refreshStreakAndStats = async (currentWorkouts: any[], currentPrograms: any[]) => {
+                const activeProgramId =
+                    (await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY)) ||
+                    (await AsyncStorage.getItem(FAVORITES_KEY));
+                const streak = calculateWorkoutStreak(currentWorkouts, currentPrograms, activeProgramId);
+                setStats((prev) => ({
+                    ...prev,
+                    totalWorkouts: currentWorkouts.length,
+                    currentStreak: streak,
+                }));
+            };
 
-            const myPrograms = progRes || [];
-            setPrograms(myPrograms);
+            // 1. Profile load (independent)
+            getCachedProfile()
+                .then((userRes) => {
+                    if (userRes) {
+                        updateUser(userRes);
+                        setLoading(false);
+                    }
+                })
+                .catch((err) => console.warn("[HomeScreen] Profile load failed:", err));
 
-            const activeProgramId =
-                (await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY)) ||
-                (await AsyncStorage.getItem(FAVORITES_KEY));
-            const streak = calculateWorkoutStreak(fetchedWorkouts, myPrograms || [], activeProgramId);
-            setStats({
-                totalWorkouts: (workoutRes || []).length,
-                currentStreak: streak,
-                totalPRs: 0,
-            });
-            InteractionManager.runAfterInteractions(() => {
-                const analytics = getWorkoutAnalyticsSnapshot(workoutRes || []);
-                setStats((prev) => ({ ...prev, totalPRs: analytics.progressEvents }));
-            });
+            // 2. Workouts load (independent)
+            getCachedWorkouts(30)
+                .then((workoutRes) => {
+                    const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 20);
+                    setWorkouts(fetchedWorkouts);
+                    setLoading(false);
 
-            // Community programs can load in the background without blocking the dashboard render
+                    refreshStreakAndStats(workoutRes || [], getProgramListSnapshot());
+
+                    InteractionManager.runAfterInteractions(() => {
+                        const analytics = getWorkoutAnalyticsSnapshot(workoutRes || []);
+                        setStats((prev) => ({ ...prev, totalPRs: analytics.progressEvents }));
+                    });
+                })
+                .catch((err) => console.warn("[HomeScreen] Workouts load failed:", err));
+
+            // 3. Programs load (independent)
+            getCachedMyPrograms()
+                .then((progRes) => {
+                    const myPrograms = progRes || [];
+                    setPrograms(myPrograms);
+                    setLoading(false);
+
+                    refreshStreakAndStats(getWorkoutCacheSnapshot(30), myPrograms);
+                })
+                .catch((err) => console.warn("[HomeScreen] Programs load failed:", err));
+
+            // 4. Community Programs load (independent background)
             programApi.listCommunity({ limit: 3 })
                 .then((communityRes) => {
                     setCommunityPrograms(communityRes.data.programs || []);
@@ -176,7 +198,6 @@ export default function HomeScreen() {
             console.error("[HomeScreen] Failed to load dashboard data:", error);
         } finally {
             hasLoadedDashboard.current = true;
-            setLoading(false);
             logPerf("home_data_ready", "home_data_ready");
         }
     };
