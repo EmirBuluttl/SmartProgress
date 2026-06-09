@@ -34,7 +34,7 @@ import {
     type StartableProgram,
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
-import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
+import { getCachedMyPrograms, getProgramListSnapshot, subscribeToProgramCache } from "../services/programCacheService";
 
 // ─── Stagger wrapper — her kart index * 50ms delay ile girer ───
 function StaggerCard({ index, children }: { index: number; children: React.ReactNode }) {
@@ -53,6 +53,13 @@ export default function ProgramListScreen() {
     const [loading, setLoading] = React.useState(true);
     const [activeId, setActiveId] = React.useState<string | null>(null);
     const [pendingStart, setPendingStart] = React.useState<StartableProgram | null>(null);
+
+    React.useEffect(() => {
+        const unsub = subscribeToProgramCache(() => {
+            load().catch(() => undefined);
+        });
+        return unsub;
+    }, []);
 
     const load = async () => {
         try {

@@ -1,4 +1,4 @@
-import { programApi } from "./api";
+import { programApi, registerProgramMutationCallback } from "./api";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const PROGRAM_CACHE_TTL_MS = 5 * 60 * 1000;
@@ -175,3 +175,8 @@ export function invalidateProgramCache(programId?: string) {
     AsyncStorage.removeItem(PROGRAM_CACHE_STORAGE_KEY).catch(() => undefined);
     notifyListeners();
 }
+
+// Automatically invalidate program cache whenever a program write mutation succeeds
+registerProgramMutationCallback(() => {
+    invalidateProgramCache();
+});

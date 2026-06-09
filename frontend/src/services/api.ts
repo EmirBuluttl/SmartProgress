@@ -190,9 +190,21 @@ export const nutritionApi = {
 
 // ─── Program Endpoints ───────────────────────
 
+let _onProgramMutationCallback: (() => void) | null = null;
+export function registerProgramMutationCallback(cb: () => void) {
+    _onProgramMutationCallback = cb;
+}
+
+const triggerProgramMutation = <T>(promise: Promise<T>): Promise<T> => {
+    return promise.then((res) => {
+        _onProgramMutationCallback?.();
+        return res;
+    });
+};
+
 export const programApi = {
     create: (data: { name: string; description?: string; isPublic?: boolean; frequency?: number; data?: any }) =>
-        api.post("/programs", data),
+        triggerProgramMutation(api.post("/programs", data)),
 
     getById: (id: string) => api.get(`/programs/${id}`),
 
@@ -205,32 +217,32 @@ export const programApi = {
         api.get("/programs/community", { params }),
 
     toggleVisibility: (id: string) =>
-        api.patch(`/programs/${id}/visibility`),
+        triggerProgramMutation(api.patch(`/programs/${id}/visibility`)),
 
     suggestWeight: (exerciseName: string) =>
         api.get(`/programs/suggest/${encodeURIComponent(exerciseName)}`),
 
     /** Advance currentDayIndex by 1 (for cycle-based programs) */
     advanceDay: (id: string) =>
-        api.patch(`/programs/${id}/advance-day`),
+        triggerProgramMutation(api.patch(`/programs/${id}/advance-day`)),
 
     setDay: (id: string, dayIndex: number) =>
-        api.patch(`/programs/${id}/day`, { dayIndex }),
+        triggerProgramMutation(api.patch(`/programs/${id}/day`, { dayIndex })),
 
-    star: (id: string) => api.post(`/programs/${id}/star`),
+    star: (id: string) => triggerProgramMutation(api.post(`/programs/${id}/star`)),
 
-    unstar: (id: string) => api.delete(`/programs/${id}/star`),
+    unstar: (id: string) => triggerProgramMutation(api.delete(`/programs/${id}/star`)),
 
-    copyToLibrary: (id: string) => api.post(`/programs/${id}/copy`),
+    copyToLibrary: (id: string) => triggerProgramMutation(api.post(`/programs/${id}/copy`)),
 
-    syncSource: (id: string) => api.post(`/programs/${id}/sync-source`),
+    syncSource: (id: string) => triggerProgramMutation(api.post(`/programs/${id}/sync-source`)),
 
     /** Delete a program by ID */
-    deleteProgram: (id: string) => api.delete(`/programs/${id}`),
+    deleteProgram: (id: string) => triggerProgramMutation(api.delete(`/programs/${id}`)),
 
     /** Update a program */
     update: (id: string, data: { name?: string; description?: string; isPublic?: boolean; frequency?: number; data?: any }) =>
-        api.put(`/programs/${id}`, data),
+        triggerProgramMutation(api.put(`/programs/${id}`, data)),
 };
 
 export const notificationApi = {

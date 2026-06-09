@@ -45,7 +45,7 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { areLocalNotificationsEnabled, reschedulePreWorkoutRemindersForProgram, setLocalNotificationsEnabled } from "../services/localNotificationService";
 import { getCachedWorkouts } from "../services/workoutCacheService";
 import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
-import { getCachedMyPrograms, getProgramListSnapshot } from "../services/programCacheService";
+import { getCachedMyPrograms, getProgramListSnapshot, subscribeToProgramCache } from "../services/programCacheService";
 import { getCachedProfile } from "../services/authCacheService";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 
@@ -115,6 +115,7 @@ export default function ProfileScreen() {
 
     const [stats, setStats] = useState({ totalWorkouts: 0, currentStreak: 0, totalPRs: 5 });
     const [programs, setPrograms] = useState<any[]>([]);
+    const [activeProgramId, setActiveProgramId] = useState<string | null>(null);
     const [prs, setPrs] = useState<any[]>([]);
     const [workouts, setWorkouts] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
@@ -134,6 +135,13 @@ export default function ProfileScreen() {
         return () => {
             mounted = false;
         };
+    }, []);
+
+    React.useEffect(() => {
+        const unsub = subscribeToProgramCache(() => {
+            loadProfileData().catch(() => undefined);
+        });
+        return unsub;
     }, []);
 
     const persistSettings = async (patch: Record<string, any>, warningLabel: string) => {
@@ -250,6 +258,8 @@ export default function ProfileScreen() {
             // getCachedProfile doğrudan data döner (res.data değil)
             if (userRes) updateUser(userRes);
             setPrograms(progRes || []);
+            const activeId = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
+            setActiveProgramId(activeId);
 
             const workouts = workRes || [];
             setWorkouts(workouts);
@@ -354,12 +364,17 @@ export default function ProfileScreen() {
         });
         return usage;
     }, [workouts]);
-    const topPrograms = React.useMemo(
-        () => [...programs]
-            .sort((a, b) => (programUsageDays.get(b.id)?.size || 0) - (programUsageDays.get(a.id)?.size || 0))
-            .slice(0, 3),
-        [programs, programUsageDays],
-    );
+    const topPrograms = React.useMemo(() => {
+        return [...programs]
+            .sort((a, b) => {
+                if (a.id === activeProgramId) return -1;
+                if (b.id === activeProgramId) return 1;
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+            })
+            .slice(0, 3);
+    }, [programs, activeProgramId]);
 
     if (loading) {
         return (
