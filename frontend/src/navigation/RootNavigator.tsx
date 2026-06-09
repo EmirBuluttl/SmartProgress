@@ -148,12 +148,12 @@ function AppNavigator() {
             onboarding_profile: data,
             training_level: data.experienceLevel || user?.settings?.training_level || "beginner",
         };
-        updateUser({ settings });
         try {
             await authApi.updateProfile({ settings });
         } catch (error) {
             console.warn("[RootNavigator] Failed to persist onboarding profile:", error);
         }
+        updateUser({ settings });
     };
 
     if (needsOnboarding) {

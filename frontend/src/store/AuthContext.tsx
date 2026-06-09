@@ -6,6 +6,7 @@ import React, { createContext, useContext, useState, useEffect, useCallback, Rea
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi, parseApiError, setLogoutCallback } from "../services/api";
 import { logPerf, markPerf } from "../utils/perfLogger";
+import { updateProfileCache } from "../services/authCacheService";
 
 // ─── Types ───────────────────────────────────
 
@@ -128,6 +129,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             await AsyncStorage.setItem("auth_token", token);
             await AsyncStorage.setItem("user", JSON.stringify(user));
+            
+            // Sync with authCacheService
+            updateProfileCache(user);
 
             setState({
                 user,
@@ -154,6 +158,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                 await AsyncStorage.setItem("auth_token", token);
                 await AsyncStorage.setItem("user", JSON.stringify(user));
+
+                // Sync with authCacheService
+                updateProfileCache(user);
 
                 setState({
                     user,
@@ -187,6 +194,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const updatedUser = { ...prev.user, ...partialUser };
             // Update storage asynchronously
             AsyncStorage.setItem("user", JSON.stringify(updatedUser)).catch(console.error);
+            // Sync with authCacheService
+            updateProfileCache(updatedUser);
             return { ...prev, user: updatedUser };
         });
     }, []);

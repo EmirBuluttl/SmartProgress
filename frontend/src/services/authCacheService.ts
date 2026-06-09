@@ -93,6 +93,11 @@ export function invalidateProfileCache(): void {
     AsyncStorage.removeItem(STORAGE_KEY).catch(() => undefined);
 }
 
+export function updateProfileCache(data: any): void {
+    cache = { data, fetchedAt: Date.now() };
+    saveToStorage(data, Date.now()).catch(() => undefined);
+}
+
 export function getProfileSnapshot(): any | null {
     return cache?.data ?? null;
 }
