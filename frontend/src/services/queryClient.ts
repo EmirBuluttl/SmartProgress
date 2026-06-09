@@ -4,9 +4,10 @@
 // ─────────────────────────────────────────────
 import { QueryClient } from "@tanstack/react-query";
 import { persistQueryClient } from "@tanstack/react-query-persist-client";
-import { createSyncStoragePersister } from "@tanstack/react-query-persist-client";
-import { MMKV } from "react-native-mmkv";
+import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister";
+import { createMMKV } from "react-native-mmkv";
 import { Platform } from "react-native";
+import { registerProgramMutationCallback } from "./api";
 
 // 1. Storage Interface (MMKV for native, localStorage for web)
 interface SyncStorage {
@@ -38,7 +39,7 @@ if (Platform.OS === "web") {
         },
     };
 } else {
-    const mmkv = new MMKV({ id: "smartprogress-query-cache" });
+    const mmkv = createMMKV({ id: "smartprogress-query-cache" });
     clientStorage = {
         getItem: (key: string) => {
             return mmkv.getString(key) ?? null;
@@ -47,7 +48,7 @@ if (Platform.OS === "web") {
             mmkv.set(key, value);
         },
         removeItem: (key: string) => {
-            mmkv.delete(key);
+            mmkv.remove(key);
         },
     };
 }
@@ -74,4 +75,9 @@ persistQueryClient({
     queryClient,
     persister,
     maxAge: 1000 * 60 * 60 * 24, // Keep persistent cache valid for 24 hours
+});
+
+// 4. Invalidate programs cache automatically on mutations
+registerProgramMutationCallback(() => {
+    queryClient.invalidateQueries({ queryKey: ["programs"] });
 });
