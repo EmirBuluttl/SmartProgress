@@ -34,7 +34,7 @@ import {
     type StartableProgram,
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
-import { getCachedMyPrograms, getProgramListSnapshot, subscribeToProgramCache } from "../services/programCacheService";
+import { useMyProgramsQuery } from "../hooks/usePrograms";
 
 // ─── Stagger wrapper — her kart index * 50ms delay ile girer ───
 function StaggerCard({ index, children }: { index: number; children: React.ReactNode }) {
@@ -49,33 +49,24 @@ export default function ProgramListScreen() {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const { animStyle } = useScreenEnter({ variant: "slide" });
-    const [programs, setPrograms] = React.useState<any[]>([]);
-    const [loading, setLoading] = React.useState(true);
+    const { data: programs = [], isLoading: queryLoading } = useMyProgramsQuery();
     const [activeId, setActiveId] = React.useState<string | null>(null);
     const [pendingStart, setPendingStart] = React.useState<StartableProgram | null>(null);
+    const [loadingSettings, setLoadingSettings] = React.useState(true);
 
-    React.useEffect(() => {
-        const unsub = subscribeToProgramCache(() => {
-            load().catch(() => undefined);
-        });
-        return unsub;
-    }, []);
-
-    const load = async () => {
+    const loadSettings = async () => {
         try {
-            const cachedPrograms = getProgramListSnapshot();
-            if (cachedPrograms.length > 0) setPrograms(cachedPrograms);
-            const list = await getCachedMyPrograms();
             const active = await AsyncStorage.getItem(ACTIVE_PROGRAM_KEY);
             const legacy = await AsyncStorage.getItem(LEGACY_ACTIVE_PROGRAM_KEY);
-            setPrograms(list);
             setActiveId(active || legacy);
         } catch (err) {
-            console.error("[ProgramList] Load error:", err);
+            console.error("[ProgramList] Load settings error:", err);
         } finally {
-            setLoading(false);
+            setLoadingSettings(false);
         }
     };
+
+    const loading = queryLoading || loadingSettings;
 
     const toggleActiveProgram = async (id: string) => {
         const next = activeId === id ? null : id;
@@ -113,7 +104,7 @@ export default function ProgramListScreen() {
         navigateToWorkoutRespectingActiveSession(navigation, buildPreviewWorkoutParams(programToStart, 0));
     };
 
-    useFocusEffect(useCallback(() => { load(); }, []));
+    useFocusEffect(useCallback(() => { loadSettings(); }, []));
 
     if (loading) {
         return (
