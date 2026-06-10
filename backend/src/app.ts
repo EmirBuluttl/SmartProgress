@@ -3,6 +3,7 @@ import cors from "cors";
 import helmet from "helmet";
 import morgan from "morgan";
 import dotenv from "dotenv";
+import rateLimit from "express-rate-limit";
 
 // Route imports
 import authRoutes from "./routes/auth.routes";
@@ -54,10 +55,46 @@ async function ensureDefaultSport(): Promise<void> {
 }
 
 // ─────────────────────────────────────────────
+// Rate Limiters
+// ─────────────────────────────────────────────
+
+/** Auth endpoints: max 20 requests per 15 minutes (brute-force protection) */
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 20,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests, please try again later." },
+});
+
+/** Coach ask: max 5 requests per minute (OpenAI budget protection) */
+const coachAskLimiter = rateLimit({
+    windowMs: 60 * 1000, // 1 minute
+    max: 5,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Coach rate limit exceeded. Please wait a moment." },
+});
+
+/** General API: max 200 requests per 15 minutes per IP */
+const generalLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 200,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: "Too many requests, please try again later." },
+});
+
+// ─────────────────────────────────────────────
 // Middlewares
 // ─────────────────────────────────────────────
 app.use(helmet());
-app.use(cors());
+app.use(cors({
+    origin: process.env.ALLOWED_ORIGINS
+        ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
+        : ["https://app.smartprogress.online"],
+    credentials: true,
+}));
 app.use(morgan("dev"));
 app.use(express.json({ limit: "10mb" }));
 app.use(express.urlencoded({ extended: true }));
@@ -76,14 +113,15 @@ app.get("/health", (_req, res) => {
 // ─────────────────────────────────────────────
 // API Routes
 // ─────────────────────────────────────────────
-app.use("/api/v1/auth", authRoutes);
-app.use("/api/v1/workouts", workoutRoutes);
-app.use("/api/v1/programs", programRoutes);
-app.use("/api/v1/body-measurements", bodyMeasurementRoutes);
-app.use("/api/v1/nutrition", nutritionRoutes);
-app.use("/api/v1/notifications", notificationRoutes);
-app.use("/api/v1/profiles", profileRoutes);
-app.use("/api/v1/coach", coachRoutes);
+app.use("/api/v1/auth", authLimiter, authRoutes);
+app.use("/api/v1/coach/ask", coachAskLimiter);
+app.use("/api/v1/workouts", generalLimiter, workoutRoutes);
+app.use("/api/v1/programs", generalLimiter, programRoutes);
+app.use("/api/v1/body-measurements", generalLimiter, bodyMeasurementRoutes);
+app.use("/api/v1/nutrition", generalLimiter, nutritionRoutes);
+app.use("/api/v1/notifications", generalLimiter, notificationRoutes);
+app.use("/api/v1/profiles", generalLimiter, profileRoutes);
+app.use("/api/v1/coach", generalLimiter, coachRoutes);
 
 // ─────────────────────────────────────────────
 // 404 Handler
