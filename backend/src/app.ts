@@ -89,7 +89,11 @@ const generalLimiter = rateLimit({
 // ─────────────────────────────────────────────
 // Middlewares
 // ─────────────────────────────────────────────
+// Trust Caddy reverse proxy — required for express-rate-limit to work correctly
+// behind a reverse proxy (Caddy sets X-Forwarded-For header)
+app.set("trust proxy", 1);
 app.use(helmet());
+
 app.use(cors({
     origin: process.env.ALLOWED_ORIGINS
         ? process.env.ALLOWED_ORIGINS.split(",").map((o) => o.trim())
