@@ -132,6 +132,7 @@ export type RootStackParamList = {
     PrivacyPolicy: undefined;
     Support: undefined;
     AccountDeletion: undefined;
+    TermsOfService: undefined;
 };
 
 const AppStack = createNativeStackNavigator<RootStackParamList>();
@@ -327,6 +328,11 @@ function AppNavigator() {
             />
             <AppStack.Screen
                 name="AccountDeletion"
+                component={LegalInfoScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="TermsOfService"
                 component={LegalInfoScreen}
                 options={{ animation: "slide_from_right" }}
             />

@@ -18,6 +18,7 @@ export type AuthStackParamList = {
     PrivacyPolicy: undefined;
     Support: undefined;
     AccountDeletion: undefined;
+    TermsOfService: undefined;
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -57,6 +58,11 @@ export default function AuthStack() {
             />
             <Stack.Screen
                 name="AccountDeletion"
+                component={LegalInfoScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <Stack.Screen
+                name="TermsOfService"
                 component={LegalInfoScreen}
                 options={{ animation: "slide_from_right" }}
             />
