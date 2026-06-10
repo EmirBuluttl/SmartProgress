@@ -1,6 +1,19 @@
 version: "3.9"
 
 services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartprogress-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: smartprogress
+      POSTGRES_USER: smartadmin
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - smartprogress-network
+
   redis:
     image: redis:7-alpine
     container_name: smartprogress-redis
@@ -17,14 +30,17 @@ services:
       - "3000:3000"
     environment:
       NODE_ENV: production
-      DATABASE_URL: ${DATABASE_URL}
+      DATABASE_URL: postgresql://smartadmin:${POSTGRES_PASSWORD}@postgres:5432/smartprogress?schema=public
       JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379
-      APP_URL: ${APP_URL:-https://app.smartprogress.online}
+      APP_URL: ${APP_URL:-https://api.smartprogress.online}
       PASSWORD_RESET_FROM_EMAIL: ${PASSWORD_RESET_FROM_EMAIL:-SmartProgress <noreply@smartprogress.online>}
       PASSWORD_RESET_EXPOSE_TOKEN: ${PASSWORD_RESET_EXPOSE_TOKEN:-false}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
       BREVO_API_KEY: ${BREVO_API_KEY:-}
+      REVENUECAT_SECRET_API_KEY: ${REVENUECAT_SECRET_API_KEY:-}
+      REVENUECAT_PREMIUM_ENTITLEMENT_ID: ${REVENUECAT_PREMIUM_ENTITLEMENT_ID:-premium}
+      REVENUECAT_WEBHOOK_SECRET: ${REVENUECAT_WEBHOOK_SECRET:-}
       AI_PROVIDER: ${AI_PROVIDER:-mock}
       OPENAI_API_KEY: ${OPENAI_API_KEY:-}
       OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4.1-mini}
@@ -34,21 +50,7 @@ services:
       PORT: 3000
     depends_on:
       - redis
-    networks:
-      - smartprogress-network
-
-  frontend:
-    build: ./frontend
-    container_name: smartprogress-frontend
-    restart: unless-stopped
-    environment:
-      EXPO_DEV_CLIENT_NETWORK_OPTION: lan
-      NODE_ENV: production
-      EXPO_PUBLIC_API_URL: https://api.smartprogress.online
-      API_URL: https://api.smartprogress.online
-    command: [ "npx", "expo", "start", "--web", "--host", "lan", "--clear" ]
-    depends_on:
-      - backend
+      - postgres
     networks:
       - smartprogress-network
 
@@ -64,7 +66,6 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - frontend
       - backend
     networks:
       - smartprogress-network
@@ -74,5 +75,6 @@ networks:
     driver: bridge
 
 volumes:
+  postgres_data:
   caddy_data:
   caddy_config:
