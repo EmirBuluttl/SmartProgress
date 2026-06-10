@@ -1,4 +1,4 @@
-﻿// ─────────────────────────────────────────────
+// ─────────────────────────────────────────────
 // WorkoutSessionScreen — Aktif Antrenman Kaydı
 // Egzersiz/set ekleme, ağırlık/tekrar/RPE girişi
 // Local persistence + outbox sync
@@ -540,6 +540,8 @@ export default function WorkoutSessionScreen() {
     // Use a ref for finishing flag so beforeRemove always has the latest value
     // (avoids stale closure problem where state is captured at render time)
     const finishingRef = useRef(false);
+    // Permanent flag: once the workout is saved & navigating away, never restore or auto-save again
+    const completedRef = useRef(false);
 
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -902,7 +904,7 @@ export default function WorkoutSessionScreen() {
 
     useFocusEffect(
         useCallback(() => {
-            if (!restored || finishingRef.current) return;
+            if (!restored || finishingRef.current || completedRef.current) return;
             let mounted = true;
             restoreActiveSession().then((saved) => {
                 if (!mounted || !saved || saved.id !== session.id) return;
@@ -993,10 +995,10 @@ export default function WorkoutSessionScreen() {
 
     // ─── Debounced Auto-Save ─────────────────
     useEffect(() => {
-        if (!restored || finishingRef.current) return;
+        if (!restored || finishingRef.current || completedRef.current) return;
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(() => {
-            if (finishingRef.current) return;
+            if (finishingRef.current || completedRef.current) return;
             const nextSession = { ...getSessionWithCachedInputs(), totalDuration: elapsed };
             saveActiveSession(nextSession);
         }, AUTOSAVE_DEBOUNCE_MS);
@@ -1009,7 +1011,7 @@ export default function WorkoutSessionScreen() {
         if (!restored) return;
 
         const persistNow = () => {
-            if (finishingRef.current) return;
+            if (finishingRef.current || completedRef.current) return;
             const nextSession = { ...getSessionWithCachedInputs(), totalDuration: elapsed };
             saveActiveSession(nextSession);
         };
@@ -1626,11 +1628,17 @@ export default function WorkoutSessionScreen() {
             }
         } catch (error) {
             console.error("[WorkoutSession] Kaydetme hatası:", error);
-            setConceptNotice({ title: "Kaydetme hatasi", message: "Antrenman verisi kaydedilirken bir hata olustu." });
-        } finally {
+            // Only reset finishing state on error so user can retry
             setFinishing(false);
             finishingRef.current = false;
+            setConceptNotice({ title: "Kaydetme hatasi", message: "Antrenman verisi kaydedilirken bir hata olustu." });
+            return; // exit early, don't set completedRef
         }
+        // Workout successfully saved — mark as completed permanently.
+        // Do NOT reset finishingRef here: keeping it true prevents auto-save
+        // from re-writing the session back to AsyncStorage after clearActiveSession().
+        completedRef.current = true;
+        setFinishing(false);
     };
 
     const cancelWorkout = async () => {
