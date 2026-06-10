@@ -203,6 +203,8 @@ enum SubscriptionStatus {
   ACTIVE
   INACTIVE
   TRIAL
+  CANCELLED      // User cancelled — access continues until period end
+  BILLING_ISSUE  // Payment failed — grace period active
 }
 
 // ─────────────────────────────────────────────

@@ -29,6 +29,7 @@ export const env = {
     // RevenueCat
     REVENUECAT_SECRET_API_KEY: process.env.REVENUECAT_SECRET_API_KEY || "",
     REVENUECAT_PREMIUM_ENTITLEMENT_ID: process.env.REVENUECAT_PREMIUM_ENTITLEMENT_ID || "premium",
+    REVENUECAT_WEBHOOK_SECRET: process.env.REVENUECAT_WEBHOOK_SECRET || "",
 
     // AI provider
     AI_PROVIDER: process.env.AI_PROVIDER || "mock",
