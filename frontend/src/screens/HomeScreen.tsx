@@ -130,7 +130,7 @@ export default function HomeScreen() {
             const cachedProfile = getProfileSnapshot();
 
             if (cachedWorkouts.length > 0) {
-                setWorkouts(sortNewestFirst(cachedWorkouts).slice(0, 20));
+                setWorkouts(sortNewestFirst(cachedWorkouts).slice(0, 100));
                 setLoading(false);
             }
             if (cachedProfile) {
@@ -148,9 +148,9 @@ export default function HomeScreen() {
                 .catch((err) => console.warn("[HomeScreen] Profile load failed:", err));
 
             // 2. Workouts load (independent)
-            getCachedWorkouts(30)
+            getCachedWorkouts(100)
                 .then((workoutRes) => {
-                    const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 20);
+                    const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 100);
                     setWorkouts(fetchedWorkouts);
                     setLoading(false);
                 })
