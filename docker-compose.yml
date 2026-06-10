@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   postgres:
     image: postgres:16-alpine
@@ -54,6 +52,21 @@ services:
     networks:
       - smartprogress-network
 
+  frontend:
+    build: ./frontend
+    container_name: smartprogress-frontend
+    restart: unless-stopped
+    environment:
+      EXPO_DEV_CLIENT_NETWORK_OPTION: lan
+      NODE_ENV: production
+      EXPO_PUBLIC_API_URL: https://api.smartprogress.online
+      API_URL: https://api.smartprogress.online
+    command: [ "npx", "expo", "start", "--web", "--host", "lan", "--clear" ]
+    depends_on:
+      - backend
+    networks:
+      - smartprogress-network
+
   caddy:
     image: caddy:2-alpine
     container_name: smartprogress-caddy
@@ -66,6 +79,7 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
+      - frontend
       - backend
     networks:
       - smartprogress-network
