@@ -1,5 +1,6 @@
 import prisma from "../config/prisma";
 import { NotFoundError } from "../utils/errors";
+import { moderationService } from "./moderation.service";
 
 function displayName(user: { firstName: string; lastName: string; nickname: string | null }) {
     return user.nickname || [user.firstName, user.lastName].filter(Boolean).join(" ");
@@ -33,6 +34,9 @@ export class ProfileService {
         });
 
         if (!user) throw new NotFoundError("Profile not found");
+        if (viewerId !== user.id && await moderationService.isEitherBlocked(viewerId, user.id)) {
+            throw new NotFoundError("Profile not found");
+        }
 
         const visibility = String((user.settings as any)?.profile_visibility || "private");
         const isPublic = visibility === "public";

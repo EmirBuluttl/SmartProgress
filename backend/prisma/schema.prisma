@@ -44,6 +44,10 @@ model User {
   coachWeeklyReports CoachWeeklyReport[]
   coachAiMessages CoachAiMessage[]
   coachInsights CoachInsight[]
+  reportsMade ContentReport[] @relation("ContentReportReporter")
+  reportsReceived ContentReport[] @relation("ContentReportTargetUser")
+  blockedUsers UserBlock[] @relation("UserBlockBlocker")
+  blockedBy UserBlock[] @relation("UserBlockBlocked")
 
   @@map("users")
 }
@@ -244,12 +248,51 @@ model Program {
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   programStars ProgramStar[]
+  reports ContentReport[]
 
   @@index([userId])
   @@index([isPublic])
   @@index([sourceProgramId])
   @@index([starCount])
   @@map("programs")
+}
+
+model ContentReport {
+  id              String   @id @default(uuid()) @db.Uuid
+  reporterId      String   @map("reporter_id") @db.Uuid
+  targetType      String   @map("target_type")
+  targetUserId    String?  @map("target_user_id") @db.Uuid
+  targetProgramId String?  @map("target_program_id") @db.Uuid
+  reason          String
+  details         String?
+  status          String   @default("OPEN")
+  metadata        Json?    @db.JsonB
+  createdAt       DateTime @default(now()) @map("created_at")
+  reviewedAt      DateTime? @map("reviewed_at")
+
+  reporter User @relation("ContentReportReporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  targetUser User? @relation("ContentReportTargetUser", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetProgram Program? @relation(fields: [targetProgramId], references: [id], onDelete: SetNull)
+
+  @@index([reporterId, createdAt])
+  @@index([targetUserId, status])
+  @@index([targetProgramId, status])
+  @@index([targetType, status])
+  @@map("content_reports")
+}
+
+model UserBlock {
+  id            String   @id @default(uuid()) @db.Uuid
+  blockerId     String   @map("blocker_id") @db.Uuid
+  blockedUserId String   @map("blocked_user_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
+
+  blocker User @relation("UserBlockBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blockedUser User @relation("UserBlockBlocked", fields: [blockedUserId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedUserId])
+  @@index([blockedUserId])
+  @@map("user_blocks")
 }
 
 model ProgramStar {

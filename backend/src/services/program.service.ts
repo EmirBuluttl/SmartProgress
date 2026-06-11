@@ -5,6 +5,7 @@ import { Program } from "@prisma/client";
 import { programRepository } from "../repositories/program.repository";
 import { NotFoundError, ForbiddenError, BadRequestError } from "../utils/errors";
 import prisma from "../config/prisma";
+import { moderationService } from "./moderation.service";
 
 // ─── DTOs ────────────────────────────────────
 
@@ -121,7 +122,9 @@ export class ProgramService {
             userId,
             filters?.sort ?? "stars",
         );
+        const blockedUserIds = await moderationService.getBlockedUserIds(userId);
         return programs
+            .filter((program) => !blockedUserIds.includes(program.userId))
             .filter((program) => {
                 if (!filters?.split) return true;
                 return normalizeSplit((program.data as any)?.splitType) === filters.split;
@@ -165,6 +168,9 @@ export class ProgramService {
         if (!program.isPublic && program.userId !== userId) {
             console.warn(`[ProgramService] getProgramById: ACCESS DENIED. requestUserId=${userId}, ownerUserId=${program.userId}`);
             throw new ForbiddenError("You don't have access to this program");
+        }
+        if (program.isPublic && program.userId !== userId && await moderationService.isEitherBlocked(userId, program.userId)) {
+            throw new NotFoundError("Program not found");
         }
         const decorated: any = this.decorateProgram(program, userId);
         if (decorated.sourceProgramId) {

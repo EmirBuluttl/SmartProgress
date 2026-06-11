@@ -15,6 +15,7 @@ import notificationRoutes from "./routes/notification.routes";
 import profileRoutes from "./routes/profile.routes";
 import coachRoutes from "./routes/coach.routes";
 import webhookRoutes from "./routes/webhook.routes";
+import moderationRoutes from "./routes/moderation.routes";
 
 // Middleware imports
 import { errorHandler } from "./middlewares/errorHandler";
@@ -127,6 +128,7 @@ app.use("/api/v1/nutrition", generalLimiter, nutritionRoutes);
 app.use("/api/v1/notifications", generalLimiter, notificationRoutes);
 app.use("/api/v1/profiles", generalLimiter, profileRoutes);
 app.use("/api/v1/coach", generalLimiter, coachRoutes);
+app.use("/api/v1/moderation", generalLimiter, moderationRoutes);
 // Webhook — no rate limiter: RevenueCat servers call this, auth is via Authorization header
 app.use("/api/v1/webhooks", webhookRoutes);
 

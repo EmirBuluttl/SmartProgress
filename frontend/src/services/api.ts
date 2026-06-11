@@ -274,5 +274,21 @@ export const profileApi = {
     getPublicProfile: (userId: string) => api.get(`/profiles/${userId}`),
 };
 
+export const moderationApi = {
+    report: (data: {
+        targetType: "PROFILE" | "PROFILE_PHOTO" | "PROGRAM";
+        targetUserId?: string;
+        targetProgramId?: string;
+        reason: "inappropriate" | "spam" | "harassment" | "misleading" | "other";
+        details?: string;
+    }) => api.post("/moderation/reports", data),
+
+    blockUser: (blockedUserId: string) =>
+        api.post("/moderation/blocks", { blockedUserId }),
+
+    unblockUser: (blockedUserId: string) =>
+        api.delete(`/moderation/blocks/${blockedUserId}`),
+};
+
 export default api;
 

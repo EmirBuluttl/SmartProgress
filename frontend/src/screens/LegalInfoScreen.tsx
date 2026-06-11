@@ -79,6 +79,10 @@ const COPY = {
                 body: "SmartProgress uygulamasındaki tüm içerik, tasarım, grafik, yazılım, marka ve logoların fikri mülkiyet hakları SmartProgress'e aittir.\n\n• Uygulama içerikleri izinsiz kopyalanamaz, dağıtılamaz veya ticari amaçlarla kullanılamaz.\n• Uygulamanın kaynak koduna erişim, tersine mühendislik veya türev ürün oluşturma kesinlikle yasaktır.",
             },
             {
+                title: "Kullanıcı İçeriği ve Moderasyon",
+                body: "Public profil, profil fotoğrafı ve public program açıklamaları kullanıcı tarafından oluşturulan içerik sayılabilir. Hakaret, taciz, spam, yanıltıcı bilgi, uygunsuz görsel veya yasa dışı içerik paylaşmak yasaktır.\n\nKullanıcılar public profil, profil fotoğrafı ve public programları uygulama içinden şikayet edebilir ve diğer kullanıcıları engelleyebilir. Şikayetler manuel olarak incelenir; gerekli görülürse içerik gizlenebilir, profil public görünürlüğü kapatılabilir veya hesap işlem görebilir.",
+            },
+            {
                 title: "Değişiklikler",
                 body: "SmartProgress, bu Kullanım Koşulları'nı önceden bildirim yaparak güncelleme hakkını saklı tutar. Güncellemeler uygulama içi bildirim veya kayıtlı e-posta adresinize gönderilecek mesajla duyurulur.\n\nGüncelleme sonrasında uygulamayı kullanmaya devam etmeniz, yeni koşulları kabul ettiğiniz anlamına gelir.",
             },

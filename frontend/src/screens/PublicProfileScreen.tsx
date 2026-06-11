@@ -13,13 +13,16 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { profileApi } from "../services/api";
+import { moderationApi, parseApiError, profileApi } from "../services/api";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import GymCard from "../components/GymCard";
 import SectionHeader from "../components/SectionHeader";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import ActionConfirmModal from "../components/ActionConfirmModal";
+import NoticeModal from "../components/NoticeModal";
+import ReportContentModal from "../components/ReportContentModal";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "PublicProfile">;
 type Route = RouteProp<RootStackParamList, "PublicProfile">;
@@ -36,6 +39,10 @@ export default function PublicProfileScreen() {
     const { animStyle } = useScreenEnter({ variant: "slide" });
     const [profile, setProfile] = React.useState<any | null>(null);
     const [loading, setLoading] = React.useState(true);
+    const [reportTarget, setReportTarget] = React.useState<"PROFILE" | "PROFILE_PHOTO" | null>(null);
+    const [blockVisible, setBlockVisible] = React.useState(false);
+    const [busy, setBusy] = React.useState(false);
+    const [notice, setNotice] = React.useState<{ title: string; message: string; goBackOnClose?: boolean } | null>(null);
 
     const loadProfile = React.useCallback(async () => {
         try {
@@ -50,6 +57,48 @@ export default function PublicProfileScreen() {
         setLoading(true);
         loadProfile();
     }, [loadProfile]));
+
+    const submitReport = async (
+        reason: "inappropriate" | "spam" | "harassment" | "misleading" | "other",
+        details?: string,
+    ) => {
+        if (!reportTarget || busy) return;
+        setBusy(true);
+        try {
+            await moderationApi.report({
+                targetType: reportTarget,
+                targetUserId: route.params.userId,
+                reason,
+                details,
+            });
+            setReportTarget(null);
+            setNotice({ title: "Şikayet alındı", message: "Raporu manuel inceleme kuyruğuna aldık. Teşekkür ederiz." });
+        } catch (error) {
+            const apiError = parseApiError(error);
+            setNotice({ title: "Şikayet gönderilemedi", message: apiError.message });
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    const blockUser = async () => {
+        if (busy) return;
+        setBusy(true);
+        try {
+            await moderationApi.blockUser(route.params.userId);
+            setBlockVisible(false);
+            setNotice({
+                title: "Kullanıcı engellendi",
+                message: "Bu kullanıcının public profili ve programları artık sana gösterilmeyecek.",
+                goBackOnClose: true,
+            });
+        } catch (error) {
+            const apiError = parseApiError(error);
+            setNotice({ title: "Engellenemedi", message: apiError.message });
+        } finally {
+            setBusy(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -83,6 +132,22 @@ export default function PublicProfileScreen() {
                     <View style={styles.visibilityBadge}>
                         <Ionicons name={profile.isPublic ? "globe-outline" : "lock-closed-outline"} size={14} color={colors.accent} />
                         <Text style={styles.visibilityText}>{profile.isPublic ? "Public profil" : "Private profil"}</Text>
+                    </View>
+                    <View style={styles.moderationRow}>
+                        <TouchableOpacity style={styles.moderationBtn} onPress={() => setReportTarget("PROFILE")} activeOpacity={0.75}>
+                            <Ionicons name="flag-outline" size={15} color={colors.textSecondary} />
+                            <Text style={styles.moderationText}>Profili şikayet et</Text>
+                        </TouchableOpacity>
+                        {profile.avatarUrl ? (
+                            <TouchableOpacity style={styles.moderationBtn} onPress={() => setReportTarget("PROFILE_PHOTO")} activeOpacity={0.75}>
+                                <Ionicons name="image-outline" size={15} color={colors.textSecondary} />
+                                <Text style={styles.moderationText}>Fotoğrafı şikayet et</Text>
+                            </TouchableOpacity>
+                        ) : null}
+                        <TouchableOpacity style={styles.moderationBtn} onPress={() => setBlockVisible(true)} activeOpacity={0.75}>
+                            <Ionicons name="ban-outline" size={15} color={colors.error} />
+                            <Text style={[styles.moderationText, { color: colors.error }]}>Engelle</Text>
+                        </TouchableOpacity>
                     </View>
                 </View>
 
@@ -135,6 +200,35 @@ export default function PublicProfileScreen() {
                     </>
                 )}
             </ScrollView>
+            <ActionConfirmModal
+                visible={blockVisible}
+                title="Kullanıcıyı engelle?"
+                message="Bu kullanıcıya ait public profil ve programlar artık sana gösterilmeyecek."
+                primaryLabel={busy ? "İşleniyor..." : "Engelle"}
+                secondaryLabel="Vazgeç"
+                destructivePrimary
+                onPrimary={blockUser}
+                onSecondary={() => setBlockVisible(false)}
+                onDismiss={() => setBlockVisible(false)}
+            />
+            <ReportContentModal
+                visible={!!reportTarget}
+                title={reportTarget === "PROFILE_PHOTO" ? "Profil fotoğrafını şikayet et" : "Profili şikayet et"}
+                message="Bu rapor manuel olarak incelenir. Uygunsuz veya yanıltıcı içerikleri bize bildir."
+                busy={busy}
+                onSubmit={submitReport}
+                onDismiss={() => setReportTarget(null)}
+            />
+            <NoticeModal
+                visible={!!notice}
+                title={notice?.title || ""}
+                message={notice?.message || ""}
+                onClose={() => {
+                    const shouldGoBack = notice?.goBackOnClose;
+                    setNotice(null);
+                    if (shouldGoBack) navigation.goBack();
+                }}
+            />
         </Animated.View>
     );
 }
@@ -181,6 +275,19 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginTop: spacing.sm,
     },
     visibilityText: { color: colors.textSecondary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
+    moderationRow: { flexDirection: "row", flexWrap: "wrap", justifyContent: "center", gap: spacing.sm, marginTop: spacing.md },
+    moderationBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        minHeight: 36,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+    },
+    moderationText: { color: colors.textSecondary, fontSize: fontSize.xs, fontWeight: fontWeight.semibold },
     lockedCard: { alignItems: "center", gap: spacing.sm },
     lockedTitle: { color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
     lockedText: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: "center" },

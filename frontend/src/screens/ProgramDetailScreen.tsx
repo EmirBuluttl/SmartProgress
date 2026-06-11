@@ -22,10 +22,11 @@ import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { parseApiError, programApi } from "../services/api";
+import { moderationApi, parseApiError, programApi } from "../services/api";
 import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
+import ReportContentModal from "../components/ReportContentModal";
 import {
     activateProgramForWorkout,
     buildPreviewWorkoutParams,
@@ -103,6 +104,9 @@ export default function ProgramDetailScreen() {
     const [workoutCount, setWorkoutCount] = useState(0);
     const [notice, setNotice] = useState<{ title: string; message: string; goBackOnClose?: boolean } | null>(null);
     const [pendingStart, setPendingStart] = useState<PendingStart | null>(null);
+    const [reportVisible, setReportVisible] = useState(false);
+    const [blockVisible, setBlockVisible] = useState(false);
+    const [moderationBusy, setModerationBusy] = useState(false);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -330,6 +334,49 @@ export default function ProgramDetailScreen() {
         }
     };
 
+    const reportProgram = async (
+        reason: "inappropriate" | "spam" | "harassment" | "misleading" | "other",
+        details?: string,
+    ) => {
+        if (!program || moderationBusy) return;
+        setModerationBusy(true);
+        try {
+            await moderationApi.report({
+                targetType: "PROGRAM",
+                targetProgramId: program.id,
+                reason,
+                details,
+            });
+            setReportVisible(false);
+            setNotice({ title: "Şikayet alındı", message: "İçeriği inceleme kuyruğuna aldık. Teşekkür ederiz." });
+        } catch (err) {
+            const apiError = parseApiError(err);
+            setNotice({ title: "Şikayet gönderilemedi", message: apiError.message });
+        } finally {
+            setModerationBusy(false);
+        }
+    };
+
+    const blockProgramOwner = async () => {
+        const ownerId = program?.user?.id;
+        if (!ownerId || moderationBusy) return;
+        setModerationBusy(true);
+        try {
+            await moderationApi.blockUser(ownerId);
+            setBlockVisible(false);
+            setNotice({
+                title: "Kullanıcı engellendi",
+                message: "Bu kullanıcının public içerikleri artık keşif ve profil akışlarında gösterilmeyecek.",
+                goBackOnClose: true,
+            });
+        } catch (err) {
+            const apiError = parseApiError(err);
+            setNotice({ title: "Engellenemedi", message: apiError.message });
+        } finally {
+            setModerationBusy(false);
+        }
+    };
+
     if (loading) {
         return (
             <Animated.View style={[s.centered, animStyle]}>
@@ -514,6 +561,20 @@ export default function ProgramDetailScreen() {
                             <Text style={s.copyBtnText}>Kitaplığıma Ekle</Text>
                         </TouchableOpacity>
                     )}
+                    {program.isPublic && !isOwner && (
+                        <View style={s.moderationRow}>
+                            <TouchableOpacity style={s.moderationBtn} onPress={() => setReportVisible(true)} activeOpacity={0.75}>
+                                <Ionicons name="flag-outline" size={15} color={colors.textSecondary} />
+                                <Text style={s.moderationText}>Şikayet et</Text>
+                            </TouchableOpacity>
+                            {program.user?.id ? (
+                                <TouchableOpacity style={s.moderationBtn} onPress={() => setBlockVisible(true)} activeOpacity={0.75}>
+                                    <Ionicons name="ban-outline" size={15} color={colors.error} />
+                                    <Text style={[s.moderationText, { color: colors.error }]}>Kullanıcıyı engelle</Text>
+                                </TouchableOpacity>
+                            ) : null}
+                        </View>
+                    )}
                     {program.sourceUpdateAvailable && (
                         <View style={s.sourceUpdateBox}>
                             <View style={{ flex: 1 }}>
@@ -691,6 +752,25 @@ export default function ProgramDetailScreen() {
                 onSecondary={startPendingWithoutTracking}
                 onDismiss={() => setPendingStart(null)}
             />
+            <ActionConfirmModal
+                visible={blockVisible}
+                title="Kullanıcıyı engelle?"
+                message="Bu kullanıcının public profili ve programları artık sana gösterilmeyecek. Gerekirse destek üzerinden geri alınabilir."
+                primaryLabel={moderationBusy ? "İşleniyor..." : "Engelle"}
+                secondaryLabel="Vazgeç"
+                destructivePrimary
+                onPrimary={blockProgramOwner}
+                onSecondary={() => setBlockVisible(false)}
+                onDismiss={() => setBlockVisible(false)}
+            />
+            <ReportContentModal
+                visible={reportVisible}
+                title="Programı şikayet et"
+                message="Bu rapor manuel olarak incelenir. Acil güvenlik riski görürsen destek üzerinden de bize ulaş."
+                busy={moderationBusy}
+                onSubmit={reportProgram}
+                onDismiss={() => setReportVisible(false)}
+            />
             <NoticeModal
                 visible={!!notice}
                 title={notice?.title ?? ""}
@@ -822,6 +902,28 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
         color: colors.background,
+    },
+    moderationRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+        marginTop: spacing.md,
+    },
+    moderationBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        minHeight: 38,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+    },
+    moderationText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
     },
     sourceUpdateBox: {
         flexDirection: "row",
