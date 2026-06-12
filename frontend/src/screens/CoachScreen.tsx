@@ -191,14 +191,6 @@ export default function CoachScreen() {
         };
     }, [loadCoachInsights]);
 
-    const showPremiumPendingNotice = React.useCallback(() => {
-        setNotice({
-            title: "Premium hazirlaniyor",
-            message: "Abonelik altyapisi store onaylari ve RevenueCat baglantisi tamamlanana kadar pasif. Su an Premium karti satin alma ekrani acmaz.",
-        });
-    }, []);
-
-
     return (
         <>
         <Animated.ScrollView
@@ -612,7 +604,7 @@ export default function CoachScreen() {
                         colors={colors}
                         active={tier === "pro"}
                         highlighted
-                        onPress={showPremiumPendingNotice}
+                        onPress={() => navigateStatic("PremiumDetail")}
                     />
                     <PlanCard
                         title="Coach+"

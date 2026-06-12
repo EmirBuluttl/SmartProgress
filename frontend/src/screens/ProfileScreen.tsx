@@ -311,13 +311,6 @@ export default function ProfileScreen() {
         }
     };
 
-    const showPremiumPendingNotice = () => {
-        setNotice({
-            title: "Premium hazirlaniyor",
-            message: "Google Play/App Store ve RevenueCat onaylari tamamlanana kadar abonelik ekrani pasif. Bu surecte Premium satin alma veya restore islemi baslatilmayacak.",
-        });
-    };
-
     const handleNotificationsToggle = async (enabled: boolean) => {
         setNotificationsEnabled(enabled);
         const applied = await setLocalNotificationsEnabled(enabled);
@@ -566,7 +559,7 @@ export default function ProfileScreen() {
 
                 <TouchableOpacity
                     style={styles.settingRow}
-                    onPress={showPremiumPendingNotice}
+                    onPress={() => navigateStatic("PremiumDetail")}
                     activeOpacity={0.78}
                 >
                     <View style={styles.settingInfo}>
