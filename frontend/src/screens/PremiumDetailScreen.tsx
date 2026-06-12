@@ -14,13 +14,6 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { useAuth } from "../store/AuthContext";
 import NoticeModal from "../components/NoticeModal";
-import {
-    getPremiumOfferings,
-    getRevenueCatReadiness,
-    isRevenueCatConfigured,
-    purchasePremiumPackage,
-    restorePremiumPurchases,
-} from "../services/revenueCat";
 import { authApi, parseApiError } from "../services/api";
 
 export default function PremiumDetailScreen() {
@@ -39,7 +32,6 @@ export default function PremiumDetailScreen() {
     const [loadingOffer, setLoadingOffer] = React.useState(false);
     const [busy, setBusy] = React.useState(false);
     const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
-    const storeReady = isRevenueCatConfigured();
 
     const syncBackendEntitlement = React.useCallback(async () => {
         const response = await authApi.syncEntitlements({ appUserId: user?.id });
@@ -48,21 +40,19 @@ export default function PremiumDetailScreen() {
 
     const handlePurchase = async () => {
         if (!user?.id) return;
-        const readiness = await getRevenueCatReadiness();
-        if (!readiness.ready) {
-            setNotice({
-                title: readiness.title,
-                message: readiness.message,
-            });
-            return;
-        }
-
         setBusy(true);
         try {
+            const revenueCat = await import("../services/revenueCat");
+            const readiness = await revenueCat.getRevenueCatReadiness();
+            if (!readiness.ready) {
+                setNotice({ title: readiness.title, message: readiness.message });
+                return;
+            }
+
             let selectedPackage = purchasePackage;
             if (!selectedPackage) {
                 setLoadingOffer(true);
-                const offerings = await getPremiumOfferings(user.id);
+                const offerings = await revenueCat.getPremiumOfferings(user.id);
                 selectedPackage = offerings.packages[0] || null;
                 setPurchasePackage(selectedPackage);
                 setLoadingOffer(false);
@@ -76,7 +66,7 @@ export default function PremiumDetailScreen() {
                 return;
             }
 
-            const result = await purchasePremiumPackage(selectedPackage);
+            const result = await revenueCat.purchasePremiumPackage(selectedPackage);
             if (result.active) {
                 await syncBackendEntitlement();
                 setNotice({ title: "Premium aktif", message: "Premium erisimin basariyla acildi." });
@@ -94,18 +84,16 @@ export default function PremiumDetailScreen() {
 
     const handleRestore = async () => {
         if (!user?.id) return;
-        const readiness = await getRevenueCatReadiness();
-        if (!readiness.ready) {
-            setNotice({
-                title: readiness.title,
-                message: readiness.message,
-            });
-            return;
-        }
-
         setBusy(true);
         try {
-            const result = await restorePremiumPurchases(user.id);
+            const revenueCat = await import("../services/revenueCat");
+            const readiness = await revenueCat.getRevenueCatReadiness();
+            if (!readiness.ready) {
+                setNotice({ title: readiness.title, message: readiness.message });
+                return;
+            }
+
+            const result = await revenueCat.restorePremiumPurchases(user.id);
             if (result.active) {
                 await syncBackendEntitlement();
                 setNotice({ title: "Satin alma geri yuklendi", message: "Premium erisimin tekrar aktif edildi." });
@@ -150,29 +138,25 @@ export default function PremiumDetailScreen() {
                 </Text>
                 <AccentButton
                     title={
-                        !storeReady
-                            ? "Mağaza Bağlantısı Hazırlanıyor"
-                            : busy
-                                ? "İşleniyor..."
-                                : purchasePackage?.product?.priceString
-                                    ? `Premium'u Başlat · ${purchasePackage.product.priceString}`
-                                    : "Premium'u Başlat"
+                        busy
+                            ? "Isleniyor..."
+                            : purchasePackage?.product?.priceString
+                                ? `Premium'u Baslat - ${purchasePackage.product.priceString}`
+                                : "Premium'u Baslat"
                     }
                     onPress={handlePurchase}
-                    disabled={!storeReady || busy || loadingOffer}
+                    disabled={busy || loadingOffer}
                     style={styles.cta}
                 />
-                <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={!storeReady || busy || loadingOffer} activeOpacity={0.78}>
-                    <Text style={styles.restoreText}>Satın almayı geri yükle</Text>
+                <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={busy || loadingOffer} activeOpacity={0.78}>
+                    <Text style={styles.restoreText}>Satin almayi geri yukle</Text>
                 </TouchableOpacity>
-                {!storeReady ? (
-                    <View style={styles.storePendingBox}>
-                        <Ionicons name="storefront-outline" size={18} color={colors.accent} />
-                        <Text style={styles.storePendingText}>
-                            Android/iOS mağaza onayları tamamlanana kadar satın alma pasif. Premium ekranı güvenli şekilde açık kalır.
-                        </Text>
-                    </View>
-                ) : null}
+                <View style={styles.storePendingBox}>
+                    <Ionicons name="storefront-outline" size={18} color={colors.accent} />
+                    <Text style={styles.storePendingText}>
+                        Satin alma testi icin uygulama Google Play ic test baglantisindan kurulmus olmalidir.
+                    </Text>
+                </View>
             </GymCard>
 
             <View style={styles.featureGrid}>
