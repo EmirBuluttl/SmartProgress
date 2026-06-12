@@ -16,6 +16,7 @@ import { useAuth } from "../store/AuthContext";
 import NoticeModal from "../components/NoticeModal";
 import {
     getPremiumOfferings,
+    getRevenueCatReadiness,
     isRevenueCatConfigured,
     purchasePremiumPackage,
     restorePremiumPurchases,
@@ -40,25 +41,6 @@ export default function PremiumDetailScreen() {
     const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
     const storeReady = isRevenueCatConfigured();
 
-    React.useEffect(() => {
-        if (!user?.id || !storeReady) return;
-        let mounted = true;
-        setLoadingOffer(true);
-        getPremiumOfferings(user.id)
-            .then((result) => {
-                if (mounted) setPurchasePackage(result.packages[0] || null);
-            })
-            .catch(() => {
-                if (mounted) setPurchasePackage(null);
-            })
-            .finally(() => {
-                if (mounted) setLoadingOffer(false);
-            });
-        return () => {
-            mounted = false;
-        };
-    }, [storeReady, user?.id]);
-
     const syncBackendEntitlement = React.useCallback(async () => {
         const response = await authApi.syncEntitlements({ appUserId: user?.id });
         updateUser(response.data);
@@ -66,59 +48,74 @@ export default function PremiumDetailScreen() {
 
     const handlePurchase = async () => {
         if (!user?.id) return;
-        if (!isRevenueCatConfigured()) {
+        const readiness = await getRevenueCatReadiness();
+        if (!readiness.ready) {
             setNotice({
-                title: "Mağaza bağlantısı hazır değil",
-                message: "RevenueCat public key değerleri production env içine eklenmeden satın alma başlatılamaz.",
+                title: readiness.title,
+                message: readiness.message,
             });
             return;
         }
-        if (!purchasePackage) {
-            setNotice({
-                title: "Paket bulunamadı",
-                message: "RevenueCat offering içinde Premium paketi görünmüyor. Store ürünlerini ve entitlement eşleşmesini kontrol et.",
-            });
-            return;
-        }
+
         setBusy(true);
         try {
-            const result = await purchasePremiumPackage(purchasePackage);
+            let selectedPackage = purchasePackage;
+            if (!selectedPackage) {
+                setLoadingOffer(true);
+                const offerings = await getPremiumOfferings(user.id);
+                selectedPackage = offerings.packages[0] || null;
+                setPurchasePackage(selectedPackage);
+                setLoadingOffer(false);
+            }
+
+            if (!selectedPackage) {
+                setNotice({
+                    title: "Paket bulunamadi",
+                    message: "RevenueCat offering icinde Premium paketi gorunmuyor. Store urunlerini ve entitlement eslesmesini kontrol et.",
+                });
+                return;
+            }
+
+            const result = await purchasePremiumPackage(selectedPackage);
             if (result.active) {
                 await syncBackendEntitlement();
-                setNotice({ title: "Premium aktif", message: "Premium erişimin başarıyla açıldı." });
+                setNotice({ title: "Premium aktif", message: "Premium erisimin basariyla acildi." });
             } else {
-                setNotice({ title: "Satın alma tamamlandı", message: "Premium entitlement henüz aktif görünmüyor. Birazdan tekrar restore etmeyi dene." });
+                setNotice({ title: "Satin alma tamamlandi", message: "Premium entitlement henuz aktif gorunmuyor. Birazdan tekrar restore etmeyi dene." });
             }
         } catch (error: any) {
             if (error?.userCancelled) return;
-            setNotice({ title: "Satın alma başarısız", message: error?.message || "Mağaza işlemi tamamlanamadı." });
+            setNotice({ title: "Satin alma basarisiz", message: error?.message || "Magaza islemi tamamlanamadi." });
         } finally {
+            setLoadingOffer(false);
             setBusy(false);
         }
     };
 
     const handleRestore = async () => {
         if (!user?.id) return;
-        if (!isRevenueCatConfigured()) {
+        const readiness = await getRevenueCatReadiness();
+        if (!readiness.ready) {
             setNotice({
-                title: "Restore hazır değil",
-                message: "RevenueCat public key değerleri production env içine eklenmeden restore çalışmaz.",
+                title: readiness.title,
+                message: readiness.message,
             });
             return;
         }
+
         setBusy(true);
         try {
             const result = await restorePremiumPurchases(user.id);
             if (result.active) {
                 await syncBackendEntitlement();
-                setNotice({ title: "Satın alma geri yüklendi", message: "Premium erişimin tekrar aktif edildi." });
+                setNotice({ title: "Satin alma geri yuklendi", message: "Premium erisimin tekrar aktif edildi." });
             } else {
                 await syncBackendEntitlement().catch(() => undefined);
-                setNotice({ title: "Aktif Premium bulunamadı", message: "Bu mağaza hesabında aktif Premium abonelik görünmüyor." });
+                setNotice({ title: "Aktif Premium bulunamadi", message: "Bu magaza hesabinda aktif Premium abonelik gorunmuyor." });
             }
         } catch (error) {
             const apiError = parseApiError(error);
-            setNotice({ title: "Restore başarısız", message: apiError.message });
+            setNotice({ title: "Restore basarisiz", message: apiError.message });
         } finally {
             setBusy(false);
         }

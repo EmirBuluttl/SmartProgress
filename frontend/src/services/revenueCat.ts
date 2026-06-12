@@ -31,7 +31,57 @@ export function isRevenueCatConfigured() {
         : false;
 }
 
+async function isLikelyInstalledFromGooglePlay() {
+    if (Platform.OS !== "android") return true;
+
+    try {
+        const application = require("expo-application");
+        if (typeof application?.getInstallReferrerAsync !== "function") {
+            return true;
+        }
+
+        await application.getInstallReferrerAsync();
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+export async function getRevenueCatReadiness() {
+    if (Platform.OS !== "ios" && Platform.OS !== "android") {
+        return {
+            ready: false,
+            title: "Mağaza bu platformda yok",
+            message: "Satın alma işlemleri sadece Android ve iOS uygulama buildlerinde çalışır.",
+        };
+    }
+
+    if (!getPlatformKey()) {
+        return {
+            ready: false,
+            title: "Mağaza bağlantısı hazır değil",
+            message: "RevenueCat public SDK key bu build içine eklenmemiş.",
+        };
+    }
+
+    if (Platform.OS === "android") {
+        const installedFromGooglePlay = await isLikelyInstalledFromGooglePlay();
+        if (!installedFromGooglePlay) {
+            return {
+                ready: false,
+                title: "Google Play kurulumu gerekli",
+                message: "Premium satın alma testi için uygulamayı Google Play iç test bağlantısından kurmalısın. Direkt indirilen APK/AAB ile Play Billing güvenli şekilde başlatılmaz.",
+            };
+        }
+    }
+
+    return { ready: true, title: "", message: "" };
+}
+
 export async function configureRevenueCat(userId: string) {
+    const readiness = await getRevenueCatReadiness();
+    if (!readiness.ready) return false;
+
     const apiKey = getPlatformKey();
     if (!apiKey) return false;
     if (configuredForUserId === userId) return true;
