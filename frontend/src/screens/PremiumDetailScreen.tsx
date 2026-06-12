@@ -1,17 +1,12 @@
 import React from "react";
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import AccentButton from "../components/AccentButton";
-import AnimatedPressable from "../components/AnimatedPressable";
-import GymCard from "../components/GymCard";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { useScreenEnter } from "../hooks/useScreenEnter";
-import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { useAuth } from "../store/AuthContext";
 import NoticeModal from "../components/NoticeModal";
 import { authApi, parseApiError } from "../services/api";
@@ -22,12 +17,6 @@ export default function PremiumDetailScreen() {
     const { colors } = useTheme();
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
-    const { animStyle } = useScreenEnter({ variant: "slide" });
-    const navigateStatic = React.useCallback(
-        (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
-            navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
-        [navigation],
-    );
     const [purchasePackage, setPurchasePackage] = React.useState<any | null>(null);
     const [loadingOffer, setLoadingOffer] = React.useState(false);
     const [busy, setBusy] = React.useState(false);
@@ -71,7 +60,7 @@ export default function PremiumDetailScreen() {
                 await syncBackendEntitlement();
                 setNotice({ title: "Premium aktif", message: "Premium erisimin basariyla acildi." });
             } else {
-                setNotice({ title: "Satin alma tamamlandi", message: "Premium entitlement henuz aktif gorunmuyor. Birazdan tekrar restore etmeyi dene." });
+                setNotice({ title: "Satin alma tamamlandi", message: "Premium entitlement henuz aktif gorunmuyor. Birazdan restore etmeyi dene." });
             }
         } catch (error: any) {
             if (error?.userCancelled) return;
@@ -111,7 +100,7 @@ export default function PremiumDetailScreen() {
 
     return (
         <ScrollView
-            style={[styles.container, animStyle]}
+            style={styles.container}
             contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]}
             showsVerticalScrollIndicator={false}
         >
@@ -128,26 +117,24 @@ export default function PremiumDetailScreen() {
                 </View>
             </View>
 
-            <GymCard elevated style={styles.heroCard}>
+            <View style={styles.heroCard}>
                 <View style={styles.heroIcon}>
-                    <MaterialCommunityIcons name="brain" size={28} color={colors.background} />
+                    <Ionicons name="analytics-outline" size={28} color={colors.background} />
                 </View>
                 <Text style={styles.heroTitle}>Premium ne yapar?</Text>
                 <Text style={styles.heroText}>
-                    Premium, AI sohbetten once gelen asil sistemdir: program kurar, haftalik raporlar, progress/plato/dusus sinyallerini yakalar ve aksiyon adaylarini kullanici onayina birakir.
+                    Premium program kurar, haftalik raporlar, progress/plato/dusus sinyallerini yakalar ve aksiyon adaylarini kullanici onayina birakir.
                 </Text>
-                <AccentButton
-                    title={
-                        busy
-                            ? "Isleniyor..."
-                            : purchasePackage?.product?.priceString
-                                ? `Premium'u Baslat - ${purchasePackage.product.priceString}`
-                                : "Premium'u Baslat"
-                    }
+                <TouchableOpacity
+                    style={[styles.primaryButton, (busy || loadingOffer) && styles.disabledButton]}
                     onPress={handlePurchase}
                     disabled={busy || loadingOffer}
-                    style={styles.cta}
-                />
+                    activeOpacity={0.82}
+                >
+                    <Text style={styles.primaryButtonText}>
+                        {busy ? "Isleniyor..." : purchasePackage?.product?.priceString ? `Premium'u Baslat - ${purchasePackage.product.priceString}` : "Premium'u Baslat"}
+                    </Text>
+                </TouchableOpacity>
                 <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={busy || loadingOffer} activeOpacity={0.78}>
                     <Text style={styles.restoreText}>Satin almayi geri yukle</Text>
                 </TouchableOpacity>
@@ -157,53 +144,17 @@ export default function PremiumDetailScreen() {
                         Satin alma testi icin uygulama Google Play ic test baglantisindan kurulmus olmalidir.
                     </Text>
                 </View>
-            </GymCard>
-
-            <View style={styles.featureGrid}>
-                <FeatureCard
-                    icon="map-outline"
-                    title="Kisisel program wizard"
-                    text="Seviye, frekans, hedef, ekipman, agri ve kas onceligine gore split ve hareket secimi."
-                    colors={colors}
-                />
-                <FeatureCard
-                    icon="analytics-outline"
-                    title="Haftalik rapor"
-                    text="Yeterli log birikince haftanin progress, takip, plato ve regresyon sinyallerini ozetler."
-                    colors={colors}
-                />
-                <FeatureCard
-                    icon="trending-up-outline"
-                    title="Progress takibi"
-                    text="Kilo artisi, tekrar artisi ve RIR sinyallerini hareket bazli okuyarak sonraki hedefi netlestirir."
-                    colors={colors}
-                />
-                <FeatureCard
-                    icon="shield-checkmark-outline"
-                    title="Karar sende"
-                    text="Koc otomatik program degistirmez; hacim, RIR veya set onerilerini sen onaylamadan uygulamaz."
-                    colors={colors}
-                />
             </View>
 
-            <GymCard style={styles.coachPlusCard}>
-                <View style={styles.row}>
-                    <View style={styles.smallIcon}>
-                        <Ionicons name="sparkles-outline" size={18} color={colors.accent} />
-                    </View>
-                    <View style={{ flex: 1 }}>
-                        <Text style={styles.cardTitle}>Coach+ yakinda</Text>
-                        <Text style={styles.cardText}>
-                            AI soru-cevap katmani aktif paket degil. Kalite, maliyet ve guvenlik testleri tamamlanana kadar Premium'un ustunde pasif tanitilir.
-                        </Text>
-                    </View>
-                </View>
-            </GymCard>
+            <FeatureCard icon="map-outline" title="Kisisel program wizard" text="Seviye, frekans, hedef, ekipman, agri ve kas onceligine gore program olusturur." colors={colors} />
+            <FeatureCard icon="document-text-outline" title="Haftalik rapor" text="Yeterli log birikince haftanin progress, takip, plato ve regresyon sinyallerini ozetler." colors={colors} />
+            <FeatureCard icon="trending-up-outline" title="Progress takibi" text="Kilo artisi, tekrar artisi ve RIR sinyallerini hareket bazli okuyarak sonraki hedefi netlestirir." colors={colors} />
+            <FeatureCard icon="shield-checkmark-outline" title="Karar sende" text="Koc otomatik program degistirmez; onerileri sen onaylamadan uygulamaz." colors={colors} />
 
-            <AnimatedPressable style={styles.secondaryBtn} pressedScale={0.985} onPress={() => navigateStatic("CoachWeeklyReport")}>
+            <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate("CoachWeeklyReport")} activeOpacity={0.82}>
                 <Ionicons name="document-text-outline" size={18} color={colors.accent} />
                 <Text style={styles.secondaryText}>Haftalik raporu gor</Text>
-            </AnimatedPressable>
+            </TouchableOpacity>
 
             <NoticeModal
                 visible={!!notice}
@@ -251,7 +202,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     eyebrow: { color: colors.accent, fontSize: fontSize.xs, fontWeight: fontWeight.heavy, letterSpacing: 1 },
     title: { color: colors.text, fontSize: fontSize.xxl, fontWeight: fontWeight.heavy, marginTop: spacing.xs },
     subtitle: { color: colors.textSecondary, fontSize: fontSize.md, lineHeight: 22, marginTop: spacing.sm },
-    heroCard: { alignItems: "flex-start", gap: spacing.md },
+    heroCard: {
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        padding: spacing.lg,
+        gap: spacing.md,
+    },
     heroIcon: {
         width: 54,
         height: 54,
@@ -262,7 +220,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     heroTitle: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
     heroText: { color: colors.textSecondary, fontSize: fontSize.md, lineHeight: 22 },
-    cta: { width: "100%", marginTop: spacing.xs },
+    primaryButton: {
+        minHeight: 52,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: spacing.lg,
+    },
+    disabledButton: { opacity: 0.64 },
+    primaryButtonText: { color: colors.background, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     restoreBtn: { alignSelf: "center", paddingVertical: spacing.sm, paddingHorizontal: spacing.md },
     restoreText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     storePendingBox: {
@@ -275,7 +242,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.accentMuted,
     },
     storePendingText: { flex: 1, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 19 },
-    featureGrid: { gap: spacing.md },
     featureCard: {
         borderRadius: borderRadius.lg,
         borderWidth: 1,
@@ -296,8 +262,6 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     cardTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
     cardText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20 },
-    coachPlusCard: { borderStyle: "dashed" },
-    row: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
     secondaryBtn: {
         minHeight: 48,
         borderRadius: borderRadius.md,
