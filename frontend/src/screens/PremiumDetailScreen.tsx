@@ -11,6 +11,20 @@ import { useAuth } from "../store/AuthContext";
 import NoticeModal from "../components/NoticeModal";
 import { authApi, parseApiError } from "../services/api";
 
+function formatPurchaseError(error: any) {
+    const details = [
+        error?.message,
+        error?.underlyingErrorMessage,
+        error?.readableErrorCode ? `Kod: ${error.readableErrorCode}` : null,
+        error?.code ? `Native kod: ${error.code}` : null,
+    ].filter(Boolean);
+
+    const uniqueDetails = Array.from(new Set(details));
+    return uniqueDetails.length > 0
+        ? uniqueDetails.join("\n")
+        : "Magaza islemi tamamlanamadi.";
+}
+
 export default function PremiumDetailScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { user, updateUser } = useAuth();
@@ -64,7 +78,8 @@ export default function PremiumDetailScreen() {
             }
         } catch (error: any) {
             if (error?.userCancelled) return;
-            setNotice({ title: "Satin alma basarisiz", message: error?.message || "Magaza islemi tamamlanamadi." });
+            console.warn("Premium purchase failed", error);
+            setNotice({ title: "Satin alma basarisiz", message: formatPurchaseError(error) });
         } finally {
             setLoadingOffer(false);
             setBusy(false);
