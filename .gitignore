@@ -82,3 +82,11 @@ override.tf.json
 terraform.rc
 
 .pem
+
+# Android signing secrets
+frontend/android/
+*.jks
+*.keystore
+frontend/android/key.properties
+frontend/android/app/*.jks
+frontend/android/app/*.keystore
