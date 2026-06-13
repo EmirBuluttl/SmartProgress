@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { Animated, Easing } from "react-native";
+import { Animated, Easing, Platform } from "react-native";
 
 interface ScreenEnterOptions {
     delay?: number;
@@ -7,10 +7,17 @@ interface ScreenEnterOptions {
 }
 
 export function useScreenEnter({ delay = 0, variant = "fadeUp" }: ScreenEnterOptions = {}) {
+    const animationsDisabled = Platform.OS === "android";
     const opacity = useRef(new Animated.Value(0)).current;
     const translate = useRef(new Animated.Value(variant === "slide" ? 44 : 16)).current;
 
     useEffect(() => {
+        if (animationsDisabled) {
+            opacity.setValue(1);
+            translate.setValue(0);
+            return;
+        }
+
         opacity.setValue(0);
         translate.setValue(variant === "slide" ? 44 : 16);
 
@@ -42,12 +49,14 @@ export function useScreenEnter({ delay = 0, variant = "fadeUp" }: ScreenEnterOpt
 
         anim.start();
         return () => anim.stop();
-    }, [delay, opacity, translate, variant]);
+    }, [animationsDisabled, delay, opacity, translate, variant]);
 
     return {
-        animStyle: {
-            opacity,
-            transform: [variant === "slide" ? { translateX: translate } : { translateY: translate }],
-        },
+        animStyle: animationsDisabled
+            ? { opacity: 1 }
+            : {
+                opacity,
+                transform: [variant === "slide" ? { translateX: translate } : { translateY: translate }],
+            },
     };
 }
