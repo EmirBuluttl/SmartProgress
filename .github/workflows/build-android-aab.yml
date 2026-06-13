@@ -60,12 +60,12 @@ jobs:
       - name: Configure release signing
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/smartprogress-upload.jks
-          cat > android/key.properties <<EOF
-storeFile=smartprogress-upload.jks
-storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}
-keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}
-EOF
+          printf '%s\n' \
+            'storeFile=smartprogress-upload.jks' \
+            'storePassword=${{ secrets.ANDROID_KEYSTORE_PASSWORD }}' \
+            'keyAlias=${{ secrets.ANDROID_KEY_ALIAS }}' \
+            'keyPassword=${{ secrets.ANDROID_KEY_PASSWORD }}' \
+            > android/key.properties
           node scripts/configure-android-signing.mjs
 
       - name: Build release AAB
