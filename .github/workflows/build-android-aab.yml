@@ -55,6 +55,18 @@ jobs:
       - name: Typecheck
         run: ./node_modules/.bin/tsc --noEmit
 
+      - name: Write Expo public env
+        run: |
+          printf '%s\n' \
+            'EXPO_PUBLIC_API_URL=https://api.smartprogress.online' \
+            'EXPO_PUBLIC_REVENUECAT_PREMIUM_ENTITLEMENT_ID=premium' \
+            'EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=${{ secrets.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY }}' \
+            'EXPO_PUBLIC_PRIVACY_URL=https://app.smartprogress.online/privacy' \
+            'EXPO_PUBLIC_SUPPORT_URL=https://app.smartprogress.online/support' \
+            'EXPO_PUBLIC_ACCOUNT_DELETION_URL=https://app.smartprogress.online/account-deletion' \
+            > .env
+          node -e "const fs=require('fs'); const env=fs.readFileSync('.env','utf8'); const match=env.match(/^EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=(.+)$/m); console.log('RevenueCat Android key length:', match?.[1]?.length || 0); if (!match?.[1]) process.exit(1);"
+
       - name: Generate Android project
         env:
           NODE_ENV: production
