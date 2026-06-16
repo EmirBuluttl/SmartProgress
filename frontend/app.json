@@ -18,10 +18,11 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.smartprogress.app",
-      "buildNumber": "1",
+      "buildNumber": "3",
       "infoPlist": {
         "NSCameraUsageDescription": "Profil fotoğrafı çekmek için kamera erişimi kullanılır.",
-        "NSPhotoLibraryUsageDescription": "Profil fotoğrafı seçmek için fotoğraf galerisi erişimi kullanılır."
+        "NSPhotoLibraryUsageDescription": "Profil fotoğrafı seçmek için fotoğraf galerisi erişimi kullanılır.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
