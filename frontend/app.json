@@ -2,7 +2,7 @@
   "expo": {
     "name": "SmartProgress",
     "slug": "smartprogress",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "scheme": "smartprogress",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -18,7 +18,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.smartprogress.app",
-      "buildNumber": "3",
+      "buildNumber": "7",
       "infoPlist": {
         "NSCameraUsageDescription": "Profil fotoğrafı çekmek için kamera erişimi kullanılır.",
         "NSPhotoLibraryUsageDescription": "Profil fotoğrafı seçmek için fotoğraf galerisi erişimi kullanılır.",
@@ -26,7 +26,7 @@
       }
     },
     "android": {
-      "versionCode": 15,
+      "versionCode": 16,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0D0D0D"
