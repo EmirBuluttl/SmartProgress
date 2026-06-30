@@ -13,6 +13,8 @@ import {
     StyleSheet,
     Platform,
     KeyboardAvoidingView,
+    Keyboard,
+    InputAccessoryView,
     AppState,
     Modal,
     Animated,
@@ -60,6 +62,7 @@ const DEFAULT_SPORT_ID = "00000000-0000-0000-0000-000000000001";
 const AUTOSAVE_DEBOUNCE_MS = 500;
 const ADDED_EXERCISE_HIGHLIGHT_MS = 1400;
 const ADDED_EXERCISE_FADE_OUT_MS = 900;
+const IOS_NUMERIC_ACCESSORY_ID = "workout-session-numeric-toolbar";
 
 // ─── ID Generator ────────────────────────────
 
@@ -547,24 +550,81 @@ export default function WorkoutSessionScreen() {
     const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
     const inputRefs = useRef<Record<string, TextInput | null>>({});
     const webScrollRef = useRef<ScrollView | null>(null);
+    const mobileListRef = useRef<any>(null);
     const pendingExitActionRef = useRef<any>(null);
     const freeWorkoutNameConfirmedRef = useRef(false);
     const freeWorkoutNameOverrideRef = useRef<string | null>(null);
     const qualityCheckedSessionRef = useRef<WorkoutSession | null>(null);
     const preWorkoutReminderShownRef = useRef(false);
     const preWorkoutWarmupShownRef = useRef(false);
+    const [focusedInputKey, setFocusedInputKey] = useState<string | null>(null);
 
-    const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe") => {
-        let nextKey = "";
-        if (field === "weight") nextKey = `ex-${exIndex}-set-${setIndex}-reps`;
-        else if (field === "reps") nextKey = `ex-${exIndex}-set-${setIndex}-rpe`;
-        else if (field === "rpe") nextKey = `ex-${exIndex}-set-${setIndex + 1}-weight`;
+    const inputKey = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe" | "rir") =>
+        `ex-${exIndex}-set-${setIndex}-${field}`, []);
 
-        const nextInput = inputRefs.current[nextKey];
+    const registerInput = useCallback((key: string, el: TextInput | null) => {
+        inputRefs.current[key] = el;
+    }, []);
+
+    const focusInputByKey = useCallback((key?: string) => {
+        if (!key) {
+            Keyboard.dismiss();
+            return;
+        }
+        const nextInput = inputRefs.current[key];
         if (nextInput) {
             nextInput.focus();
+        } else {
+            Keyboard.dismiss();
         }
     }, []);
+
+    const getOrderedInputKeys = useCallback(() => {
+        const keys: string[] = [];
+        session.exercises.forEach((exercise, exIndex) => {
+            exercise.sets.forEach((set, setIndex) => {
+                if (set.sideMode === "left_right") return;
+                if (set.weightMode !== "bodyweight") keys.push(inputKey(exIndex, setIndex, "weight"));
+                keys.push(inputKey(exIndex, setIndex, "reps"));
+                if (rpeMode === "rpe" || rpeMode === "both") keys.push(inputKey(exIndex, setIndex, "rpe"));
+                if (rpeMode === "rir" || rpeMode === "both") keys.push(inputKey(exIndex, setIndex, "rir"));
+            });
+        });
+        return keys.filter((key) => !!inputRefs.current[key]);
+    }, [inputKey, rpeMode, session.exercises]);
+
+    const focusAdjacentInput = useCallback((direction: "previous" | "next") => {
+        const keys = getOrderedInputKeys();
+        if (keys.length === 0) {
+            Keyboard.dismiss();
+            return;
+        }
+        const currentIndex = focusedInputKey ? keys.indexOf(focusedInputKey) : -1;
+        const fallbackIndex = direction === "next" ? 0 : keys.length - 1;
+        const nextIndex = currentIndex >= 0
+            ? currentIndex + (direction === "next" ? 1 : -1)
+            : fallbackIndex;
+        if (nextIndex < 0 || nextIndex >= keys.length) {
+            Keyboard.dismiss();
+            return;
+        }
+        focusInputByKey(keys[nextIndex]);
+    }, [focusInputByKey, focusedInputKey, getOrderedInputKeys]);
+
+    const focusNext = useCallback((exIndex: number, setIndex: number, field: "weight" | "reps" | "rpe" | "rir") => {
+        let candidates: string[] = [];
+        if (field === "weight") candidates = [inputKey(exIndex, setIndex, "reps")];
+        else if (field === "reps") {
+            if (rpeMode === "rpe" || rpeMode === "both") candidates.push(inputKey(exIndex, setIndex, "rpe"));
+            if (rpeMode === "rir" || rpeMode === "both") candidates.push(inputKey(exIndex, setIndex, "rir"));
+            candidates.push(inputKey(exIndex, setIndex + 1, "weight"));
+        } else if (field === "rpe") {
+            if (rpeMode === "both") candidates.push(inputKey(exIndex, setIndex, "rir"));
+            candidates.push(inputKey(exIndex, setIndex + 1, "weight"));
+        } else if (field === "rir") candidates = [inputKey(exIndex, setIndex + 1, "weight")];
+
+        focusInputByKey(candidates.find((key) => !!inputRefs.current[key]));
+    }, [focusInputByKey, inputKey, rpeMode]);
 
     // ─── Decimal Input Cache ─────────────────
     // Stores raw text per input so users can type "72." or "72,5" without
@@ -1341,7 +1401,32 @@ export default function WorkoutSessionScreen() {
         setAddExerciseModalVisible(true);
     }, [session.exercises]);
 
+    const scrollToExerciseIndex = useCallback((index: number, attempt = 0) => {
+        const safeIndex = Math.max(0, index);
+        const estimatedOffset = Math.max(0, safeIndex * 260);
+        try {
+            if (isWeb) {
+                webScrollRef.current?.scrollTo({ y: estimatedOffset, animated: true });
+                return;
+            }
+            const list = mobileListRef.current;
+            if (list?.scrollToIndex) {
+                list.scrollToIndex({ index: safeIndex, animated: true, viewPosition: 0.18 });
+                return;
+            }
+            if (list?.scrollToOffset) {
+                list.scrollToOffset({ offset: estimatedOffset, animated: true });
+                return;
+            }
+        } catch {
+            if (attempt < 3) {
+                setTimeout(() => scrollToExerciseIndex(safeIndex, attempt + 1), 120);
+            }
+        }
+    }, [isWeb]);
+
     const addExerciseAtSelectedPosition = useCallback(() => {
+        Keyboard.dismiss();
         const newEx: WorkoutExercise = {
             id: uid(),
             exerciseId: newExerciseLibraryItem?.id,
@@ -1361,13 +1446,8 @@ export default function WorkoutSessionScreen() {
         setNewExerciseName("");
         setNewExerciseLibraryItem(null);
         setRecentlyAddedExerciseId(newEx.id);
-        requestAnimationFrame(() => {
-            webScrollRef.current?.scrollTo({
-                y: Math.max(0, insertIndex * 260),
-                animated: true,
-            });
-        });
-    }, [newExerciseIndex, newExerciseLibraryItem, newExerciseName, session.exercises.length, updateSession]);
+        setTimeout(() => scrollToExerciseIndex(insertIndex), 180);
+    }, [newExerciseIndex, newExerciseLibraryItem, newExerciseName, scrollToExerciseIndex, session.exercises.length, updateSession]);
 
     const removeExercise = useCallback((exerciseId: string) => {
         updateSession((prev) => ({
@@ -1873,7 +1953,7 @@ export default function WorkoutSessionScreen() {
 
                         <View style={[styles.inputWrapper, { flex: 1 }]}>
                             <TextInput
-                                ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-weight`] = el; }}
+                                ref={(el) => registerInput(inputKey(exIndex, setIndex, "weight"), el)}
                                 style={[styles.numericInput, set.weightMode === "bodyweight" && styles.exceptionInput]}
                                 value={set.sideMode === "left_right" ? "L/R" : set.weightMode === "bodyweight" ? "BW" : getTextValue(exercise.id, set.id, "weight", set.weight)}
                                 editable={set.sideMode !== "left_right" && set.weightMode !== "bodyweight"}
@@ -1893,6 +1973,8 @@ export default function WorkoutSessionScreen() {
                                         : colors.textMuted
                                 }
                                 keyboardType="decimal-pad"
+                                inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
+                                onFocus={() => setFocusedInputKey(inputKey(exIndex, setIndex, "weight"))}
                                 selectionColor={colors.accent}
                                 returnKeyType="next"
                                 onSubmitEditing={() => focusNext(exIndex, setIndex, "weight")}
@@ -1902,7 +1984,7 @@ export default function WorkoutSessionScreen() {
 
                         <View style={[styles.inputWrapper, { flex: 1 }]}>
                             <TextInput
-                                ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-reps`] = el; }}
+                                ref={(el) => registerInput(inputKey(exIndex, setIndex, "reps"), el)}
                                 style={[styles.numericInput, set.effortMode === "duration" && styles.exceptionInput]}
                                 value={set.sideMode === "left_right" ? "L/R" : getEffortTextValue(exercise.id, set)}
                                 editable={set.sideMode !== "left_right"}
@@ -1918,6 +2000,8 @@ export default function WorkoutSessionScreen() {
                                         : colors.textMuted
                                 }
                                 keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
+                                inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
+                                onFocus={() => setFocusedInputKey(inputKey(exIndex, setIndex, "reps"))}
                                 selectionColor={colors.accent}
                                 returnKeyType="next"
                                 onSubmitEditing={() => focusNext(exIndex, setIndex, "reps")}
@@ -1928,7 +2012,7 @@ export default function WorkoutSessionScreen() {
                         {(rpeMode === "rpe" || rpeMode === "both") && (
                             <View style={[styles.inputWrapper, { flex: 0.8 }]}>
                                 <TextInput
-                                    ref={(el) => { inputRefs.current[`ex-${exIndex}-set-${setIndex}-rpe`] = el; }}
+                                    ref={(el) => registerInput(inputKey(exIndex, setIndex, "rpe"), el)}
                                     style={styles.numericInput}
                                     value={set.sideMode === "left_right" ? "L/R" : getTextValue(exercise.id, set.id, "rpe", set.rpe ?? 0)}
                                     editable={set.sideMode !== "left_right"}
@@ -1941,6 +2025,8 @@ export default function WorkoutSessionScreen() {
                                     }
                                     placeholderTextColor={colors.accentDark}
                                     keyboardType="number-pad"
+                                    inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
+                                    onFocus={() => setFocusedInputKey(inputKey(exIndex, setIndex, "rpe"))}
                                     selectionColor={colors.accent}
                                     returnKeyType="next"
                                     onSubmitEditing={() => focusNext(exIndex, setIndex, "rpe")}
@@ -1952,6 +2038,7 @@ export default function WorkoutSessionScreen() {
                         {(rpeMode === "rir" || rpeMode === "both") && (
                             <View style={[styles.inputWrapper, { flex: 0.8 }]}>
                                 <TextInput
+                                    ref={(el) => registerInput(inputKey(exIndex, setIndex, "rir"), el)}
                                     style={styles.numericInput}
                                     value={set.sideMode === "left_right" ? "L/R" : getTextValue(exercise.id, set.id, "rir" as any, (set as any).rir ?? "")}
                                     editable={set.sideMode !== "left_right"}
@@ -1964,7 +2051,12 @@ export default function WorkoutSessionScreen() {
                                     }
                                     placeholderTextColor={colors.accentDark}
                                     keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
+                                    inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
+                                    onFocus={() => setFocusedInputKey(inputKey(exIndex, setIndex, "rir"))}
                                     selectionColor={colors.accent}
+                                    returnKeyType="next"
+                                    onSubmitEditing={() => focusNext(exIndex, setIndex, "rir")}
+                                    blurOnSubmit={false}
                                 />
                             </View>
                         )}
@@ -1992,6 +2084,7 @@ export default function WorkoutSessionScreen() {
                                         placeholder={set.weightMode === "bodyweight" ? "BW" : "kg"}
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType="decimal-pad"
+                                        inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
                                         selectionColor={colors.accent}
                                     />
                                     <TextInput
@@ -2011,6 +2104,7 @@ export default function WorkoutSessionScreen() {
                                         placeholder={set.effortMode === "duration" ? "sn" : "tekrar"}
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
+                                        inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
                                         selectionColor={colors.accent}
                                     />
                                     {(rpeMode === "rpe" || rpeMode === "both") && (
@@ -2021,6 +2115,7 @@ export default function WorkoutSessionScreen() {
                                             placeholder="RPE"
                                             placeholderTextColor={colors.textMuted}
                                             keyboardType="number-pad"
+                                            inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
                                             selectionColor={colors.accent}
                                         />
                                     )}
@@ -2032,6 +2127,7 @@ export default function WorkoutSessionScreen() {
                                             placeholder="RIR"
                                             placeholderTextColor={colors.textMuted}
                                             keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
+                                            inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
                                             selectionColor={colors.accent}
                                         />
                                     )}
@@ -2214,7 +2310,34 @@ export default function WorkoutSessionScreen() {
         <KeyboardAvoidingView
             style={styles.container}
             behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
         >
+            {Platform.OS === "ios" ? (
+                <InputAccessoryView nativeID={IOS_NUMERIC_ACCESSORY_ID}>
+                    <View style={styles.keyboardAccessory}>
+                        <TouchableOpacity
+                            style={styles.keyboardAccessoryBtn}
+                            onPress={() => focusAdjacentInput("previous")}
+                        >
+                            <Ionicons name="chevron-up" size={16} color={colors.textSecondary} />
+                            <Text style={styles.keyboardAccessoryText}>Önceki</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.keyboardAccessoryBtn}
+                            onPress={() => focusAdjacentInput("next")}
+                        >
+                            <Text style={styles.keyboardAccessoryText}>Sonraki</Text>
+                            <Ionicons name="chevron-down" size={16} color={colors.textSecondary} />
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.keyboardAccessoryBtn, styles.keyboardAccessoryDone]}
+                            onPress={Keyboard.dismiss}
+                        >
+                            <Text style={styles.keyboardAccessoryDoneText}>Kapat</Text>
+                        </TouchableOpacity>
+                    </View>
+                </InputAccessoryView>
+            ) : null}
             <ActionConfirmModal
                 visible={preWorkoutWarmupVisible}
                 title="Isinma rutinin var"
@@ -2753,7 +2876,9 @@ export default function WorkoutSessionScreen() {
                     style={styles.scrollView}
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="always"
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                    onScrollBeginDrag={Keyboard.dismiss}
                 >
                     {renderHeader()}
                     {session.exercises.map((exercise, index) => (
@@ -2770,6 +2895,7 @@ export default function WorkoutSessionScreen() {
                 </ScrollView>
             ) : (
                 <DraggableFlatList
+                    ref={mobileListRef}
                     data={session.exercises}
                     onDragEnd={({ data }: { data: WorkoutExercise[] }) => updateSession(prev => ({ ...prev, exercises: data }))}
                     keyExtractor={(item: WorkoutExercise) => item.id}
@@ -2778,12 +2904,17 @@ export default function WorkoutSessionScreen() {
                     ListFooterComponent={renderFooter}
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
-                    keyboardShouldPersistTaps="always"
+                    keyboardShouldPersistTaps="handled"
+                    keyboardDismissMode="on-drag"
+                    onScrollBeginDrag={Keyboard.dismiss}
                     containerStyle={styles.scrollView}
                     activationDistance={6}
                     autoscrollThreshold={80}
                     autoscrollSpeed={120}
                     dragItemOverflow
+                    onScrollToIndexFailed={({ index }: { index: number }) => {
+                        setTimeout(() => scrollToExerciseIndex(index, 1), 120);
+                    }}
                 />
             )}
         </KeyboardAvoidingView>
@@ -2799,20 +2930,58 @@ const createStyles = (colors: any) => StyleSheet.create({
         flex: 1,
         backgroundColor: colors.background,
     },
+    keyboardAccessory: {
+        minHeight: 46,
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.xs,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        backgroundColor: colors.surface,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.sm,
+    },
+    keyboardAccessoryBtn: {
+        minHeight: 34,
+        borderRadius: borderRadius.md,
+        paddingHorizontal: spacing.sm,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 4,
+        backgroundColor: colors.surfaceElevated,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    keyboardAccessoryText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    keyboardAccessoryDone: {
+        backgroundColor: colors.accent,
+        borderColor: colors.accent,
+    },
+    keyboardAccessoryDoneText: {
+        color: colors.background,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
     scrollView: {
         flex: 1,
     },
     content: {
-        paddingHorizontal: spacing.lg,
+        paddingHorizontal: spacing.md,
         paddingTop: Platform.OS === "ios" ? 60 : spacing.xxxl + spacing.lg,
-        paddingBottom: spacing.xxxl,
+        paddingBottom: spacing.xxxl * 3,
     },
 
     // Header
     header: {
         flexDirection: "row",
         justifyContent: "space-between",
-        alignItems: "center",
+        alignItems: "flex-start",
         gap: spacing.sm,
         marginBottom: spacing.xxl,
     },
@@ -2821,6 +2990,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "flex-end",
+        flexWrap: "wrap",
         gap: spacing.xs,
         minWidth: 0,
     },
@@ -2831,11 +3001,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         backgroundColor: colors.surface,
-        paddingHorizontal: spacing.md,
+        paddingHorizontal: spacing.sm,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.full,
         borderWidth: 1,
         borderColor: colors.accent,
+        flexShrink: 0,
     },
     rirToggleBtn: {
         paddingHorizontal: spacing.sm,
@@ -2844,6 +3015,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.surfaceLight,
         borderWidth: 1,
         borderColor: colors.border,
+        minHeight: 34,
+        justifyContent: "center",
     },
     rirToggleText: {
         fontSize: fontSize.sm,
@@ -2859,13 +3032,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.surfaceLight,
         borderWidth: 1,
         borderColor: colors.border,
-        marginRight: spacing.sm,
     },
     timerText: {
-        fontSize: fontSize.xl,
+        fontSize: fontSize.lg,
         fontWeight: fontWeight.bold,
         color: colors.accent,
-        marginLeft: spacing.sm,
+        marginLeft: spacing.xs,
         fontVariant: ["tabular-nums"],
     },
 
@@ -2919,7 +3091,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     exerciseCard: {
         backgroundColor: colors.surface,
         borderRadius: borderRadius.lg,
-        padding: spacing.lg,
+        padding: spacing.md,
         marginBottom: spacing.lg,
         borderWidth: 1,
         borderColor: colors.border,
@@ -2928,7 +3100,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     exerciseHeader: {
         flexDirection: "row",
-        alignItems: "center",
+        alignItems: "flex-start",
         marginBottom: spacing.md,
         gap: spacing.xs,
     },
@@ -2991,6 +3163,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         marginBottom: spacing.sm,
         paddingHorizontal: spacing.xs,
+        gap: spacing.xs,
     },
     setHeaderText: {
         fontSize: fontSize.xs,
@@ -3008,6 +3181,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     setRow: {
         flexDirection: "row",
         alignItems: "center",
+        gap: 2,
     },
     unilateralSetRow: {
         marginBottom: spacing.xs,
@@ -3021,12 +3195,13 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
         backgroundColor: colors.surfaceElevated,
         gap: spacing.xs,
+        overflow: "hidden",
     },
     unilateralRow: {
         flexDirection: "row",
         alignItems: "center",
         flexWrap: "wrap",
-        gap: spacing.sm,
+        gap: spacing.xs,
     },
     unilateralLabel: {
         width: 34,
@@ -3036,7 +3211,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     unilateralInput: {
         flex: 1,
-        minWidth: 72,
+        minWidth: 62,
         minHeight: 38,
         borderRadius: borderRadius.sm,
         borderWidth: 1,
@@ -3044,9 +3219,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: colors.surfaceLight,
         color: colors.text,
         textAlign: "center",
-        paddingHorizontal: spacing.sm,
+        paddingHorizontal: spacing.xs,
         paddingVertical: spacing.xs,
-        fontSize: fontSize.md,
+        fontSize: fontSize.sm,
         fontWeight: fontWeight.semibold,
     },
     unilateralHint: {
@@ -3061,10 +3236,11 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingLeft: spacing.xs,
     },
     setDragHandle: {
-        flex: 0.5,
+        width: 34,
         alignItems: "center",
         justifyContent: "center",
         minHeight: 48,
+        flexShrink: 0,
     },
     warmupSetDragHandle: {
         opacity: 0.95,
@@ -3080,14 +3256,15 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
     },
     inputWrapper: {
-        marginHorizontal: spacing.xs,
+        marginHorizontal: 2,
+        minWidth: 0,
     },
     numericInput: {
         backgroundColor: colors.surfaceLight,
         borderRadius: borderRadius.sm,
         paddingVertical: Platform.OS === "ios" ? spacing.md : spacing.sm,
-        paddingHorizontal: spacing.md,
-        fontSize: fontSize.lg,
+        paddingHorizontal: spacing.sm,
+        fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         color: colors.text,
         textAlign: "center",
