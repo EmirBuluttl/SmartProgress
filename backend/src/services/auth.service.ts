@@ -79,7 +79,7 @@ const DEFAULT_USER_SETTINGS = {
 };
 
 const FREE_WIZARD_USES = 2;
-const PASSWORD_RESET_EXPIRES_MINUTES = 30;
+const PASSWORD_RESET_EXPIRES_MINUTES = env.PASSWORD_RESET_EXPIRES_MINUTES;
 const PASSWORD_RESET_MESSAGE =
     "Eğer bu e-posta ile kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi.";
 

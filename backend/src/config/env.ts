@@ -11,7 +11,7 @@ export const env = {
 
     // JWT
     JWT_SECRET: process.env.JWT_SECRET || "change-me-in-production",
-    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "7d",
+    JWT_EXPIRES_IN: process.env.JWT_EXPIRES_IN || "180d",
 
     // Bcrypt
     BCRYPT_SALT_ROUNDS: parseInt(process.env.BCRYPT_SALT_ROUNDS || "12", 10),
@@ -21,6 +21,7 @@ export const env = {
 
     // Password reset
     APP_URL: process.env.APP_URL || "https://app.smartprogress.online",
+    PASSWORD_RESET_EXPIRES_MINUTES: parseInt(process.env.PASSWORD_RESET_EXPIRES_MINUTES || "60", 10),
     PASSWORD_RESET_EXPOSE_TOKEN: process.env.PASSWORD_RESET_EXPOSE_TOKEN === "true",
     PASSWORD_RESET_FROM_EMAIL: process.env.PASSWORD_RESET_FROM_EMAIL || "SmartProgress <noreply@smartprogress.online>",
     RESEND_API_KEY: process.env.RESEND_API_KEY || "",

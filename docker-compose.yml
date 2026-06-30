@@ -33,7 +33,9 @@ services:
       DATABASE_URL: postgresql://smartadmin:${POSTGRES_PASSWORD}@postgres:5432/smartprogress?schema=public
       JWT_SECRET: ${JWT_SECRET}
       REDIS_URL: redis://redis:6379
-      APP_URL: ${APP_URL:-https://api.smartprogress.online}
+      APP_URL: ${APP_URL:-https://app.smartprogress.online}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-180d}
+      PASSWORD_RESET_EXPIRES_MINUTES: ${PASSWORD_RESET_EXPIRES_MINUTES:-60}
       PASSWORD_RESET_FROM_EMAIL: ${PASSWORD_RESET_FROM_EMAIL:-SmartProgress <noreply@smartprogress.online>}
       PASSWORD_RESET_EXPOSE_TOKEN: ${PASSWORD_RESET_EXPOSE_TOKEN:-false}
       RESEND_API_KEY: ${RESEND_API_KEY:-}
