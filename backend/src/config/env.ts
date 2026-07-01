@@ -22,6 +22,8 @@ export const env = {
     // Password reset
     APP_URL: process.env.APP_URL || "https://app.smartprogress.online",
     PASSWORD_RESET_EXPIRES_MINUTES: parseInt(process.env.PASSWORD_RESET_EXPIRES_MINUTES || "60", 10),
+    PASSWORD_RESET_COOLDOWN_MINUTES: parseInt(process.env.PASSWORD_RESET_COOLDOWN_MINUTES || "30", 10),
+    PASSWORD_RESET_DAILY_LIMIT: parseInt(process.env.PASSWORD_RESET_DAILY_LIMIT || "3", 10),
     PASSWORD_RESET_EXPOSE_TOKEN: process.env.PASSWORD_RESET_EXPOSE_TOKEN === "true",
     PASSWORD_RESET_FROM_EMAIL: process.env.PASSWORD_RESET_FROM_EMAIL || "SmartProgress <noreply@smartprogress.online>",
     RESEND_API_KEY: process.env.RESEND_API_KEY || "",

@@ -80,11 +80,69 @@ const DEFAULT_USER_SETTINGS = {
 
 const FREE_WIZARD_USES = 2;
 const PASSWORD_RESET_EXPIRES_MINUTES = env.PASSWORD_RESET_EXPIRES_MINUTES;
+const PASSWORD_RESET_COOLDOWN_MINUTES = env.PASSWORD_RESET_COOLDOWN_MINUTES;
+const PASSWORD_RESET_DAILY_LIMIT = env.PASSWORD_RESET_DAILY_LIMIT;
 const PASSWORD_RESET_MESSAGE =
     "Eğer bu e-posta ile kayıtlı bir hesap varsa şifre sıfırlama bağlantısı gönderildi.";
 
 function hashResetToken(token: string): string {
     return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function todayKey(now = new Date()): string {
+    return now.toISOString().slice(0, 10);
+}
+
+function maskEmail(email: string): string {
+    const [name, domain] = email.split("@");
+    if (!domain) return "***";
+    const visible = name.slice(0, 2);
+    return `${visible}${"*".repeat(Math.max(3, name.length - visible.length))}@${domain}`;
+}
+
+function getPasswordResetMeta(settings: unknown) {
+    const source = settings as Record<string, any> | null;
+    const meta = source?.password_reset_meta as Record<string, any> | undefined;
+    return {
+        lastSentAt: typeof meta?.last_sent_at === "string" ? meta.last_sent_at : null,
+        dailyDate: typeof meta?.daily_date === "string" ? meta.daily_date : null,
+        dailyCount: Number.isFinite(Number(meta?.daily_count)) ? Number(meta?.daily_count) : 0,
+    };
+}
+
+function canSendPasswordReset(settings: unknown) {
+    const now = Date.now();
+    const meta = getPasswordResetMeta(settings);
+    const lastSentAt = meta.lastSentAt ? new Date(meta.lastSentAt).getTime() : 0;
+    const cooldownMs = Math.max(1, PASSWORD_RESET_COOLDOWN_MINUTES) * 60 * 1000;
+    const dailyDate = todayKey();
+    const dailyCount = meta.dailyDate === dailyDate ? meta.dailyCount : 0;
+
+    if (lastSentAt && Number.isFinite(lastSentAt) && now - lastSentAt < cooldownMs) {
+        return { allowed: false, reason: "cooldown", dailyDate, dailyCount };
+    }
+
+    if (dailyCount >= Math.max(1, PASSWORD_RESET_DAILY_LIMIT)) {
+        return { allowed: false, reason: "daily_limit", dailyDate, dailyCount };
+    }
+
+    return { allowed: true, reason: "", dailyDate, dailyCount };
+}
+
+function buildPasswordResetSettings(settings: unknown) {
+    const existing = (settings as Record<string, any> | null) || {};
+    const meta = getPasswordResetMeta(settings);
+    const dailyDate = todayKey();
+    const dailyCount = meta.dailyDate === dailyDate ? meta.dailyCount + 1 : 1;
+
+    return {
+        ...existing,
+        password_reset_meta: {
+            last_sent_at: new Date().toISOString(),
+            daily_date: dailyDate,
+            daily_count: dailyCount,
+        },
+    };
 }
 
 function buildDefaultUserSettings() {
@@ -423,6 +481,12 @@ export class AuthService {
             return { message: PASSWORD_RESET_MESSAGE };
         }
 
+        const resetGate = canSendPasswordReset(user.settings);
+        if (!resetGate.allowed) {
+            console.warn(`[AuthService] Password reset suppressed (${resetGate.reason}) for ${maskEmail(email)}.`);
+            return { message: PASSWORD_RESET_MESSAGE };
+        }
+
         const token = crypto.randomBytes(32).toString("hex");
         const tokenHash = hashResetToken(token);
         const expiresAt = new Date(Date.now() + PASSWORD_RESET_EXPIRES_MINUTES * 60 * 1000);
@@ -430,6 +494,7 @@ export class AuthService {
         await userRepository.updateById(user.id, {
             passwordResetTokenHash: tokenHash,
             passwordResetExpiresAt: expiresAt,
+            settings: buildPasswordResetSettings(user.settings),
         });
 
         const resetUrl = `${env.APP_URL.replace(/\/+$/, "")}/reset-password?token=${token}`;
