@@ -79,6 +79,7 @@ const DEFAULT_USER_SETTINGS = {
 };
 
 const FREE_WIZARD_USES = 2;
+const MANUAL_PREMIUM_TRIAL_DAYS = 60;
 const PASSWORD_RESET_EXPIRES_MINUTES = env.PASSWORD_RESET_EXPIRES_MINUTES;
 const PASSWORD_RESET_COOLDOWN_MINUTES = env.PASSWORD_RESET_COOLDOWN_MINUTES;
 const PASSWORD_RESET_DAILY_LIMIT = env.PASSWORD_RESET_DAILY_LIMIT;
@@ -146,10 +147,17 @@ function buildPasswordResetSettings(settings: unknown) {
 }
 
 function buildDefaultUserSettings() {
+    const trialStartedAt = new Date();
+    const trialExpiresAt = new Date(trialStartedAt);
+    trialExpiresAt.setDate(trialExpiresAt.getDate() + MANUAL_PREMIUM_TRIAL_DAYS);
+
     return {
         ...DEFAULT_USER_SETTINGS,
         free_wizard_uses_remaining: FREE_WIZARD_USES,
         coach_plus_beta: false,
+        pro_trial_started_at: trialStartedAt.toISOString(),
+        pro_trial_expires_at: trialExpiresAt.toISOString(),
+        pro_trial_source: "manual_signup_promo",
     };
 }
 
@@ -169,6 +177,16 @@ function effectiveSubscription(user: { subscriptionTier: string; subscriptionSta
         subscriptionTier: user.subscriptionTier,
         subscriptionStatus: user.subscriptionStatus,
     };
+}
+
+function hasUnexpiredManualTrial(user: { subscriptionTier: string; subscriptionStatus: string; settings: unknown }) {
+    const settings = user.settings as Record<string, any> | null;
+    const expiresAt = settings?.pro_trial_expires_at ? new Date(settings.pro_trial_expires_at) : null;
+    return user.subscriptionTier === "PRO" &&
+        user.subscriptionStatus === "TRIAL" &&
+        !!expiresAt &&
+        Number.isFinite(expiresAt.getTime()) &&
+        expiresAt.getTime() > Date.now();
 }
 
 function revenueCatSubscriberUrl(appUserId: string) {
@@ -288,8 +306,8 @@ export class AuthService {
             firstName: dto.firstName,
             lastName: dto.lastName,
             settings: buildDefaultUserSettings(),
-            subscriptionTier: "FREE",
-            subscriptionStatus: "INACTIVE",
+            subscriptionTier: "PRO",
+            subscriptionStatus: "TRIAL",
         });
         const subscription = effectiveSubscription(user);
 
@@ -438,9 +456,10 @@ export class AuthService {
             revenuecat_entitlement_id: env.REVENUECAT_PREMIUM_ENTITLEMENT_ID,
         };
 
+        const preserveManualTrial = !revenueCatStatus.active && hasUnexpiredManualTrial(user);
         const updated = await userRepository.updateById(userId, {
-            subscriptionTier: revenueCatStatus.active ? "PRO" : "FREE",
-            subscriptionStatus: revenueCatStatus.active ? "ACTIVE" : "INACTIVE",
+            subscriptionTier: revenueCatStatus.active || preserveManualTrial ? "PRO" : "FREE",
+            subscriptionStatus: revenueCatStatus.active ? "ACTIVE" : preserveManualTrial ? "TRIAL" : "INACTIVE",
             settings,
         });
 

@@ -58,6 +58,21 @@ type ChartMetric =
     | "nutrition:protein"
     | "nutrition:carbs"
     | "nutrition:fat";
+type MetricTab = "performance" | "muscle" | "body" | "nutrition";
+
+const METRIC_TABS: { key: MetricTab; label: string }[] = [
+    { key: "performance", label: "Performans" },
+    { key: "muscle", label: "Kas grubu" },
+    { key: "body", label: "Vücut" },
+    { key: "nutrition", label: "Beslenme" },
+];
+
+function metricTabFor(metric: ChartMetric): MetricTab {
+    if (metric.startsWith("exercise:")) return "performance";
+    if (metric.startsWith("muscle:")) return "muscle";
+    if (metric.startsWith("nutrition:")) return "nutrition";
+    return "body";
+}
 
 function toNumber(value: unknown): number {
     if (value === null || value === undefined || value === "") return 0;
@@ -170,6 +185,7 @@ export default function MyProgressScreen() {
     const [filter, setFilter] = React.useState<TimeFilter>("1A");
     const [chartMetric, setChartMetric] = React.useState<ChartMetric>("body:weight");
     const [splitFilter, setSplitFilter] = React.useState("Tümü");
+    const [activeMetricTab, setActiveMetricTab] = React.useState<MetricTab>("performance");
     const [allWorkouts, setAllWorkouts] = React.useState<any[]>([]);
     const [bodyMeasurements, setBodyMeasurements] = React.useState<any[]>([]);
     const [nutritionLogs, setNutritionLogs] = React.useState<any[]>([]);
@@ -245,16 +261,22 @@ export default function MyProgressScreen() {
         const records = analyticsSnapshot?.personalRecords || [];
         const exercises = records.map((pr) => pr.exercise).slice(0, 12);
         const muscleGroups = (analyticsSnapshot?.muscleGroups || []).slice(0, 8);
-        return [
-            ...exercises.map((e) => ({ key: `exercise:${e}` as ChartMetric, label: e })),
-            ...muscleGroups.map((g) => ({ key: `muscle:${g}` as ChartMetric, label: `${g} (kas grubu)` })),
-            { key: "body:weight" as ChartMetric, label: "Vücut Ağırlığı" },
-            { key: "nutrition:calories" as ChartMetric, label: "Kalori" },
-            { key: "nutrition:protein" as ChartMetric, label: "Protein" },
-            { key: "nutrition:carbs" as ChartMetric, label: "Karbonhidrat" },
-            { key: "nutrition:fat" as ChartMetric, label: "Yağ" },
-        ];
+        return {
+            performance: exercises.map((e) => ({ key: `exercise:${e}` as ChartMetric, label: e })),
+            muscle: muscleGroups.map((g) => ({ key: `muscle:${g}` as ChartMetric, label: g })),
+            body: [{ key: "body:weight" as ChartMetric, label: "Vücut Ağırlığı" }],
+            nutrition: [
+                { key: "nutrition:calories" as ChartMetric, label: "Kalori" },
+                { key: "nutrition:protein" as ChartMetric, label: "Protein" },
+                { key: "nutrition:carbs" as ChartMetric, label: "Karbonhidrat" },
+                { key: "nutrition:fat" as ChartMetric, label: "Yağ" },
+            ],
+        } satisfies Record<MetricTab, { key: ChartMetric; label: string }[]>;
     }, [analyticsSnapshot]);
+    const allMetricOptions = React.useMemo(
+        () => Object.values(metricOptions).flat(),
+        [metricOptions],
+    );
 
     const splitOptions = React.useMemo(() => {
         const labels = Array.from(new Set(allWorkouts.map((w) => String(w.title || "Genel"))));
@@ -342,17 +364,23 @@ export default function MyProgressScreen() {
     ) => {
         const requestId = ++chartRequestIdRef.current;
         InteractionManager.runAfterInteractions(() => {
-            if (requestId !== chartRequestIdRef.current) return;
-            buildChartData(workouts, measurements, nutrition, activeFilter, metric);
+            setTimeout(() => {
+                if (requestId !== chartRequestIdRef.current) return;
+                buildChartData(workouts, measurements, nutrition, activeFilter, metric);
+            }, 30);
         });
     };
 
     // ── Derived chart info ────────────────────────────────────────────────────
 
     const chartTitle = React.useMemo(() => {
-        const opt = metricOptions.find((o) => o.key === chartMetric);
+        const opt = allMetricOptions.find((o) => o.key === chartMetric);
         return opt?.label || "Progress";
-    }, [chartMetric, metricOptions]);
+    }, [allMetricOptions, chartMetric]);
+
+    const handleSelectMetric = React.useCallback((metric: ChartMetric) => {
+        setChartMetric(metric);
+    }, []);
 
     const latestPoint = weeklyPoints[weeklyPoints.length - 1] ?? null;
 
@@ -565,7 +593,10 @@ export default function MyProgressScreen() {
                     </View>
                     <AnimatedPressable
                         style={styles.filterOpenBtn}
-                        onPress={() => setFilterModalVisible(true)}
+                        onPress={() => {
+                            setActiveMetricTab(metricTabFor(chartMetric));
+                            setFilterModalVisible(true);
+                        }}
                         pressedScale={0.96}
                     >
                         <Ionicons name="options-outline" size={16} color={colors.accent} />
@@ -772,18 +803,34 @@ export default function MyProgressScreen() {
                 </View>
 
                 <Text style={styles.filterModalLabel}>Metrik</Text>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricTabRow}>
+                    {METRIC_TABS.map((tab) => (
+                        <TouchableOpacity
+                            key={tab.key}
+                            style={[styles.metricTabBtn, activeMetricTab === tab.key && styles.metricFilterBtnActive]}
+                            onPress={() => setActiveMetricTab(tab.key)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={[styles.metricFilterText, activeMetricTab === tab.key && styles.metricFilterTextActive]}>
+                                {tab.label}
+                            </Text>
+                        </TouchableOpacity>
+                    ))}
+                </ScrollView>
                 <ScrollView style={styles.filterModalList} contentContainerStyle={styles.metricFilterRow}>
-                    {metricOptions.map((option) => (
-                        <AnimatedPressable
+                    {metricOptions[activeMetricTab].length === 0 ? (
+                        <Text style={styles.emptyMetricText}>Bu metrik için önce birkaç log biriktir.</Text>
+                    ) : metricOptions[activeMetricTab].map((option) => (
+                        <TouchableOpacity
                             key={option.key}
                             style={[styles.metricFilterBtn, chartMetric === option.key && styles.metricFilterBtnActive]}
-                            onPress={() => setChartMetric(option.key)}
-                            pressedScale={0.96}
+                            onPress={() => handleSelectMetric(option.key)}
+                            activeOpacity={0.85}
                         >
                             <Text style={[styles.metricFilterText, chartMetric === option.key && styles.metricFilterTextActive]}>
                                 {option.label}
                             </Text>
-                        </AnimatedPressable>
+                        </TouchableOpacity>
                     ))}
                 </ScrollView>
 
@@ -1109,7 +1156,7 @@ const createStyles = (colors: any) =>
             marginTop: spacing.md,
             marginBottom: spacing.sm,
         },
-        filterModalList: { maxHeight: 210 },
+        filterModalList: { maxHeight: 190 },
         filterRow: {
             flexDirection: "row",
             marginBottom: spacing.xl,
@@ -1119,6 +1166,19 @@ const createStyles = (colors: any) =>
             gap: spacing.sm,
             paddingBottom: spacing.md,
             marginBottom: spacing.sm,
+        },
+        metricTabRow: {
+            gap: spacing.sm,
+            paddingBottom: spacing.sm,
+            marginBottom: spacing.xs,
+        },
+        metricTabBtn: {
+            paddingHorizontal: spacing.md,
+            paddingVertical: spacing.sm,
+            borderRadius: borderRadius.full,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
         },
         metricFilterBtn: {
             paddingHorizontal: spacing.md,
@@ -1146,6 +1206,12 @@ const createStyles = (colors: any) =>
             fontWeight: fontWeight.semibold,
         },
         metricFilterTextActive: { color: colors.accent },
+        emptyMetricText: {
+            color: colors.textMuted,
+            fontSize: fontSize.sm,
+            lineHeight: lineHeight.md,
+            paddingVertical: spacing.md,
+        },
         filterBtn: {
             flex: 1,
             paddingVertical: spacing.sm,

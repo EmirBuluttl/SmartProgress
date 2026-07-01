@@ -63,6 +63,8 @@ type ExerciseSelectionOptions = {
     painNote?: string;
     preferPainSafe?: boolean;
     level?: CoachLevel;
+    goal?: CoachGoal;
+    strengthFocus?: CoachStrengthFocus;
 };
 
 export const COACH_LEVELS: { key: CoachLevel; label: string; desc: string; rir: string }[] = [
@@ -584,11 +586,44 @@ function exerciseStabilityScore(exercise: ExerciseLibraryItem, level?: CoachLeve
     return score;
 }
 
+function exerciseGoalScore(exercise: ExerciseLibraryItem, options?: ExerciseSelectionOptions) {
+    const metadata = getExerciseMetadata(exercise);
+    const tags = new Set(exercise.tags);
+    let score = 0;
+
+    if (options?.goal === "strength") {
+        if (tags.has("compound")) score += 8;
+        if (tags.has("strength")) score += 7;
+        if (exercise.equipment.includes("barbell")) score += 4;
+        if (exercise.equipment.includes("smith")) score += 2;
+        if (options.strengthFocus === "streetlifting") {
+            if (exercise.equipment.includes("bodyweight")) score += 10;
+            if (tags.has("calisthenics")) score += 8;
+            if (/weighted|loaded/i.test(exercise.name)) score += 6;
+            if (/pull up|chin up|dip|muscle up/i.test(exercise.name)) score += 5;
+        }
+    }
+
+    if (options?.goal === "fat_loss") {
+        if (metadata.stability === "very_stable") score += 8;
+        if (metadata.stability === "stable") score += 5;
+        if (metadata.riskLevel === "low") score += 4;
+        if (exercise.equipment.includes("machine")) score += 4;
+        if (exercise.equipment.includes("cable")) score += 3;
+        if (metadata.riskLevel === "high") score -= 6;
+        if (metadata.skillDemand === "high") score -= 4;
+    }
+
+    return score;
+}
+
 function sortExerciseCandidates(candidates: ExerciseLibraryItem[], options?: ExerciseSelectionOptions) {
     return candidates
         .map((exercise, index) => ({ exercise, index }))
         .sort((a, b) => {
-            const scoreDiff = exerciseStabilityScore(b.exercise, options?.level) - exerciseStabilityScore(a.exercise, options?.level);
+            const scoreA = exerciseStabilityScore(a.exercise, options?.level) + exerciseGoalScore(a.exercise, options);
+            const scoreB = exerciseStabilityScore(b.exercise, options?.level) + exerciseGoalScore(b.exercise, options);
+            const scoreDiff = scoreB - scoreA;
             return scoreDiff || a.index - b.index;
         })
         .map(({ exercise }) => exercise);
@@ -681,6 +716,8 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         painNote: input.painNote,
         preferPainSafe: input.hasPain === "yes",
         level: input.level,
+        goal: input.goal,
+        strengthFocus: input.strengthFocus,
     };
     return {
         frequency: input.frequency,

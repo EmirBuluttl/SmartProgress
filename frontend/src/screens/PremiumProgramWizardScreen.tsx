@@ -103,6 +103,7 @@ export default function PremiumProgramWizardScreen() {
     const [avoidNote, setAvoidNote] = React.useState("");
     const [split, setSplit] = React.useState<SplitType>("UL");
     const [selectedExercises, setSelectedExercises] = React.useState<Record<PatternKey, string>>({} as Record<PatternKey, string>);
+    const [expandedExercisePatterns, setExpandedExercisePatterns] = React.useState<Partial<Record<PatternKey, boolean>>>({});
     const [saving, setSaving] = React.useState(false);
     const [createdProgramId, setCreatedProgramId] = React.useState<string | null>(null);
     const [notice, setNotice] = React.useState<string | null>(null);
@@ -141,7 +142,9 @@ export default function PremiumProgramWizardScreen() {
         level,
         painNote,
         preferPainSafe: hasPain === "yes",
-    }), [equipmentLimitNote, hasEquipmentLimit, hasPain, level, painNote]);
+        goal,
+        strengthFocus,
+    }), [equipmentLimitNote, goal, hasEquipmentLimit, hasPain, level, painNote, strengthFocus]);
     const resolveExercise = (pattern: PatternKey) =>
         resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote, [], exerciseSelectionOptions);
     const activePriorityOrder = React.useMemo(
@@ -625,15 +628,27 @@ export default function PremiumProgramWizardScreen() {
                         </View>
                         {uniquePatterns.map((pattern) => {
                             const availableExercises = getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions);
+                            const expanded = !!expandedExercisePatterns[pattern];
+                            const selected = resolveExercise(pattern);
+                            const visibleExercises = expanded
+                                ? availableExercises
+                                : Array.from(new Set([
+                                    ...availableExercises.slice(0, 5),
+                                    ...(selected && !availableExercises.slice(0, 5).includes(selected) ? [selected] : []),
+                                ]));
+                            const hasMoreExercises = availableExercises.length > visibleExercises.length;
                             return (
                                 <View key={pattern} style={styles.exercisePicker}>
                                     <View style={styles.patternHeader}>
                                         <Text style={styles.patternLabel}>{PATTERN_LABELS[pattern]}</Text>
-                                        <Text style={styles.patternMeta}>{availableExercises.length} secenek</Text>
+                                        <Text style={styles.patternMeta}>
+                                            {expanded ? `${availableExercises.length} secenek` : `${visibleExercises.length}/${availableExercises.length} secenek`}
+                                        </Text>
                                     </View>
-                                    {availableExercises.map((exercise, index) => {
+                                    {visibleExercises.map((exercise) => {
+                                        const index = Math.max(0, availableExercises.indexOf(exercise));
                                         const libraryItem = libraryByName.get(exercise);
-                                        const active = resolveExercise(pattern) === exercise;
+                                        const active = selected === exercise;
                                         return (
                                         <TouchableOpacity
                                             key={exercise}
@@ -656,6 +671,22 @@ export default function PremiumProgramWizardScreen() {
                                         </TouchableOpacity>
                                         );
                                     })}
+                                    {(hasMoreExercises || expanded) && (
+                                        <TouchableOpacity
+                                            style={styles.exerciseShowAllBtn}
+                                            onPress={() => setExpandedExercisePatterns((prev) => ({ ...prev, [pattern]: !expanded }))}
+                                            activeOpacity={0.85}
+                                        >
+                                            <Text style={styles.exerciseShowAllText}>
+                                                {expanded ? "Kapat" : "Tümünü gör"}
+                                            </Text>
+                                            <Ionicons
+                                                name={expanded ? "chevron-up" : "chevron-down"}
+                                                size={16}
+                                                color={colors.accent}
+                                            />
+                                        </TouchableOpacity>
+                                    )}
                                 </View>
                             );
                         })}
@@ -1216,6 +1247,22 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
+    },
+    exerciseShowAllBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.accent + "55",
+        backgroundColor: colors.accentMuted,
+    },
+    exerciseShowAllText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     exerciseInfoBtn: {
         width: 32,
