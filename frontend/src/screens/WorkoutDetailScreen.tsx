@@ -13,8 +13,7 @@ import {
     ActivityIndicator,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { workoutApi } from "../services/api";
-import { updateWorkoutInCache } from "../services/workoutCacheService";
+import { getCachedWorkoutDetail } from "../services/workoutCacheService";
 import { useNavigation, useRoute, RouteProp } from "@react-navigation/native";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
@@ -113,10 +112,8 @@ export default function WorkoutDetailScreen() {
             if (localWorkout?.id && !localWorkout.data?.exercises) {
                 setLoading(true);
                 try {
-                    const res = await workoutApi.getById(localWorkout.id);
-                    const detailedWorkout = res.data;
+                    const detailedWorkout = await getCachedWorkoutDetail(localWorkout.id, localWorkout);
                     setLocalWorkout(detailedWorkout);
-                    updateWorkoutInCache(detailedWorkout);
                 } catch (err) {
                     console.error("[WorkoutDetail] Error fetching details:", err);
                 } finally {

@@ -21,7 +21,7 @@ export function useSync(): void {
         }
     };
 
-    const scheduleSync = (delay = 2500) => {
+    const scheduleSync = (delay = 7000) => {
         if (!isAuthenticated) return;
         if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
         syncTimerRef.current = setTimeout(() => {
@@ -32,9 +32,9 @@ export function useSync(): void {
     };
 
     useEffect(() => {
-        scheduleSync(2500);
+        scheduleSync(7000);
         const unsubscribe = onConnectivityChange((online) => {
-            if (online && isAuthenticated) scheduleSync(1800);
+            if (online && isAuthenticated) scheduleSync(5000);
         });
 
         return () => {

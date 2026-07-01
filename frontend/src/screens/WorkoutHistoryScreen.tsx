@@ -28,7 +28,7 @@ import NoticeModal from "../components/NoticeModal";
 import GymCard from "../components/GymCard";
 import { summarizeCardioBlocks } from "../utils/cardio";
 import { navigateWithFeedback } from "../utils/navigationFeedback";
-import { getCachedWorkouts, getWorkoutCacheSnapshot, invalidateWorkoutCache } from "../services/workoutCacheService";
+import { getCachedWorkoutSummaries, getWorkoutSummarySnapshot, invalidateWorkoutCache } from "../services/workoutCacheService";
 
 const FAVORITES_KEY = "workout_favorites";
 const ORDER_KEY = "workout_display_order";
@@ -71,14 +71,14 @@ export default function WorkoutHistoryScreen() {
             if (force) {
                 setLoading(true);
             } else {
-                const cachedWorkouts = getWorkoutCacheSnapshot(20);
+                const cachedWorkouts = getWorkoutSummarySnapshot(20);
                 if (cachedWorkouts.length > 0) {
                     setWorkouts(sortNewestFirst(cachedWorkouts));
                 }
             }
 
             const [res, favsStr] = await Promise.all([
-                workoutApi.list({ limit: 20, offset: 0, summary: true }),
+                getCachedWorkoutSummaries(20, { forceRefresh: force }).then((workouts) => ({ data: { workouts } })),
                 AsyncStorage.getItem(FAVORITES_KEY),
             ]);
 
@@ -177,7 +177,7 @@ export default function WorkoutHistoryScreen() {
 
     const renderWorkout = (item: WorkoutItem) => {
         const isFav = favorites.has(item.id);
-        const exerciseCount = item.data?.exercises?.length || 0;
+        const exerciseCount = item.data?.exerciseCount ?? item.data?.exercises?.length ?? 0;
         const cardioSummary = summarizeCardioBlocks(item.data?.cardioBlocks);
         const duration = item.data?.totalDuration || item.data?.duration || 0;
         const durationMin = Math.floor(duration / 60);

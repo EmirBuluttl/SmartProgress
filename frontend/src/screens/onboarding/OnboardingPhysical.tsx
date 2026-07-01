@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback } from "react";
 import {
     View, Text, StyleSheet, TouchableOpacity,
-    ScrollView, NativeSyntheticEvent, NativeScrollEvent, Dimensions, Platform,
+    ScrollView, NativeSyntheticEvent, NativeScrollEvent, Dimensions, Platform, FlatList,
 } from "react-native";
 import { useOnboarding } from "./OnboardingContext";
 import { useTheme } from "../../hooks/ThemeContext";
@@ -19,7 +19,7 @@ const T = {
 // ── Picker config ──────────────────────────────
 const ITEM_W = 60;
 const VISIBLE = 5;
-const PAD = Math.floor(VISIBLE / 2) * ITEM_W; // items before & after center
+const PAD = Math.max(0, Math.floor((SW - T.px * 2 - ITEM_W) / 2)); // center item inside section
 
 const AGES     = Array.from({ length: 67  }, (_, i) => i + 14);
 const HCM      = Array.from({ length: 81  }, (_, i) => i + 140);
@@ -31,9 +31,8 @@ const WLB      = Array.from({ length: 485 }, (_, i) => i + 66);
 function Picker({
     values, value, onChange, accent,
 }: { values: number[]; value: number; onChange: (v: number) => void; accent?: string }) {
-    const ref = useRef<ScrollView>(null);
+    const ref = useRef<FlatList<number>>(null);
     const mounted = useRef(false);
-    const interacting = useRef(false);
     const emittedValue = useRef(value);
 
     useEffect(() => {
@@ -43,7 +42,7 @@ function Picker({
     useEffect(() => {
         const idx = values.indexOf(value);
         const timer = setTimeout(() => {
-            ref.current?.scrollTo({ x: idx * ITEM_W, animated: false });
+            if (idx >= 0) ref.current?.scrollToIndex({ index: idx, animated: false });
             mounted.current = true;
         }, 80);
         return () => clearTimeout(timer);
@@ -51,9 +50,8 @@ function Picker({
 
     useEffect(() => {
         if (!mounted.current) return;
-        if (interacting.current) return;
         const idx = values.indexOf(value);
-        if (idx >= 0) ref.current?.scrollTo({ x: idx * ITEM_W, animated: true });
+        if (idx >= 0) ref.current?.scrollToIndex({ index: idx, animated: true });
     }, [value, values]);
 
     const valueFromOffset = useCallback((x: number) => {
@@ -61,23 +59,14 @@ function Picker({
         return { idx, nextValue: values[idx] };
     }, [values]);
 
-    const emitValueFromOffset = useCallback((x: number) => {
-        const { nextValue } = valueFromOffset(x);
-        if (nextValue !== emittedValue.current) {
-            emittedValue.current = nextValue;
-            onChange(nextValue);
-        }
-    }, [onChange, valueFromOffset]);
-
     const snap = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
         const x = e.nativeEvent.contentOffset.x;
         const { idx, nextValue } = valueFromOffset(x);
-        interacting.current = false;
         if (nextValue !== emittedValue.current) {
             emittedValue.current = nextValue;
             onChange(nextValue);
         }
-        ref.current?.scrollTo({ x: idx * ITEM_W, animated: true });
+        ref.current?.scrollToIndex({ index: idx, animated: true });
     }, [onChange, valueFromOffset]);
 
     return (
@@ -90,16 +79,18 @@ function Picker({
                     <View style={[pk.indLine, { backgroundColor: accent || T.accent }]} />
                 </View>
             </View>
-            <ScrollView
+            <FlatList
                 ref={ref}
                 horizontal
+                data={values}
+                keyExtractor={(item) => String(item)}
+                getItemLayout={(_, index) => ({ length: ITEM_W, offset: ITEM_W * index, index })}
+                initialScrollIndex={Math.max(0, values.indexOf(value))}
                 showsHorizontalScrollIndicator={false}
                 snapToInterval={ITEM_W}
                 decelerationRate="fast"
-                onScrollBeginDrag={() => { interacting.current = true; }}
-                onMomentumScrollBegin={() => { interacting.current = true; }}
-                onScroll={(e) => emitValueFromOffset(e.nativeEvent.contentOffset.x)}
                 onMomentumScrollEnd={snap}
+                onScrollEndDrag={Platform.OS === "android" ? snap : undefined}
                 contentContainerStyle={{ paddingHorizontal: PAD }}
                 scrollEventThrottle={16}
                 nestedScrollEnabled
@@ -107,8 +98,15 @@ function Picker({
                 bounces={false}
                 overScrollMode="never"
                 keyboardShouldPersistTaps="handled"
-            >
-                {values.map((v) => {
+                onScrollToIndexFailed={(info) => {
+                    setTimeout(() => {
+                        ref.current?.scrollToIndex({
+                            index: Math.min(values.length - 1, Math.max(0, info.index)),
+                            animated: false,
+                        });
+                    }, 80);
+                }}
+                renderItem={({ item: v }) => {
                     const dist = Math.abs(v - value);
                     const isC = dist === 0;
                     const op = isC ? 1 : dist === 1 ? 0.42 : dist === 2 ? 0.18 : 0.06;
@@ -122,8 +120,8 @@ function Picker({
                             }]}>{v}</Text>
                         </View>
                     );
-                })}
-            </ScrollView>
+                }}
+            />
         </View>
     );
 }

@@ -43,8 +43,8 @@ import { calculateWorkoutLoadScore } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { areLocalNotificationsEnabled, reschedulePreWorkoutRemindersForProgram, setLocalNotificationsEnabled } from "../services/localNotificationService";
-import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
-import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getCachedWorkouts, getCachedWorkoutSummaries, getWorkoutSummarySnapshot } from "../services/workoutCacheService";
+import { getPersistedWorkoutAnalyticsSnapshot, getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { getCachedProfile } from "../services/authCacheService";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
@@ -116,19 +116,15 @@ export default function ProfileScreen() {
     const { data: programs = [] } = useMyProgramsQuery();
     const [activeProgramId, setActiveProgramId] = useState<string | null>(null);
     const [workouts, setWorkouts] = useState<any[]>([]);
+    const [persistedProgressEvents, setPersistedProgressEvents] = useState(0);
+    const [persistedPrs, setPersistedPrs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const totalWorkouts = workouts.length;
     const currentStreak = React.useMemo(() => {
         return calculateWorkoutStreak(workouts, programs, activeProgramId);
     }, [workouts, programs, activeProgramId]);
-    const totalPRs = React.useMemo(() => {
-        const analytics = getWorkoutAnalyticsSnapshot(workouts);
-        return analytics.progressEvents;
-    }, [workouts]);
-    const prs = React.useMemo(() => {
-        const analytics = getWorkoutAnalyticsSnapshot(workouts);
-        return analytics.personalRecords.slice(0, 3);
-    }, [workouts]);
+    const totalPRs = persistedProgressEvents;
+    const prs = persistedPrs.slice(0, 3);
 
     // 5 dakika TTL: diğer tab ekranlarıyla eş zamanlı reloadü önler
     const { shouldReload: shouldReloadProfile, markLoaded: markProfileLoaded } = useStaleDataGuard(5 * 60 * 1000);
@@ -264,14 +260,38 @@ export default function ProfileScreen() {
                 })
                 .catch((err) => console.warn("[ProfileScreen] Profile load failed:", err));
 
-            // 2. Workouts load (independent)
-            getCachedWorkouts(50)
+            const cachedSummaries = getWorkoutSummarySnapshot(50);
+            if (cachedSummaries.length > 0) {
+                setWorkouts(cachedSummaries);
+                setLoading(false);
+            }
+
+            getPersistedWorkoutAnalyticsSnapshot()
+                .then((analytics) => {
+                    if (!analytics) return;
+                    setPersistedProgressEvents(analytics.progressEvents || 0);
+                    setPersistedPrs(analytics.personalRecords || []);
+                })
+                .catch(() => undefined);
+
+            // 2. Workout summaries load (independent)
+            getCachedWorkoutSummaries(50)
                 .then((workRes) => {
                     const workoutsList = workRes || [];
                     setWorkouts(workoutsList);
                     setLoading(false);
                 })
                 .catch((err) => console.warn("[ProfileScreen] Workouts load failed:", err));
+
+            InteractionManager.runAfterInteractions(() => {
+                getCachedWorkouts(50)
+                    .then((fullWorkouts) => {
+                        const analytics = getWorkoutAnalyticsSnapshot(fullWorkouts || []);
+                        setPersistedProgressEvents(analytics.progressEvents || 0);
+                        setPersistedPrs(analytics.personalRecords || []);
+                    })
+                    .catch(() => undefined);
+            });
 
         } catch (error) {
             console.error("Profile Load Error", error);

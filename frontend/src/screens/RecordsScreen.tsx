@@ -22,7 +22,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { getCachedWorkouts } from "../services/workoutCacheService";
-import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getPersistedWorkoutAnalyticsSnapshot, getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
@@ -66,6 +66,15 @@ export default function RecordsScreen() {
 
     const loadRecords = async () => {
         try {
+            getPersistedWorkoutAnalyticsSnapshot()
+                .then((analytics) => {
+                    if (analytics?.personalRecords?.length) {
+                        setRecords(analytics.personalRecords as PRRecord[]);
+                        setLoading(false);
+                    }
+                })
+                .catch(() => undefined);
+
             const workouts = await getCachedWorkouts(200);
 
             InteractionManager.runAfterInteractions(() => {

@@ -23,7 +23,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getCachedWorkouts, subscribeToWorkoutCache, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
-import { getWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getPersistedWorkoutAnalyticsSnapshot, getWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { getCachedBodyMeasurements, subscribeToBodyMeasurementCache, getBodyMeasurementSnapshot } from "../services/bodyMeasurementCacheService";
 import { getCachedNutritionLogs, subscribeToNutritionCache, getNutritionSnapshot } from "../services/nutritionCacheService";
 import { useAuth } from "../store/AuthContext";
@@ -383,6 +383,16 @@ export default function MyProgressScreen() {
     // ── Load analytics ────────────────────────────────────────────────────────
 
     const loadAnalytics = async () => {
+        getPersistedWorkoutAnalyticsSnapshot()
+            .then((analytics) => {
+                if (!analytics) return;
+                setAnalyticsSnapshot(analytics);
+                setWeeklySnapshot(analytics.weeklySnapshot || []);
+                setPrs(analytics.personalRecords || []);
+                setLoading(false);
+            })
+            .catch(() => undefined);
+
         // Load from caches instantly if available!
         const cachedWorkouts = getWorkoutCacheSnapshot(200);
         const cachedMeasurements = getBodyMeasurementSnapshot();

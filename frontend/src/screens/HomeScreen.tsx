@@ -50,8 +50,8 @@ import {
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { cancelAllPreWorkoutReminderNotifications, reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
-import { getCachedWorkouts, getWorkoutCacheSnapshot, subscribeToWorkoutCache } from "../services/workoutCacheService";
-import { getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getCachedWorkouts, getCachedWorkoutSummaries, getWorkoutSummarySnapshot, subscribeToWorkoutCache } from "../services/workoutCacheService";
+import { getPersistedWorkoutAnalyticsSnapshot, getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
@@ -90,10 +90,8 @@ export default function HomeScreen() {
     const currentStreak = React.useMemo(() => {
         return calculateWorkoutStreak(workouts, programs, favoriteId);
     }, [workouts, programs, favoriteId]);
-    const totalPRs = React.useMemo(() => {
-        const analytics = getWorkoutAnalyticsSnapshot(workouts);
-        return analytics.progressEvents;
-    }, [workouts]);
+    const [progressEvents, setProgressEvents] = useState(0);
+    const totalPRs = progressEvents;
     const animatedStreak = useCountUp(currentStreak);
     const [loading, setLoading] = useState(true);
     const [bannerRefresh, setBannerRefresh] = useState(0);
@@ -126,7 +124,7 @@ export default function HomeScreen() {
     const loadDashboard = async () => {
         markPerf("home_data_ready");
         try {
-            const cachedWorkouts = getWorkoutCacheSnapshot(30);
+            const cachedWorkouts = getWorkoutSummarySnapshot(30);
             const cachedProfile = getProfileSnapshot();
 
             if (cachedWorkouts.length > 0) {
@@ -147,14 +145,30 @@ export default function HomeScreen() {
                 })
                 .catch((err) => console.warn("[HomeScreen] Profile load failed:", err));
 
-            // 2. Workouts load (independent)
-            getCachedWorkouts(100)
+            getPersistedWorkoutAnalyticsSnapshot()
+                .then((analytics) => {
+                    if (analytics) setProgressEvents(analytics.progressEvents || 0);
+                })
+                .catch(() => undefined);
+
+            // 2. Workout summaries load (independent and light)
+            getCachedWorkoutSummaries(100)
                 .then((workoutRes) => {
                     const fetchedWorkouts = sortNewestFirst(workoutRes || []).slice(0, 100);
                     setWorkouts(fetchedWorkouts);
                     setLoading(false);
                 })
                 .catch((err) => console.warn("[HomeScreen] Workouts load failed:", err));
+
+            // Warm full analytics after the first interactions, never before Home is usable.
+            InteractionManager.runAfterInteractions(() => {
+                getCachedWorkouts(100)
+                    .then((fullWorkouts) => {
+                        const analytics = getWorkoutAnalyticsSnapshot(fullWorkouts || []);
+                        setProgressEvents(analytics.progressEvents || 0);
+                    })
+                    .catch(() => undefined);
+            });
 
             // 3. Community Programs load (independent background)
             programApi.listCommunity({ limit: 3 })
@@ -169,6 +183,7 @@ export default function HomeScreen() {
         } catch (error) {
             console.error("[HomeScreen] Failed to load dashboard data:", error);
         } finally {
+            setLoading(false);
             hasLoadedDashboard.current = true;
             logPerf("home_data_ready", "home_data_ready");
         }
@@ -967,11 +982,13 @@ function formatDuration(seconds: number): string {
 }
 
 function countWorkoutSets(workout: any): number {
+    if (Number(workout?.data?.setCount || 0) > 0) return Number(workout.data.setCount);
     const exercises = Array.isArray(workout?.data?.exercises) ? workout.data.exercises : [];
-    return exercises.reduce((sum: number, exercise: any) => {
+    const counted = exercises.reduce((sum: number, exercise: any) => {
         const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
         return sum + sets.filter((set: any) => !set?.isWarmup).length;
     }, 0);
+    return counted || Number(workout?.data?.exerciseCount || 0);
 }
 
 // ─── Styles ─────────────────────────────────

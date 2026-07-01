@@ -2,7 +2,7 @@
 // OnboardingNavigator — Salt opacity crossfade
 // Hiç translateX / translateY yok → sallama imkansız
 // ─────────────────────────────────────────────
-import React, { useState, useRef, useEffect, useCallback } from "react";
+import React, { useRef, useEffect, useCallback } from "react";
 import { View, StyleSheet, TouchableOpacity, Text } from "react-native";
 import Animated, {
     useSharedValue,
@@ -75,10 +75,8 @@ function NavContent({
     firstName: string;
     onComplete: (data: OnboardingData) => void;
 }) {
-    const { data } = useOnboarding();
-    const [step, setStep] = useState(1);
+    const { data, step, hydrated, setStep, clearDraft } = useOnboarding();
     const fadingRef = useRef(false);
-    const pendingStep = useRef<number | null>(null);
 
     // Sayfa opacity — sadece bu değişir, hiç transform yok
     const opacity = useSharedValue(1);
@@ -106,9 +104,12 @@ function NavContent({
     }, []);
 
     const goNext = useCallback(() => {
-        if (step >= TOTAL) { onComplete(data); return; }
+        if (step >= TOTAL) {
+            clearDraft().finally(() => onComplete(data));
+            return;
+        }
         navigate(step + 1);
-    }, [data, step, navigate, onComplete]);
+    }, [clearDraft, data, step, navigate, onComplete]);
 
     const goBack = useCallback(() => {
         if (step <= 1) return;
@@ -129,10 +130,12 @@ function NavContent({
             case 3: return <OnboardingSports onNext={goNext} onBack={goBack} />;
             case 4: return <OnboardingExperience onNext={goNext} onBack={goBack} />;
             case 5: return <OnboardingGoals onNext={goNext} onBack={goBack} />;
-            case 6: return <OnboardingReady onFinish={() => onComplete(data)} firstName={firstName} />;
+            case 6: return <OnboardingReady onFinish={async () => { await clearDraft(); onComplete(data); }} firstName={firstName} />;
             default: return null;
         }
     };
+
+    if (!hydrated) return <View style={s.root} />;
 
     return (
         <View style={s.root}>
