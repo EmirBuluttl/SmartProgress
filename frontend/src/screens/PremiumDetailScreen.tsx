@@ -1,5 +1,5 @@
 import React from "react";
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Platform, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
@@ -12,6 +12,13 @@ import NoticeModal from "../components/NoticeModal";
 import { authApi, parseApiError } from "../services/api";
 
 function formatPurchaseError(error: any) {
+    const rawMessage = `${error?.message || ""} ${error?.underlyingErrorMessage || ""}`.toLowerCase();
+    if (error?.code === "11" || error?.code === 11 || rawMessage.includes("invalid api key")) {
+        return Platform.OS === "ios"
+            ? "RevenueCat iOS public SDK key bu build icin hatali veya App Store uygulamasi ile eslesmiyor. EAS Secret olarak EXPO_PUBLIC_REVENUECAT_IOS_API_KEY degerini RevenueCat > SmartProgress iOS > Public SDK Key ile birebir guncelle."
+            : "RevenueCat Android public SDK key bu build icin hatali veya Google Play uygulamasi ile eslesmiyor. EAS Secret olarak EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY degerini RevenueCat > SmartProgress Android > Public SDK Key ile birebir guncelle.";
+    }
+
     const details = [
         error?.message,
         error?.underlyingErrorMessage,
@@ -23,6 +30,16 @@ function formatPurchaseError(error: any) {
     return uniqueDetails.length > 0
         ? uniqueDetails.join("\n")
         : "Magaza islemi tamamlanamadi.";
+}
+
+function getStoreInstallHint() {
+    if (Platform.OS === "ios") {
+        return "Satin alma testi icin uygulama TestFlight veya App Store buildi uzerinden kurulmus olmalidir.";
+    }
+    if (Platform.OS === "android") {
+        return "Satin alma testi icin uygulama Google Play ic/kapali test baglantisindan kurulmus olmalidir.";
+    }
+    return "Satin alma islemleri sadece iOS ve Android uygulama buildlerinde test edilebilir.";
 }
 
 export default function PremiumDetailScreen() {
@@ -156,7 +173,7 @@ export default function PremiumDetailScreen() {
                 <View style={styles.storePendingBox}>
                     <Ionicons name="storefront-outline" size={18} color={colors.accent} />
                     <Text style={styles.storePendingText}>
-                        Satin alma testi icin uygulama Google Play ic test baglantisindan kurulmus olmalidir.
+                        {getStoreInstallHint()}
                     </Text>
                 </View>
             </View>

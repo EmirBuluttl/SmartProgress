@@ -65,7 +65,7 @@ jobs:
             'EXPO_PUBLIC_SUPPORT_URL=https://app.smartprogress.online/support' \
             'EXPO_PUBLIC_ACCOUNT_DELETION_URL=https://app.smartprogress.online/account-deletion' \
             > .env
-          node -e "const fs=require('fs'); const env=fs.readFileSync('.env','utf8'); const match=env.match(/^EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=(.+)$/m); console.log('RevenueCat Android key length:', match?.[1]?.length || 0); if (!match?.[1]) process.exit(1);"
+          node -e "const fs=require('fs'); const env=fs.readFileSync('.env','utf8'); const match=env.match(/^EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=(.+)$/m); const key=match?.[1] || ''; console.log('RevenueCat Android key length:', key.length); console.log('RevenueCat Android key prefix:', key.slice(0,5)); if (!key || !key.startsWith('goog_')) { console.error('Invalid EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY. Android RevenueCat public SDK key must start with goog_.'); process.exit(1); }"
 
       - name: Generate Android project
         env:

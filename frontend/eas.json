@@ -21,6 +21,7 @@
         },
         "production": {
             "autoIncrement": true,
+            "environment": "production",
             "env": {
                 "EXPO_PUBLIC_API_URL": "https://api.smartprogress.online",
                 "EXPO_PUBLIC_REVENUECAT_PREMIUM_ENTITLEMENT_ID": "premium",
