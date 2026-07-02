@@ -630,12 +630,7 @@ export default function PremiumProgramWizardScreen() {
                             const availableExercises = getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions);
                             const expanded = !!expandedExercisePatterns[pattern];
                             const selected = resolveExercise(pattern);
-                            const visibleExercises = expanded
-                                ? availableExercises
-                                : Array.from(new Set([
-                                    ...availableExercises.slice(0, 5),
-                                    ...(selected && !availableExercises.slice(0, 5).includes(selected) ? [selected] : []),
-                                ]));
+                            const visibleExercises = expanded ? availableExercises : availableExercises.slice(0, 5);
                             const hasMoreExercises = availableExercises.length > visibleExercises.length;
                             return (
                                 <View key={pattern} style={styles.exercisePicker}>
@@ -678,7 +673,7 @@ export default function PremiumProgramWizardScreen() {
                                             activeOpacity={0.85}
                                         >
                                             <Text style={styles.exerciseShowAllText}>
-                                                {expanded ? "Kapat" : "Tümünü gör"}
+                                                {expanded ? "Kapat" : `Tümünü gör (${availableExercises.length})`}
                                             </Text>
                                             <Ionicons
                                                 name={expanded ? "chevron-up" : "chevron-down"}
