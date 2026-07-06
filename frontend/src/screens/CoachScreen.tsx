@@ -586,7 +586,6 @@ export default function CoachScreen() {
                 <View style={styles.dashboardHeader}>
                     <View>
                         <Text style={styles.sectionTitle}>Paket farki</Text>
-                        <Text style={styles.dashboardSubtitle}>Premium koc motoru launch icin odakta; Coach+ pasif hazirlikta kalir.</Text>
                     </View>
                 </View>
                 <View style={styles.planGrid}>
@@ -611,12 +610,7 @@ export default function CoachScreen() {
                         subtitle="Yakinda"
                         badge="Pasif"
                         icon="sparkles-outline"
-                        items={[
-                            "Premium koc motoru oturduktan sonra acilacak",
-                            "Sohbet katmani kalite ve guvenlik testinde kalacak",
-                            "Launch'ta aktif satis vaadi olarak sunulmayacak",
-                            "Simdilik ana urun Premium wizard ve rapor akisi",
-                        ]}
+                        items={[]}
                         colors={colors}
                         active={false}
                     />
@@ -668,13 +662,6 @@ export default function CoachScreen() {
                     />
                 </Animated.View>
             )}
-
-            <View style={styles.pricingNote}>
-                <Ionicons name="information-circle-outline" size={18} color={colors.accent} />
-                <Text style={styles.noteText}>
-                    Premium koc motoru urunlesmeye hazirlanir; Coach+ ise kalite ve guvenlik testleri tamamlanana kadar pasif tutulur.
-                </Text>
-            </View>
 
             <View style={styles.noteBox}>
                 <Ionicons name="shield-checkmark-outline" size={18} color={colors.accent} />
