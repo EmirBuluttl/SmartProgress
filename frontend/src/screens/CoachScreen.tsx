@@ -585,7 +585,7 @@ export default function CoachScreen() {
             <View style={styles.compareSection}>
                 <View style={styles.dashboardHeader}>
                     <View>
-                        <Text style={styles.sectionTitle}>Paket farki</Text>
+                        <Text style={styles.sectionTitle}>Paket bilgisi</Text>
                     </View>
                 </View>
                 <View style={styles.planGrid}>
@@ -608,7 +608,7 @@ export default function CoachScreen() {
                     <PlanCard
                         title="Coach+"
                         subtitle="Yakinda"
-                        badge="Pasif"
+                        badge="Yakinda"
                         icon="sparkles-outline"
                         items={[]}
                         colors={colors}
