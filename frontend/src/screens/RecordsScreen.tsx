@@ -2,7 +2,7 @@
 // RecordsScreen — Kişisel Rekorlar (Tümü)
 // Tüm egzersizlerde ulaşılan en yüksek ağırlıklar
 // ─────────────────────────────────────────────
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useEffect, useRef } from "react";
 import {
     View,
     Text,
@@ -13,6 +13,7 @@ import {
     TextInput,
     Linking,
     Animated,
+    InteractionManager,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
@@ -54,11 +55,25 @@ export default function RecordsScreen() {
     const [editingRecord, setEditingRecord] = useState<PRRecord | null>(null);
     const [linkDraft, setLinkDraft] = useState("");
     const [linkError, setLinkError] = useState("");
-    const [loading, setLoading] = useState(true);
+    const [loading, setLoading] = useState(false);
+    const recordCountRef = useRef(0);
+
+    useEffect(() => {
+        recordCountRef.current = records.length;
+    }, [records.length]);
 
     useFocusEffect(
         useCallback(() => {
-            loadRecords();
+            let cancelled = false;
+            setLoading(recordCountRef.current === 0);
+            InteractionManager.runAfterInteractions(() => {
+                setTimeout(() => {
+                    if (!cancelled) loadRecords();
+                }, 80);
+            });
+            return () => {
+                cancelled = true;
+            };
         }, [])
     );
 
@@ -180,14 +195,6 @@ export default function RecordsScreen() {
         });
     }, [muscleFilter, query, records, splitFilter]);
 
-    if (loading) {
-        return (
-            <Animated.View style={[styles.container, { justifyContent: "center", alignItems: "center" }, animStyle]}>
-                <ActivityIndicator size="large" color={colors.accent} />
-            </Animated.View>
-        );
-    }
-
     return (
             <Animated.View style={[styles.container, animStyle]}>
             {/* Header */}
@@ -202,7 +209,13 @@ export default function RecordsScreen() {
                 <View style={{ width: 24 }} />
             </Animated.View>
 
-            {records.length === 0 ? (
+            {loading && records.length === 0 ? (
+                <View style={styles.emptyState}>
+                    <ActivityIndicator size="large" color={colors.accent} />
+                    <Text style={styles.emptyText}>Setlerin hazırlanıyor</Text>
+                    <Text style={styles.emptySubtext}>En iyi setler ekran hazır olduktan sonra yüklenir.</Text>
+                </View>
+            ) : records.length === 0 ? (
                 <View style={styles.emptyState}>
                     <Ionicons name="trophy-outline" size={64} color={colors.border} />
                     <Text style={styles.emptyText}>Henüz rekor bulunmuyor.</Text>
