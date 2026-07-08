@@ -52,6 +52,37 @@ export function getProgramCacheVersion(): number {
     return cacheVersion;
 }
 
+export function updateProgramDayInCache(programId: string, currentDayIndex: number) {
+    let changed = false;
+    if (mineCache?.programs) {
+        mineCache = {
+            ...mineCache,
+            programs: mineCache.programs.map((program) => {
+                if (program.id !== programId) return program;
+                changed = true;
+                return { ...program, currentDayIndex };
+            }),
+            fetchedAt: Date.now(),
+        };
+    }
+
+    const detail = detailCache.get(programId);
+    if (detail?.program) {
+        detailCache.set(programId, {
+            ...detail,
+            program: { ...detail.program, currentDayIndex },
+            fetchedAt: Date.now(),
+        });
+        changed = true;
+    }
+
+    if (changed) {
+        cacheVersion++;
+        if (mineCache) saveToStorage(mineCache.programs, mineCache.fetchedAt);
+        notifyListeners();
+    }
+}
+
 async function saveToStorage(programs: any[], fetchedAt: number) {
     try {
         await AsyncStorage.setItem(

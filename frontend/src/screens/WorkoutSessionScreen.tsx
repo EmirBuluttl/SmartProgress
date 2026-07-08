@@ -56,6 +56,7 @@ import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from 
 import { summarizeCardioBlocks } from "../utils/cardio";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
 import { reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
+import { applyProgramDayIndex } from "../services/programDayProgressService";
 
 // ─── Constants ───────────────────────────────
 
@@ -1694,6 +1695,7 @@ export default function WorkoutSessionScreen() {
                     dayLabel = programData.days[dayIndex]?.label;
                     nextDayLabel = programData.days[nextIndex]?.label;
                     await programApi.advanceDay(programId);
+                    applyProgramDayIndex(programId, nextIndex);
                     await reschedulePreWorkoutRemindersForProgram({
                         programId,
                         programName: route.params?.programName || "Program",
@@ -1703,6 +1705,12 @@ export default function WorkoutSessionScreen() {
                     });
                 } catch (err) {
                     console.warn("[WorkoutSession] advanceDay hatası:", err);
+                    if (!syncNotice) {
+                        syncNotice = {
+                            title: "Program gunu ilerletilemedi",
+                            message: "Antrenman kaydedildi ancak program siradaki gune otomatik gecemedi. Ana sayfadan manuel degistirebilirsin.",
+                        };
+                    }
                 }
             }
 

@@ -54,6 +54,7 @@ import { getPersistedWorkoutAnalyticsSnapshot } from "../services/workoutAnalyti
 import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
+import { applyProgramDayIndex } from "../services/programDayProgressService";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -371,6 +372,7 @@ export default function HomeScreen() {
     const selectActiveProgramDay = async (dayIndex: number) => {
         if (!favoriteProgram) return;
         await programApi.setDay(favoriteProgram.id, dayIndex);
+        applyProgramDayIndex(favoriteProgram.id, dayIndex);
         setDayPickerOpen(false);
         await loadDashboard();
     };
@@ -631,6 +633,7 @@ export default function HomeScreen() {
                             } else {
                                 // Rest day — advance without a session
                                 programApi.advanceDay(favoriteProgram.id).then(() => {
+                                    applyProgramDayIndex(favoriteProgram.id, nextDayIndex);
                                     loadDashboard();
                                 });
                             }
