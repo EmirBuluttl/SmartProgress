@@ -42,6 +42,8 @@ import {
     saveActiveSession,
     clearActiveSession,
     restoreActiveSession,
+    saveFinishingSession,
+    clearFinishingSession,
     savePendingWorkout,
     syncPendingWorkouts,
 } from "../services/syncService";
@@ -867,10 +869,25 @@ export default function WorkoutSessionScreen() {
                     let previousWeights = new Map<string, number[]>();
                     let previousReps = new Map<string, number[]>();
                     try {
-                        const workoutRes = await workoutApi.list({ limit: 200 });
-                        const workouts = workoutRes.data.workouts || [];
-                        previousWeights = buildPreviousWeightLookup(workouts);
-                        if (rememberRepsEnabled) previousReps = buildPreviousRepsLookup(workouts);
+                        const lookupKeys = Array.from(new Set(templateExercises.flatMap((exercise) => exerciseLookupKeys(exercise))));
+                        if (lookupKeys.length > 0) {
+                            const lookupRes = await workoutApi.previousSetLookup(lookupKeys);
+                            const lookup = lookupRes.data.lookup || {};
+                            previousWeights = new Map(
+                                Object.entries(lookup).map(([key, value]: [string, any]) => [
+                                    key,
+                                    Array.isArray(value?.weights) ? value.weights : [],
+                                ]),
+                            );
+                            if (rememberRepsEnabled) {
+                                previousReps = new Map(
+                                    Object.entries(lookup).map(([key, value]: [string, any]) => [
+                                        key,
+                                        Array.isArray(value?.reps) ? value.reps : [],
+                                    ]),
+                                );
+                            }
+                        }
                     } catch (err) {
                         console.warn("[WorkoutSession] Previous set placeholders could not be loaded:", err);
                     }
@@ -1626,7 +1643,9 @@ export default function WorkoutSessionScreen() {
                 status: "completed",
             };
 
+            await saveFinishingSession(completedSession);
             await savePendingWorkout(completedSession);
+            await clearFinishingSession();
             await clearActiveSession();
 
             let syncNotice: { title: string; message: string } | null = null;

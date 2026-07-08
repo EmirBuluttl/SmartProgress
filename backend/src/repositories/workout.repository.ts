@@ -123,6 +123,17 @@ export class WorkoutRepository {
         });
     }
 
+    async findRecentByUserId(
+        userId: string,
+        limit = 100,
+    ): Promise<WorkoutLog[]> {
+        return prisma.workoutLog.findMany({
+            where: { userId },
+            orderBy: { logDate: "desc" },
+            take: limit,
+        });
+    }
+
     /**
      * Find latest workout logs by user for a specific exercise name.
      * Searches within the JSONB `data` field.

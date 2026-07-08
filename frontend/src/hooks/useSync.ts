@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { InteractionManager } from "react-native";
-import { syncPendingWorkouts } from "../services/syncService";
+import { recoverFinishingWorkoutIfNeeded, syncPendingWorkouts } from "../services/syncService";
 import { onConnectivityChange } from "../services/networkService";
 import { useAuth } from "../store/AuthContext";
 
@@ -13,6 +13,7 @@ export function useSync(): void {
         if (!isAuthenticated || isSyncing.current) return;
         isSyncing.current = true;
         try {
+            await recoverFinishingWorkoutIfNeeded();
             await syncPendingWorkouts();
         } catch (error) {
             console.warn("[useSync] Background sync failed:", error);

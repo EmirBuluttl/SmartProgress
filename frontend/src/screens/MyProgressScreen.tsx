@@ -429,37 +429,39 @@ export default function MyProgressScreen() {
             setAllWorkouts(cachedWorkouts);
             setBodyMeasurements(cachedMeasurements);
             setNutritionLogs(cachedNutrition);
-            InteractionManager.runAfterInteractions(() => {
-                const analytics = getWorkoutAnalyticsSnapshot(cachedWorkouts);
-                setAnalyticsSnapshot(analytics);
-                setWeeklySnapshot(analytics.weeklySnapshot);
-                setPrs(analytics.personalRecords);
-            });
             scheduleChartData(cachedWorkouts, cachedMeasurements, cachedNutrition, filter, chartMetric);
             setLoading(false);
         }
 
         try {
-            const [workoutRes, measurements, nutrition] = await Promise.all([
-                getCachedWorkouts(200),
+            const [measurements, nutrition] = await Promise.all([
                 getCachedBodyMeasurements(180),
                 getCachedNutritionLogs(180),
             ]);
-            const workouts = workoutRes || [];
 
-            setAllWorkouts(workouts);
             setBodyMeasurements(measurements);
             setNutritionLogs(nutrition);
             const rawLinks = await AsyncStorage.getItem(RECORD_LINKS_KEY);
             setRecordLinks(rawLinks ? JSON.parse(rawLinks) : {});
 
+            scheduleChartData(cachedWorkouts, measurements, nutrition, filter, chartMetric);
+            setLoading(false);
+
             InteractionManager.runAfterInteractions(() => {
-                const analytics = getWorkoutAnalyticsSnapshot(workouts);
-                setAnalyticsSnapshot(analytics);
-                setWeeklySnapshot(analytics.weeklySnapshot);
-                setPrs(analytics.personalRecords);
+                setTimeout(() => {
+                    getCachedWorkouts(200)
+                        .then((workouts) => {
+                            const nextWorkouts = workouts || [];
+                            setAllWorkouts(nextWorkouts);
+                            const analytics = getWorkoutAnalyticsSnapshot(nextWorkouts);
+                            setAnalyticsSnapshot(analytics);
+                            setWeeklySnapshot(analytics.weeklySnapshot);
+                            setPrs(analytics.personalRecords);
+                            scheduleChartData(nextWorkouts, measurements, nutrition, filter, chartMetric);
+                        })
+                        .catch((err) => console.warn("[MyProgress] Background workout refresh failed:", err));
+                }, 800);
             });
-            scheduleChartData(workouts, measurements, nutrition, filter, chartMetric);
         } catch (err) {
             console.error("Analytics Load Error", err);
         } finally {

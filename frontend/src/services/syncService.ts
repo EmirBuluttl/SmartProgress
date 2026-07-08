@@ -13,7 +13,7 @@ import {
 } from "../types/workout";
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
 import { cancelActiveWorkoutNotification, scheduleActiveWorkoutNotification } from "./localNotificationService";
-import { invalidateWorkoutCache } from "./workoutCacheService";
+import { invalidateWorkoutCache, updateWorkoutInCache } from "./workoutCacheService";
 import { measurePerf } from "../utils/perfLogger";
 
 // ─── Helpers ─────────────────────────────────
@@ -155,6 +155,13 @@ export async function resetFailedWorkouts(): Promise<number> {
 export async function savePendingWorkout(session: WorkoutSession): Promise<PendingWorkout> {
     console.log("[SyncService] Yerel depolama başlatıldı — key:", STORAGE_KEYS.PENDING_WORKOUTS);
 
+    const existing = await getPendingWorkouts();
+    const existingMatch = existing.find((workout) => workout.session?.id === session.id);
+    if (existingMatch) {
+        console.log("[SyncService] Session zaten kuyrukta, duplicate eklenmedi:", session.id);
+        return existingMatch;
+    }
+
     const pending: PendingWorkout = {
         id: generateId(),
         session,
@@ -163,7 +170,6 @@ export async function savePendingWorkout(session: WorkoutSession): Promise<Pendi
         failCount: 0,
     };
 
-    const existing = await getPendingWorkouts();
     existing.push(pending);
     await savePendingWorkouts(existing);
 
@@ -287,8 +293,13 @@ async function runPendingWorkoutSync(): Promise<SyncResult> {
                 pendingId: workout.id,
                 exerciseCount: payload.data.exercises?.length || 0,
             });
-            await workoutApi.sync([payload]);
-            invalidateWorkoutCache();
+            const syncResponse = await workoutApi.sync([payload]);
+            const syncedWorkout = syncResponse?.data?.workouts?.[0];
+            if (syncedWorkout) {
+                updateWorkoutInCache(syncedWorkout);
+            } else {
+                invalidateWorkoutCache();
+            }
 
             await removeSyncedWorkout(workout.id);
             result.synced++;
@@ -375,6 +386,7 @@ export async function saveActiveSession(session: WorkoutSession): Promise<void> 
  */
 export async function restoreActiveSession(): Promise<WorkoutSession | null> {
     try {
+        await recoverFinishingWorkoutIfNeeded();
         const raw = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
         return raw ? normalizeActiveSession(JSON.parse(raw)) : null;
     } catch {
@@ -388,4 +400,48 @@ export async function restoreActiveSession(): Promise<WorkoutSession | null> {
 export async function clearActiveSession(): Promise<void> {
     await AsyncStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
     await cancelActiveWorkoutNotification();
+}
+
+export async function saveFinishingSession(session: WorkoutSession): Promise<void> {
+    await AsyncStorage.setItem(STORAGE_KEYS.FINISHING_SESSION, JSON.stringify(session));
+}
+
+export async function clearFinishingSession(): Promise<void> {
+    await AsyncStorage.removeItem(STORAGE_KEYS.FINISHING_SESSION);
+}
+
+export async function recoverFinishingWorkoutIfNeeded(): Promise<boolean> {
+    try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEYS.FINISHING_SESSION);
+        if (!raw) return false;
+
+        const session = JSON.parse(raw) as WorkoutSession;
+        if (!session?.id || session.status !== "completed") {
+            await clearFinishingSession();
+            return false;
+        }
+
+        await savePendingWorkout(session);
+
+        const activeRaw = await AsyncStorage.getItem(STORAGE_KEYS.ACTIVE_SESSION);
+        if (activeRaw) {
+            try {
+                const active = JSON.parse(activeRaw);
+                if (active?.id === session.id) {
+                    await AsyncStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+                    await cancelActiveWorkoutNotification();
+                }
+            } catch {
+                await AsyncStorage.removeItem(STORAGE_KEYS.ACTIVE_SESSION);
+                await cancelActiveWorkoutNotification();
+            }
+        }
+
+        await clearFinishingSession();
+        console.log("[SyncService] Finishing session recovered into pending queue:", session.id);
+        return true;
+    } catch (error) {
+        console.warn("[SyncService] Finishing session recovery failed:", error);
+        return false;
+    }
 }

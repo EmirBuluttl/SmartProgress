@@ -148,6 +148,9 @@ export const workoutApi = {
     list: (params?: { limit?: number; offset?: number; summary?: boolean }) =>
         api.get("/workouts", { params }),
 
+    previousSetLookup: (keys: string[]) =>
+        api.get("/workouts/previous-set-lookup", { params: { keys: keys.join(",") } }),
+
     getById: (id: string) => api.get(`/workouts/${id}`),
 
     delete: (id: string) => api.delete(`/workouts/${id}`),

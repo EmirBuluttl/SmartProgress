@@ -117,14 +117,12 @@ export function summarizeWorkout(workout: any) {
 }
 
 async function saveToStorage(limit: number, workouts: any[], fetchedAt: number) {
-    try {
-        await AsyncStorage.setItem(
-            WORKOUT_CACHE_STORAGE_KEY,
-            JSON.stringify({ limit, workouts, fetchedAt })
-        );
-    } catch (err) {
-        console.warn("[workoutCacheService] AsyncStorage save failed:", err);
-    }
+    // Full workout lists can become very large and block the mobile JS thread
+    // during AsyncStorage JSON.parse. Keep this cache in memory only; summary
+    // and per-detail caches are the persisted sources.
+    void limit;
+    void workouts;
+    void fetchedAt;
 }
 
 async function saveSummaryToStorage(limit: number, workouts: any[], fetchedAt: number) {
@@ -225,38 +223,6 @@ export async function getCachedWorkouts(limit = 200, options: { forceRefresh?: b
     if (!options.forceRefresh && cache?.promise && cache.limit >= limit) {
         await cache.promise;
         return getSlicedWorkouts(limit);
-    }
-
-    // Load from storage if memory cache is empty
-    if (!cache) {
-        try {
-            const stored = await AsyncStorage.getItem(WORKOUT_CACHE_STORAGE_KEY);
-            if (stored) {
-                const parsed = JSON.parse(stored);
-                if (parsed && Array.isArray(parsed.workouts)) {
-                    cache = {
-                        limit: parsed.limit || limit,
-                        workouts: parsed.workouts,
-                        fetchedAt: parsed.fetchedAt || 0,
-                    };
-                    slicedCache = {};
-                    cacheVersion++;
-                    notifyListeners();
-
-                    // If storage is fresh enough, return immediately
-                    if (!options.forceRefresh && isFresh(cache, limit)) {
-                        return getSlicedWorkouts(limit);
-                    }
-
-                    // Otherwise, trigger background fetch (stale-while-revalidate)
-                    const requestedLimit = Math.max(limit, cache.limit);
-                    fetchFreshWorkouts(requestedLimit).catch(() => undefined);
-                    return getSlicedWorkouts(limit);
-                }
-            }
-        } catch (err) {
-            console.warn("[workoutCacheService] AsyncStorage load error:", err);
-        }
     }
 
     const requestedLimit = Math.max(limit, cache?.limit || 0);

@@ -387,6 +387,56 @@ export class WorkoutService {
         return workouts;
     }
 
+    async getPreviousSetLookup(
+        userId: string,
+        keys: string[],
+    ): Promise<Record<string, { weights: number[]; reps: number[] }>> {
+        const requestedKeys = new Set(
+            keys
+                .map((key) => String(key || "").trim().toLowerCase())
+                .filter(Boolean)
+                .slice(0, 80),
+        );
+        if (requestedKeys.size === 0) return {};
+
+        const workouts = await workoutRepository.findRecentByUserId(userId, 120);
+        const lookup: Record<string, { weights: number[]; reps: number[] }> = {};
+
+        for (const workout of workouts) {
+            const data = workout.data as any;
+            const exercises = Array.isArray(data?.exercises) ? data.exercises : [];
+
+            for (const exercise of exercises) {
+                const exerciseKeys = Array.from(new Set([
+                    exercise?.exerciseId ? `id:${String(exercise.exerciseId).trim().toLowerCase()}` : "",
+                    String(exercise?.name || "").trim().toLowerCase(),
+                ].filter(Boolean)));
+                const matchingKeys = exerciseKeys.filter((key) => requestedKeys.has(key) && !lookup[key]);
+                if (matchingKeys.length === 0) continue;
+
+                const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
+                const weights = sets
+                    .filter((set: any) => !set?.isWarmup)
+                    .map((set: any) => Number(set?.weight))
+                    .filter((weight: number) => Number.isFinite(weight) && weight > 0);
+                const reps = sets
+                    .filter((set: any) => !set?.isWarmup)
+                    .map((set: any) => Number(set?.reps))
+                    .filter((rep: number) => Number.isFinite(rep) && rep > 0);
+
+                if (weights.length === 0 && reps.length === 0) continue;
+
+                for (const key of matchingKeys) {
+                    lookup[key] = { weights, reps };
+                }
+            }
+
+            if (Object.keys(lookup).length >= requestedKeys.size) break;
+        }
+
+        return lookup;
+    }
+
     /**
      * Get a single workout log by ID.
      */

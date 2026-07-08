@@ -14,7 +14,6 @@ import {
     RefreshControl,
     Image,
     Animated,
-    InteractionManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -23,7 +22,7 @@ import type { RootStackParamList } from "../navigation/RootNavigator";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { moderationApi, parseApiError, programApi } from "../services/api";
-import { getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
+import { getCachedWorkoutSummaries, getWorkoutSummarySnapshot } from "../services/workoutCacheService";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
 import ReportContentModal from "../components/ReportContentModal";
@@ -119,7 +118,7 @@ export default function ProgramDetailScreen() {
                 setLoading(false);
             }
 
-            const cachedWorkouts = getWorkoutCacheSnapshot(100);
+            const cachedWorkouts = getWorkoutSummarySnapshot(100);
             if (cachedWorkouts.length > 0) {
                 setWorkoutCount(cachedWorkouts.filter((w: any) => w.data?.programId === programId).length);
             }
@@ -128,11 +127,12 @@ export default function ProgramDetailScreen() {
             setProgram(progRes as ProgramData);
             setLoading(false);
 
-            InteractionManager.runAfterInteractions(async () => {
-                const allWorkouts = await getCachedWorkouts(100);
-                const count = (allWorkouts || []).filter((w: any) => w.data?.programId === programId).length;
-                setWorkoutCount(count);
-            });
+            getCachedWorkoutSummaries(100)
+                .then((summaries) => {
+                    const count = (summaries || []).filter((w: any) => w.data?.programId === programId).length;
+                    setWorkoutCount(count);
+                })
+                .catch(() => undefined);
         } catch (err: any) {
             console.error("[ProgramDetail] fetch error:", err?.message);
             setNotice({ title: "Program yuklenemedi", message: "Program bilgileri yuklenemedi.", goBackOnClose: true });

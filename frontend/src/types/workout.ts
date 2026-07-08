@@ -234,5 +234,6 @@ export interface SyncWorkoutPayload {
 
 export const STORAGE_KEYS = {
     ACTIVE_SESSION: "active_workout_session",
+    FINISHING_SESSION: "finishing_workout_session",
     PENDING_WORKOUTS: "pending_workouts",
 } as const;

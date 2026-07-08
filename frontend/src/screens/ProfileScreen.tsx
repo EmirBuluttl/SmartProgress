@@ -16,7 +16,6 @@ import {
     Dimensions,
     Platform,
     Modal,
-    InteractionManager,
     ActivityIndicator,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -43,8 +42,8 @@ import { calculateWorkoutLoadScore } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { areLocalNotificationsEnabled, reschedulePreWorkoutRemindersForProgram, setLocalNotificationsEnabled } from "../services/localNotificationService";
-import { getCachedWorkouts, getCachedWorkoutSummaries, getWorkoutSummarySnapshot } from "../services/workoutCacheService";
-import { getPersistedWorkoutAnalyticsSnapshot, getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getCachedWorkoutSummaries, getWorkoutSummarySnapshot } from "../services/workoutCacheService";
+import { getPersistedWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { getCachedProfile } from "../services/authCacheService";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
@@ -282,16 +281,6 @@ export default function ProfileScreen() {
                     setLoading(false);
                 })
                 .catch((err) => console.warn("[ProfileScreen] Workouts load failed:", err));
-
-            InteractionManager.runAfterInteractions(() => {
-                getCachedWorkouts(50)
-                    .then((fullWorkouts) => {
-                        const analytics = getWorkoutAnalyticsSnapshot(fullWorkouts || []);
-                        setPersistedProgressEvents(analytics.progressEvents || 0);
-                        setPersistedPrs(analytics.personalRecords || []);
-                    })
-                    .catch(() => undefined);
-            });
 
         } catch (error) {
             console.error("Profile Load Error", error);

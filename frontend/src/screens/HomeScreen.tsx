@@ -17,7 +17,6 @@ import {
     Modal,
     NativeSyntheticEvent,
     NativeScrollEvent,
-    InteractionManager,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -50,8 +49,8 @@ import {
 } from "../utils/workoutNavigation";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import { cancelAllPreWorkoutReminderNotifications, reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
-import { getCachedWorkouts, getCachedWorkoutSummaries, getWorkoutSummarySnapshot, subscribeToWorkoutCache } from "../services/workoutCacheService";
-import { getPersistedWorkoutAnalyticsSnapshot, getWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getCachedWorkoutSummaries, getWorkoutSummarySnapshot, subscribeToWorkoutCache } from "../services/workoutCacheService";
+import { getPersistedWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
@@ -159,16 +158,6 @@ export default function HomeScreen() {
                     setLoading(false);
                 })
                 .catch((err) => console.warn("[HomeScreen] Workouts load failed:", err));
-
-            // Warm full analytics after the first interactions, never before Home is usable.
-            InteractionManager.runAfterInteractions(() => {
-                getCachedWorkouts(100)
-                    .then((fullWorkouts) => {
-                        const analytics = getWorkoutAnalyticsSnapshot(fullWorkouts || []);
-                        setProgressEvents(analytics.progressEvents || 0);
-                    })
-                    .catch(() => undefined);
-            });
 
             // 3. Community Programs load (independent background)
             programApi.listCommunity({ limit: 3 })

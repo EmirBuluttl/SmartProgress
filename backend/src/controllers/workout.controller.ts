@@ -57,6 +57,24 @@ export class WorkoutController {
         }
     }
 
+    async previousSetLookup(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const rawKeys = Array.isArray(req.query.keys)
+                ? req.query.keys.join(",")
+                : String(req.query.keys || "");
+            const keys = rawKeys
+                .split(",")
+                .map((key) => key.trim())
+                .filter(Boolean);
+
+            const lookup = await workoutService.getPreviousSetLookup(userId, keys);
+            res.status(200).json({ lookup });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     /**
      * GET /:id
      * Get a specific workout log by ID.
