@@ -269,7 +269,15 @@ export async function getCachedWorkoutSummaries(limit = 20, options: { forceRefr
     }
 
     const requestedLimit = Math.max(limit, summaryCache?.limit || 0);
-    return fetchFreshWorkoutSummaries(requestedLimit);
+    if (options.forceRefresh) {
+        return fetchFreshWorkoutSummaries(requestedLimit);
+    }
+
+    // On mobile cold starts, waiting for network before the first screen becomes
+    // usable is worse than showing an empty/stale shell. Kick off the refresh
+    // and let cache listeners repaint when the summaries arrive.
+    fetchFreshWorkoutSummaries(requestedLimit).catch(() => undefined);
+    return getSlicedSummaries(limit);
 }
 
 export async function getCachedWorkoutDetail(id: string, fallback?: any, options: { forceRefresh?: boolean } = {}) {

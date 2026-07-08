@@ -20,7 +20,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { useFocusEffect, useNavigation } from "@react-navigation/native";
+import { useFocusEffect, useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { getCachedWorkouts, subscribeToWorkoutCache, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
 import { getPersistedWorkoutAnalyticsSnapshot, getWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
@@ -177,6 +177,8 @@ export default function MyProgressScreen() {
     const isAutoSuggestEnabled = user?.settings?.is_auto_suggest_enabled === true;
     const insets = useSafeAreaInsets();
     const navigation = useNavigation<any>();
+    const isFocused = useIsFocused();
+    const isFocusedRef = React.useRef(isFocused);
     const { animStyle } = useScreenEnter();
     const { animStyle: filtersAnimStyle } = useScreenEnter({ delay: 80 });
     const { animStyle: chartAnimStyle } = useScreenEnter({ delay: 150 });
@@ -199,6 +201,10 @@ export default function MyProgressScreen() {
 
     // 3 dakika TTL: stack ekrandan dönüşte sadece bayatlamış veri yeniden yüklenir
     const { shouldReload: shouldReloadAnalytics, markLoaded: markAnalyticsLoaded } = useStaleDataGuard(3 * 60 * 1000);
+
+    React.useEffect(() => {
+        isFocusedRef.current = isFocused;
+    }, [isFocused]);
 
     const [prs, setPrs] = React.useState<any[]>([]);
     const [loading, setLoading] = React.useState(true);
@@ -449,6 +455,7 @@ export default function MyProgressScreen() {
 
             InteractionManager.runAfterInteractions(() => {
                 setTimeout(() => {
+                    if (!isFocusedRef.current) return;
                     getCachedWorkouts(200)
                         .then((workouts) => {
                             const nextWorkouts = workouts || [];
@@ -489,12 +496,15 @@ export default function MyProgressScreen() {
 
     React.useEffect(() => {
         const unsubWorkouts = subscribeToWorkoutCache(() => {
+            if (!isFocusedRef.current) return;
             loadAnalytics().catch(() => undefined);
         });
         const unsubMeasurements = subscribeToBodyMeasurementCache(() => {
+            if (!isFocusedRef.current) return;
             loadAnalytics().catch(() => undefined);
         });
         const unsubNutrition = subscribeToNutritionCache(() => {
+            if (!isFocusedRef.current) return;
             loadAnalytics().catch(() => undefined);
         });
         return () => {
@@ -502,7 +512,7 @@ export default function MyProgressScreen() {
             unsubMeasurements();
             unsubNutrition();
         };
-    }, []);
+    }, [isFocused]);
 
     // ── PR Modal helpers ──────────────────────────────────────────────────────
 
