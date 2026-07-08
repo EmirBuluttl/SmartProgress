@@ -22,8 +22,8 @@ import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../cons
 import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect, useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { getCachedWorkouts, subscribeToWorkoutCache, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
-import { getPersistedWorkoutAnalyticsSnapshot, getWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { subscribeToWorkoutCache, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
+import { getPersistedWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
 import { getCachedBodyMeasurements, subscribeToBodyMeasurementCache, getBodyMeasurementSnapshot } from "../services/bodyMeasurementCacheService";
 import { getCachedNutritionLogs, subscribeToNutritionCache, getNutritionSnapshot } from "../services/nutritionCacheService";
 import { useAuth } from "../store/AuthContext";
@@ -41,7 +41,6 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
-import { navigateWithFeedback } from "../utils/navigationFeedback";
 import WeeklyStrengthChart from "../components/WeeklyStrengthChart";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -197,6 +196,7 @@ export default function MyProgressScreen() {
     const [animationProgress, setAnimationProgress] = React.useState(0);
     const chartAnimationTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
     const chartRequestIdRef = React.useRef(0);
+    const isNavigatingToRecordsRef = React.useRef(false);
     const hasSetDefaultMetric = React.useRef(false);
 
     // 3 dakika TTL: stack ekrandan dönüşte sadece bayatlamış veri yeniden yüklenir
@@ -204,6 +204,7 @@ export default function MyProgressScreen() {
 
     React.useEffect(() => {
         isFocusedRef.current = isFocused;
+        if (isFocused) isNavigatingToRecordsRef.current = false;
     }, [isFocused]);
 
     const [prs, setPrs] = React.useState<any[]>([]);
@@ -371,6 +372,7 @@ export default function MyProgressScreen() {
         const requestId = ++chartRequestIdRef.current;
         InteractionManager.runAfterInteractions(() => {
             setTimeout(() => {
+                if (isNavigatingToRecordsRef.current) return;
                 if (requestId !== chartRequestIdRef.current) return;
                 buildChartData(workouts, measurements, nutrition, activeFilter, metric);
             }, 30);
@@ -452,23 +454,6 @@ export default function MyProgressScreen() {
 
             scheduleChartData(cachedWorkouts, measurements, nutrition, filter, chartMetric);
             setLoading(false);
-
-            InteractionManager.runAfterInteractions(() => {
-                setTimeout(() => {
-                    if (!isFocusedRef.current) return;
-                    getCachedWorkouts(200)
-                        .then((workouts) => {
-                            const nextWorkouts = workouts || [];
-                            setAllWorkouts(nextWorkouts);
-                            const analytics = getWorkoutAnalyticsSnapshot(nextWorkouts);
-                            setAnalyticsSnapshot(analytics);
-                            setWeeklySnapshot(analytics.weeklySnapshot);
-                            setPrs(analytics.personalRecords);
-                            scheduleChartData(nextWorkouts, measurements, nutrition, filter, chartMetric);
-                        })
-                        .catch((err) => console.warn("[MyProgress] Background workout refresh failed:", err));
-                }, 800);
-            });
         } catch (err) {
             console.error("Analytics Load Error", err);
         } finally {
@@ -517,6 +502,16 @@ export default function MyProgressScreen() {
     // ── PR Modal helpers ──────────────────────────────────────────────────────
 
     const selectedPrLink = selectedPR ? recordLinks[recordKey(selectedPR)] : "";
+
+    const handleOpenRecords = React.useCallback(() => {
+        isNavigatingToRecordsRef.current = true;
+        chartRequestIdRef.current++;
+        if (chartAnimationTimerRef.current) {
+            clearInterval(chartAnimationTimerRef.current);
+            chartAnimationTimerRef.current = null;
+        }
+        (navigation as any).navigate("Records");
+    }, [navigation]);
 
     const isAllowedVideoUrl = (value: string) => {
         if (!value.trim()) return true;
@@ -703,7 +698,7 @@ export default function MyProgressScreen() {
                     <SectionHeader
                         title="En İyi Setlerim"
                         actionLabel="Tümünü Gör"
-                        onAction={() => navigateWithFeedback(() => (navigation as any).navigate("Records"))}
+                        onAction={handleOpenRecords}
                     />
                     {prs.length > 0 ? (
                         prs.slice(0, 5).map((pr, index) => (
