@@ -566,7 +566,7 @@ export default function ProfileScreen() {
                         </View>
                         <View style={{ flex: 1 }}>
                             <Text style={styles.settingTitle}>Premium Aboneliği</Text>
-                            <Text style={styles.settingDesc}>Store trial, satın alma ve restore işlemlerini yönet</Text>
+                            <Text style={styles.settingDesc}>Premium deneme, satın alma ve restore işlemlerini yönet</Text>
                         </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />

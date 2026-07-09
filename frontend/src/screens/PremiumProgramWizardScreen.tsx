@@ -265,8 +265,8 @@ export default function PremiumProgramWizardScreen() {
     const saveProgram = async (activate: boolean) => {
         if (wizardUsesRemaining <= 0) {
             setNotice(hasProAccess
-                ? "Akıllı program wizard hakkın dolmuş görünüyor. Bu beta dönemde Pro kullanıcılar için limit 15 program."
-                : "Ücretsiz wizard hakkın dolmuş görünüyor. Pro üyelik aktif olduğunda 15 akıllı program hakkın olur.");
+                ? "Akıllı program wizard hakkın dolmuş görünüyor. Premium kullanıcılar için limit 15 program."
+                : "Ücretsiz wizard hakkın dolmuş görünüyor. Premium deneme veya abonelik aktif olduğunda 15 akıllı program hakkın olur.");
             return;
         }
         setSaving(true);
@@ -739,7 +739,7 @@ export default function PremiumProgramWizardScreen() {
                     <Text style={styles.title}>Programı birlikte kuralım</Text>
                     <Text style={styles.subtitle}>
                         Rule engine ilk taslağı oluşturur; kararları sen onaylarsın.
-                        {hasProAccess ? ` Kalan Pro wizard hakkı: ${proWizardUsesRemaining}/15.` : ` Ücretsiz kalan wizard hakkı: ${freeWizardUsesRemaining}.`}
+                        {hasProAccess ? ` Kalan Premium wizard hakkı: ${proWizardUsesRemaining}/15.` : ` Ücretsiz kalan wizard hakkı: ${freeWizardUsesRemaining}.`}
                     </Text>
                 </View>
                 {wizardUsesRemaining <= 0 ? (
@@ -748,8 +748,8 @@ export default function PremiumProgramWizardScreen() {
                         <Text style={styles.cardTitle}>Wizard hakkın doldu</Text>
                         <Text style={styles.bodyText}>
                             {hasProAccess
-                                ? "Bu beta dönemde Pro wizard limiti 15 program. Mevcut programlarını düzenleyerek devam edebilirsin."
-                                : "Ücretsiz iki deneme hakkı tamamlanmış. Pro üyelik aktif olduğunda 15 akıllı program hakkın olur."}
+                                ? "Premium wizard limiti 15 program. Mevcut programlarını düzenleyerek devam edebilirsin."
+                                : "Ücretsiz iki deneme hakkı tamamlanmış. Premium deneme veya abonelik aktif olduğunda 15 akıllı program hakkın olur."}
                         </Text>
                         <TouchableOpacity style={styles.secondaryBtn} onPress={returnToCoach}>
                             <Text style={styles.secondaryText}>Koç'a Dön</Text>

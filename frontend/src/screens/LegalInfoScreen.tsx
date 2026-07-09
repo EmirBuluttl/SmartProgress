@@ -64,7 +64,7 @@ const COPY = {
             },
             {
                 title: "Premium Abonelik",
-                body: "Premium abonelikler RevenueCat altyapısı üzerinden yönetilmektedir.\n\n• Aylık veya yıllık abonelik seçenekleri mevcuttur.\n• Ücretlendirme, App Store veya Google Play hesabınıza yansıtılır.\n• Abonelik iptalini ilgili mağazanın abonelik yönetimi bölümünden gerçekleştirmelisiniz.\n• Kısmi kullanım süresi için iade yapılmamaktadır.\n• Abonelik, iptal edilmediği sürece mevcut dönem sonunda otomatik olarak yenilenir.",
+                body: "Premium abonelikler RevenueCat altyapısı üzerinden yönetilmektedir.\n\n• Aylık Premium abonelik seçeneği mevcuttur.\n• Ücretlendirme, App Store veya Google Play hesabınıza yansıtılır.\n• Abonelik iptalini ilgili mağazanın abonelik yönetimi bölümünden gerçekleştirmelisiniz.\n• Kısmi kullanım süresi için iade yapılmamaktadır.\n• Abonelik, iptal edilmediği sürece mevcut dönem sonunda otomatik olarak yenilenir.",
             },
             {
                 title: "Sağlık Sorumluluk Reddi",

@@ -27,7 +27,7 @@ const LEVELS = [
     {
         id: 'advanced' as ExperienceLevel, emoji: '🔥', label: 'İleri Seviye', years: '3+ yıl',
         desc: 'Kendi programlarını oluşturuyor, derinlemesine analiz istiyorsun.', color: '#EF4444',
-        guidance: { title: 'Pro Araçlar', points: ['Hacim ve yoğunluk analizi', 'RPE / RIR tracking', 'Gelişmiş istatistik dashboard'], yes: 'Pro Modu Aç', no: 'Standart Devam Et' },
+        guidance: { title: 'Premium Araçlar', points: ['Hacim ve yoğunluk analizi', 'RPE / RIR tracking', 'Gelişmiş istatistik dashboard'], yes: 'Premium Modu Aç', no: 'Standart Devam Et' },
     },
 ];
 

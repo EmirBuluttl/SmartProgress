@@ -231,7 +231,7 @@ export default function CoachScreen() {
                         <View style={styles.accessSummaryItem}>
                             <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
                             <Text style={styles.accessSummaryText}>
-                                {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gün Premium deneme` : "Deneme süresi pasif"}
+                                {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gün Premium deneme` : "Premium aktif"}
                             </Text>
                         </View>
                         <View style={styles.accessSummaryItem}>
@@ -345,7 +345,7 @@ export default function CoachScreen() {
                     <View style={styles.reportTopRow}>
                         <Text style={styles.reportTitle}>{reportLoading ? "Rapor hazırlanıyor" : "Bu hafta"}</Text>
                         <View style={styles.statusPill}>
-                            <Text style={styles.statusText}>Beta</Text>
+                            <Text style={styles.statusText}>Aktif</Text>
                         </View>
                     </View>
                     <Text style={styles.panelText}>
@@ -519,7 +519,7 @@ export default function CoachScreen() {
                             <View style={styles.accessSummaryItem}>
                                 <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
                                 <Text style={styles.accessSummaryText}>
-                                    {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gun Premium deneme` : "Deneme suresi pasif"}
+                                    {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gun Premium deneme` : "Premium aktif"}
                                 </Text>
                             </View>
                             <View style={styles.accessSummaryItem}>
