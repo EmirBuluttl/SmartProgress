@@ -71,11 +71,6 @@ export default function ProfileEditScreen() {
                 setProfileImage(getPickedImageUri(result.assets[0]));
             }
         } else {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== "granted") {
-                setNotice({ title: "İzin Gerekli", message: "Profil fotoğrafını seçmek için galeri izni vermen gerekiyor." });
-                return;
-            }
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ["images"],
                 allowsEditing: true,

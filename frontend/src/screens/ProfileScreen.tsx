@@ -170,14 +170,6 @@ export default function ProfileScreen() {
         };
 
         if (Platform.OS === "web") {
-            const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
-            if (status !== "granted") {
-                setNotice({
-                    title: "İzin Gerekli",
-                    message: "Profil fotoğrafını değiştirmek için galeri izni vermen gerekiyor.",
-                });
-                return;
-            }
             const result = await ImagePicker.launchImageLibraryAsync({
                 mediaTypes: ["images"],
                 allowsEditing: true,
@@ -209,18 +201,15 @@ export default function ProfileScreen() {
             }
         };
 
-        const permission = source === "camera"
-            ? await ImagePicker.requestCameraPermissionsAsync()
-            : await ImagePicker.requestMediaLibraryPermissionsAsync();
-
-        if (permission.status !== "granted") {
-            setNotice({
-                title: "Izin gerekli",
-                message: source === "camera"
-                    ? "Profil fotografi cekmek icin kamera izni vermen gerekiyor."
-                    : "Profil fotografi secmek icin galeri izni vermen gerekiyor.",
-            });
-            return;
+        if (source === "camera") {
+            const permission = await ImagePicker.requestCameraPermissionsAsync();
+            if (permission.status !== "granted") {
+                setNotice({
+                    title: "Izin gerekli",
+                    message: "Profil fotografi cekmek icin kamera izni vermen gerekiyor.",
+                });
+                return;
+            }
         }
 
         const result = source === "camera"
