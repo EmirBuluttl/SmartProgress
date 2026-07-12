@@ -1944,8 +1944,44 @@ export default function WorkoutSessionScreen() {
         </View>
     );
 
+    const visibleExercises = React.useMemo(() => session.exercises.filter((exercise, index) => {
+        if (!exercise.supersetGroupId) return true;
+        return session.exercises.findIndex((candidate) => candidate.supersetGroupId === exercise.supersetGroupId) === index;
+    }), [session.exercises]);
+
+    const applyVisibleExerciseOrder = useCallback((orderedVisible: WorkoutExercise[]) => {
+        updateSession((prev) => {
+            const used = new Set<string>();
+            const next: WorkoutExercise[] = [];
+            orderedVisible.forEach((visibleExercise) => {
+                const original = prev.exercises.find((candidate) => candidate.id === visibleExercise.id) || visibleExercise;
+                if (original.supersetGroupId) {
+                    prev.exercises
+                        .filter((candidate) => candidate.supersetGroupId === original.supersetGroupId)
+                        .forEach((groupExercise) => {
+                            if (!used.has(groupExercise.id)) {
+                                next.push(groupExercise);
+                                used.add(groupExercise.id);
+                            }
+                        });
+                    return;
+                }
+                if (!used.has(original.id)) {
+                    next.push(original);
+                    used.add(original.id);
+                }
+            });
+            prev.exercises.forEach((exercise) => {
+                if (!used.has(exercise.id)) next.push(exercise);
+            });
+            return { ...prev, exercises: next };
+        });
+    }, [updateSession]);
+
     const renderExerciseItem = ({ item: exercise, drag, isActive, getIndex }: RenderItemParams<WorkoutExercise>) => {
-        const exIndex = getIndex() ?? 0;
+        const visibleIndex = getIndex() ?? 0;
+        const actualExerciseIndex = session.exercises.findIndex((candidate) => candidate.id === exercise.id);
+        const exIndex = actualExerciseIndex >= 0 ? actualExerciseIndex : visibleIndex;
         const weightModes = new Set(exercise.sets.map((set) => set.weightMode === "bodyweight" ? "BW" : "KG"));
         const effortModes = new Set(exercise.sets.map((set) => set.effortMode === "duration" ? "SÜRE" : "TEKRAR"));
         const weightHeader = weightModes.size === 1 ? [...weightModes][0] : "KG/BW";
@@ -1955,30 +1991,29 @@ export default function WorkoutSessionScreen() {
             ? session.exercises.filter((candidate) => candidate.supersetGroupId === exercise.supersetGroupId)
             : [];
         const isSupersetLead = !!exercise.supersetGroupId && supersetMembers[0]?.id === exercise.id && supersetMembers.length > 1;
-        const supersetFlowRows = isSupersetLead
-            ? Array.from({ length: Math.max(...supersetMembers.map((member) => member.sets.filter((set) => !set.isWarmup).length), 1) }, (_, setIndex) =>
-                supersetMembers.map((member, memberIndex) => ({
-                    label: (setIndex + 1) + ". set " + String.fromCharCode(65 + memberIndex),
-                    name: member.name,
-                })),
-            )
-            : [];
+        const supersetExerciseTitle = isSupersetLead ? supersetMembers.map((member) => member.name).join(" + ") : exercise.name;
         const getSetLabel = (set: WorkoutSet, sets: WorkoutSet[]) => {
             const sameTypeSets = sets.filter((candidate) => !!candidate.isWarmup === !!set.isWarmup);
             const setNumber = sameTypeSets.findIndex((candidate) => candidate.id === set.id) + 1;
             return set.isWarmup ? `W${setNumber}` : `${setNumber}`;
         };
 
-        const renderSetItem = ({ item: set, drag: dragSet, getIndex: getSetIndex }: RenderItemParams<WorkoutSet>) => {
+        const renderSetItem = (
+            { item: set, drag: dragSet, getIndex: getSetIndex }: RenderItemParams<WorkoutSet>,
+            targetExercise = exercise,
+            targetExIndex = exIndex,
+            labelOverride?: string,
+        ) => {
             const setIndex = getSetIndex() ?? 0;
             const isWarmup = !!set.isWarmup;
-            const label = getSetLabel(set, exercise.sets);
+            const targetLogDisabled = !!targetExercise.logDisabled;
+            const label = labelOverride || getSetLabel(set, targetExercise.sets);
             const canMoveSetUp = setIndex > 0;
-            const canMoveSetDown = setIndex < exercise.sets.length - 1;
+            const canMoveSetDown = setIndex < targetExercise.sets.length - 1;
 
             const setContent = (
                 <View style={styles.setBlock}>
-                <View style={[styles.setRow, isWarmup && styles.warmupSetRow, set.sideMode === "left_right" && styles.unilateralSetRow, exerciseLogDisabled && styles.disabledSetRow]}>
+                <View style={[styles.setRow, isWarmup && styles.warmupSetRow, set.sideMode === "left_right" && styles.unilateralSetRow, targetLogDisabled && styles.disabledSetRow]}>
                         {isWeb ? (
                             <View style={[styles.setDragHandle, styles.webSetOrderHandle, isWarmup && styles.warmupSetDragHandle]}>
                                 <Text style={[styles.setNumber, isWarmup && styles.warmupSetNumber]}>
@@ -1986,14 +2021,14 @@ export default function WorkoutSessionScreen() {
                                 </Text>
                                 <View style={styles.webOrderButtons}>
                                     <TouchableOpacity
-                                        onPress={() => moveSet(exercise.id, set.id, "up")}
+                                        onPress={() => moveSet(targetExercise.id, set.id, "up")}
                                         disabled={!canMoveSetUp}
                                         style={[styles.webOrderBtn, !canMoveSetUp && styles.webOrderBtnDisabled]}
                                     >
                                         <Ionicons name="chevron-up" size={12} color={colors.textSecondary} />
                                     </TouchableOpacity>
                                     <TouchableOpacity
-                                        onPress={() => moveSet(exercise.id, set.id, "down")}
+                                        onPress={() => moveSet(targetExercise.id, set.id, "down")}
                                         disabled={!canMoveSetDown}
                                         style={[styles.webOrderBtn, !canMoveSetDown && styles.webOrderBtnDisabled]}
                                     >
@@ -2015,58 +2050,58 @@ export default function WorkoutSessionScreen() {
 
                         <View style={[styles.inputWrapper, { flex: 1 }]}>
                             <TextInput
-                                ref={(el) => registerInput(inputKey(exIndex, setIndex, "weight"), el)}
+                                ref={(el) => registerInput(inputKey(targetExIndex, setIndex, "weight"), el)}
                                 style={[styles.numericInput, set.weightMode === "bodyweight" && styles.exceptionInput]}
-                                value={set.sideMode === "left_right" ? "L/R" : set.weightMode === "bodyweight" ? "BW" : getTextValue(exercise.id, set.id, "weight", set.weight)}
-                                editable={!exerciseLogDisabled && set.sideMode !== "left_right" && set.weightMode !== "bodyweight"}
+                                value={set.sideMode === "left_right" ? "L/R" : set.weightMode === "bodyweight" ? "BW" : getTextValue(targetExercise.id, set.id, "weight", set.weight)}
+                                editable={!targetLogDisabled && set.sideMode !== "left_right" && set.weightMode !== "bodyweight"}
                                 onChangeText={(text) => {
-                                    onNumericChange(exercise.id, set.id, "weight", text);
-                                    if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
+                                    onNumericChange(targetExercise.id, set.id, "weight", text);
+                                    if (text.trim() && !set.completed) toggleSetCompleted(targetExercise.id, set.id);
                                 }}
-                                onBlur={() => onNumericBlur(exercise.id, set.id, "weight")}
+                                onBlur={() => onNumericBlur(targetExercise.id, set.id, "weight")}
                                 placeholder={
                                     set.weightMode === "bodyweight"
                                         ? `${set.weight || latestBodyWeight || 0} kg`
-                                        : set.targetWeight ?? exercise.targetWeight ?? "0"
+                                        : set.targetWeight ?? targetExercise.targetWeight ?? "0"
                                 }
                                 placeholderTextColor={
-                                    set.weightMode === "bodyweight" || (set.targetWeight || exercise.targetWeight)
+                                    set.weightMode === "bodyweight" || (set.targetWeight || targetExercise.targetWeight)
                                         ? colors.accentDark
                                         : colors.textMuted
                                 }
                                 keyboardType="decimal-pad"
                                 inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
-                                onFocus={() => setFocusedInputKey(inputKey(exIndex, setIndex, "weight"))}
+                                onFocus={() => setFocusedInputKey(inputKey(targetExIndex, setIndex, "weight"))}
                                 selectionColor={colors.accent}
                                 returnKeyType="next"
-                                onSubmitEditing={() => focusNext(exIndex, setIndex, "weight")}
+                                onSubmitEditing={() => focusNext(targetExIndex, setIndex, "weight")}
                                 blurOnSubmit={false}
                             />
                         </View>
 
                         <View style={[styles.inputWrapper, { flex: 1 }]}>
                             <TextInput
-                                ref={(el) => registerInput(inputKey(exIndex, setIndex, "reps"), el)}
+                                ref={(el) => registerInput(inputKey(targetExIndex, setIndex, "reps"), el)}
                                 style={[styles.numericInput, set.effortMode === "duration" && styles.exceptionInput]}
-                                value={set.sideMode === "left_right" ? "L/R" : getEffortTextValue(exercise.id, set)}
-                                editable={!exerciseLogDisabled && set.sideMode !== "left_right"}
+                                value={set.sideMode === "left_right" ? "L/R" : getEffortTextValue(targetExercise.id, set)}
+                                editable={!targetLogDisabled && set.sideMode !== "left_right"}
                                 onChangeText={(text) => {
-                                    onNumericChange(exercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" as any : "reps", text);
-                                    if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
+                                    onNumericChange(targetExercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" as any : "reps", text);
+                                    if (text.trim() && !set.completed) toggleSetCompleted(targetExercise.id, set.id);
                                 }}
-                                onBlur={() => onNumericBlur(exercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" : "reps", set.effortMode !== "duration")}
-                                placeholder={set.effortMode === "duration" ? "sn" : (set.targetReps ?? exercise.targetReps ?? "0")}
+                                onBlur={() => onNumericBlur(targetExercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" : "reps", set.effortMode !== "duration")}
+                                placeholder={set.effortMode === "duration" ? "sn" : (set.targetReps ?? targetExercise.targetReps ?? "0")}
                                 placeholderTextColor={
-                                    set.effortMode !== "duration" && (set.targetReps || exercise.targetReps)
+                                    set.effortMode !== "duration" && (set.targetReps || targetExercise.targetReps)
                                         ? colors.accentDark
                                         : colors.textMuted
                                 }
                                 keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
                                 inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
-                                onFocus={() => setFocusedInputKey(inputKey(exIndex, setIndex, "reps"))}
+                                onFocus={() => setFocusedInputKey(inputKey(targetExIndex, setIndex, "reps"))}
                                 selectionColor={colors.accent}
                                 returnKeyType="next"
-                                onSubmitEditing={() => focusNext(exIndex, setIndex, "reps")}
+                                onSubmitEditing={() => focusNext(targetExIndex, setIndex, "reps")}
                                 blurOnSubmit={false}
                             />
                         </View>
@@ -2074,24 +2109,24 @@ export default function WorkoutSessionScreen() {
                         {(rpeMode === "rpe" || rpeMode === "both") && (
                             <View style={[styles.inputWrapper, { flex: 0.8 }]}>
                                 <TextInput
-                                    ref={(el) => registerInput(inputKey(exIndex, setIndex, "rpe"), el)}
+                                    ref={(el) => registerInput(inputKey(targetExIndex, setIndex, "rpe"), el)}
                                     style={styles.numericInput}
-                                    value={set.sideMode === "left_right" ? "L/R" : getTextValue(exercise.id, set.id, "rpe", set.rpe ?? 0)}
-                                    editable={!exerciseLogDisabled && set.sideMode !== "left_right"}
-                                    onChangeText={(text) => onNumericChange(exercise.id, set.id, "rpe", text)}
-                                    onBlur={() => onNumericBlur(exercise.id, set.id, "rpe")}
+                                    value={set.sideMode === "left_right" ? "L/R" : getTextValue(targetExercise.id, set.id, "rpe", set.rpe ?? 0)}
+                                    editable={!targetLogDisabled && set.sideMode !== "left_right"}
+                                    onChangeText={(text) => onNumericChange(targetExercise.id, set.id, "rpe", text)}
+                                    onBlur={() => onNumericBlur(targetExercise.id, set.id, "rpe")}
                                     placeholder={
-                                        (set.targetRPE || exercise.targetRPE)
-                                            ? `${set.targetRPE ?? exercise.targetRPE}`
+                                        (set.targetRPE || targetExercise.targetRPE)
+                                            ? `${set.targetRPE ?? targetExercise.targetRPE}`
                                             : "—"
                                     }
                                     placeholderTextColor={colors.accentDark}
                                     keyboardType="number-pad"
                                     inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
-                                    onFocus={() => setFocusedInputKey(inputKey(exIndex, setIndex, "rpe"))}
+                                    onFocus={() => setFocusedInputKey(inputKey(targetExIndex, setIndex, "rpe"))}
                                     selectionColor={colors.accent}
                                     returnKeyType="next"
-                                    onSubmitEditing={() => focusNext(exIndex, setIndex, "rpe")}
+                                    onSubmitEditing={() => focusNext(targetExIndex, setIndex, "rpe")}
                                     blurOnSubmit={false}
                                 />
                             </View>
@@ -2100,32 +2135,32 @@ export default function WorkoutSessionScreen() {
                         {(rpeMode === "rir" || rpeMode === "both") && (
                             <View style={[styles.inputWrapper, { flex: 0.8 }]}>
                                 <TextInput
-                                    ref={(el) => registerInput(inputKey(exIndex, setIndex, "rir"), el)}
+                                    ref={(el) => registerInput(inputKey(targetExIndex, setIndex, "rir"), el)}
                                     style={styles.numericInput}
-                                    value={set.sideMode === "left_right" ? "L/R" : getTextValue(exercise.id, set.id, "rir" as any, (set as any).rir ?? "")}
-                                    editable={!exerciseLogDisabled && set.sideMode !== "left_right"}
-                                    onChangeText={(text) => onNumericChange(exercise.id, set.id, "rir" as any, text)}
-                                    onBlur={() => onNumericBlur(exercise.id, set.id, "rir" as any)}
+                                    value={set.sideMode === "left_right" ? "L/R" : getTextValue(targetExercise.id, set.id, "rir" as any, (set as any).rir ?? "")}
+                                    editable={!targetLogDisabled && set.sideMode !== "left_right"}
+                                    onChangeText={(text) => onNumericChange(targetExercise.id, set.id, "rir" as any, text)}
+                                    onBlur={() => onNumericBlur(targetExercise.id, set.id, "rir" as any)}
                                     placeholder={
-                                        (set.targetRIR || exercise.targetRIR)
-                                            ? `${set.targetRIR ?? exercise.targetRIR}`
+                                        (set.targetRIR || targetExercise.targetRIR)
+                                            ? `${set.targetRIR ?? targetExercise.targetRIR}`
                                             : "—"
                                     }
                                     placeholderTextColor={colors.accentDark}
                                     keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
                                     inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
-                                    onFocus={() => setFocusedInputKey(inputKey(exIndex, setIndex, "rir"))}
+                                    onFocus={() => setFocusedInputKey(inputKey(targetExIndex, setIndex, "rir"))}
                                     selectionColor={colors.accent}
                                     returnKeyType="next"
-                                    onSubmitEditing={() => focusNext(exIndex, setIndex, "rir")}
+                                    onSubmitEditing={() => focusNext(targetExIndex, setIndex, "rir")}
                                     blurOnSubmit={false}
                                 />
                             </View>
                         )}
 
                         <TouchableOpacity
-                            onPress={() => !exerciseLogDisabled && removeSet(exercise.id, set.id)}
-                            disabled={exerciseLogDisabled}
+                            onPress={() => !targetLogDisabled && removeSet(targetExercise.id, set.id)}
+                            disabled={targetLogDisabled}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             style={{ paddingLeft: 4 }}
                         >
@@ -2143,8 +2178,8 @@ export default function WorkoutSessionScreen() {
                                     <TextInput
                                         style={styles.unilateralInput}
                                         value={sideData.weight ? String(sideData.weight) : ""}
-                                        editable={!exerciseLogDisabled}
-                                        onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "weight", text)}
+                                        editable={!targetLogDisabled}
+                                        onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "weight", text)}
                                         placeholder={set.weightMode === "bodyweight" ? "BW" : "kg"}
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType="decimal-pad"
@@ -2158,9 +2193,9 @@ export default function WorkoutSessionScreen() {
                                                 ? formatDurationInput(sideData.durationSeconds)
                                                 : sideData.reps ? String(sideData.reps) : ""
                                         }
-                                        editable={!exerciseLogDisabled}
+                                        editable={!targetLogDisabled}
                                         onChangeText={(text) => updateUnilateralSide(
-                                            exercise.id,
+                                            targetExercise.id,
                                             set,
                                             side,
                                             set.effortMode === "duration" ? "durationSeconds" : "reps",
@@ -2176,8 +2211,8 @@ export default function WorkoutSessionScreen() {
                                         <TextInput
                                             style={styles.unilateralInput}
                                             value={sideData.rpe ? String(sideData.rpe) : ""}
-                                            editable={!exerciseLogDisabled}
-                                            onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "rpe", text)}
+                                            editable={!targetLogDisabled}
+                                            onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "rpe", text)}
                                             placeholder="RPE"
                                             placeholderTextColor={colors.textMuted}
                                             keyboardType="number-pad"
@@ -2189,8 +2224,8 @@ export default function WorkoutSessionScreen() {
                                         <TextInput
                                             style={styles.unilateralInput}
                                             value={sideData.rir ? String(sideData.rir) : ""}
-                                            editable={!exerciseLogDisabled}
-                                            onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "rir", text)}
+                                            editable={!targetLogDisabled}
+                                            onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "rir", text)}
                                             placeholder="RIR"
                                             placeholderTextColor={colors.textMuted}
                                             keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
@@ -2208,6 +2243,53 @@ export default function WorkoutSessionScreen() {
             );
 
             return isWeb ? setContent : <ScaleDecorator>{setContent}</ScaleDecorator>;
+        };
+
+        const renderSupersetMergedSets = () => {
+            if (!isSupersetLead) return null;
+            const maxWorkSetCount = Math.max(
+                ...supersetMembers.map((member) => member.sets.filter((set) => !set.isWarmup).length),
+                1,
+            );
+            const rows: React.ReactNode[] = [];
+
+            for (let roundIndex = 0; roundIndex < maxWorkSetCount; roundIndex += 1) {
+                supersetMembers.forEach((member, memberIndex) => {
+                    const workSets = member.sets.filter((set) => !set.isWarmup);
+                    const set = workSets[roundIndex];
+                    if (!set) return;
+                    const memberSetIndex = member.sets.findIndex((candidate) => candidate.id === set.id);
+                    const memberExerciseIndex = session.exercises.findIndex((candidate) => candidate.id === member.id);
+                    const label = `${roundIndex + 1}. set ${String.fromCharCode(65 + memberIndex)}`;
+                    rows.push(
+                        <View key={`${member.id}_${set.id}`} style={styles.supersetMergedSetBlock}>
+                            <View style={styles.supersetMergedSetHeader}>
+                                <Text style={styles.supersetMergedSetLabel}>{label}</Text>
+                                <Text style={styles.supersetMergedExerciseName} numberOfLines={1}>{member.name}</Text>
+                            </View>
+                            {renderSetItem({
+                                item: set,
+                                getIndex: () => memberSetIndex,
+                                drag: () => undefined,
+                                isActive: false,
+                            } as RenderItemParams<WorkoutSet>, member, memberExerciseIndex >= 0 ? memberExerciseIndex : exIndex, label)}
+                        </View>,
+                    );
+                });
+            }
+
+            return (
+                <View style={styles.supersetMergedCard}>
+                    <View style={styles.supersetMergedHeader}>
+                        <Ionicons name="git-compare-outline" size={15} color={colors.accent} />
+                        <Text style={styles.supersetMergedTitle}>Birleşik superset kartı</Text>
+                    </View>
+                    <Text style={styles.supersetMergedHint}>
+                        Setleri aşağıdaki sırayla uygula; tur bitince dinlen.
+                    </Text>
+                    {rows}
+                </View>
+            );
         };
 
         const exerciseContent = (
@@ -2229,15 +2311,15 @@ export default function WorkoutSessionScreen() {
                             <View style={[styles.dragHandle, styles.webExerciseOrderHandle]}>
                                 <TouchableOpacity
                                     onPress={() => moveExercise(exercise.id, "up")}
-                                    disabled={exIndex === 0}
-                                    style={[styles.webOrderBtn, exIndex === 0 && styles.webOrderBtnDisabled]}
+                                    disabled={visibleIndex === 0}
+                                    style={[styles.webOrderBtn, visibleIndex === 0 && styles.webOrderBtnDisabled]}
                                 >
                                     <Ionicons name="chevron-up" size={14} color={colors.textSecondary} />
                                 </TouchableOpacity>
                                 <TouchableOpacity
                                     onPress={() => moveExercise(exercise.id, "down")}
-                                    disabled={exIndex === session.exercises.length - 1}
-                                    style={[styles.webOrderBtn, exIndex === session.exercises.length - 1 && styles.webOrderBtnDisabled]}
+                                    disabled={visibleIndex === visibleExercises.length - 1}
+                                    style={[styles.webOrderBtn, visibleIndex === visibleExercises.length - 1 && styles.webOrderBtnDisabled]}
                                 >
                                     <Ionicons name="chevron-down" size={14} color={colors.textSecondary} />
                                 </TouchableOpacity>
@@ -2256,7 +2338,7 @@ export default function WorkoutSessionScreen() {
                         )}
 
                         <View style={styles.exerciseIndexBadge}>
-                            <Text style={styles.exerciseIndexText}>{exIndex + 1}</Text>
+                            <Text style={styles.exerciseIndexText}>{visibleIndex + 1}</Text>
                         </View>
 
                         {exercise.isCustom ? (
@@ -2275,7 +2357,7 @@ export default function WorkoutSessionScreen() {
                                 activeOpacity={0.78}
                             >
                             <Text style={styles.exerciseNameText} numberOfLines={1}>
-                                {exercise.name}
+                                {supersetExerciseTitle}
                             </Text>
                             </TouchableOpacity>
                         )}
@@ -2298,29 +2380,8 @@ export default function WorkoutSessionScreen() {
                         </View>
                     </View>
 
-                    {(isSupersetLead || exercise.supersetLabel || exercise.painWarning || exercise.riskAdjusted || exercise.logDisabled) && (
+                    {(exercise.painWarning || exercise.riskAdjusted || exercise.logDisabled) && (
                         <View style={styles.exerciseMetaNoticeWrap}>
-                            {isSupersetLead ? (
-                                <View style={styles.supersetFlowCard}>
-                                    <View style={styles.supersetFlowHeader}>
-                                        <Ionicons name="git-compare-outline" size={15} color={colors.accent} />
-                                        <Text style={styles.supersetFlowTitle}>Superset akışı</Text>
-                                    </View>
-                                    <Text style={styles.supersetFlowHint}>
-                                        Her turda hareketleri aşağıdaki sırayla yap, sonra dinlen.
-                                    </Text>
-                                    {supersetFlowRows.map((row, rowIndex) => (
-                                        <View key={`${exercise.id}_flow_${rowIndex}`} style={styles.supersetFlowRow}>
-                                            {row.map((entry) => (
-                                                <View key={`${rowIndex}_${entry.label}_${entry.name}`} style={styles.supersetFlowPill}>
-                                                    <Text style={styles.supersetFlowLabel}>{entry.label}</Text>
-                                                    <Text style={styles.supersetFlowName} numberOfLines={1}>{entry.name}</Text>
-                                                </View>
-                                            ))}
-                                        </View>
-                                    ))}
-                                </View>
-                            ) : null}
                             {exercise.painWarning || exercise.riskAdjusted ? (
                                 <View style={styles.painNotice}>
                                     <Ionicons name="warning-outline" size={14} color="#F5A524" />
@@ -2328,9 +2389,6 @@ export default function WorkoutSessionScreen() {
                                         {exercise.logDisabledReason || exercise.painWarning || "Agri notu nedeniyle bu hareket guvenli modda loglanmali."}
                                     </Text>
                                 </View>
-                            ) : null}
-                            {exercise.supersetRestHint ? (
-                                <Text style={styles.supersetHint}>{exercise.supersetRestHint}</Text>
                             ) : null}
                         </View>
                     )}
@@ -2357,7 +2415,9 @@ export default function WorkoutSessionScreen() {
                     </View>
 
 
-                    {isWeb ? (
+                    {isSupersetLead ? (
+                        renderSupersetMergedSets()
+                    ) : isWeb ? (
                         <View>
                             {exercise.sets.map((set, index) => (
                                 <React.Fragment key={set.id}>
@@ -2381,6 +2441,7 @@ export default function WorkoutSessionScreen() {
                         />
                     )}
 
+                    {!isSupersetLead ? (
                     <View style={styles.addSetRow}>
                         <TouchableOpacity
                             style={[styles.addSetBtn, exerciseLogDisabled && styles.disabledActionBtn]}
@@ -2399,6 +2460,7 @@ export default function WorkoutSessionScreen() {
                             <Text style={[styles.addSetText, { color: colors.textMuted }]}>Isınma</Text>
                         </TouchableOpacity>
                     </View>
+                    ) : null}
 
             </View>
         );
@@ -2987,7 +3049,7 @@ export default function WorkoutSessionScreen() {
                     onScrollBeginDrag={Keyboard.dismiss}
                 >
                     {renderHeader()}
-                    {session.exercises.map((exercise, index) => (
+                    {visibleExercises.map((exercise, index) => (
                         <React.Fragment key={exercise.id}>
                             {renderExerciseItem({
                                 item: exercise,
@@ -3002,8 +3064,8 @@ export default function WorkoutSessionScreen() {
             ) : (
                 <DraggableFlatList
                     ref={mobileListRef}
-                    data={session.exercises}
-                    onDragEnd={({ data }: { data: WorkoutExercise[] }) => updateSession(prev => ({ ...prev, exercises: data }))}
+                    data={visibleExercises}
+                    onDragEnd={({ data }: { data: WorkoutExercise[] }) => applyVisibleExerciseOrder(data)}
                     keyExtractor={(item: WorkoutExercise) => item.id}
                     renderItem={renderExerciseItem}
                     ListHeaderComponent={renderHeader}
@@ -3282,6 +3344,51 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.text,
         fontSize: fontSize.xs,
         marginTop: 2,
+    },
+    supersetMergedCard: {
+        gap: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    supersetMergedHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    supersetMergedTitle: {
+        color: colors.textPrimary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    supersetMergedHint: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+    },
+    supersetMergedSetBlock: {
+        borderWidth: 1,
+        borderColor: colors.borderSubtle,
+        borderRadius: borderRadius.md,
+        padding: spacing.xs,
+        backgroundColor: colors.surface,
+        gap: spacing.xs,
+    },
+    supersetMergedSetHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        paddingHorizontal: spacing.xs,
+    },
+    supersetMergedSetLabel: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        minWidth: 62,
+    },
+    supersetMergedExerciseName: {
+        color: colors.textPrimary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+        flex: 1,
     },
     painNotice: {
         flexDirection: "row",

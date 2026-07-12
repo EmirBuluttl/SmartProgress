@@ -65,6 +65,7 @@ type ExerciseSelectionOptions = {
     level?: CoachLevel;
     goal?: CoachGoal;
     strengthFocus?: CoachStrengthFocus;
+    allowUnsafeFallback?: boolean;
 };
 
 export const COACH_LEVELS: { key: CoachLevel; label: string; desc: string; rir: string }[] = [
@@ -793,7 +794,10 @@ export function resolveCoachExerciseItemWithAvoidance(
     avoidExercises: string[] = [],
     options?: ExerciseSelectionOptions,
 ) {
-    const available = getExercisesForPattern(pattern, avoidNote, avoidExercises, options);
+    let available = getExercisesForPattern(pattern, avoidNote, avoidExercises, options);
+    if (available.length === 0 && options?.allowUnsafeFallback) {
+        available = EXERCISE_LIBRARY.filter((exercise) => exercise.pattern === pattern);
+    }
     const selected = selectedExercises?.[pattern];
     const selectedExercise = available.find((exercise) =>
         exercise.name === selected ||
@@ -946,6 +950,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         equipmentLimitNote: input.equipmentLimitNote,
         painNote: input.painNote,
         preferPainSafe: input.hasPain === "yes" && !injuryMode,
+        allowUnsafeFallback: injuryMode,
         level: input.level,
         goal: input.goal,
         strengthFocus: input.strengthFocus,

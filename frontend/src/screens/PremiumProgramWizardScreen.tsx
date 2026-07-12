@@ -184,8 +184,11 @@ export default function PremiumProgramWizardScreen() {
         [trainingDays],
     );
     const blockedExercisePatterns = React.useMemo(() => uniquePatterns.filter((pattern) =>
-        getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions).length === 0,
-    ), [avoidNote, exerciseSelectionOptions, uniquePatterns]);
+        getAvailableExercises(pattern, avoidNote, [], {
+            ...exerciseSelectionOptions,
+            allowUnsafeFallback: injuryMode,
+        }).length === 0,
+    ), [avoidNote, exerciseSelectionOptions, injuryMode, uniquePatterns]);
     const avoidedExerciseTokens = React.useMemo(() => parseAvoidedExercises(avoidNote), [avoidNote]);
     const libraryByName = React.useMemo(() => {
         const map = new Map<string, ExerciseLibraryItem>();
