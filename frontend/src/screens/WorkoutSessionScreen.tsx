@@ -363,6 +363,15 @@ function buildWarmupRoutineLog(template: WarmupRoutineTemplate | any[] | undefin
             exerciseId: exercise.exerciseId,
             name: String(exercise.name || "").trim(),
             targetReps: exercise.targetSets?.[0]?.targetReps,
+            targetPattern: exercise.targetPattern,
+            targetMuscle: exercise.targetMuscle,
+            primaryMuscles: exercise.primaryMuscles,
+            equipment: exercise.equipment,
+            riskAdjusted: exercise.riskAdjusted,
+            painWarning: exercise.painWarning,
+            supersetGroupId: exercise.supersetGroupId,
+            supersetLabel: exercise.supersetLabel,
+            supersetRestHint: exercise.supersetRestHint,
             sets: (exercise.targetSets?.length ? exercise.targetSets : [{ targetReps: "10-15" }]).map((targetSet: TargetSet) => ({
                 id: uid(),
                 weight: 0,
@@ -909,6 +918,15 @@ export default function WorkoutSessionScreen() {
                             targetWeight: targetSet?.targetWeight,
                             targetRPE: targetSet?.targetRPE,
                             targetRIR: targetSet?.targetRIR,
+                            targetPattern: templateEx.targetPattern,
+                            targetMuscle: templateEx.targetMuscle,
+                            primaryMuscles: templateEx.primaryMuscles,
+                            equipment: templateEx.equipment,
+                            riskAdjusted: templateEx.riskAdjusted,
+                            painWarning: templateEx.painWarning,
+                            supersetGroupId: templateEx.supersetGroupId,
+                            supersetLabel: templateEx.supersetLabel,
+                            supersetRestHint: templateEx.supersetRestHint,
                             sets: (templateEx.targetSets ?? templateEx.sets ?? [{}]).map((ts: TargetSet) => {
                                 const isWarmup = !!ts?.isWarmup;
                                 const previousWeight = isWarmup
@@ -2258,6 +2276,30 @@ export default function WorkoutSessionScreen() {
                         </View>
                     </View>
 
+                    {(exercise.supersetLabel || exercise.painWarning || exercise.riskAdjusted) && (
+                        <View style={styles.exerciseMetaNoticeWrap}>
+                            {exercise.supersetLabel ? (
+                                <View style={styles.supersetBadge}>
+                                    <Ionicons name="git-compare-outline" size={14} color={colors.accent} />
+                                    <Text style={styles.supersetBadgeText}>
+                                        {exercise.supersetLabel} Superset
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {exercise.painWarning || exercise.riskAdjusted ? (
+                                <View style={styles.painNotice}>
+                                    <Ionicons name="warning-outline" size={14} color="#F5A524" />
+                                    <Text style={styles.painNoticeText}>
+                                        {exercise.painWarning || "Agri notu nedeniyle bu hareket guvenli modda loglanmali."}
+                                    </Text>
+                                </View>
+                            ) : null}
+                            {exercise.supersetRestHint ? (
+                                <Text style={styles.supersetHint}>{exercise.supersetRestHint}</Text>
+                            ) : null}
+                        </View>
+                    )}
+
                     {isAutoSuggestEnabled && (
                         <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surfaceElevated, alignSelf: 'flex-start', paddingHorizontal: spacing.sm, paddingVertical: 4, borderRadius: borderRadius.sm, marginBottom: spacing.md }}>
                             <Ionicons name="sparkles" size={14} color={colors.accent} style={{ marginRight: 4 }} />
@@ -3130,6 +3172,49 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "flex-start",
         marginBottom: spacing.md,
         gap: spacing.xs,
+    },
+    exerciseMetaNoticeWrap: {
+        gap: spacing.xs,
+        marginBottom: spacing.md,
+    },
+    supersetBadge: {
+        alignSelf: "flex-start",
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.accent + "66",
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+    },
+    supersetBadgeText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    supersetHint: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        lineHeight: 17,
+    },
+    painNotice: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.xs,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: "#F5A52455",
+        backgroundColor: colors.surfaceElevated,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+    },
+    painNoticeText: {
+        flex: 1,
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 17,
     },
     exerciseIndexBadge: {
         width: 28,

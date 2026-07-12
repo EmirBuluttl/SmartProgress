@@ -50,6 +50,7 @@ export type ExerciseLibraryItem = {
     skillDemand?: ExerciseSkillDemand;
     riskLevel?: ExerciseRiskLevel;
     goalFit?: ExerciseGoalFit[];
+    requiredMachineType?: string;
     mediaUrl?: string;
     mediaSourceUrl?: string;
     mediaCredit?: string;

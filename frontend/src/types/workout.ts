@@ -55,6 +55,15 @@ export interface TargetExercise {
     exerciseId?: string;
     name: string;
     targetSets: TargetSet[];
+    targetPattern?: string;
+    targetMuscle?: string;
+    primaryMuscles?: string[];
+    equipment?: string[];
+    riskAdjusted?: boolean;
+    painWarning?: string;
+    supersetGroupId?: string;
+    supersetLabel?: string;
+    supersetRestHint?: string;
 }
 
 // ─── Exercise (Live Session) ─────────────────
@@ -69,6 +78,15 @@ export interface WorkoutExercise {
     targetWeight?: string; // from program template, e.g. "100"
     targetRPE?: string;    // from program template
     targetRIR?: string;    // from program template
+    targetPattern?: string;
+    targetMuscle?: string;
+    primaryMuscles?: string[];
+    equipment?: string[];
+    riskAdjusted?: boolean;
+    painWarning?: string;
+    supersetGroupId?: string;
+    supersetLabel?: string;
+    supersetRestHint?: string;
 }
 
 // ─── Cycle-Based Program Data ─────────────────

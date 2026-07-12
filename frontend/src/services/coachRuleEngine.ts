@@ -121,6 +121,21 @@ export const COACH_PRIORITY_GROUPS: { key: string; label: string; patterns: Coac
     { key: "core", label: "Karın", patterns: ["spinal_flexion", "spinal_extension", "spinal_rotation"] },
 ];
 
+const SHOULDER_PATTERNS: CoachPatternKey[] = ["shoulder_abduction", "shoulder_flexion", "rear_delt", "rotator_cuff"];
+const CHEST_PATTERNS: CoachPatternKey[] = ["horizontal_adduction", "upper_chest"];
+const BACK_PATTERNS: CoachPatternKey[] = ["shoulder_adduction", "shoulder_extension", "upper_back", "trapezius", "rear_delt"];
+const LEG_PATTERNS: CoachPatternKey[] = ["leg_press", "knee_extension", "knee_flexion", "hip_hinge", "hip_abduction", "hip_adduction", "calf_raise"];
+const ARM_PATTERNS: CoachPatternKey[] = ["elbow_flexion", "elbow_extension", "reverse_curl"];
+
+function addPatterns(target: Set<CoachPatternKey>, patterns: CoachPatternKey[]) {
+    patterns.forEach((pattern) => target.add(pattern));
+}
+
+export function isInjuryNote(note?: string) {
+    const text = normalizeExerciseText(note || "");
+    return /(sakat|sakatlik|sakatl|injury|injured|yirtik|yırtık|kopuk|ameliyat|meniskus|meniscus|fitik|fıtık)/i.test(text);
+}
+
 export const COACH_PATTERN_LABELS: Record<CoachPatternKey, string> = {
     horizontal_adduction: "Göğüs",
     upper_chest: "Üst göğüs",
@@ -252,21 +267,21 @@ export function targetRir(level: CoachLevel): string {
 }
 
 const PRIORITY_CLUSTERS: Partial<Record<CoachPatternKey, CoachPatternKey[]>> = {
-    shoulder_abduction: ["shoulder_abduction", "shoulder_flexion"],
-    shoulder_flexion: ["shoulder_flexion", "shoulder_abduction"],
-    rear_delt: ["rear_delt", "upper_back", "trapezius"],
-    trapezius: ["trapezius", "upper_back", "rear_delt"],
-    rotator_cuff: ["rotator_cuff", "rear_delt", "shoulder_abduction"],
-    shoulder_adduction: ["shoulder_adduction", "shoulder_extension", "upper_back"],
-    shoulder_extension: ["shoulder_extension", "shoulder_adduction", "upper_back"],
-    upper_back: ["upper_back", "trapezius", "rear_delt", "shoulder_extension", "shoulder_adduction"],
-    horizontal_adduction: ["horizontal_adduction", "upper_chest", "shoulder_flexion"],
-    upper_chest: ["upper_chest", "horizontal_adduction", "shoulder_flexion"],
-    leg_press: ["leg_press", "knee_extension", "knee_flexion", "hip_hinge"],
-    knee_extension: ["knee_extension", "leg_press", "knee_flexion", "hip_hinge"],
-    knee_flexion: ["knee_flexion", "hip_hinge", "leg_press", "knee_extension"],
-    hip_hinge: ["hip_hinge", "knee_flexion", "hip_abduction"],
-    hip_abduction: ["hip_abduction", "hip_hinge", "knee_flexion"],
+    shoulder_abduction: ["shoulder_abduction"],
+    shoulder_flexion: ["shoulder_flexion"],
+    rear_delt: ["rear_delt"],
+    trapezius: ["trapezius"],
+    rotator_cuff: ["rotator_cuff"],
+    shoulder_adduction: ["shoulder_adduction", "shoulder_extension"],
+    shoulder_extension: ["shoulder_extension", "shoulder_adduction"],
+    upper_back: ["upper_back", "trapezius", "rear_delt"],
+    horizontal_adduction: ["horizontal_adduction", "upper_chest"],
+    upper_chest: ["upper_chest", "horizontal_adduction"],
+    leg_press: ["leg_press", "knee_extension"],
+    knee_extension: ["knee_extension"],
+    knee_flexion: ["knee_flexion", "hip_hinge"],
+    hip_hinge: ["hip_hinge", "knee_flexion"],
+    hip_abduction: ["hip_abduction"],
     spinal_flexion: ["spinal_flexion", "spinal_rotation", "spinal_extension"],
     spinal_extension: ["spinal_extension", "spinal_flexion", "spinal_rotation"],
     spinal_rotation: ["spinal_rotation", "spinal_flexion", "spinal_extension"],
@@ -276,6 +291,51 @@ export function buildPriorityOrder(priority: CoachPatternKey | null, priorityOrd
     const order = priorityOrder.length > 0 ? priorityOrder : (priority ? [priority] : []);
     const expanded = order.flatMap((pattern) => PRIORITY_CLUSTERS[pattern] || [pattern]);
     return Array.from(new Set(expanded));
+}
+
+export function isUpperBackClusterComplete(order: CoachPatternKey[]) {
+    return order.includes("upper_back") || order.includes("trapezius") || order.includes("rear_delt");
+}
+
+export function applyPrioritySelectionRules(current: CoachPatternKey[], nextPattern: CoachPatternKey, guidanceEnabled = true): CoachPatternKey[] {
+    if (!guidanceEnabled) {
+        return current.includes(nextPattern)
+            ? current.filter((pattern) => pattern !== nextPattern)
+            : [...current, nextPattern];
+    }
+
+    if (current.includes(nextPattern)) return current.filter((pattern) => pattern !== nextPattern);
+
+    const next = [...current, nextPattern];
+    const addAfter = (pattern: CoachPatternKey) => {
+        if (!next.includes(pattern)) next.push(pattern);
+    };
+
+    if (nextPattern === "shoulder_adduction") addAfter("shoulder_extension");
+    if (nextPattern === "shoulder_extension") addAfter("shoulder_adduction");
+    if (nextPattern === "horizontal_adduction") addAfter("upper_chest");
+    if (nextPattern === "leg_press") addAfter("knee_extension");
+    if (nextPattern === "hip_hinge") addAfter("knee_flexion");
+    if (nextPattern === "knee_flexion") addAfter("hip_hinge");
+
+    return Array.from(new Set(next));
+}
+
+export function isPriorityChoiceLocked(pattern: CoachPatternKey, order: CoachPatternKey[], guidanceEnabled = true) {
+    if (!guidanceEnabled || order.includes(pattern) || order.length === 0) return false;
+    const hasBackFocus = order.some((item) => BACK_PATTERNS.includes(item));
+    const hasLegFocus = order.some((item) => LEG_PATTERNS.includes(item));
+
+    if (hasBackFocus && !isUpperBackClusterComplete(order)) return !BACK_PATTERNS.includes(pattern);
+
+    if (hasLegFocus) {
+        const needsKneeExtension = order.includes("leg_press") && !order.includes("knee_extension");
+        const needsHinge = order.includes("knee_flexion") && !order.includes("hip_hinge");
+        const needsHamstring = order.includes("hip_hinge") && !order.includes("knee_flexion");
+        if (needsKneeExtension || needsHinge || needsHamstring) return !LEG_PATTERNS.includes(pattern);
+    }
+
+    return false;
 }
 
 export function reorderForPriority(
@@ -386,30 +446,39 @@ function advancedWorkingSetCount(split: CoachSplitType | undefined, dayLabel: st
 }
 
 export function targetRepsForInput(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus"> & { pattern?: CoachPatternKey; split?: CoachSplitType; dayLabel?: string }): string {
-    if (input.goal === "fat_loss" && input.level !== "advanced") return "8-10";
     if (hasSpecificStrengthFocus(input)) return "3-6";
     if (input.pattern === "shoulder_abduction") return input.level === "beginner" ? "12-15" : "4-10";
     if (input.level === "advanced" && input.split === "AP" && dayGroup(input.dayLabel) === "Posterior" && input.pattern === "calf_raise") return "6-10";
-    return targetReps(input.level);
+    const base = targetReps(input.level);
+    if (input.goal === "fat_loss") return base === "8-12" ? "12-15" : "8-12";
+    return base;
 }
 
 export function targetRirForInput(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus" | "hasPain">): string {
-    if (input.hasPain === "yes") return "3-4";
+    if (input.hasPain === "yes") return "4-5";
     if (hasSpecificStrengthFocus(input)) return input.level === "beginner" ? "2-3" : "1-2";
     return targetRir(input.level);
+}
+
+export function targetRpeForInput(input: Pick<CoachProfileInput, "level" | "hasPain"> & { baseWorkingSets?: number }): string {
+    if (input.hasPain === "yes") return (input.baseWorkingSets || 1) <= 1 ? "3-4" : "6";
+    if (input.level === "advanced") return "8-10";
+    return "6-8";
 }
 
 export function makeTargetSets(input: Pick<CoachProfileInput, "level" | "goal" | "strengthFocus" | "hasPain"> & { pattern?: CoachPatternKey; split?: CoachSplitType; dayLabel?: string }) {
     const baseWorkingSets = input.level === "advanced"
         ? advancedWorkingSetCount(input.split, input.dayLabel, input.pattern)
         : workingSetCountForInput(input);
-    const workingSets = input.hasPain === "yes" ? Math.min(baseWorkingSets, 2) : baseWorkingSets;
+    const workingSets = input.hasPain === "yes" ? Math.max(1, baseWorkingSets - 1) : baseWorkingSets;
 
     return [
         { targetReps: "3-5", targetRIR: "3-4", isWarmup: true },
         ...Array.from({ length: workingSets }, () => ({
             targetReps: targetRepsForInput(input),
+            targetRPE: targetRpeForInput({ level: input.level, hasPain: input.hasPain, baseWorkingSets }),
             targetRIR: targetRirForInput(input),
+            targetWeight: input.hasPain === "yes" ? "Min %60 dusur" : undefined,
             isWarmup: false,
         })),
     ];
@@ -498,6 +567,9 @@ function inferUnavailableEquipment(note?: string): string[] {
         { key: "machine", regex: /(makine|makineler|machine ekipman|machines)/i, also: ["leg_press"] },
         { key: "leg_press", regex: /(leg press|legpress|bacak press)/i },
         { key: "bench", regex: /(bench|sehpa)/i },
+        { key: "rack", regex: /(rack|power rack|squat rack)/i },
+        { key: "band", regex: /(band|bant|direnc bandi|diren)/i },
+        { key: "bodyweight", regex: /(bodyweight|vucut agirligi|calisthenics)/i },
     ];
     matchers.forEach((item) => {
         if (!item.regex.test(text)) return;
@@ -505,6 +577,45 @@ function inferUnavailableEquipment(note?: string): string[] {
         item.also?.forEach((also) => unavailable.add(also));
     });
     return Array.from(unavailable);
+}
+
+export function inferRequiredMachineType(exercise: Pick<ExerciseLibraryItem, "id" | "name" | "aliases" | "equipment" | "requiredMachineType">): string | undefined {
+    if (exercise.requiredMachineType) return exercise.requiredMachineType;
+    if (!exercise.equipment.includes("machine") && !exercise.equipment.includes("leg_press")) return undefined;
+    const text = normalizeExerciseText([exercise.id, exercise.name, ...(exercise.aliases || [])].join(" "));
+    if (/leg press|legpress|bacak press/.test(text)) return "leg_press";
+    if (/pec deck|pecdeck|fly|butterfly/.test(text)) return "pec_deck";
+    if (/chest press/.test(text)) return "chest_press_machine";
+    if (/shoulder press|omuz press/.test(text)) return "shoulder_press_machine";
+    if (/lat pulldown|pulldown/.test(text)) return "lat_pulldown";
+    if (/row/.test(text)) return "row_machine";
+    if (/lateral raise|side raise|yan omuz/.test(text)) return "lateral_raise_machine";
+    if (/leg extension|knee extension/.test(text)) return "leg_extension";
+    if (/leg curl|hamstring curl/.test(text)) return "leg_curl";
+    if (/adductor/.test(text)) return "adductor_machine";
+    if (/abductor|glute/.test(text)) return "abductor_glute_machine";
+    if (/calf/.test(text)) return "calf_machine";
+    if (/triceps/.test(text)) return "triceps_machine";
+    if (/curl|biceps/.test(text)) return "curl_machine";
+    return "other_machine";
+}
+
+export function getMachineTypeOptions() {
+    const types = new Set<string>();
+    EXERCISE_LIBRARY.forEach((exercise) => {
+        const type = inferRequiredMachineType(exercise);
+        if (type) types.add(type);
+    });
+    return Array.from(types).sort();
+}
+
+function inferUnavailableMachineTypes(note?: string): string[] {
+    const text = normalizeExerciseText(note || "");
+    if (!/(yok|yoktur|bulunmuyor|erisim yok|eriÅŸim yok|eksik|olmuyor|istemiyorum)/i.test(text)) return [];
+    return getMachineTypeOptions().filter((type) => {
+        const readable = type.replace(/_/g, " ");
+        return text.includes(type) || text.includes(readable);
+    });
 }
 
 function inferAllowedEquipment(note?: string): string[] {
@@ -552,6 +663,7 @@ function applyEquipmentFilter(candidates: ExerciseLibraryItem[], options?: Exerc
     if (options?.hasEquipmentLimit !== "yes") return candidates;
     const unavailable = inferUnavailableEquipment(options.equipmentLimitNote);
     const allowed = inferAllowedEquipment(options.equipmentLimitNote);
+    const unavailableMachineTypes = inferUnavailableMachineTypes(options.equipmentLimitNote);
     let filtered = candidates;
     if (allowed.length > 0) {
         filtered = filtered.filter((exercise) => exercise.equipment.every((item) => allowed.includes(item)));
@@ -559,7 +671,13 @@ function applyEquipmentFilter(candidates: ExerciseLibraryItem[], options?: Exerc
     if (unavailable.length > 0) {
         filtered = filtered.filter((exercise) => exercise.equipment.every((item) => !unavailable.includes(item)));
     }
-    return filtered.length > 0 ? filtered : candidates;
+    if (unavailableMachineTypes.length > 0) {
+        filtered = filtered.filter((exercise) => {
+            const type = inferRequiredMachineType(exercise);
+            return !type || !unavailableMachineTypes.includes(type);
+        });
+    }
+    return filtered;
 }
 
 function applyPainSafetyFilter(candidates: ExerciseLibraryItem[], options?: ExerciseSelectionOptions) {
@@ -567,7 +685,7 @@ function applyPainSafetyFilter(candidates: ExerciseLibraryItem[], options?: Exer
     const tags = inferPainContraindicationTags(options.painNote);
     if (tags.length === 0) return candidates;
     const filtered = candidates.filter((exercise) => !exercise.contraindicationTags.some((tag) => tags.includes(tag)));
-    return filtered.length > 0 ? filtered : candidates;
+    return filtered;
 }
 
 function exerciseStabilityScore(exercise: ExerciseLibraryItem, level?: CoachLevel) {
@@ -642,7 +760,7 @@ export function getExercisesForPattern(
     const sorted = sortExerciseCandidates(painFiltered, options);
     if (avoided.length === 0) return sorted;
     const filtered = sorted.filter((exercise) => !matchesAvoidedExercise(exercise, avoided));
-    return filtered.length > 0 ? filtered : sorted;
+    return filtered;
 }
 
 export function getAvailableExercises(
@@ -688,6 +806,13 @@ export function inferPainLimitedPatterns(painNote?: string): CoachPatternKey[] {
     if (!text) return [];
 
     const patterns = new Set<CoachPatternKey>();
+    if (/(omuz|shoulder|rotator|kolumu kald|press)/i.test(text)) addPatterns(patterns, SHOULDER_PATTERNS);
+    if (/(gogus|gogüs|göğüs|chest|pec|bench)/i.test(text)) addPatterns(patterns, CHEST_PATTERNS);
+    if (/(sirt|sırt|back|lat|kanat|trapez|row|pulldown)/i.test(text)) addPatterns(patterns, BACK_PATTERNS);
+    if (/(diz|knee|bacak|leg|quad|quadriceps|patella)/i.test(text)) addPatterns(patterns, LEG_PATTERNS);
+    if (/(kalca|kalça|hip|glute)/i.test(text)) addPatterns(patterns, ["hip_hinge", "hip_abduction", "hip_adduction"]);
+    if (/(hamstring|arka bacak)/i.test(text)) addPatterns(patterns, ["knee_flexion", "hip_hinge"]);
+    if (/(ayak bilegi|ayak bileği|ankle|calf|baldir|baldır)/i.test(text)) addPatterns(patterns, ["calf_raise", "leg_press"]);
     if (/(diz|knee|bacak|leg|quad|quadriceps|patella)/i.test(text)) {
         ["leg_press", "knee_extension", "knee_flexion", "hip_hinge", "calf_raise"].forEach((pattern) => patterns.add(pattern as CoachPatternKey));
     }
@@ -703,10 +828,114 @@ export function inferPainLimitedPatterns(painNote?: string): CoachPatternKey[] {
     return Array.from(patterns);
 }
 
+function isMainCompoundExercise(exercise: { targetPattern?: CoachPatternKey; primaryMuscles?: string[]; equipment?: string[]; name?: string }) {
+    const pattern = exercise.targetPattern;
+    const text = normalizeExerciseText(exercise.name || "");
+    return pattern === "horizontal_adduction" ||
+        pattern === "upper_chest" ||
+        pattern === "leg_press" ||
+        pattern === "hip_hinge" ||
+        pattern === "shoulder_extension" ||
+        pattern === "shoulder_adduction" ||
+        /squat|deadlift|bench|press|row|pull up|chin up|dip/.test(text);
+}
+
+function isUnilateralExercise(exercise: { name?: string }) {
+    const text = normalizeExerciseText(exercise.name || "");
+    return /single|one arm|one-arm|one leg|one-leg|unilateral|tek kol|tek bacak|bulgarian|lunge/.test(text);
+}
+
+function workingSetTotal(exercise: { targetSets?: { isWarmup?: boolean }[] }) {
+    return (exercise.targetSets || []).filter((set) => !set.isWarmup).length || 1;
+}
+
+function estimateExerciseSeconds(exercise: { targetSets?: { isWarmup?: boolean }[] }, input: CoachProfileInput) {
+    const workSets = workingSetTotal(exercise);
+    const setSeconds = workSets * 40;
+    const restSeconds = input.goal === "strength"
+        ? workSets * 240
+        : input.level === "beginner"
+            ? workSets * 180
+            : workSets * 240;
+    return setSeconds + restSeconds;
+}
+
+function estimateDaySeconds(exercises: { targetSets?: { isWarmup?: boolean }[] }[], input: CoachProfileInput) {
+    return exercises.reduce((total, exercise) => total + estimateExerciseSeconds(exercise, input), 0);
+}
+
+function canSupersetExercises(
+    first: { targetPattern?: CoachPatternKey; riskAdjusted?: boolean; primaryMuscles?: string[]; name?: string; targetSets?: { isWarmup?: boolean }[] },
+    second: { targetPattern?: CoachPatternKey; riskAdjusted?: boolean; primaryMuscles?: string[]; name?: string; targetSets?: { isWarmup?: boolean }[] },
+    input: CoachProfileInput,
+    forceUnilateral = false,
+) {
+    if (first.riskAdjusted || second.riskAdjusted) return false;
+    if (isMainCompoundExercise(first) || isMainCompoundExercise(second)) return false;
+    if (!forceUnilateral && (isUnilateralExercise(first) || isUnilateralExercise(second))) return false;
+    const firstMuscles = new Set(first.primaryMuscles || []);
+    const sharedMuscle = (second.primaryMuscles || []).some((muscle) => firstMuscles.has(muscle));
+    const bothHeavy = workingSetTotal(first) >= 2 && workingSetTotal(second) >= 2;
+    if (sharedMuscle && bothHeavy) return false;
+    return input.sessionDuration !== "90+";
+}
+
+function applySupersetPlan<T extends {
+    targetPattern?: CoachPatternKey;
+    riskAdjusted?: boolean;
+    primaryMuscles?: string[];
+    name?: string;
+    targetSets?: { isWarmup?: boolean }[];
+    supersetGroupId?: string;
+    supersetLabel?: string;
+    supersetRestHint?: string;
+}>(exercises: T[], input: CoachProfileInput, dayIndex: number): T[] {
+    if (input.sessionDuration === "90+" || exercises.length < 4) return exercises;
+    const targetSeconds = input.sessionDuration === "45-60" ? 60 * 60 : 90 * 60;
+    if (input.sessionDuration === "60-90" && estimateDaySeconds(exercises, input) <= targetSeconds) return exercises;
+
+    const next = exercises.map((exercise) => ({ ...exercise }));
+    const paired = new Set<number>();
+    let group = 1;
+
+    const tryPair = (forceUnilateral: boolean) => {
+        for (let right = next.length - 1; right >= 1; right -= 1) {
+            if (paired.has(right)) continue;
+            for (let left = right - 1; left >= 0; left -= 1) {
+                if (paired.has(left)) continue;
+                if (!canSupersetExercises(next[left], next[right], input, forceUnilateral)) continue;
+                const id = `ss_${dayIndex + 1}_${group}`;
+                next[left].supersetGroupId = id;
+                next[right].supersetGroupId = id;
+                next[left].supersetLabel = `A${group}`;
+                next[right].supersetLabel = `A${group}`;
+                next[left].supersetRestHint = "Bu iki hareketi arka arkaya uygula, sonra dinlen.";
+                next[right].supersetRestHint = "Bu iki hareketi arka arkaya uygula, sonra dinlen.";
+                paired.add(left);
+                paired.add(right);
+                group += 1;
+                return true;
+            }
+        }
+        return false;
+    };
+
+    while (estimateDaySeconds(next.filter((_, index) => !paired.has(index)), input) > targetSeconds && tryPair(false)) {
+        // Keep pairing low priority accessories until the rough duration fits.
+    }
+    if (input.sessionDuration === "45-60") {
+        while (estimateDaySeconds(next.filter((_, index) => !paired.has(index)), input) > targetSeconds && tryPair(true)) {
+            // Unilateral pairing is only a last resort for the shortest duration target.
+        }
+    }
+    return next;
+}
+
 export function buildCoachProgramData(input: CoachProfileInput) {
     const workoutDays = getWorkoutDays(input);
     const painLimitedPatterns = input.hasPain === "yes" ? inferPainLimitedPatterns(input.painNote) : [];
-    const shouldExcludePainPatterns = input.hasPain === "yes" && input.includePainArea === "no";
+    const injuryMode = input.hasPain === "yes" && isInjuryNote(input.painNote);
+    const shouldExcludePainPatterns = input.hasPain === "yes" && (injuryMode || input.includePainArea === "no");
     const equipmentText = input.hasEquipmentLimit === "yes" && input.equipmentLimitNote?.trim()
         ? input.equipmentLimitNote.trim()
         : "Tam salon erişimi varsayıldı";
@@ -719,6 +948,56 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         goal: input.goal,
         strengthFocus: input.strengthFocus,
     };
+
+    const days = workoutDays.map((day, dayIndex) => {
+        const exercises = day.isRestDay ? [] : day.patterns
+            .filter((pattern) => !shouldExcludePainPatterns || !painLimitedPatterns.includes(pattern))
+            .map((pattern) => {
+                const exercise = resolveCoachExerciseItemWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises, selectionOptions);
+                if (!exercise) return null;
+                const riskAdjusted = input.hasPain === "yes" && painLimitedPatterns.includes(pattern);
+                return {
+                    id: makeCoachId("exercise"),
+                    exerciseId: exercise.id,
+                    name: exercise.name,
+                    targetPattern: pattern,
+                    targetMuscle: COACH_PATTERN_LABELS[pattern],
+                    primaryMuscles: exercise.primaryMuscles,
+                    equipment: exercise.equipment,
+                    riskAdjusted,
+                    painWarning: riskAdjusted
+                        ? "Ağrı notu aktif: ağırlığı en az %60 düşür, RPE 6 üstüne çıkma ve RIR 4-5 hedefle."
+                        : undefined,
+                    targetSets: makeTargetSets({
+                        level: input.level,
+                        goal: input.goal,
+                        strengthFocus: input.strengthFocus,
+                        hasPain: riskAdjusted ? "yes" : "no",
+                        pattern,
+                        split: input.split,
+                        dayLabel: day.label,
+                    }),
+                };
+            })
+            .filter((exercise): exercise is NonNullable<typeof exercise> => Boolean(exercise));
+
+        return {
+            label: day.label,
+            isRestDay: !!day.isRestDay,
+            exercises: applySupersetPlan(exercises, input, dayIndex),
+        };
+    });
+
+    const supersetCount = days.reduce((total, day) => {
+        const groups = new Set((day.exercises || []).map((exercise) => (exercise as any).supersetGroupId).filter(Boolean));
+        return total + groups.size;
+    }, 0);
+    const goalIntro = input.goal === "fat_loss"
+        ? "Yağ kaybına destek"
+        : input.goal === "strength"
+            ? "Güç ve ölçülebilir progress"
+            : "Kas kazanımı ve sürdürülebilir progress";
+
     return {
         frequency: input.frequency,
         splitType: input.split,
@@ -730,6 +1009,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
             painStatus: input.hasPain,
             painNote: input.painNote?.trim() || undefined,
             includePainArea: input.includePainArea || "yes",
+            injuryMode,
             painLimitedPatterns,
             equipment: equipmentText,
             sessionDuration: input.sessionDuration || "60-90",
@@ -737,33 +1017,17 @@ export function buildCoachProgramData(input: CoachProfileInput) {
             priorityOrder: input.priorityOrder || [],
             avoidNote: input.avoidNote?.trim() || undefined,
         },
-        days: workoutDays.map((day) => ({
-            label: day.label,
-            isRestDay: !!day.isRestDay,
-            exercises: day.isRestDay ? [] : day.patterns
-                .filter((pattern) => !shouldExcludePainPatterns || !painLimitedPatterns.includes(pattern))
-                .map((pattern) => {
-                    const exercise = resolveCoachExerciseItemWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises, selectionOptions);
-                    return {
-                        id: makeCoachId("exercise"),
-                        exerciseId: exercise.id,
-                        name: exercise.name,
-                        targetPattern: pattern,
-                        targetMuscle: COACH_PATTERN_LABELS[pattern],
-                        primaryMuscles: exercise.primaryMuscles,
-                        equipment: exercise.equipment,
-                        riskAdjusted: painLimitedPatterns.includes(pattern),
-                        targetSets: makeTargetSets({
-                            level: input.level,
-                            goal: input.goal,
-                            strengthFocus: input.strengthFocus,
-                            hasPain: painLimitedPatterns.includes(pattern) ? "yes" : "no",
-                            pattern,
-                            split: input.split,
-                            dayLabel: day.label,
-                        }),
-                    };
-                }),
-        })),
+        programIntro: {
+            title: "Program tanıtımı",
+            sections: [
+                { title: "Programın amacı", body: goalIntro + " için " + COACH_SPLIT_PATTERNS[input.split].label + " akışı kuruldu." },
+                { title: "Haftalık akış", body: input.frequency + " antrenman günü, aralara yerleştirilen dinlenme günleri ve " + (input.sessionDuration || "60-90") + " dk hedefi ile planlandı." },
+                { title: "Efor kuralı", body: "Çalışma setlerinde RPE " + targetRpeForInput({ level: input.level, hasPain: "no" }) + ", RIR " + targetRirForInput({ level: input.level, goal: input.goal, strengthFocus: input.strengthFocus, hasPain: "no" }) + " hedefle." },
+                { title: "Progress kuralı", body: "Form bozulmadan üst tekrar sınırını gördüğünde sonraki antrenmanda kontrollü ağırlık artır. Tek bir kötü set yüzünden programı değiştirme." },
+                ...(input.hasPain === "yes" ? [{ title: injuryMode ? "Sakatlık notu" : "Ağrı notu", body: injuryMode ? "Etkilenen patternler programdan çıkarıldı. Sakatlık geçmeden bu hareketleri geri ekleme." : "İlgili hareketlerde ağırlığı en az %60 düşür, RPE 6 üstüne çıkma ve RIR 4-5 hedefle." }] : []),
+                ...(supersetCount > 0 ? [{ title: "Superset uygulaması", body: "A1/A2 olarak işaretlenen hareketleri arka arkaya yap, sonra dinlen. Compound ve ağrı ilişkili hareketler superset dışı tutuldu." }] : []),
+            ],
+        },
+        days,
     };
 }

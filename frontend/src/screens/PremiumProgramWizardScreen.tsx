@@ -3,7 +3,7 @@ import { useNavigation } from "@react-navigation/native";
 import { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import { Ionicons } from "@expo/vector-icons";
 import React from "react";
-import { Modal, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from "react-native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
@@ -21,11 +21,15 @@ import {
     COACH_SESSION_DURATIONS as SESSION_DURATIONS,
     COACH_SPLIT_PATTERNS as SPLIT_PATTERNS,
     COACH_STRENGTH_FOCUS_OPTIONS as STRENGTH_FOCUS_OPTIONS,
+    applyPrioritySelectionRules,
     defaultSplitForFrequency,
     getAvailableExercises,
+    getMachineTypeOptions,
     getTrainingDays,
     getWorkoutDays,
     inferPainLimitedPatterns,
+    isInjuryNote,
+    isPriorityChoiceLocked,
     parseAvoidedExercises,
     resolveCoachExerciseWithAvoidance,
     splitOptionsForFrequency,
@@ -41,6 +45,17 @@ import {
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const PRO_WIZARD_USES = 15;
+const EQUIPMENT_LIMIT_CHIPS = [
+    "Dumbbell yok",
+    "Barbell yok",
+    "Kablo yok",
+    "Smith machine yok",
+    "Makine yok",
+    "Sehpa/Bench yok",
+    "Rack yok",
+    "Direnç bandı yok",
+    "Bodyweight/vücut ağırlığı hareketler uygun değil",
+];
 
 const normalizeLevel = (value: unknown): Level => {
     const text = String(value || "").toLowerCase();
@@ -100,12 +115,14 @@ export default function PremiumProgramWizardScreen() {
     const [priorityGroup, setPriorityGroup] = React.useState<string | null>(null);
     const [priority, setPriority] = React.useState<PatternKey | null>(null);
     const [priorityOrder, setPriorityOrder] = React.useState<PatternKey[]>([]);
+    const [priorityGuidanceEnabled, setPriorityGuidanceEnabled] = React.useState(true);
     const [avoidNote, setAvoidNote] = React.useState("");
     const [split, setSplit] = React.useState<SplitType>("UL");
     const [selectedExercises, setSelectedExercises] = React.useState<Record<PatternKey, string>>({} as Record<PatternKey, string>);
     const [expandedExercisePatterns, setExpandedExercisePatterns] = React.useState<Partial<Record<PatternKey, boolean>>>({});
     const [saving, setSaving] = React.useState(false);
     const [createdProgramId, setCreatedProgramId] = React.useState<string | null>(null);
+    const [createdProgramIntro, setCreatedProgramIntro] = React.useState<any>(null);
     const [notice, setNotice] = React.useState<string | null>(null);
     const [exerciseInfo, setExerciseInfo] = React.useState<{ pattern: PatternKey; item: ExerciseLibraryItem; rank: number } | null>(null);
     const [profileApplied, setProfileApplied] = React.useState(false);
@@ -136,6 +153,8 @@ export default function PremiumProgramWizardScreen() {
     const selectedSplit = SPLIT_PATTERNS[split];
     const selectedPriorityGroup = PRIORITY_GROUPS.find((group) => group.key === priorityGroup) || null;
     const painLimitedPatterns = React.useMemo(() => inferPainLimitedPatterns(painNote), [painNote]);
+    const injuryMode = React.useMemo(() => hasPain === "yes" && isInjuryNote(painNote), [hasPain, painNote]);
+    const machineTypeOptions = React.useMemo(() => getMachineTypeOptions(), []);
     const exerciseSelectionOptions = React.useMemo(() => ({
         hasEquipmentLimit,
         equipmentLimitNote,
@@ -164,6 +183,9 @@ export default function PremiumProgramWizardScreen() {
         () => Array.from(new Set(trainingDays.flatMap((day) => day.patterns))),
         [trainingDays],
     );
+    const blockedExercisePatterns = React.useMemo(() => uniquePatterns.filter((pattern) =>
+        getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions).length === 0,
+    ), [avoidNote, exerciseSelectionOptions, uniquePatterns]);
     const avoidedExerciseTokens = React.useMemo(() => parseAvoidedExercises(avoidNote), [avoidNote]);
     const libraryByName = React.useMemo(() => {
         const map = new Map<string, ExerciseLibraryItem>();
@@ -226,10 +248,16 @@ export default function PremiumProgramWizardScreen() {
         });
     }, [avoidNote, exerciseSelectionOptions, uniquePatterns]);
 
-    const canContinue = step !== 2 || hasPain === "no" || painNote.trim().length > 1;
+    const canContinue =
+        (step !== 2 || hasPain === "no" || painNote.trim().length > 1) &&
+        (step !== 6 || blockedExercisePatterns.length === 0);
 
     const goNext = () => {
         if (!canContinue) {
+            if (step === 6 && blockedExercisePatterns.length > 0) {
+                setNotice(`Bu filtrelerle hareket bulunamayan alanlar var: ${blockedExercisePatterns.map((pattern) => PATTERN_LABELS[pattern]).join(", ")}. Ekipman veya kaçınma notunu yumuşat.`);
+                return;
+            }
             setNotice("Ağrı veya sakatlık varsa kısa bir not ekleyelim. Koç önerileri bu bilgiye göre daha güvenli davranır.");
             return;
         }
@@ -269,15 +297,20 @@ export default function PremiumProgramWizardScreen() {
                 : "Ücretsiz wizard hakkın dolmuş görünüyor. Premium deneme veya abonelik aktif olduğunda 15 akıllı program hakkın olur.");
             return;
         }
+        if (blockedExercisePatterns.length > 0) {
+            setNotice(`Bu filtrelerle hareket bulunamayan alanlar var: ${blockedExercisePatterns.map((pattern) => PATTERN_LABELS[pattern]).join(", ")}. Program kaydetmeden önce seçimleri düzelt.`);
+            return;
+        }
         setSaving(true);
         setNotice(null);
         try {
+            const programData = buildProgramData();
             const response = await programApi.create({
                 name: programName,
                 description: "SmartProgress Akıllı Koç wizard ile oluşturuldu.",
                 isPublic: false,
                 frequency,
-                data: buildProgramData(),
+                data: programData,
             });
             const programId = response.data?.id;
             if (activate && programId) {
@@ -301,6 +334,7 @@ export default function PremiumProgramWizardScreen() {
                 }
             }
             setCreatedProgramId(programId || "created");
+            setCreatedProgramIntro((programData as any).programIntro || null);
             setNotice(activate ? "Program oluşturuldu ve aktif takibe alındı." : "Program oluşturuldu ve kütüphanene eklendi.");
         } catch (error) {
             const apiError = parseApiError(error);
@@ -319,6 +353,20 @@ export default function PremiumProgramWizardScreen() {
                     </View>
                     <Text style={styles.cardTitle}>Program hazır</Text>
                     <Text style={styles.bodyText}>{notice}</Text>
+                    {!!createdProgramIntro?.sections?.length && (
+                        <View style={styles.selectionInfoBox}>
+                            <Ionicons name="school-outline" size={18} color={colors.accent} />
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.selectionInfoTitle}>{createdProgramIntro.title || "Program tanıtımı"}</Text>
+                                {createdProgramIntro.sections.slice(0, 5).map((section: any) => (
+                                    <View key={section.title} style={styles.introRow}>
+                                        <Text style={styles.introTitle}>{section.title}</Text>
+                                        <Text style={styles.introBody}>{section.body}</Text>
+                                    </View>
+                                ))}
+                            </View>
+                        </View>
+                    )}
                     <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate("ProgramList")}>
                         <Text style={styles.primaryText}>Kütüphaneye Git</Text>
                     </TouchableOpacity>
@@ -387,7 +435,15 @@ export default function PremiumProgramWizardScreen() {
                                         Bu tıbbi öneri değildir. Doktor/fizyoterapist kısıtlaması varsa onu önceliklendir. Koç yalnızca program yükünü daha temkinli ayarlar.
                                     </Text>
                                 </View>
-                                {painLimitedPatterns.length > 0 && (
+                                {injuryMode && painLimitedPatterns.length > 0 && (
+                                    <View style={styles.cautionBox}>
+                                        <Ionicons name="ban-outline" size={18} color={colors.warning || colors.accent} />
+                                        <Text style={styles.cautionText}>
+                                            Sakatlık notu algılandı. Eşleşen hareket/patternler programdan çıkarılır; belirsizse daha net bölge yaz.
+                                        </Text>
+                                    </View>
+                                )}
+                                {painLimitedPatterns.length > 0 && !injuryMode && (
                                     <>
                                         <Text style={styles.inlineLabel}>Eşleşen bölgeyi programa dahil edelim mi?</Text>
                                         <Text style={styles.bodyText}>
@@ -471,12 +527,24 @@ export default function PremiumProgramWizardScreen() {
                                     Sadece eksik ekipmanı veya mecbur kaldığın ekipmanı yaz. Koç bu bilgiye göre daha stabil ve uygulanabilir hareketleri öne alır.
                                 </Text>
                                 <View style={styles.quickChipRow}>
-                                    {["cable yok", "smith yok", "makine yok", "barbell yok", "sadece dumbbell var"].map((note) => (
+                                    {EQUIPMENT_LIMIT_CHIPS.map((note) => (
                                         <TouchableOpacity key={note} style={styles.quickChip} onPress={() => appendEquipmentNote(note)} activeOpacity={0.82}>
                                             <Text style={styles.quickChipText}>{note}</Text>
                                         </TouchableOpacity>
                                     ))}
                                 </View>
+                                {machineTypeOptions.length > 0 && (
+                                    <>
+                                        <Text style={styles.helperText}>Spesifik makine eksikliği varsa seçebilirsin:</Text>
+                                        <View style={styles.quickChipRow}>
+                                            {machineTypeOptions.slice(0, 12).map((type) => (
+                                                <TouchableOpacity key={type} style={styles.quickChip} onPress={() => appendEquipmentNote(type.replace(/_/g, " ") + " yok")} activeOpacity={0.82}>
+                                                    <Text style={styles.quickChipText}>{type.replace(/_/g, " ")} yok</Text>
+                                                </TouchableOpacity>
+                                            ))}
+                                        </View>
+                                    </>
+                                )}
                                 <TextInput
                                 value={equipmentLimitNote}
                                 onChangeText={setEquipmentLimitNote}
@@ -547,6 +615,14 @@ export default function PremiumProgramWizardScreen() {
                             <>
                                 <Text style={styles.inlineLabel}>Kas öncelik sırası</Text>
                                 <Text style={styles.bodyText}>Dokunduğun sıra korunur. Tekrar dokunursan listeden çıkar.</Text>
+                                <TouchableOpacity
+                                    style={[styles.guidanceToggle, !priorityGuidanceEnabled && styles.guidanceToggleOff]}
+                                    onPress={() => setPriorityGuidanceEnabled((current) => !current)}
+                                    activeOpacity={0.85}
+                                >
+                                    <Ionicons name={priorityGuidanceEnabled ? "lock-closed-outline" : "lock-open-outline"} size={16} color={colors.accent} />
+                                    <Text style={styles.guidanceToggleText}>{priorityGuidanceEnabled ? "Öneri kilitleri açık" : "Öneri kilitleri kapalı"}</Text>
+                                </TouchableOpacity>
                                 {priorityOrder.length > 0 && (
                                     <View style={styles.orderPreview}>
                                         {priorityOrder.map((pattern, index) => (
@@ -568,17 +644,17 @@ export default function PremiumProgramWizardScreen() {
                                     {PRIORITIES.map((item) => {
                                         const selectedIndex = priorityOrder.indexOf(item.key);
                                         const isSelected = selectedIndex >= 0;
+                                        const locked = isPriorityChoiceLocked(item.key, priorityOrder, priorityGuidanceEnabled);
                                         return (
                                             <TouchableOpacity
                                                 key={item.key}
-                                                style={[styles.priorityChip, isSelected && styles.priorityChipActive]}
+                                                disabled={locked}
+                                                style={[styles.priorityChip, isSelected && styles.priorityChipActive, locked && styles.priorityChipDisabled]}
                                                 onPress={() => {
-                                                    setPriorityOrder((current) => isSelected
-                                                        ? current.filter((pattern) => pattern !== item.key)
-                                                        : [...current, item.key]);
+                                                    setPriorityOrder((current) => applyPrioritySelectionRules(current, item.key, priorityGuidanceEnabled));
                                                 }}
                                             >
-                                                <Text style={[styles.priorityText, isSelected && styles.priorityTextActive]}>
+                                                <Text style={[styles.priorityText, isSelected && styles.priorityTextActive, locked && styles.priorityTextDisabled]}>
                                                     {isSelected ? `${selectedIndex + 1}. ` : ""}{item.label}
                                                 </Text>
                                             </TouchableOpacity>
@@ -630,7 +706,12 @@ export default function PremiumProgramWizardScreen() {
                             const availableExercises = getAvailableExercises(pattern, avoidNote, [], exerciseSelectionOptions);
                             const expanded = !!expandedExercisePatterns[pattern];
                             const selected = resolveExercise(pattern);
-                            const visibleExercises = expanded ? availableExercises : availableExercises.slice(0, 5);
+                            const compactExercises = availableExercises.slice(0, 5);
+                            const visibleExercises = expanded
+                                ? availableExercises
+                                : selected && availableExercises.includes(selected) && !compactExercises.includes(selected)
+                                    ? [...compactExercises, selected]
+                                    : compactExercises;
                             const hasMoreExercises = availableExercises.length > visibleExercises.length;
                             return (
                                 <View key={pattern} style={styles.exercisePicker}>
@@ -640,6 +721,14 @@ export default function PremiumProgramWizardScreen() {
                                             {expanded ? `${availableExercises.length} secenek` : `${visibleExercises.length}/${availableExercises.length} secenek`}
                                         </Text>
                                     </View>
+                                    {availableExercises.length === 0 && (
+                                        <View style={styles.cautionBox}>
+                                            <Ionicons name="alert-circle-outline" size={18} color={colors.warning || colors.accent} />
+                                            <Text style={styles.cautionText}>
+                                                Bu filtrelerle uygun hareket kalmadı. Ekipman veya kaçınma notunu yumuşat.
+                                            </Text>
+                                        </View>
+                                    )}
                                     {visibleExercises.map((exercise) => {
                                         const index = Math.max(0, availableExercises.indexOf(exercise));
                                         const libraryItem = libraryByName.get(exercise);
@@ -694,8 +783,8 @@ export default function PremiumProgramWizardScreen() {
                         <Text style={styles.bodyText}>
                             {programName} programı haftada {frequency} antrenman günü ve dinlenme günleriyle oluşturulacak. Ana RIR hedefi: {targetRir(level)}.
                         </Text>
-                        {goal === "fat_loss" && level !== "advanced" && (
-                            <Text style={styles.bodyText}>Yağ kaybına destek hedefi için çalışma setlerinde tekrar aralığı 8-10'a sabitlenir.</Text>
+                        {goal === "fat_loss" && (
+                            <Text style={styles.bodyText}>Yağ kaybına destek hedefinde tekrar aralığı minimum 8-12 olur; zaten 8-12 olan paternler 12-15'e çıkarılır.</Text>
                         )}
                         {hasPain === "yes" && (
                             <Text style={styles.bodyText}>
@@ -722,7 +811,11 @@ export default function PremiumProgramWizardScreen() {
     };
 
     return (
-        <View style={styles.root}>
+        <KeyboardAvoidingView
+            style={styles.root}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
+        >
             <View style={styles.topBar}>
                 <TouchableOpacity style={styles.backBtn} onPress={goBack}>
                     <Ionicons name={step === 0 || createdProgramId ? "close" : "chevron-back"} size={24} color={colors.text} />
@@ -733,7 +826,14 @@ export default function PremiumProgramWizardScreen() {
                 <Text style={styles.stepText}>{createdProgramId ? "8/8" : `${step + 1}/8`}</Text>
             </View>
 
-            <ScrollView style={styles.scroll} contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+            <ScrollView
+                style={styles.scroll}
+                contentContainerStyle={styles.content}
+                showsVerticalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
+                onScrollBeginDrag={Keyboard.dismiss}
+            >
                 <View style={styles.hero}>
                     <Text style={styles.eyebrow}>AKILLI KOÇ WIZARD</Text>
                     <Text style={styles.title}>Programı birlikte kuralım</Text>
@@ -811,7 +911,7 @@ export default function PremiumProgramWizardScreen() {
                     </View>
                 </View>
             </Modal>
-        </View>
+        </KeyboardAvoidingView>
     );
 }
 
@@ -1079,6 +1179,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.accent,
         backgroundColor: colors.accentMuted,
     },
+    priorityChipDisabled: {
+        opacity: 0.36,
+    },
     priorityText: {
         color: colors.textSecondary,
         fontSize: fontSize.sm,
@@ -1086,6 +1189,30 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     priorityTextActive: {
         color: colors.accent,
+    },
+    priorityTextDisabled: {
+        color: colors.textMuted,
+    },
+    guidanceToggle: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        alignSelf: "flex-start",
+        paddingHorizontal: spacing.md,
+        paddingVertical: spacing.sm,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    guidanceToggleOff: {
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    guidanceToggleText: {
+        color: colors.text,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
     },
     segmentRow: {
         flexDirection: "row",
@@ -1168,6 +1295,23 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
     },
     selectionInfoText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+        marginTop: 2,
+    },
+    introRow: {
+        marginTop: spacing.sm,
+        paddingTop: spacing.sm,
+        borderTopWidth: StyleSheet.hairlineWidth,
+        borderTopColor: colors.border,
+    },
+    introTitle: {
+        color: colors.text,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    introBody: {
         color: colors.textSecondary,
         fontSize: fontSize.xs,
         lineHeight: 18,

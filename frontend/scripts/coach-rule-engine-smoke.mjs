@@ -50,7 +50,7 @@ const ul4 = engine.getWorkoutDays({ frequency: 4, split: "UL", priority: null })
 assertEqual(ul4, ["Upper A", "Lower A", "Dinlenme", "Upper B", "Lower B", "Dinlenme"], "UL 4 day cycle");
 
 const backFocus = engine.getTrainingDays({ frequency: 4, split: "UL", priority: "shoulder_adduction" })[0].patterns.slice(0, 3);
-assertEqual(backFocus, ["shoulder_adduction", "shoulder_extension", "upper_back"], "Back focus priority cluster");
+assertEqual(backFocus, ["shoulder_adduction", "shoulder_extension", "horizontal_adduction"], "Back focus priority cluster");
 
 const orderedFocus = engine.getTrainingDays({
     frequency: 4,
@@ -58,7 +58,7 @@ const orderedFocus = engine.getTrainingDays({
     priority: null,
     priorityOrder: ["shoulder_abduction", "horizontal_adduction", "elbow_extension"],
 })[0].patterns.slice(0, 4);
-assertEqual(orderedFocus, ["shoulder_abduction", "shoulder_flexion", "horizontal_adduction", "upper_chest"], "Ordered priority respects selected order and clusters");
+assertEqual(orderedFocus, ["shoulder_abduction", "horizontal_adduction", "upper_chest", "elbow_extension"], "Ordered priority respects selected order and clusters");
 
 const chestOptions = engine.getAvailableExercises("horizontal_adduction", "Pec Deck").slice(0, 2);
 assertEqual(chestOptions, ["Chest Press Machine", "Smith Machine Bench Press"], "Avoided exercise is removed from recommendations");
@@ -107,7 +107,7 @@ const fatLoss = engine.buildCoachProgramData({
     goal: "fat_loss",
     hasPain: "no",
 });
-assertEqual(fatLoss.days[0].exercises[0].targetSets[1].targetReps, "8-10", "Fat loss beginner uses tighter 8-10 rep range");
+assertEqual(fatLoss.days[0].exercises[0].targetSets[1].targetReps, "12-15", "Fat loss beginner uses higher 12-15 rep range when base is 8-12");
 
 const strengthFocus = engine.buildCoachProgramData({
     frequency: 4,

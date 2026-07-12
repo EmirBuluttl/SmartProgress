@@ -400,6 +400,7 @@ export default function ProgramDetailScreen() {
         ownerName || "SP",
     );
     const selectedDay = selectedDayIndex !== null ? days[selectedDayIndex] : null;
+    const programIntro = (program.data as any)?.programIntro;
 
     return (
         <Animated.View style={[s.container, animStyle]}>
@@ -594,6 +595,21 @@ export default function ProgramDetailScreen() {
                         </View>
                     )}
                 </View>
+
+                {programIntro?.sections?.length ? (
+                    <View style={s.infoCard}>
+                        <View style={s.sectionHeaderRow}>
+                            <Ionicons name="school-outline" size={18} color={colors.accent} />
+                            <Text style={s.sectionTitle}>{programIntro.title || "Program rehberi"}</Text>
+                        </View>
+                        {programIntro.sections.map((section: any) => (
+                            <View key={section.title} style={s.introRow}>
+                                <Text style={s.introTitle}>{section.title}</Text>
+                                <Text style={s.introBody}>{section.body}</Text>
+                            </View>
+                        ))}
+                    </View>
+                ) : null}
 
                 {/* ─── Current Day Highlight ─── */}
                 {days.length > 0 && isOwner && (
@@ -988,6 +1004,28 @@ const createStyles = (colors: any) => StyleSheet.create({
 
     // Section
     sectionTitle: { fontSize: fontSize.lg, fontWeight: fontWeight.bold, color: colors.text, marginBottom: spacing.md },
+    sectionHeaderRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        marginBottom: spacing.sm,
+    },
+    introRow: {
+        paddingTop: spacing.md,
+        borderTopWidth: 1,
+        borderTopColor: colors.border,
+        gap: spacing.xs,
+    },
+    introTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    introBody: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
 
     // Day cards
     dayCard: {
