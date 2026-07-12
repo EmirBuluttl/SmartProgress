@@ -60,6 +60,12 @@ const orderedFocus = engine.getTrainingDays({
 })[0].patterns.slice(0, 4);
 assertEqual(orderedFocus, ["shoulder_abduction", "horizontal_adduction", "upper_chest", "elbow_extension"], "Ordered priority respects selected order and clusters");
 
+const rearDeltPriority = engine.applyPrioritySelectionRules([], "rear_delt");
+assertEqual(rearDeltPriority, ["rear_delt", "trapezius"], "Rear delt priority auto-pairs trapezius");
+
+const trapeziusPriority = engine.applyPrioritySelectionRules([], "trapezius");
+assertEqual(trapeziusPriority, ["trapezius", "rear_delt"], "Trapezius priority auto-pairs rear delt");
+
 const chestOptions = engine.getAvailableExercises("horizontal_adduction", "Pec Deck").slice(0, 2);
 assertEqual(chestOptions, ["Chest Press Machine", "Smith Machine Bench Press"], "Avoided exercise is removed from recommendations");
 
@@ -130,5 +136,16 @@ const kneePain = engine.buildCoachProgramData({
     includePainArea: "no",
 });
 assertEqual(kneePain.days[1].exercises.some((exercise) => exercise.targetPattern === "leg_press"), false, "Pain-limited patterns can be excluded");
+
+const kneeInjury = engine.buildCoachProgramData({
+    frequency: 4,
+    split: "UL",
+    level: "intermediate",
+    goal: "muscle",
+    hasPain: "yes",
+    painNote: "Sağ dizimde sakatlık var",
+});
+assertEqual(kneeInjury.days[1].exercises.some((exercise) => exercise.targetPattern === "knee_extension"), true, "Injury-limited patterns stay in the program");
+assertEqual(kneeInjury.days[1].exercises.find((exercise) => exercise.targetPattern === "knee_extension")?.logDisabled, true, "Injury-limited patterns are not loggable");
 
 console.log("coach-rule-engine smoke tests passed");

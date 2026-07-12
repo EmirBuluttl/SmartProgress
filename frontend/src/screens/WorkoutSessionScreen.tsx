@@ -369,6 +369,8 @@ function buildWarmupRoutineLog(template: WarmupRoutineTemplate | any[] | undefin
             equipment: exercise.equipment,
             riskAdjusted: exercise.riskAdjusted,
             painWarning: exercise.painWarning,
+            logDisabled: exercise.logDisabled,
+            logDisabledReason: exercise.logDisabledReason,
             supersetGroupId: exercise.supersetGroupId,
             supersetLabel: exercise.supersetLabel,
             supersetRestHint: exercise.supersetRestHint,
@@ -924,6 +926,8 @@ export default function WorkoutSessionScreen() {
                             equipment: templateEx.equipment,
                             riskAdjusted: templateEx.riskAdjusted,
                             painWarning: templateEx.painWarning,
+                            logDisabled: templateEx.logDisabled,
+                            logDisabledReason: templateEx.logDisabledReason,
                             supersetGroupId: templateEx.supersetGroupId,
                             supersetLabel: templateEx.supersetLabel,
                             supersetRestHint: templateEx.supersetRestHint,
@@ -1946,6 +1950,19 @@ export default function WorkoutSessionScreen() {
         const effortModes = new Set(exercise.sets.map((set) => set.effortMode === "duration" ? "SÜRE" : "TEKRAR"));
         const weightHeader = weightModes.size === 1 ? [...weightModes][0] : "KG/BW";
         const effortHeader = effortModes.size === 1 ? [...effortModes][0] : "TEKRAR/SÜRE";
+        const exerciseLogDisabled = !!exercise.logDisabled;
+        const supersetMembers = exercise.supersetGroupId
+            ? session.exercises.filter((candidate) => candidate.supersetGroupId === exercise.supersetGroupId)
+            : [];
+        const isSupersetLead = !!exercise.supersetGroupId && supersetMembers[0]?.id === exercise.id && supersetMembers.length > 1;
+        const supersetFlowRows = isSupersetLead
+            ? Array.from({ length: Math.max(...supersetMembers.map((member) => member.sets.filter((set) => !set.isWarmup).length), 1) }, (_, setIndex) =>
+                supersetMembers.map((member, memberIndex) => ({
+                    label: (setIndex + 1) + ". set " + String.fromCharCode(65 + memberIndex),
+                    name: member.name,
+                })),
+            )
+            : [];
         const getSetLabel = (set: WorkoutSet, sets: WorkoutSet[]) => {
             const sameTypeSets = sets.filter((candidate) => !!candidate.isWarmup === !!set.isWarmup);
             const setNumber = sameTypeSets.findIndex((candidate) => candidate.id === set.id) + 1;
@@ -1961,7 +1978,7 @@ export default function WorkoutSessionScreen() {
 
             const setContent = (
                 <View style={styles.setBlock}>
-                <View style={[styles.setRow, isWarmup && styles.warmupSetRow, set.sideMode === "left_right" && styles.unilateralSetRow]}>
+                <View style={[styles.setRow, isWarmup && styles.warmupSetRow, set.sideMode === "left_right" && styles.unilateralSetRow, exerciseLogDisabled && styles.disabledSetRow]}>
                         {isWeb ? (
                             <View style={[styles.setDragHandle, styles.webSetOrderHandle, isWarmup && styles.warmupSetDragHandle]}>
                                 <Text style={[styles.setNumber, isWarmup && styles.warmupSetNumber]}>
@@ -2001,7 +2018,7 @@ export default function WorkoutSessionScreen() {
                                 ref={(el) => registerInput(inputKey(exIndex, setIndex, "weight"), el)}
                                 style={[styles.numericInput, set.weightMode === "bodyweight" && styles.exceptionInput]}
                                 value={set.sideMode === "left_right" ? "L/R" : set.weightMode === "bodyweight" ? "BW" : getTextValue(exercise.id, set.id, "weight", set.weight)}
-                                editable={set.sideMode !== "left_right" && set.weightMode !== "bodyweight"}
+                                editable={!exerciseLogDisabled && set.sideMode !== "left_right" && set.weightMode !== "bodyweight"}
                                 onChangeText={(text) => {
                                     onNumericChange(exercise.id, set.id, "weight", text);
                                     if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
@@ -2032,7 +2049,7 @@ export default function WorkoutSessionScreen() {
                                 ref={(el) => registerInput(inputKey(exIndex, setIndex, "reps"), el)}
                                 style={[styles.numericInput, set.effortMode === "duration" && styles.exceptionInput]}
                                 value={set.sideMode === "left_right" ? "L/R" : getEffortTextValue(exercise.id, set)}
-                                editable={set.sideMode !== "left_right"}
+                                editable={!exerciseLogDisabled && set.sideMode !== "left_right"}
                                 onChangeText={(text) => {
                                     onNumericChange(exercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" as any : "reps", text);
                                     if (text.trim() && !set.completed) toggleSetCompleted(exercise.id, set.id);
@@ -2060,7 +2077,7 @@ export default function WorkoutSessionScreen() {
                                     ref={(el) => registerInput(inputKey(exIndex, setIndex, "rpe"), el)}
                                     style={styles.numericInput}
                                     value={set.sideMode === "left_right" ? "L/R" : getTextValue(exercise.id, set.id, "rpe", set.rpe ?? 0)}
-                                    editable={set.sideMode !== "left_right"}
+                                    editable={!exerciseLogDisabled && set.sideMode !== "left_right"}
                                     onChangeText={(text) => onNumericChange(exercise.id, set.id, "rpe", text)}
                                     onBlur={() => onNumericBlur(exercise.id, set.id, "rpe")}
                                     placeholder={
@@ -2086,7 +2103,7 @@ export default function WorkoutSessionScreen() {
                                     ref={(el) => registerInput(inputKey(exIndex, setIndex, "rir"), el)}
                                     style={styles.numericInput}
                                     value={set.sideMode === "left_right" ? "L/R" : getTextValue(exercise.id, set.id, "rir" as any, (set as any).rir ?? "")}
-                                    editable={set.sideMode !== "left_right"}
+                                    editable={!exerciseLogDisabled && set.sideMode !== "left_right"}
                                     onChangeText={(text) => onNumericChange(exercise.id, set.id, "rir" as any, text)}
                                     onBlur={() => onNumericBlur(exercise.id, set.id, "rir" as any)}
                                     placeholder={
@@ -2107,7 +2124,8 @@ export default function WorkoutSessionScreen() {
                         )}
 
                         <TouchableOpacity
-                            onPress={() => removeSet(exercise.id, set.id)}
+                            onPress={() => !exerciseLogDisabled && removeSet(exercise.id, set.id)}
+                            disabled={exerciseLogDisabled}
                             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                             style={{ paddingLeft: 4 }}
                         >
@@ -2125,6 +2143,7 @@ export default function WorkoutSessionScreen() {
                                     <TextInput
                                         style={styles.unilateralInput}
                                         value={sideData.weight ? String(sideData.weight) : ""}
+                                        editable={!exerciseLogDisabled}
                                         onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "weight", text)}
                                         placeholder={set.weightMode === "bodyweight" ? "BW" : "kg"}
                                         placeholderTextColor={colors.textMuted}
@@ -2139,6 +2158,7 @@ export default function WorkoutSessionScreen() {
                                                 ? formatDurationInput(sideData.durationSeconds)
                                                 : sideData.reps ? String(sideData.reps) : ""
                                         }
+                                        editable={!exerciseLogDisabled}
                                         onChangeText={(text) => updateUnilateralSide(
                                             exercise.id,
                                             set,
@@ -2156,6 +2176,7 @@ export default function WorkoutSessionScreen() {
                                         <TextInput
                                             style={styles.unilateralInput}
                                             value={sideData.rpe ? String(sideData.rpe) : ""}
+                                            editable={!exerciseLogDisabled}
                                             onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "rpe", text)}
                                             placeholder="RPE"
                                             placeholderTextColor={colors.textMuted}
@@ -2168,6 +2189,7 @@ export default function WorkoutSessionScreen() {
                                         <TextInput
                                             style={styles.unilateralInput}
                                             value={sideData.rir ? String(sideData.rir) : ""}
+                                            editable={!exerciseLogDisabled}
                                             onChangeText={(text) => updateUnilateralSide(exercise.id, set, side, "rir", text)}
                                             placeholder="RIR"
                                             placeholderTextColor={colors.textMuted}
@@ -2276,21 +2298,34 @@ export default function WorkoutSessionScreen() {
                         </View>
                     </View>
 
-                    {(exercise.supersetLabel || exercise.painWarning || exercise.riskAdjusted) && (
+                    {(isSupersetLead || exercise.supersetLabel || exercise.painWarning || exercise.riskAdjusted || exercise.logDisabled) && (
                         <View style={styles.exerciseMetaNoticeWrap}>
-                            {exercise.supersetLabel ? (
-                                <View style={styles.supersetBadge}>
-                                    <Ionicons name="git-compare-outline" size={14} color={colors.accent} />
-                                    <Text style={styles.supersetBadgeText}>
-                                        {exercise.supersetLabel} Superset
+                            {isSupersetLead ? (
+                                <View style={styles.supersetFlowCard}>
+                                    <View style={styles.supersetFlowHeader}>
+                                        <Ionicons name="git-compare-outline" size={15} color={colors.accent} />
+                                        <Text style={styles.supersetFlowTitle}>Superset akışı</Text>
+                                    </View>
+                                    <Text style={styles.supersetFlowHint}>
+                                        Her turda hareketleri aşağıdaki sırayla yap, sonra dinlen.
                                     </Text>
+                                    {supersetFlowRows.map((row, rowIndex) => (
+                                        <View key={`${exercise.id}_flow_${rowIndex}`} style={styles.supersetFlowRow}>
+                                            {row.map((entry) => (
+                                                <View key={`${rowIndex}_${entry.label}_${entry.name}`} style={styles.supersetFlowPill}>
+                                                    <Text style={styles.supersetFlowLabel}>{entry.label}</Text>
+                                                    <Text style={styles.supersetFlowName} numberOfLines={1}>{entry.name}</Text>
+                                                </View>
+                                            ))}
+                                        </View>
+                                    ))}
                                 </View>
                             ) : null}
                             {exercise.painWarning || exercise.riskAdjusted ? (
                                 <View style={styles.painNotice}>
                                     <Ionicons name="warning-outline" size={14} color="#F5A524" />
                                     <Text style={styles.painNoticeText}>
-                                        {exercise.painWarning || "Agri notu nedeniyle bu hareket guvenli modda loglanmali."}
+                                        {exercise.logDisabledReason || exercise.painWarning || "Agri notu nedeniyle bu hareket guvenli modda loglanmali."}
                                     </Text>
                                 </View>
                             ) : null}
@@ -2348,14 +2383,16 @@ export default function WorkoutSessionScreen() {
 
                     <View style={styles.addSetRow}>
                         <TouchableOpacity
-                            style={styles.addSetBtn}
+                            style={[styles.addSetBtn, exerciseLogDisabled && styles.disabledActionBtn]}
+                            disabled={exerciseLogDisabled}
                             onPress={() => addSetToExercise(exercise.id, false)}
                         >
                             <Ionicons name="add-circle-outline" size={16} color={colors.accent} />
                             <Text style={styles.addSetText}>Set Ekle</Text>
                         </TouchableOpacity>
                         <TouchableOpacity
-                            style={styles.addSetBtn}
+                            style={[styles.addSetBtn, exerciseLogDisabled && styles.disabledActionBtn]}
+                            disabled={exerciseLogDisabled}
                             onPress={() => addSetToExercise(exercise.id, true)}
                         >
                             <Ionicons name="flame-outline" size={16} color={colors.textMuted} />
@@ -3199,6 +3236,53 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.xs,
         lineHeight: 17,
     },
+    supersetFlowCard: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accent + "66",
+        backgroundColor: colors.accentMuted,
+        padding: spacing.sm,
+        gap: spacing.xs,
+    },
+    supersetFlowHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    supersetFlowTitle: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    supersetFlowHint: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 17,
+    },
+    supersetFlowRow: {
+        flexDirection: "row",
+        gap: spacing.xs,
+    },
+    supersetFlowPill: {
+        flex: 1,
+        minWidth: 0,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.accent + "44",
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+    },
+    supersetFlowLabel: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    supersetFlowName: {
+        color: colors.text,
+        fontSize: fontSize.xs,
+        marginTop: 2,
+    },
     painNotice: {
         flexDirection: "row",
         alignItems: "flex-start",
@@ -3215,6 +3299,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.xs,
         lineHeight: 17,
+    },
+    disabledSetRow: {
+        opacity: 0.45,
+    },
+    disabledActionBtn: {
+        opacity: 0.45,
     },
     exerciseIndexBadge: {
         width: 28,

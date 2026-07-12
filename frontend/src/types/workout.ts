@@ -61,6 +61,8 @@ export interface TargetExercise {
     equipment?: string[];
     riskAdjusted?: boolean;
     painWarning?: string;
+    logDisabled?: boolean;
+    logDisabledReason?: string;
     supersetGroupId?: string;
     supersetLabel?: string;
     supersetRestHint?: string;
@@ -84,6 +86,8 @@ export interface WorkoutExercise {
     equipment?: string[];
     riskAdjusted?: boolean;
     painWarning?: string;
+    logDisabled?: boolean;
+    logDisabledReason?: string;
     supersetGroupId?: string;
     supersetLabel?: string;
     supersetRestHint?: string;

@@ -313,6 +313,8 @@ export function applyPrioritySelectionRules(current: CoachPatternKey[], nextPatt
 
     if (nextPattern === "shoulder_adduction") addAfter("shoulder_extension");
     if (nextPattern === "shoulder_extension") addAfter("shoulder_adduction");
+    if (nextPattern === "trapezius") addAfter("rear_delt");
+    if (nextPattern === "rear_delt") addAfter("trapezius");
     if (nextPattern === "horizontal_adduction") addAfter("upper_chest");
     if (nextPattern === "leg_press") addAfter("knee_extension");
     if (nextPattern === "hip_hinge") addAfter("knee_flexion");
@@ -935,7 +937,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
     const workoutDays = getWorkoutDays(input);
     const painLimitedPatterns = input.hasPain === "yes" ? inferPainLimitedPatterns(input.painNote) : [];
     const injuryMode = input.hasPain === "yes" && isInjuryNote(input.painNote);
-    const shouldExcludePainPatterns = input.hasPain === "yes" && (injuryMode || input.includePainArea === "no");
+    const shouldExcludePainPatterns = input.hasPain === "yes" && !injuryMode && input.includePainArea === "no";
     const equipmentText = input.hasEquipmentLimit === "yes" && input.equipmentLimitNote?.trim()
         ? input.equipmentLimitNote.trim()
         : "Tam salon erişimi varsayıldı";
@@ -943,7 +945,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         hasEquipmentLimit: input.hasEquipmentLimit,
         equipmentLimitNote: input.equipmentLimitNote,
         painNote: input.painNote,
-        preferPainSafe: input.hasPain === "yes",
+        preferPainSafe: input.hasPain === "yes" && !injuryMode,
         level: input.level,
         goal: input.goal,
         strengthFocus: input.strengthFocus,
@@ -956,6 +958,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
                 const exercise = resolveCoachExerciseItemWithAvoidance(pattern, input.selectedExercises, input.avoidNote, input.avoidExercises, selectionOptions);
                 if (!exercise) return null;
                 const riskAdjusted = input.hasPain === "yes" && painLimitedPatterns.includes(pattern);
+                const logDisabled = injuryMode && riskAdjusted;
                 return {
                     id: makeCoachId("exercise"),
                     exerciseId: exercise.id,
@@ -965,8 +968,12 @@ export function buildCoachProgramData(input: CoachProfileInput) {
                     primaryMuscles: exercise.primaryMuscles,
                     equipment: exercise.equipment,
                     riskAdjusted,
-                    painWarning: riskAdjusted
-                        ? "Ağrı notu aktif: ağırlığı en az %60 düşür, RPE 6 üstüne çıkma ve RIR 4-5 hedefle."
+                    logDisabled,
+                    logDisabledReason: logDisabled ? "Sakatlık notu aktif: bu bölge programda tutuldu fakat sakatlık geçene kadar loglanamaz." : undefined,
+                    painWarning: logDisabled
+                        ? "Sakatlık notu aktif: bu hareket programda yer alır ancak sakatlık geçene kadar loglama kapalıdır."
+                        : riskAdjusted
+                            ? "Ağrı notu aktif: ağırlığı en az %60 düşür, RPE 6 üstüne çıkma ve RIR 4-5 hedefle."
                         : undefined,
                     targetSets: makeTargetSets({
                         level: input.level,
@@ -1024,7 +1031,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
                 { title: "Haftalık akış", body: input.frequency + " antrenman günü, aralara yerleştirilen dinlenme günleri ve " + (input.sessionDuration || "60-90") + " dk hedefi ile planlandı." },
                 { title: "Efor kuralı", body: "Çalışma setlerinde RPE " + targetRpeForInput({ level: input.level, hasPain: "no" }) + ", RIR " + targetRirForInput({ level: input.level, goal: input.goal, strengthFocus: input.strengthFocus, hasPain: "no" }) + " hedefle." },
                 { title: "Progress kuralı", body: "Form bozulmadan üst tekrar sınırını gördüğünde sonraki antrenmanda kontrollü ağırlık artır. Tek bir kötü set yüzünden programı değiştirme." },
-                ...(input.hasPain === "yes" ? [{ title: injuryMode ? "Sakatlık notu" : "Ağrı notu", body: injuryMode ? "Etkilenen patternler programdan çıkarıldı. Sakatlık geçmeden bu hareketleri geri ekleme." : "İlgili hareketlerde ağırlığı en az %60 düşür, RPE 6 üstüne çıkma ve RIR 4-5 hedefle." }] : []),
+                ...(input.hasPain === "yes" ? [{ title: injuryMode ? "Sakatlık notu" : "Ağrı notu", body: injuryMode ? "Etkilenen bölge programda tutuldu, fakat sakatlık geçene kadar ilgili hareketler loglanamaz." : "İlgili hareketlerde ağırlığı en az %60 düşür, RPE 6 üstüne çıkma ve RIR 4-5 hedefle." }] : []),
                 ...(supersetCount > 0 ? [{ title: "Superset uygulaması", body: "A1/A2 olarak işaretlenen hareketleri arka arkaya yap, sonra dinlen. Compound ve ağrı ilişkili hareketler superset dışı tutuldu." }] : []),
             ],
         },

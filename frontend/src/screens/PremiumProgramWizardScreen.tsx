@@ -160,7 +160,7 @@ export default function PremiumProgramWizardScreen() {
         equipmentLimitNote,
         level,
         painNote,
-        preferPainSafe: hasPain === "yes",
+        preferPainSafe: hasPain === "yes" && !injuryMode,
         goal,
         strengthFocus,
     }), [equipmentLimitNote, goal, hasEquipmentLimit, hasPain, level, painNote, strengthFocus]);
@@ -439,7 +439,7 @@ export default function PremiumProgramWizardScreen() {
                                     <View style={styles.cautionBox}>
                                         <Ionicons name="ban-outline" size={18} color={colors.warning || colors.accent} />
                                         <Text style={styles.cautionText}>
-                                            Sakatlık notu algılandı. Eşleşen hareket/patternler programdan çıkarılır; belirsizse daha net bölge yaz.
+                                            Sakatlık notu algılandı. Eşleşen hareket/patternler programda kalır fakat sakatlık geçene kadar loglanamaz; belirsizse daha net bölge yaz.
                                         </Text>
                                     </View>
                                 )}
