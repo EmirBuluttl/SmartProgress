@@ -2260,7 +2260,9 @@ export default function WorkoutSessionScreen() {
                     if (!set) return;
                     const memberSetIndex = member.sets.findIndex((candidate) => candidate.id === set.id);
                     const memberExerciseIndex = session.exercises.findIndex((candidate) => candidate.id === member.id);
-                    const label = `${roundIndex + 1}. set ${String.fromCharCode(65 + memberIndex)}`;
+                    const setLetter = String.fromCharCode(65 + memberIndex);
+                    const label = `${roundIndex + 1}. set ${setLetter}`;
+                    const compactLabel = `${roundIndex + 1}${setLetter}`;
                     rows.push(
                         <View key={`${member.id}_${set.id}`} style={styles.supersetMergedSetBlock}>
                             <View style={styles.supersetMergedSetHeader}>
@@ -2272,7 +2274,7 @@ export default function WorkoutSessionScreen() {
                                 getIndex: () => memberSetIndex,
                                 drag: () => undefined,
                                 isActive: false,
-                            } as RenderItemParams<WorkoutSet>, member, memberExerciseIndex >= 0 ? memberExerciseIndex : exIndex, label)}
+                            } as RenderItemParams<WorkoutSet>, member, memberExerciseIndex >= 0 ? memberExerciseIndex : exIndex, compactLabel)}
                         </View>,
                     );
                 });
@@ -2353,7 +2355,7 @@ export default function WorkoutSessionScreen() {
                         ) : (
                             <TouchableOpacity
                                 style={styles.exerciseNameTapTarget}
-                                onPress={() => setExerciseNameNotice(exercise.name)}
+                                onPress={() => setExerciseNameNotice(isSupersetLead ? supersetMembers.map((member, index) => `${String.fromCharCode(65 + index)}. ${member.name}`).join("\n") : exercise.name)}
                                 activeOpacity={0.78}
                             >
                             <Text style={styles.exerciseNameText} numberOfLines={1}>
@@ -2471,6 +2473,27 @@ export default function WorkoutSessionScreen() {
     const settingsExercise = setSettingsExercise
         ? session.exercises.find((exercise) => exercise.id === setSettingsExercise.id) ?? null
         : null;
+    const settingsExercises = React.useMemo(() => {
+        if (!settingsExercise) return [];
+        if (!settingsExercise.supersetGroupId) return [settingsExercise];
+        return session.exercises.filter((exercise) => exercise.supersetGroupId === settingsExercise.supersetGroupId);
+    }, [session.exercises, settingsExercise]);
+    const isSupersetSettings = settingsExercises.length > 1;
+    const applySideModeToSettingsExercises = useCallback((sideMode: "both" | "left_right") => {
+        settingsExercises.forEach((exercise) => {
+            exercise.sets.forEach((set) => {
+                if (sideMode === "both") {
+                    updateSetPatch(exercise.id, set.id, { sideMode: "both", left: undefined, right: undefined });
+                    return;
+                }
+                updateSetPatch(exercise.id, set.id, {
+                    sideMode: "left_right",
+                    left: set.left || { weight: set.weight || undefined, reps: set.reps || undefined, durationSeconds: set.durationSeconds || undefined },
+                    right: set.right || { weight: set.weight || undefined, reps: set.reps || undefined, durationSeconds: set.durationSeconds || undefined },
+                });
+            });
+        });
+    }, [settingsExercises, updateSetPatch]);
 
     // ─── Render ──────────────────────────────
 
@@ -2741,9 +2764,13 @@ export default function WorkoutSessionScreen() {
                     <View style={styles.addExerciseModal}>
                         <View style={styles.setSettingsHeader}>
                             <View style={{ flex: 1 }}>
-                                <Text style={styles.addExerciseTitle}>Set ayarları</Text>
+                                <Text style={styles.addExerciseTitle}>
+                                    {isSupersetSettings ? "Superset ayarları" : "Set ayarları"}
+                                </Text>
                                 <Text style={styles.setSettingsSubtitle} numberOfLines={1}>
-                                    {settingsExercise?.name}
+                                    {isSupersetSettings
+                                        ? settingsExercises.map((exercise, index) => `${String.fromCharCode(65 + index)}. ${exercise.name}`).join("  •  ")
+                                        : settingsExercise?.name}
                                 </Text>
                             </View>
                             <TouchableOpacity
@@ -2760,75 +2787,117 @@ export default function WorkoutSessionScreen() {
                             contentContainerStyle={styles.setSettingsListContent}
                             showsVerticalScrollIndicator={false}
                         >
-                            {settingsExercise && (() => {
+                            {isSupersetSettings ? (
+                                <View style={styles.supersetSettingsBulkCard}>
+                                    <Text style={styles.supersetSettingsTitle}>Birleşik ayar</Text>
+                                    <Text style={styles.supersetSettingsText}>
+                                        L/R seçimi tüm superset hareketlerine birlikte uygulanır. İstersen aşağıda her hareketin setlerini ayrıca düzenleyebilirsin.
+                                    </Text>
+                                    <View style={styles.segmentedControl}>
+                                        <TouchableOpacity
+                                            style={styles.segmentBtn}
+                                            onPress={() => applySideModeToSettingsExercises("both")}
+                                        >
+                                            <Text style={styles.segmentText}>Tümünü Normal</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={styles.segmentBtn}
+                                            onPress={() => applySideModeToSettingsExercises("left_right")}
+                                        >
+                                            <Text style={styles.segmentText}>Tümünü L/R</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+                            ) : null}
+                            {settingsExercises.map((exercise, exerciseIndex) => {
                                 let warmupCount = 0;
                                 let workingCount = 0;
-                                return settingsExercise.sets.map((set) => {
-                                    const isWarmup = !!set.isWarmup;
-                                    if (isWarmup) warmupCount++;
-                                    else workingCount++;
-                                    const label = isWarmup ? `W${warmupCount}` : `${workingCount}`;
-                                    const currentWeightMode = set.weightMode ?? "kg";
-                                    const currentEffortMode = set.effortMode ?? "reps";
-                                    const currentSideMode = set.sideMode ?? "both";
+                                return (
+                                    <View
+                                        key={exercise.id}
+                                        style={isSupersetSettings ? styles.supersetSettingsExerciseBlock : undefined}
+                                    >
+                                        {isSupersetSettings ? (
+                                            <View style={styles.supersetSettingsExerciseHeader}>
+                                                <View style={styles.setSettingsSetBadge}>
+                                                    <Text style={styles.setSettingsSetText}>{String.fromCharCode(65 + exerciseIndex)}</Text>
+                                                </View>
+                                                <Text style={styles.supersetMergedExerciseName} numberOfLines={2}>
+                                                    {exercise.name}
+                                                </Text>
+                                            </View>
+                                        ) : null}
+                                        {exercise.sets.map((set) => {
+                                            const isWarmup = !!set.isWarmup;
+                                            if (isWarmup) warmupCount++;
+                                            else workingCount++;
+                                            const labelBase = isWarmup ? `W${warmupCount}` : `${workingCount}`;
+                                            const label = isSupersetSettings
+                                                ? `${labelBase}${String.fromCharCode(65 + exerciseIndex)}`
+                                                : labelBase;
+                                            const currentWeightMode = set.weightMode ?? "kg";
+                                            const currentEffortMode = set.effortMode ?? "reps";
+                                            const currentSideMode = set.sideMode ?? "both";
 
-                                    return (
-                                        <View key={set.id} style={styles.setSettingsRow}>
-                                            <View style={styles.setSettingsSetBadge}>
-                                                <Text style={styles.setSettingsSetText}>{label}</Text>
-                                            </View>
-                                            <View style={styles.setSettingsControls}>
-                                                <View style={styles.segmentedControl}>
-                                                    <TouchableOpacity
-                                                        style={[styles.segmentBtn, currentWeightMode === "kg" && styles.segmentBtnActive]}
-                                                        onPress={() => setWeightMode(settingsExercise.id, set, "kg")}
-                                                    >
-                                                        <Text style={[styles.segmentText, currentWeightMode === "kg" && styles.segmentTextActive]}>KG</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity
-                                                        style={[styles.segmentBtn, currentWeightMode === "bodyweight" && styles.segmentBtnActive]}
-                                                        onPress={() => setWeightMode(settingsExercise.id, set, "bodyweight")}
-                                                    >
-                                                        <Text style={[styles.segmentText, currentWeightMode === "bodyweight" && styles.segmentTextActive]}>BW</Text>
-                                                    </TouchableOpacity>
+                                            return (
+                                                <View key={set.id} style={styles.setSettingsRow}>
+                                                    <View style={styles.setSettingsSetBadge}>
+                                                        <Text style={styles.setSettingsSetText}>{label}</Text>
+                                                    </View>
+                                                    <View style={styles.setSettingsControls}>
+                                                        <View style={styles.segmentedControl}>
+                                                            <TouchableOpacity
+                                                                style={[styles.segmentBtn, currentWeightMode === "kg" && styles.segmentBtnActive]}
+                                                                onPress={() => setWeightMode(exercise.id, set, "kg")}
+                                                            >
+                                                                <Text style={[styles.segmentText, currentWeightMode === "kg" && styles.segmentTextActive]}>KG</Text>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity
+                                                                style={[styles.segmentBtn, currentWeightMode === "bodyweight" && styles.segmentBtnActive]}
+                                                                onPress={() => setWeightMode(exercise.id, set, "bodyweight")}
+                                                            >
+                                                                <Text style={[styles.segmentText, currentWeightMode === "bodyweight" && styles.segmentTextActive]}>BW</Text>
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                        <View style={styles.segmentedControl}>
+                                                            <TouchableOpacity
+                                                                style={[styles.segmentBtn, currentEffortMode === "reps" && styles.segmentBtnActive]}
+                                                                onPress={() => setEffortMode(exercise.id, set, "reps")}
+                                                            >
+                                                                <Text style={[styles.segmentText, currentEffortMode === "reps" && styles.segmentTextActive]}>Tekrar</Text>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity
+                                                                style={[styles.segmentBtn, currentEffortMode === "duration" && styles.segmentBtnActive]}
+                                                                onPress={() => setEffortMode(exercise.id, set, "duration")}
+                                                            >
+                                                                <Text style={[styles.segmentText, currentEffortMode === "duration" && styles.segmentTextActive]}>Süre</Text>
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                        <View style={styles.segmentedControl}>
+                                                            <TouchableOpacity
+                                                                style={[styles.segmentBtn, currentSideMode !== "left_right" && styles.segmentBtnActive]}
+                                                                onPress={() => updateSetPatch(exercise.id, set.id, { sideMode: "both", left: undefined, right: undefined })}
+                                                            >
+                                                                <Text style={[styles.segmentText, currentSideMode !== "left_right" && styles.segmentTextActive]}>Normal</Text>
+                                                            </TouchableOpacity>
+                                                            <TouchableOpacity
+                                                                style={[styles.segmentBtn, currentSideMode === "left_right" && styles.segmentBtnActive]}
+                                                                onPress={() => updateSetPatch(exercise.id, set.id, {
+                                                                    sideMode: "left_right",
+                                                                    left: set.left || { weight: set.weight || undefined, reps: set.reps || undefined, durationSeconds: set.durationSeconds || undefined },
+                                                                    right: set.right || { weight: set.weight || undefined, reps: set.reps || undefined, durationSeconds: set.durationSeconds || undefined },
+                                                                })}
+                                                            >
+                                                                <Text style={[styles.segmentText, currentSideMode === "left_right" && styles.segmentTextActive]}>L/R</Text>
+                                                            </TouchableOpacity>
+                                                        </View>
+                                                    </View>
                                                 </View>
-                                                <View style={styles.segmentedControl}>
-                                                    <TouchableOpacity
-                                                        style={[styles.segmentBtn, currentEffortMode === "reps" && styles.segmentBtnActive]}
-                                                        onPress={() => setEffortMode(settingsExercise.id, set, "reps")}
-                                                    >
-                                                        <Text style={[styles.segmentText, currentEffortMode === "reps" && styles.segmentTextActive]}>Tekrar</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity
-                                                        style={[styles.segmentBtn, currentEffortMode === "duration" && styles.segmentBtnActive]}
-                                                        onPress={() => setEffortMode(settingsExercise.id, set, "duration")}
-                                                    >
-                                                        <Text style={[styles.segmentText, currentEffortMode === "duration" && styles.segmentTextActive]}>Süre</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                                <View style={styles.segmentedControl}>
-                                                    <TouchableOpacity
-                                                        style={[styles.segmentBtn, currentSideMode !== "left_right" && styles.segmentBtnActive]}
-                                                        onPress={() => updateSetPatch(settingsExercise.id, set.id, { sideMode: "both", left: undefined, right: undefined })}
-                                                    >
-                                                        <Text style={[styles.segmentText, currentSideMode !== "left_right" && styles.segmentTextActive]}>Normal</Text>
-                                                    </TouchableOpacity>
-                                                    <TouchableOpacity
-                                                        style={[styles.segmentBtn, currentSideMode === "left_right" && styles.segmentBtnActive]}
-                                                        onPress={() => updateSetPatch(settingsExercise.id, set.id, {
-                                                            sideMode: "left_right",
-                                                            left: set.left || { weight: set.weight || undefined, reps: set.reps || undefined, durationSeconds: set.durationSeconds || undefined },
-                                                            right: set.right || { weight: set.weight || undefined, reps: set.reps || undefined, durationSeconds: set.durationSeconds || undefined },
-                                                        })}
-                                                    >
-                                                        <Text style={[styles.segmentText, currentSideMode === "left_right" && styles.segmentTextActive]}>L/R</Text>
-                                                    </TouchableOpacity>
-                                                </View>
-                                            </View>
-                                        </View>
-                                    );
-                                });
-                            })()}
+                                            );
+                                        })}
+                                    </View>
+                                );
+                            })}
                         </ScrollView>
 
                         <View style={styles.setSettingsFooter}>
@@ -3369,7 +3438,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.borderSubtle,
         borderRadius: borderRadius.md,
         padding: spacing.xs,
-        backgroundColor: colors.surface,
+        backgroundColor: colors.surfaceElevated,
         gap: spacing.xs,
     },
     supersetMergedSetHeader: {
@@ -3379,10 +3448,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         paddingHorizontal: spacing.xs,
     },
     supersetMergedSetLabel: {
-        color: colors.accent,
+        color: colors.textSecondary,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.bold,
-        minWidth: 62,
+        minWidth: 52,
     },
     supersetMergedExerciseName: {
         color: colors.textPrimary,
@@ -3924,6 +3993,37 @@ const createStyles = (colors: any) => StyleSheet.create({
     setSettingsListContent: {
         gap: spacing.sm,
         paddingBottom: spacing.md,
+    },
+    supersetSettingsBulkCard: {
+        gap: spacing.xs,
+        padding: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surfaceElevated,
+    },
+    supersetSettingsTitle: {
+        color: colors.textPrimary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    supersetSettingsText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+    },
+    supersetSettingsExerciseBlock: {
+        gap: spacing.sm,
+        padding: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.borderSubtle,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.surface,
+    },
+    supersetSettingsExerciseHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
     },
     setSettingsFooter: {
         paddingTop: spacing.md,
