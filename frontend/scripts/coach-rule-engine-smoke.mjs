@@ -78,6 +78,13 @@ const noSmithChestOptions = engine.getAvailableExercises("horizontal_adduction",
 }).slice(0, 2);
 assertEqual(noSmithChestOptions, ["Pec Deck", "Chest Press Machine"], "Unavailable equipment is removed from recommendations");
 
+const shoulderInjuryOptions = engine.getAvailableExercises("shoulder_abduction", "", [], {
+    painNote: "Sağ omuz sakatlığı",
+    preferPainSafe: false,
+    allowUnsafeFallback: true,
+});
+assertEqual(shoulderInjuryOptions.length > 0, true, "Shoulder injury keeps selectable shoulder exercises for disabled logging");
+
 const dumbbellOnlyChestOptions = engine.getAvailableExercises("horizontal_adduction", "", [], {
     hasEquipmentLimit: "yes",
     equipmentLimitNote: "Sadece dumbbell var",

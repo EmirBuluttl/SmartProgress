@@ -760,10 +760,15 @@ export function getExercisesForPattern(
     const candidates = EXERCISE_LIBRARY.filter((exercise) => exercise.pattern === pattern);
     const equipmentFiltered = applyEquipmentFilter(candidates, options);
     const painFiltered = applyPainSafetyFilter(equipmentFiltered, options);
-    const sorted = sortExerciseCandidates(painFiltered, options);
+    const fallbackPool = options?.allowUnsafeFallback && painFiltered.length === 0
+        ? equipmentFiltered
+        : painFiltered;
+    const sorted = sortExerciseCandidates(fallbackPool, options);
     if (avoided.length === 0) return sorted;
     const filtered = sorted.filter((exercise) => !matchesAvoidedExercise(exercise, avoided));
-    return filtered;
+    return filtered.length > 0 || !options?.allowUnsafeFallback
+        ? filtered
+        : sorted;
 }
 
 export function getAvailableExercises(

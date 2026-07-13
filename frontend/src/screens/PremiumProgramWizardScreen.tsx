@@ -161,9 +161,10 @@ export default function PremiumProgramWizardScreen() {
         level,
         painNote,
         preferPainSafe: hasPain === "yes" && !injuryMode,
+        allowUnsafeFallback: injuryMode,
         goal,
         strengthFocus,
-    }), [equipmentLimitNote, goal, hasEquipmentLimit, hasPain, level, painNote, strengthFocus]);
+    }), [equipmentLimitNote, goal, hasEquipmentLimit, hasPain, injuryMode, level, painNote, strengthFocus]);
     const resolveExercise = (pattern: PatternKey) =>
         resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote, [], exerciseSelectionOptions);
     const activePriorityOrder = React.useMemo(
