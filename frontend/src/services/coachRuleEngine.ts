@@ -133,8 +133,9 @@ function addPatterns(target: Set<CoachPatternKey>, patterns: CoachPatternKey[]) 
 }
 
 export function isInjuryNote(note?: string) {
-    const text = normalizeExerciseText(note || "");
-    return /(sakat|sakatlik|sakatl|injury|injured|yirtik|yırtık|kopuk|ameliyat|meniskus|meniscus|fitik|fıtık)/i.test(text);
+    const raw = String(note || "").toLocaleLowerCase("tr-TR");
+    const text = `${raw} ${normalizeExerciseText(note || "")}`;
+    return /(sakat|sakatl[ıi]k|sakatl[ıi]g[ıi]|sakatl|injury|injured|y[ıi]rt[ıi]k|kopuk|ameliyat|meniskus|meniscus|f[ıi]t[ıi]k)/i.test(text);
 }
 
 export const COACH_PATTERN_LABELS: Record<CoachPatternKey, string> = {

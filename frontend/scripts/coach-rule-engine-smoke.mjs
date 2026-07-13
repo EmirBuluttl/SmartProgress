@@ -84,6 +84,7 @@ const shoulderInjuryOptions = engine.getAvailableExercises("shoulder_abduction",
     allowUnsafeFallback: true,
 });
 assertEqual(shoulderInjuryOptions.length > 0, true, "Shoulder injury keeps selectable shoulder exercises for disabled logging");
+assertEqual(engine.isInjuryNote("Sağ omuz sakatlığı"), true, "Turkish injury suffix is detected");
 
 const dumbbellOnlyChestOptions = engine.getAvailableExercises("horizontal_adduction", "", [], {
     hasEquipmentLimit: "yes",
@@ -154,5 +155,17 @@ const kneeInjury = engine.buildCoachProgramData({
 });
 assertEqual(kneeInjury.days[1].exercises.some((exercise) => exercise.targetPattern === "knee_extension"), true, "Injury-limited patterns stay in the program");
 assertEqual(kneeInjury.days[1].exercises.find((exercise) => exercise.targetPattern === "knee_extension")?.logDisabled, true, "Injury-limited patterns are not loggable");
+
+const shoulderInjuryProgram = engine.buildCoachProgramData({
+    frequency: 4,
+    split: "UL",
+    level: "intermediate",
+    goal: "muscle",
+    hasPain: "yes",
+    painNote: "Sağ omuz sakatlığı",
+    includePainArea: "no",
+});
+assertEqual(shoulderInjuryProgram.days[0].exercises.some((exercise) => exercise.targetPattern === "shoulder_abduction"), true, "Shoulder injury is kept even if previous pain exclusion was no");
+assertEqual(shoulderInjuryProgram.days[0].exercises.find((exercise) => exercise.targetPattern === "shoulder_abduction")?.logDisabled, true, "Shoulder injury pattern is not loggable");
 
 console.log("coach-rule-engine smoke tests passed");
