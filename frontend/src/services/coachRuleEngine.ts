@@ -956,7 +956,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         equipmentLimitNote: input.equipmentLimitNote,
         painNote: input.painNote,
         preferPainSafe: input.hasPain === "yes" && !injuryMode,
-        allowUnsafeFallback: injuryMode,
+        allowUnsafeFallback: input.hasPain === "yes" && (injuryMode || input.includePainArea !== "no"),
         level: input.level,
         goal: input.goal,
         strengthFocus: input.strengthFocus,

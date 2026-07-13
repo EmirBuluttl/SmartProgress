@@ -161,10 +161,10 @@ export default function PremiumProgramWizardScreen() {
         level,
         painNote,
         preferPainSafe: hasPain === "yes" && !injuryMode,
-        allowUnsafeFallback: injuryMode,
+        allowUnsafeFallback: hasPain === "yes" && (injuryMode || includePainArea === "yes"),
         goal,
         strengthFocus,
-    }), [equipmentLimitNote, goal, hasEquipmentLimit, hasPain, injuryMode, level, painNote, strengthFocus]);
+    }), [equipmentLimitNote, goal, hasEquipmentLimit, hasPain, includePainArea, injuryMode, level, painNote, strengthFocus]);
     const resolveExercise = (pattern: PatternKey) =>
         resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote, [], exerciseSelectionOptions);
     const activePriorityOrder = React.useMemo(
@@ -187,9 +187,9 @@ export default function PremiumProgramWizardScreen() {
     const blockedExercisePatterns = React.useMemo(() => uniquePatterns.filter((pattern) =>
         getAvailableExercises(pattern, avoidNote, [], {
             ...exerciseSelectionOptions,
-            allowUnsafeFallback: injuryMode,
+            allowUnsafeFallback: hasPain === "yes" && (injuryMode || includePainArea === "yes"),
         }).length === 0,
-    ), [avoidNote, exerciseSelectionOptions, injuryMode, uniquePatterns]);
+    ), [avoidNote, exerciseSelectionOptions, hasPain, includePainArea, injuryMode, uniquePatterns]);
     const avoidedExerciseTokens = React.useMemo(() => parseAvoidedExercises(avoidNote), [avoidNote]);
     const libraryByName = React.useMemo(() => {
         const map = new Map<string, ExerciseLibraryItem>();

@@ -86,6 +86,13 @@ const shoulderInjuryOptions = engine.getAvailableExercises("shoulder_abduction",
 assertEqual(shoulderInjuryOptions.length > 0, true, "Shoulder injury keeps selectable shoulder exercises for disabled logging");
 assertEqual(engine.isInjuryNote("Sağ omuz sakatlığı"), true, "Turkish injury suffix is detected");
 
+const shoulderPainIncludedOptions = engine.getAvailableExercises("shoulder_abduction", "", [], {
+    painNote: "Sag omuz agrisi",
+    preferPainSafe: true,
+    allowUnsafeFallback: true,
+});
+assertEqual(shoulderPainIncludedOptions.length > 0, true, "Shoulder pain can still list exercises when included with caution");
+
 const dumbbellOnlyChestOptions = engine.getAvailableExercises("horizontal_adduction", "", [], {
     hasEquipmentLimit: "yes",
     equipmentLimitNote: "Sadece dumbbell var",
@@ -167,5 +174,19 @@ const shoulderInjuryProgram = engine.buildCoachProgramData({
 });
 assertEqual(shoulderInjuryProgram.days[0].exercises.some((exercise) => exercise.targetPattern === "shoulder_abduction"), true, "Shoulder injury is kept even if previous pain exclusion was no");
 assertEqual(shoulderInjuryProgram.days[0].exercises.find((exercise) => exercise.targetPattern === "shoulder_abduction")?.logDisabled, true, "Shoulder injury pattern is not loggable");
+
+const shoulderPainIncludedProgram = engine.buildCoachProgramData({
+    frequency: 4,
+    split: "UL",
+    level: "intermediate",
+    goal: "muscle",
+    hasPain: "yes",
+    painNote: "Sag omuz agrisi",
+    includePainArea: "yes",
+});
+const shoulderPainExercise = shoulderPainIncludedProgram.days[0].exercises.find((exercise) => exercise.targetPattern === "shoulder_abduction");
+assertEqual(Boolean(shoulderPainExercise), true, "Included shoulder pain stays in the program");
+assertEqual(shoulderPainExercise?.riskAdjusted, true, "Included shoulder pain is risk adjusted");
+assertEqual(shoulderPainExercise?.logDisabled || false, false, "Pain is loggable unless it is injury");
 
 console.log("coach-rule-engine smoke tests passed");
