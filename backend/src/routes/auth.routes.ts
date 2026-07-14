@@ -10,6 +10,8 @@ const router = Router();
 // Public routes
 router.post("/register", (req, res, next) => authController.register(req, res, next));
 router.post("/login", (req, res, next) => authController.login(req, res, next));
+router.post("/social/google", (req, res, next) => authController.loginWithGoogle(req, res, next));
+router.post("/social/apple", (req, res, next) => authController.loginWithApple(req, res, next));
 router.post("/forgot-password", (req, res, next) => authController.forgotPassword(req, res, next));
 router.post("/reset-password", (req, res, next) => authController.resetPassword(req, res, next));
 

@@ -29,6 +29,13 @@ const loginSchema = z.object({
     password: z.string().min(1, "Password is required"),
 });
 
+const socialLoginSchema = z.object({
+    idToken: z.string().min(20, "Identity token is required"),
+    email: z.string().email("Invalid email format").optional(),
+    firstName: z.string().min(1).max(50).optional(),
+    lastName: z.string().min(1).max(50).optional(),
+});
+
 const forgotPasswordSchema = z.object({
     email: z.string().email("Invalid email format"),
 });
@@ -84,6 +91,34 @@ export class AuthController {
             }
 
             const result = await authService.login(parsed.data);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async loginWithGoogle(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const parsed = socialLoginSchema.safeParse(req.body);
+            if (!parsed.success) {
+                throw new ValidationError("Validation failed", parsed.error.flatten());
+            }
+
+            const result = await authService.loginWithGoogle(parsed.data);
+            res.status(200).json(result);
+        } catch (error) {
+            next(error);
+        }
+    }
+
+    async loginWithApple(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const parsed = socialLoginSchema.safeParse(req.body);
+            if (!parsed.success) {
+                throw new ValidationError("Validation failed", parsed.error.flatten());
+            }
+
+            const result = await authService.loginWithApple(parsed.data);
             res.status(200).json(result);
         } catch (error) {
             next(error);

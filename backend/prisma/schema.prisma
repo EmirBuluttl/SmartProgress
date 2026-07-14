@@ -40,6 +40,7 @@ model User {
   bodyMeasurements BodyMeasurement[]
   nutritionLogs NutritionLog[]
   notifications Notification[]
+  authProviders UserAuthProvider[]
   aiUsageEvents AiUsageEvent[]
   coachWeeklyReports CoachWeeklyReport[]
   coachAiMessages CoachAiMessage[]
@@ -50,6 +51,25 @@ model User {
   blockedBy UserBlock[] @relation("UserBlockBlocked")
 
   @@map("users")
+}
+
+model UserAuthProvider {
+  id             String   @id @default(uuid()) @db.Uuid
+  userId         String   @map("user_id") @db.Uuid
+  provider       String
+  providerUserId String   @map("provider_user_id")
+  email          String?
+  emailVerified  Boolean  @default(false) @map("email_verified")
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerUserId])
+  @@unique([userId, provider])
+  @@index([userId])
+  @@index([email])
+  @@map("user_auth_providers")
 }
 
 model CoachWeeklyReport {

@@ -5,7 +5,13 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import { env } from "../config/env";
+import prisma from "../config/prisma";
 import { userRepository } from "../repositories/user.repository";
+import {
+    VerifiedSocialIdentity,
+    verifyAppleIdentityToken,
+    verifyGoogleIdToken,
+} from "./socialToken.service";
 import {
     ConflictError,
     UnauthorizedError,
@@ -25,6 +31,13 @@ export interface RegisterDto {
 export interface LoginDto {
     email: string;
     password: string;
+}
+
+export interface SocialLoginDto {
+    idToken: string;
+    email?: string;
+    firstName?: string;
+    lastName?: string;
 }
 
 export interface ForgotPasswordDto {
@@ -158,6 +171,27 @@ function buildDefaultUserSettings() {
         pro_trial_started_at: trialStartedAt.toISOString(),
         pro_trial_expires_at: trialExpiresAt.toISOString(),
         pro_trial_source: "manual_signup_promo",
+    };
+}
+
+function splitFullName(fullName?: string | null) {
+    const trimmed = (fullName || "").trim();
+    if (!trimmed) return { firstName: "", lastName: "" };
+    const parts = trimmed.split(/\s+/);
+    return {
+        firstName: parts[0] || "",
+        lastName: parts.slice(1).join(" ") || "",
+    };
+}
+
+function buildSocialDisplayName(identity: VerifiedSocialIdentity, dto?: SocialLoginDto) {
+    const fullNameParts = splitFullName(identity.fullName);
+    const emailPrefix = (identity.email || dto?.email || "SmartProgress").split("@")[0];
+    const firstName = (dto?.firstName || identity.firstName || fullNameParts.firstName || emailPrefix || "SmartProgress").trim();
+    const lastName = (dto?.lastName || identity.lastName || fullNameParts.lastName || "User").trim();
+    return {
+        firstName: firstName.slice(0, 50) || "SmartProgress",
+        lastName: lastName.slice(0, 50) || "User",
     };
 }
 
@@ -375,6 +409,16 @@ export class AuthService {
         };
     }
 
+    async loginWithGoogle(dto: SocialLoginDto): Promise<AuthResponse> {
+        const identity = await verifyGoogleIdToken(dto.idToken);
+        return this.loginWithSocialIdentity(identity, dto);
+    }
+
+    async loginWithApple(dto: SocialLoginDto): Promise<AuthResponse> {
+        const identity = await verifyAppleIdentityToken(dto.idToken);
+        return this.loginWithSocialIdentity(identity, dto);
+    }
+
     /**
      * Get user profile by ID.
      */
@@ -555,6 +599,135 @@ export class AuthService {
         return jwt.sign({ userId, role }, env.JWT_SECRET, {
             expiresIn: env.JWT_EXPIRES_IN as jwt.SignOptions["expiresIn"],
         });
+    }
+
+    private buildAuthResponse(user: {
+        id: string;
+        email: string;
+        firstName: string;
+        lastName: string;
+        nickname: string | null;
+        avatarUrl: string | null;
+        role: string;
+        settings: unknown;
+        subscriptionTier: string;
+        subscriptionStatus: string;
+    }): AuthResponse {
+        const token = this.generateToken(user.id, user.role);
+        const subscription = effectiveSubscription(user);
+
+        return {
+            token,
+            user: {
+                id: user.id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                nickname: user.nickname,
+                avatarUrl: user.avatarUrl,
+                role: user.role,
+                settings: user.settings,
+                subscriptionTier: subscription.subscriptionTier,
+                subscriptionStatus: subscription.subscriptionStatus,
+            },
+        };
+    }
+
+    private async loginWithSocialIdentity(identity: VerifiedSocialIdentity, dto?: SocialLoginDto): Promise<AuthResponse> {
+        if (!identity.email && !identity.providerUserId) {
+            throw new UnauthorizedError("Social login identity is incomplete.");
+        }
+
+        const normalizedEmail = (identity.email || dto?.email || "").trim().toLowerCase();
+
+        const user = await prisma.$transaction(async (tx) => {
+            const existingProvider = await tx.userAuthProvider.findUnique({
+                where: {
+                    provider_providerUserId: {
+                        provider: identity.provider,
+                        providerUserId: identity.providerUserId,
+                    },
+                },
+                include: { user: true },
+            });
+
+            if (existingProvider) {
+                if (!existingProvider.user.isActive) {
+                    throw new UnauthorizedError("Account is deactivated");
+                }
+
+                if (
+                    normalizedEmail &&
+                    (existingProvider.email !== normalizedEmail || existingProvider.emailVerified !== identity.emailVerified)
+                ) {
+                    await tx.userAuthProvider.update({
+                        where: { id: existingProvider.id },
+                        data: {
+                            email: normalizedEmail,
+                            emailVerified: identity.emailVerified,
+                        },
+                    });
+                }
+
+                return existingProvider.user;
+            }
+
+            if (!normalizedEmail || !identity.emailVerified) {
+                throw new ValidationError(
+                    "This social account did not share a verified email. Please sign in with email first.",
+                );
+            }
+
+            const existingUser = await tx.user.findUnique({
+                where: { email: normalizedEmail },
+            });
+
+            if (existingUser) {
+                if (!existingUser.isActive) {
+                    throw new UnauthorizedError("Account is deactivated");
+                }
+
+                await tx.userAuthProvider.create({
+                    data: {
+                        userId: existingUser.id,
+                        provider: identity.provider,
+                        providerUserId: identity.providerUserId,
+                        email: normalizedEmail,
+                        emailVerified: identity.emailVerified,
+                    },
+                });
+
+                return existingUser;
+            }
+
+            const names = buildSocialDisplayName(identity, dto);
+            const passwordHash = await bcrypt.hash(
+                `social:${identity.provider}:${identity.providerUserId}:${crypto.randomUUID()}`,
+                env.BCRYPT_SALT_ROUNDS,
+            );
+
+            return tx.user.create({
+                data: {
+                    email: normalizedEmail,
+                    passwordHash,
+                    firstName: names.firstName,
+                    lastName: names.lastName,
+                    settings: buildDefaultUserSettings(),
+                    subscriptionTier: "PRO",
+                    subscriptionStatus: "TRIAL",
+                    authProviders: {
+                        create: {
+                            provider: identity.provider,
+                            providerUserId: identity.providerUserId,
+                            email: normalizedEmail,
+                            emailVerified: identity.emailVerified,
+                        },
+                    },
+                },
+            });
+        });
+
+        return this.buildAuthResponse(user);
     }
 }
 

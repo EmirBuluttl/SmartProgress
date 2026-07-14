@@ -34,6 +34,13 @@ export const env = {
     REVENUECAT_PREMIUM_ENTITLEMENT_ID: process.env.REVENUECAT_PREMIUM_ENTITLEMENT_ID || "premium",
     REVENUECAT_WEBHOOK_SECRET: process.env.REVENUECAT_WEBHOOK_SECRET || "",
 
+    // Social auth
+    GOOGLE_ANDROID_CLIENT_ID: process.env.GOOGLE_ANDROID_CLIENT_ID || "",
+    GOOGLE_IOS_CLIENT_ID: process.env.GOOGLE_IOS_CLIENT_ID || "",
+    GOOGLE_WEB_CLIENT_ID: process.env.GOOGLE_WEB_CLIENT_ID || "",
+    APPLE_TEAM_ID: process.env.APPLE_TEAM_ID || "",
+    APPLE_BUNDLE_ID: process.env.APPLE_BUNDLE_ID || "com.smartprogress.app",
+
     // AI provider
     AI_PROVIDER: process.env.AI_PROVIDER || "mock",
     OPENAI_API_KEY: process.env.OPENAI_API_KEY || "",
