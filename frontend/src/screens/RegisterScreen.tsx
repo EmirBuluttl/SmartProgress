@@ -23,6 +23,7 @@ import AccentButton from "../components/AccentButton";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { useAuth } from "../store/AuthContext";
+import SocialAuthButtons from "../components/SocialAuthButtons";
 
 type RegisterNav = NativeStackNavigationProp<AuthStackParamList, "Register">;
 
@@ -204,6 +205,10 @@ export default function RegisterScreen() {
         navigation.navigate("ForgotPassword");
     };
 
+    const handleSocialError = React.useCallback((message: string) => {
+        setErrors((prev) => ({ ...prev, general: message || undefined }));
+    }, []);
+
     const pwStyles = React.useMemo(() => createPwStyles(colors), [colors]);
 
     return (
@@ -352,6 +357,8 @@ export default function RegisterScreen() {
                             <Text style={styles.btnText}>Kayıt Ol →</Text>
                         )}
                     </TouchableOpacity>
+
+                    <SocialAuthButtons disabled={loading} onError={handleSocialError} />
                 </View>
 
                 {/* ─── Login Link ─── */}

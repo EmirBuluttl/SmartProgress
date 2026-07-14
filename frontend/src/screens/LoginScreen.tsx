@@ -22,6 +22,7 @@ import type { AuthStackParamList } from "../navigation/AuthStack";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { useAuth } from "../store/AuthContext";
+import SocialAuthButtons from "../components/SocialAuthButtons";
 
 type LoginNav = NativeStackNavigationProp<AuthStackParamList, "Login">;
 
@@ -62,6 +63,10 @@ export default function LoginScreen() {
     const handleForgotPassword = () => {
         navigation.navigate("ForgotPassword");
     };
+
+    const handleSocialError = React.useCallback((message: string) => {
+        setError(message || null);
+    }, []);
 
     return (
         <KeyboardAvoidingView
@@ -161,6 +166,8 @@ export default function LoginScreen() {
                             <Text style={styles.btnText}>Giriş Yap</Text>
                         )}
                     </TouchableOpacity>
+
+                    <SocialAuthButtons disabled={loading} onError={handleSocialError} />
                 </View>
 
                 {/* ─── Register Link ─── */}

@@ -117,6 +117,12 @@ export const authApi = {
     login: (data: { email: string; password: string }) =>
         api.post("/auth/login", data),
 
+    loginWithGoogle: (data: { idToken: string; email?: string; firstName?: string; lastName?: string }) =>
+        api.post("/auth/social/google", data),
+
+    loginWithApple: (data: { idToken: string; email?: string; firstName?: string; lastName?: string }) =>
+        api.post("/auth/social/apple", data),
+
     forgotPassword: (data: { email: string }) =>
         api.post("/auth/forgot-password", data),
 

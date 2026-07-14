@@ -54,6 +54,8 @@ interface AuthState {
 
 interface AuthContextType extends AuthState {
     login: (email: string, password: string) => Promise<void>;
+    loginWithGoogle: (data: { idToken: string; email?: string; firstName?: string; lastName?: string }) => Promise<void>;
+    loginWithApple: (data: { idToken: string; email?: string; firstName?: string; lastName?: string }) => Promise<void>;
     register: (data: {
         email: string;
         password: string;
@@ -122,28 +124,52 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         restore();
     }, []);
 
+    const persistAuthSession = useCallback(async (token: string, user: User) => {
+        await AsyncStorage.setItem("auth_token", token);
+        await AsyncStorage.setItem("user", JSON.stringify(user));
+
+        updateProfileCache(user);
+
+        setState({
+            user,
+            token,
+            isLoading: false,
+            isAuthenticated: true,
+        });
+    }, []);
+
     const login = useCallback(async (email: string, password: string) => {
         try {
             const response = await authApi.login({ email, password });
             const { token, user } = response.data;
-
-            await AsyncStorage.setItem("auth_token", token);
-            await AsyncStorage.setItem("user", JSON.stringify(user));
-            
-            // Sync with authCacheService
-            updateProfileCache(user);
-
-            setState({
-                user,
-                token,
-                isLoading: false,
-                isAuthenticated: true,
-            });
+            await persistAuthSession(token, user);
         } catch (error) {
             const apiError = parseApiError(error);
             throw new Error(apiError.message);
         }
-    }, []);
+    }, [persistAuthSession]);
+
+    const loginWithGoogle = useCallback(async (data: { idToken: string; email?: string; firstName?: string; lastName?: string }) => {
+        try {
+            const response = await authApi.loginWithGoogle(data);
+            const { token, user } = response.data;
+            await persistAuthSession(token, user);
+        } catch (error) {
+            const apiError = parseApiError(error);
+            throw new Error(apiError.message);
+        }
+    }, [persistAuthSession]);
+
+    const loginWithApple = useCallback(async (data: { idToken: string; email?: string; firstName?: string; lastName?: string }) => {
+        try {
+            const response = await authApi.loginWithApple(data);
+            const { token, user } = response.data;
+            await persistAuthSession(token, user);
+        } catch (error) {
+            const apiError = parseApiError(error);
+            throw new Error(apiError.message);
+        }
+    }, [persistAuthSession]);
 
     const register = useCallback(
         async (data: {
@@ -155,25 +181,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             try {
                 const response = await authApi.register(data);
                 const { token, user } = response.data;
-
-                await AsyncStorage.setItem("auth_token", token);
-                await AsyncStorage.setItem("user", JSON.stringify(user));
-
-                // Sync with authCacheService
-                updateProfileCache(user);
-
-                setState({
-                    user,
-                    token,
-                    isLoading: false,
-                    isAuthenticated: true,
-                });
+                await persistAuthSession(token, user);
             } catch (error) {
                 const apiError = parseApiError(error);
                 throw new Error(apiError.message);
             }
         },
-        [],
+        [persistAuthSession],
     );
 
     const logout = useCallback(async () => {
@@ -201,7 +215,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }, []);
 
     return (
-        <AuthContext.Provider value={{ ...state, login, register, logout, updateUser }}>
+        <AuthContext.Provider value={{ ...state, login, loginWithGoogle, loginWithApple, register, logout, updateUser }}>
             {children}
         </AuthContext.Provider>
     );
