@@ -53,7 +53,8 @@
     },
     "owner": "bruhsound",
     "plugins": [
-      "expo-notifications"
+      "expo-notifications",
+      "expo-web-browser"
     ]
   }
 }
