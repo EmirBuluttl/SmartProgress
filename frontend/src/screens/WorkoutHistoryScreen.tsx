@@ -8,6 +8,7 @@ import {
     ScrollView,
     FlatList,
     ActivityIndicator,
+    Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation } from "@react-navigation/native";
@@ -68,6 +69,7 @@ export default function WorkoutHistoryScreen() {
     const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
     const [programFilter, setProgramFilter] = useState("all");
     const [scopeFilter, setScopeFilter] = useState("all");
+    const [filterModalVisible, setFilterModalVisible] = useState(false);
 
     const sortNewestFirst = (items: WorkoutItem[]) =>
         [...items].sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime());
@@ -249,6 +251,8 @@ export default function WorkoutHistoryScreen() {
 
     const activeFilterCount = [dateFilter !== "all", typeFilter !== "all", programFilter !== "all", scopeFilter !== "all"].filter(Boolean).length;
 
+    const filterSummaryText = activeFilterCount > 0 ? `${activeFilterCount} filtre aktif` : "Tüm antrenmanlar";
+
     const renderFilterChip = (label: string, active: boolean, onPress: () => void) => (
         <Pressable
             key={label}
@@ -257,6 +261,44 @@ export default function WorkoutHistoryScreen() {
         >
             <Text style={[styles.filterChipText, active && styles.filterChipTextActive]} numberOfLines={1}>{label}</Text>
         </Pressable>
+    );
+
+    const renderFilterControls = () => (
+        <>
+            <Text style={styles.filterSectionLabel}>Zaman</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                {renderFilterChip("Tümü", dateFilter === "all", () => setDateFilter("all"))}
+                {renderFilterChip("7 gün", dateFilter === "7d", () => setDateFilter("7d"))}
+                {renderFilterChip("30 gün", dateFilter === "30d", () => setDateFilter("30d"))}
+                {renderFilterChip("90 gün", dateFilter === "90d", () => setDateFilter("90d"))}
+            </ScrollView>
+
+            <Text style={styles.filterSectionLabel}>Tip</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                {renderFilterChip("Hepsi", typeFilter === "all", () => setTypeFilter("all"))}
+                {renderFilterChip("Programlı", typeFilter === "program", () => setTypeFilter("program"))}
+                {renderFilterChip("Serbest", typeFilter === "free", () => setTypeFilter("free"))}
+                {renderFilterChip("Kardiyo", typeFilter === "cardio", () => setTypeFilter("cardio"))}
+            </ScrollView>
+
+            {programOptions.length > 1 ? (
+                <>
+                    <Text style={styles.filterSectionLabel}>Program</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                        {programOptions.map((option) => renderFilterChip(option.label, programFilter === option.key, () => setProgramFilter(option.key)))}
+                    </ScrollView>
+                </>
+            ) : null}
+
+            {scopeOptions.length > 1 ? (
+                <>
+                    <Text style={styles.filterSectionLabel}>Kapsam</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                        {scopeOptions.map((option) => renderFilterChip(option, scopeFilter === (option === "Tüm kapsam" ? "all" : option), () => setScopeFilter(option === "Tüm kapsam" ? "all" : option)))}
+                    </ScrollView>
+                </>
+            ) : null}
+        </>
     );
 
     const renderWorkout = (item: WorkoutItem) => {
@@ -380,6 +422,24 @@ export default function WorkoutHistoryScreen() {
                 </View>
             )}
 
+            <View style={styles.filterSummaryBar}>
+                <Pressable onPress={() => setFilterModalVisible(true)} style={styles.filterOpenBtn}>
+                    <Ionicons name="filter-outline" size={18} color={colors.accent} />
+                    <Text style={styles.filterOpenText}>Filtrele</Text>
+                    {activeFilterCount > 0 ? (
+                        <View style={styles.filterBadge}>
+                            <Text style={styles.filterBadgeText}>{activeFilterCount}</Text>
+                        </View>
+                    ) : null}
+                </Pressable>
+                <Text style={styles.filterSummary} numberOfLines={1}>{filterSummaryText}</Text>
+                {activeFilterCount > 0 ? (
+                    <Pressable onPress={clearFilters} style={styles.inlineClearBtn}>
+                        <Text style={styles.clearFilterText}>Temizle</Text>
+                    </Pressable>
+                ) : null}
+            </View>
+
             <View style={styles.filterPanel}>
                 <View style={styles.filterHeaderRow}>
                     <View>
@@ -448,6 +508,44 @@ export default function WorkoutHistoryScreen() {
                     ListFooterComponent={renderFooter}
                 />
             )}
+            <Modal
+                visible={filterModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setFilterModalVisible(false)}
+            >
+                <View style={styles.modalOverlay}>
+                    <Pressable style={styles.modalBackdrop} onPress={() => setFilterModalVisible(false)} />
+                    <View style={styles.filterModalCard}>
+                        <View style={styles.filterHeaderRow}>
+                            <View>
+                                <Text style={styles.filterTitle}>Filtrele</Text>
+                                <Text style={styles.filterSummary}>
+                                    {activeFilterCount > 0 ? `${activeFilterCount} filtre aktif` : "Tüm antrenmanlar gösteriliyor"}
+                                </Text>
+                            </View>
+                            <Pressable onPress={() => setFilterModalVisible(false)} style={styles.modalCloseBtn}>
+                                <Ionicons name="close" size={22} color={colors.textSecondary} />
+                            </Pressable>
+                        </View>
+                        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.filterModalContent}>
+                            {renderFilterControls()}
+                        </ScrollView>
+                        <View style={styles.filterModalFooter}>
+                            <Pressable
+                                onPress={clearFilters}
+                                disabled={activeFilterCount === 0}
+                                style={[styles.clearFilterBtn, activeFilterCount === 0 && styles.disabledFilterBtn]}
+                            >
+                                <Text style={[styles.clearFilterText, activeFilterCount === 0 && styles.disabledFilterText]}>Temizle</Text>
+                            </Pressable>
+                            <Pressable onPress={() => setFilterModalVisible(false)} style={styles.applyFilterBtn}>
+                                <Text style={styles.applyFilterText}>Uygula</Text>
+                            </Pressable>
+                        </View>
+                    </View>
+                </View>
+            </Modal>
             <ActionConfirmModal
                 visible={!!pendingDeleteId}
                 title="Antrenmanı sil?"
@@ -619,6 +717,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
     },
     filterPanel: {
+        display: "none",
         marginHorizontal: spacing.lg,
         marginTop: spacing.sm,
         marginBottom: spacing.sm,
@@ -628,6 +727,59 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
         backgroundColor: colors.surface,
         gap: spacing.sm,
+    },
+    filterSummaryBar: {
+        marginHorizontal: spacing.lg,
+        marginTop: spacing.sm,
+        marginBottom: spacing.sm,
+        minHeight: 48,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    filterOpenBtn: {
+        minHeight: 36,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+    },
+    filterOpenText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    filterBadge: {
+        minWidth: 20,
+        height: 20,
+        paddingHorizontal: 5,
+        borderRadius: 10,
+        backgroundColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    filterBadgeText: {
+        color: colors.background,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    inlineClearBtn: {
+        minHeight: 34,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceElevated,
     },
     filterHeaderRow: {
         flexDirection: "row",
@@ -641,9 +793,17 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
     },
     filterSummary: {
+        flex: 1,
         color: colors.textMuted,
         fontSize: fontSize.xs,
         marginTop: 2,
+    },
+    filterSectionLabel: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        marginTop: spacing.sm,
+        textTransform: "uppercase",
     },
     clearFilterBtn: {
         minHeight: 34,
@@ -661,6 +821,61 @@ const createStyles = (colors: any) => StyleSheet.create({
     filterRow: {
         gap: spacing.sm,
         paddingRight: spacing.md,
+    },
+    modalOverlay: {
+        flex: 1,
+        justifyContent: "center",
+        padding: spacing.lg,
+    },
+    modalBackdrop: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: "rgba(0,0,0,0.55)",
+    },
+    filterModalCard: {
+        width: "100%",
+        maxHeight: "78%",
+        padding: spacing.lg,
+        borderRadius: borderRadius.xl,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        gap: spacing.md,
+    },
+    modalCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceElevated,
+    },
+    filterModalContent: {
+        gap: spacing.xs,
+        paddingBottom: spacing.sm,
+    },
+    filterModalFooter: {
+        flexDirection: "row",
+        justifyContent: "flex-end",
+        gap: spacing.sm,
+    },
+    disabledFilterBtn: {
+        opacity: 0.45,
+    },
+    disabledFilterText: {
+        color: colors.textMuted,
+    },
+    applyFilterBtn: {
+        minHeight: 40,
+        paddingHorizontal: spacing.lg,
+        borderRadius: borderRadius.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accent,
+    },
+    applyFilterText: {
+        color: colors.background,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     filterChip: {
         minHeight: 36,
