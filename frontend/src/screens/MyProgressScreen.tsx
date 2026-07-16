@@ -824,7 +824,7 @@ export default function MyProgressScreen() {
                         </TouchableOpacity>
                     ))}
                 </ScrollView>
-                <ScrollView style={styles.filterModalList} contentContainerStyle={styles.metricFilterRow}>
+                <ScrollView style={styles.filterModalList} contentContainerStyle={styles.metricFilterGrid}>
                     {metricOptions[activeMetricTab].length === 0 ? (
                         <Text style={styles.emptyMetricText}>Bu metrik için önce birkaç log biriktir.</Text>
                     ) : metricOptions[activeMetricTab].map((option) => (
@@ -842,32 +842,32 @@ export default function MyProgressScreen() {
                 </ScrollView>
 
                 <Text style={styles.filterModalLabel}>Antrenman</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricFilterRow}>
+                <ScrollView style={styles.splitFilterList} contentContainerStyle={styles.metricFilterGrid}>
                     {splitOptions.map((option) => (
-                        <AnimatedPressable
+                        <TouchableOpacity
                             key={option}
                             style={[styles.splitFilterBtn, splitFilter === option && styles.metricFilterBtnActive]}
                             onPress={() => setSplitFilter(option)}
-                            pressedScale={0.96}
+                            activeOpacity={0.82}
                         >
                             <Text style={[styles.metricFilterText, splitFilter === option && styles.metricFilterTextActive]}>
                                 {option}
                             </Text>
-                        </AnimatedPressable>
+                        </TouchableOpacity>
                     ))}
                 </ScrollView>
 
                 <Text style={styles.filterModalLabel}>Zaman</Text>
-                <View style={styles.filterRow}>
+                <View style={styles.timeFilterRow}>
                     {FILTERS.map((f) => (
-                        <AnimatedPressable
+                        <TouchableOpacity
                             key={f}
                             style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
                             onPress={() => setFilter(f)}
-                            pressedScale={0.96}
+                            activeOpacity={0.82}
                         >
                             <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>{f}</Text>
-                        </AnimatedPressable>
+                        </TouchableOpacity>
                     ))}
                 </View>
 
@@ -1164,6 +1164,7 @@ const createStyles = (colors: any) =>
             marginBottom: spacing.sm,
         },
         filterModalList: { maxHeight: 190 },
+        splitFilterList: { maxHeight: 132 },
         filterRow: {
             flexDirection: "row",
             marginBottom: spacing.xl,
@@ -1174,6 +1175,18 @@ const createStyles = (colors: any) =>
             paddingBottom: spacing.md,
             marginBottom: spacing.sm,
         },
+        metricFilterGrid: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            gap: spacing.sm,
+            paddingBottom: spacing.md,
+            marginBottom: spacing.sm,
+        },
+        timeFilterRow: {
+            flexDirection: "row",
+            gap: spacing.sm,
+            marginBottom: spacing.xl,
+        },
         metricTabRow: {
             gap: spacing.sm,
             paddingBottom: spacing.sm,
@@ -1182,26 +1195,36 @@ const createStyles = (colors: any) =>
         metricTabBtn: {
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.sm,
+            minHeight: 38,
             borderRadius: borderRadius.full,
             borderWidth: 1,
             borderColor: colors.border,
             backgroundColor: colors.surface,
+            justifyContent: "center",
         },
         metricFilterBtn: {
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.sm,
+            minHeight: 42,
+            maxWidth: "100%",
             borderRadius: borderRadius.md,
             borderWidth: 1,
             borderColor: colors.border,
             backgroundColor: colors.surface,
+            justifyContent: "center",
+            flexShrink: 1,
         },
         splitFilterBtn: {
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.sm,
+            minHeight: 40,
+            maxWidth: "100%",
             borderRadius: borderRadius.full,
             borderWidth: 1,
             borderColor: colors.border,
             backgroundColor: colors.surface,
+            justifyContent: "center",
+            flexShrink: 1,
         },
         metricFilterBtnActive: {
             borderColor: colors.accent,
@@ -1211,6 +1234,7 @@ const createStyles = (colors: any) =>
             color: colors.textSecondary,
             fontSize: fontSize.sm,
             fontWeight: fontWeight.semibold,
+            flexShrink: 1,
         },
         metricFilterTextActive: { color: colors.accent },
         emptyMetricText: {
@@ -1221,10 +1245,12 @@ const createStyles = (colors: any) =>
         },
         filterBtn: {
             flex: 1,
+            minHeight: 42,
             paddingVertical: spacing.sm,
             borderRadius: borderRadius.md,
             backgroundColor: colors.surface,
             alignItems: "center",
+            justifyContent: "center",
             borderWidth: 1,
             borderColor: colors.border,
         },
