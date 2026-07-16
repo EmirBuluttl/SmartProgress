@@ -817,7 +817,7 @@ export default function PremiumProgramWizardScreen() {
     return (
         <KeyboardAvoidingView
             style={styles.root}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={Platform.OS === "ios" ? 12 : 0}
         >
             <View style={styles.topBar}>
@@ -835,8 +835,8 @@ export default function PremiumProgramWizardScreen() {
                 contentContainerStyle={styles.content}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "on-drag"}
-                onScrollBeginDrag={Keyboard.dismiss}
+                keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
+                onScrollBeginDrag={Platform.OS === "ios" ? Keyboard.dismiss : undefined}
             >
                 <View style={styles.hero}>
                     <Text style={styles.eyebrow}>AKILLI KOÇ WIZARD</Text>

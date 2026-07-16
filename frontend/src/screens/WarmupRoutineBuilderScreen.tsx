@@ -168,7 +168,7 @@ export default function WarmupRoutineBuilderScreen() {
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
             <View style={styles.header}>
                 <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>

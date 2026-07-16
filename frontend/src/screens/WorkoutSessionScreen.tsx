@@ -2500,7 +2500,7 @@ export default function WorkoutSessionScreen() {
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
         >
             {Platform.OS === "ios" ? (
@@ -3114,8 +3114,8 @@ export default function WorkoutSessionScreen() {
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
-                    keyboardDismissMode="on-drag"
-                    onScrollBeginDrag={Keyboard.dismiss}
+                    keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
+                    onScrollBeginDrag={Platform.OS === "ios" ? Keyboard.dismiss : undefined}
                 >
                     {renderHeader()}
                     {visibleExercises.map((exercise, index) => (
@@ -3142,8 +3142,8 @@ export default function WorkoutSessionScreen() {
                     contentContainerStyle={styles.content}
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
-                    keyboardDismissMode="on-drag"
-                    onScrollBeginDrag={Keyboard.dismiss}
+                    keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
+                    onScrollBeginDrag={Platform.OS === "ios" ? Keyboard.dismiss : undefined}
                     containerStyle={styles.scrollView}
                     activationDistance={6}
                     autoscrollThreshold={80}

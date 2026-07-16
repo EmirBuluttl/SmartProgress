@@ -380,7 +380,7 @@ export default function CardioSessionScreen() {
     }
 
     return (
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
             <ScrollView contentContainerStyle={styles.content}>
                 <View style={styles.header}>
                     <TouchableOpacity

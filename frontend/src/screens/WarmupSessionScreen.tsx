@@ -178,7 +178,7 @@ export default function WarmupSessionScreen() {
     }
 
     return (
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.iconBtn} onPress={() => setExitModalVisible(true)}>
                     <Ionicons name="chevron-back" size={24} color={colors.text} />
