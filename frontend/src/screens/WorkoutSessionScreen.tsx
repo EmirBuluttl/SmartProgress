@@ -378,8 +378,8 @@ function buildWarmupRoutineLog(template: WarmupRoutineTemplate | any[] | undefin
                 id: uid(),
                 weight: 0,
                 reps: 0,
-                weightMode: "kg" as const,
-                effortMode: String(targetSet?.targetReps || "").toLowerCase().includes("sn") ? "duration" as const : "reps" as const,
+                weightMode: targetSet?.weightMode === "bodyweight" ? "bodyweight" as const : "kg" as const,
+                effortMode: targetSet?.effortMode === "duration" || String(targetSet?.targetReps || "").toLowerCase().includes("sn") ? "duration" as const : "reps" as const,
                 durationSeconds: 0,
                 rpe: 0,
                 unit: "kg" as const,
@@ -388,6 +388,9 @@ function buildWarmupRoutineLog(template: WarmupRoutineTemplate | any[] | undefin
                 targetWeight: targetSet?.targetWeight,
                 targetRPE: targetSet?.targetRPE,
                 targetRIR: targetSet?.targetRIR,
+                sideMode: targetSet?.sideMode === "left_right" ? "left_right" as const : "both" as const,
+                left: targetSet?.sideMode === "left_right" ? {} : undefined,
+                right: targetSet?.sideMode === "left_right" ? {} : undefined,
             })),
         }));
 
@@ -878,27 +881,13 @@ export default function WorkoutSessionScreen() {
                         ? `${programName ?? "Antrenman"} · ${dayLabel}`
                         : (programName ?? "Antrenman");
 
-                    let previousWeights = new Map<string, number[]>();
-                    let previousReps = new Map<string, number[]>();
+                    let previousLookup = new Map<string, any>();
                     try {
                         const lookupKeys = Array.from(new Set(templateExercises.flatMap((exercise) => exerciseLookupKeys(exercise))));
                         if (lookupKeys.length > 0) {
                             const lookupRes = await workoutApi.previousSetLookup(lookupKeys);
                             const lookup = lookupRes.data.lookup || {};
-                            previousWeights = new Map(
-                                Object.entries(lookup).map(([key, value]: [string, any]) => [
-                                    key,
-                                    Array.isArray(value?.weights) ? value.weights : [],
-                                ]),
-                            );
-                            if (rememberRepsEnabled) {
-                                previousReps = new Map(
-                                    Object.entries(lookup).map(([key, value]: [string, any]) => [
-                                        key,
-                                        Array.isArray(value?.reps) ? value.reps : [],
-                                    ]),
-                                );
-                            }
+                            previousLookup = new Map(Object.entries(lookup));
                         }
                     } catch (err) {
                         console.warn("[WorkoutSession] Previous set placeholders could not be loaded:", err);
@@ -906,12 +895,17 @@ export default function WorkoutSessionScreen() {
 
                     const newExercises: WorkoutExercise[] = templateExercises.map((templateEx: any) => {
                         const targetSet = templateEx.targetSets?.[0] ?? templateEx.sets?.[0];
-                        const exercisePreviousWeights =
-                            exerciseLookupKeys(templateEx).map((key) => previousWeights.get(key)).find(Boolean) || [];
-                        const exercisePreviousReps =
-                            exerciseLookupKeys(templateEx).map((key) => previousReps.get(key)).find(Boolean) || [];
+                        const exercisePreviousLookup =
+                            exerciseLookupKeys(templateEx).map((key) => previousLookup.get(key)).find(Boolean) || {};
+                        const exercisePreviousWeights = Array.isArray(exercisePreviousLookup?.weights) ? exercisePreviousLookup.weights : [];
+                        const exercisePreviousReps = rememberRepsEnabled && Array.isArray(exercisePreviousLookup?.reps) ? exercisePreviousLookup.reps : [];
+                        const exercisePreviousDurations = Array.isArray(exercisePreviousLookup?.durations) ? exercisePreviousLookup.durations : [];
+                        const exercisePreviousLeft = exercisePreviousLookup?.left || {};
+                        const exercisePreviousRight = exercisePreviousLookup?.right || {};
                         let workingSetIndex = 0;
                         let repsSetIndex = 0;
+                        let durationSetIndex = 0;
+                        let sideSetIndex = 0;
                         return {
                             id: uid(),
                             exerciseId: templateEx.exerciseId,
@@ -939,21 +933,42 @@ export default function WorkoutSessionScreen() {
                                 const previousRepsValue = isWarmup
                                     ? undefined
                                     : exercisePreviousReps[repsSetIndex++];
+                                const previousDurationValue = isWarmup
+                                    ? undefined
+                                    : exercisePreviousDurations[durationSetIndex++];
+                                const previousLeft = !isWarmup && ts?.sideMode === "left_right"
+                                    ? {
+                                        targetWeight: exercisePreviousLeft.weights?.[sideSetIndex] ? String(exercisePreviousLeft.weights[sideSetIndex]) : undefined,
+                                        targetReps: rememberRepsEnabled && exercisePreviousLeft.reps?.[sideSetIndex] ? String(exercisePreviousLeft.reps[sideSetIndex]) : undefined,
+                                        targetDuration: exercisePreviousLeft.durations?.[sideSetIndex] ? formatDurationInput(exercisePreviousLeft.durations[sideSetIndex]) : undefined,
+                                    }
+                                    : undefined;
+                                const previousRight = !isWarmup && ts?.sideMode === "left_right"
+                                    ? {
+                                        targetWeight: exercisePreviousRight.weights?.[sideSetIndex] ? String(exercisePreviousRight.weights[sideSetIndex]) : undefined,
+                                        targetReps: rememberRepsEnabled && exercisePreviousRight.reps?.[sideSetIndex] ? String(exercisePreviousRight.reps[sideSetIndex]) : undefined,
+                                        targetDuration: exercisePreviousRight.durations?.[sideSetIndex] ? formatDurationInput(exercisePreviousRight.durations[sideSetIndex]) : undefined,
+                                    }
+                                    : undefined;
+                                if (!isWarmup && ts?.sideMode === "left_right") sideSetIndex++;
                                 return {
                                     id: uid(),
                                     weight: 0,
                                     reps: 0,
-                                    weightMode: "kg" as const,
-                                    effortMode: "reps" as const,
+                                    weightMode: ts?.weightMode === "bodyweight" ? "bodyweight" as const : "kg" as const,
+                                    effortMode: ts?.effortMode === "duration" ? "duration" as const : "reps" as const,
                                     durationSeconds: 0,
                                     rpe: 0,
                                     unit: "kg" as const,
                                     completed: false,
                                     isWarmup,
-                                    targetReps: previousRepsValue ? String(previousRepsValue) : ts?.targetReps,
+                                    targetReps: previousRepsValue ? String(previousRepsValue) : previousDurationValue ? formatDurationInput(previousDurationValue) : ts?.targetReps,
                                     targetWeight: previousWeight ? String(previousWeight) : ts?.targetWeight,
                                     targetRPE: ts?.targetRPE,
                                     targetRIR: ts?.targetRIR,
+                                    sideMode: ts?.sideMode === "left_right" ? "left_right" as const : "both" as const,
+                                    left: ts?.sideMode === "left_right" ? previousLeft || {} : undefined,
+                                    right: ts?.sideMode === "left_right" ? previousRight || {} : undefined,
                                 };
                             }),
                         };
@@ -1285,8 +1300,10 @@ export default function WorkoutSessionScreen() {
         const rightDuration = Number(right.durationSeconds) || 0;
         const leftRpe = Number(left.rpe) || 0;
         const rightRpe = Number(right.rpe) || 0;
-        const leftRir = typeof left.rir === "number" ? left.rir : Number(left.rir) || 0;
-        const rightRir = typeof right.rir === "number" ? right.rir : Number(right.rir) || 0;
+        const leftRir = left.rir === "" || left.rir === undefined || left.rir === null ? undefined : Number(left.rir);
+        const rightRir = right.rir === "" || right.rir === undefined || right.rir === null ? undefined : Number(right.rir);
+        const hasLeftRir = typeof leftRir === "number" && Number.isFinite(leftRir);
+        const hasRightRir = typeof rightRir === "number" && Number.isFinite(rightRir);
 
         updateSetPatch(exerciseId, set.id, {
             sideMode: "left_right",
@@ -1296,7 +1313,7 @@ export default function WorkoutSessionScreen() {
             reps: leftReps > 0 && rightReps > 0 ? Math.min(leftReps, rightReps) : Math.max(leftReps, rightReps, Number(set.reps) || 0),
             durationSeconds: leftDuration > 0 && rightDuration > 0 ? Math.min(leftDuration, rightDuration) : Math.max(leftDuration, rightDuration, Number(set.durationSeconds) || 0),
             rpe: leftRpe > 0 && rightRpe > 0 ? Math.max(leftRpe, rightRpe) : Math.max(leftRpe, rightRpe, Number(set.rpe) || 0),
-            rir: leftRir > 0 && rightRir > 0 ? Math.min(leftRir, rightRir) : (left.rir || right.rir || set.rir),
+            rir: hasLeftRir && hasRightRir ? Math.min(leftRir, rightRir) : hasLeftRir ? leftRir : hasRightRir ? rightRir : set.rir,
             completed: true,
         });
     }, [updateSetPatch]);
@@ -2177,10 +2194,10 @@ export default function WorkoutSessionScreen() {
                                     <Text style={styles.unilateralLabel}>{sideLabel}</Text>
                                     <TextInput
                                         style={styles.unilateralInput}
-                                        value={sideData.weight ? String(sideData.weight) : ""}
+                                        value={sideData.weight === 0 || sideData.weight ? String(sideData.weight) : ""}
                                         editable={!targetLogDisabled}
                                         onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "weight", text)}
-                                        placeholder={set.weightMode === "bodyweight" ? "BW" : "kg"}
+                                        placeholder={set.weightMode === "bodyweight" ? "BW" : sideData.targetWeight || "kg"}
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType="decimal-pad"
                                         inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
@@ -2191,7 +2208,7 @@ export default function WorkoutSessionScreen() {
                                         value={
                                             set.effortMode === "duration"
                                                 ? formatDurationInput(sideData.durationSeconds)
-                                                : sideData.reps ? String(sideData.reps) : ""
+                                                : sideData.reps === 0 || sideData.reps ? String(sideData.reps) : ""
                                         }
                                         editable={!targetLogDisabled}
                                         onChangeText={(text) => updateUnilateralSide(
@@ -2201,7 +2218,7 @@ export default function WorkoutSessionScreen() {
                                             set.effortMode === "duration" ? "durationSeconds" : "reps",
                                             text,
                                         )}
-                                        placeholder={set.effortMode === "duration" ? "sn" : "tekrar"}
+                                        placeholder={set.effortMode === "duration" ? sideData.targetDuration || "sn" : sideData.targetReps || "tekrar"}
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
                                         inputAccessoryViewID={IOS_NUMERIC_ACCESSORY_ID}
@@ -2223,7 +2240,7 @@ export default function WorkoutSessionScreen() {
                                     {(rpeMode === "rir" || rpeMode === "both") && (
                                         <TextInput
                                             style={styles.unilateralInput}
-                                            value={sideData.rir ? String(sideData.rir) : ""}
+                                            value={sideData.rir === 0 || sideData.rir ? String(sideData.rir) : ""}
                                             editable={!targetLogDisabled}
                                             onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "rir", text)}
                                             placeholder="RIR"

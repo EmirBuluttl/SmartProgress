@@ -390,7 +390,16 @@ export class WorkoutService {
     async getPreviousSetLookup(
         userId: string,
         keys: string[],
-    ): Promise<Record<string, { weights: number[]; reps: number[] }>> {
+    ): Promise<Record<string, {
+        weights: number[];
+        reps: number[];
+        durations: number[];
+        weightModes: string[];
+        effortModes: string[];
+        sideModes: string[];
+        left?: { weights: number[]; reps: number[]; durations: number[] };
+        right?: { weights: number[]; reps: number[]; durations: number[] };
+    }>> {
         const requestedKeys = new Set(
             keys
                 .map((key) => String(key || "").trim().toLowerCase())
@@ -400,7 +409,16 @@ export class WorkoutService {
         if (requestedKeys.size === 0) return {};
 
         const workouts = await workoutRepository.findRecentByUserId(userId, 120);
-        const lookup: Record<string, { weights: number[]; reps: number[] }> = {};
+        const lookup: Record<string, {
+            weights: number[];
+            reps: number[];
+            durations: number[];
+            weightModes: string[];
+            effortModes: string[];
+            sideModes: string[];
+            left?: { weights: number[]; reps: number[]; durations: number[] };
+            right?: { weights: number[]; reps: number[]; durations: number[] };
+        }> = {};
 
         for (const workout of workouts) {
             const data = workout.data as any;
@@ -415,19 +433,43 @@ export class WorkoutService {
                 if (matchingKeys.length === 0) continue;
 
                 const sets = Array.isArray(exercise?.sets) ? exercise.sets : [];
-                const weights = sets
-                    .filter((set: any) => !set?.isWarmup)
+                const workingSets = sets.filter((set: any) => !set?.isWarmup);
+                const weights = workingSets
                     .map((set: any) => Number(set?.weight))
                     .filter((weight: number) => Number.isFinite(weight) && weight > 0);
-                const reps = sets
-                    .filter((set: any) => !set?.isWarmup)
+                const reps = workingSets
                     .map((set: any) => Number(set?.reps))
                     .filter((rep: number) => Number.isFinite(rep) && rep > 0);
+                const durations = workingSets
+                    .map((set: any) => Number(set?.durationSeconds))
+                    .filter((duration: number) => Number.isFinite(duration) && duration > 0);
+                const weightModes = workingSets.map((set: any) => set?.weightMode === "bodyweight" ? "bodyweight" : "kg");
+                const effortModes = workingSets.map((set: any) => set?.effortMode === "duration" ? "duration" : "reps");
+                const sideModes = workingSets.map((set: any) => set?.sideMode === "left_right" ? "left_right" : "both");
+                const left = {
+                    weights: workingSets.map((set: any) => Number(set?.left?.weight)).filter((weight: number) => Number.isFinite(weight) && weight > 0),
+                    reps: workingSets.map((set: any) => Number(set?.left?.reps)).filter((rep: number) => Number.isFinite(rep) && rep > 0),
+                    durations: workingSets.map((set: any) => Number(set?.left?.durationSeconds)).filter((duration: number) => Number.isFinite(duration) && duration > 0),
+                };
+                const right = {
+                    weights: workingSets.map((set: any) => Number(set?.right?.weight)).filter((weight: number) => Number.isFinite(weight) && weight > 0),
+                    reps: workingSets.map((set: any) => Number(set?.right?.reps)).filter((rep: number) => Number.isFinite(rep) && rep > 0),
+                    durations: workingSets.map((set: any) => Number(set?.right?.durationSeconds)).filter((duration: number) => Number.isFinite(duration) && duration > 0),
+                };
 
-                if (weights.length === 0 && reps.length === 0) continue;
+                if (weights.length === 0 && reps.length === 0 && durations.length === 0 && left.weights.length === 0 && left.reps.length === 0 && right.weights.length === 0 && right.reps.length === 0) continue;
 
                 for (const key of matchingKeys) {
-                    lookup[key] = { weights, reps };
+                    lookup[key] = {
+                        weights,
+                        reps,
+                        durations,
+                        weightModes,
+                        effortModes,
+                        sideModes,
+                        left: left.weights.length || left.reps.length || left.durations.length ? left : undefined,
+                        right: right.weights.length || right.reps.length || right.durations.length ? right : undefined,
+                    };
                 }
             }
 

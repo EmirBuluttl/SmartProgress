@@ -36,6 +36,9 @@ export interface UnilateralSetSide {
     durationSeconds?: number;
     rpe?: number | string;
     rir?: number | string;
+    targetWeight?: string;
+    targetReps?: string;
+    targetDuration?: string;
 }
 
 // ─── Target Set (Program Template) ──────────
@@ -45,6 +48,9 @@ export interface TargetSet {
     targetWeight?: string; // e.g. "100"
     targetRPE?: string;    // 0-10
     targetRIR?: string;    // 0-5
+    weightMode?: "kg" | "bodyweight";
+    effortMode?: "reps" | "duration";
+    sideMode?: "both" | "left_right";
     isWarmup?: boolean;    // warmup set flag
 }
 

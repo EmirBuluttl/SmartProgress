@@ -39,6 +39,17 @@ import LegalInfoScreen from "../screens/LegalInfoScreen";
 import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
 import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
 
+type NavigationTargetSet = {
+    targetReps: string;
+    targetRPE?: string;
+    targetRIR?: string;
+    targetWeight?: string;
+    weightMode?: "kg" | "bodyweight";
+    effortMode?: "reps" | "duration";
+    sideMode?: "both" | "left_right";
+    isWarmup?: boolean;
+};
+
 // ─── Types ───────────────────────────────────
 
 export type RootStackParamList = {
@@ -64,12 +75,12 @@ export type RootStackParamList = {
                     id: string;
                     exerciseId?: string;
                     name: string;
-                    targetSets: { targetReps: string; targetRPE?: string; targetRIR?: string; targetWeight?: string; isWarmup?: boolean }[];
+                    targetSets: NavigationTargetSet[];
                 }[];
             }[];
             exercises?: {
                 name: string;
-                sets: { targetReps?: string; targetRPE?: string; targetRIR?: string }[];
+                sets: (Partial<NavigationTargetSet> & { targetReps?: string })[];
             }[];
         };
     };
@@ -112,7 +123,7 @@ export type RootStackParamList = {
                 id?: string;
                 exerciseId?: string;
                 name: string;
-                targetSets: { targetReps: string; targetRPE?: string; targetRIR?: string; targetWeight?: string; isWarmup?: boolean }[];
+                targetSets: NavigationTargetSet[];
             }[];
         };
         programData: any;

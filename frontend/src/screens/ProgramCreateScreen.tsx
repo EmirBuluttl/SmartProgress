@@ -75,15 +75,15 @@ function generateTemplate(freq: number): ProgramDay[] {
 }
 
 function makeExercise(): TargetExercise {
-    return { id: Math.random().toString(36).slice(2), name: "", targetSets: [{ targetReps: "" }] };
+    return { id: Math.random().toString(36).slice(2), name: "", targetSets: [{ targetReps: "", weightMode: "kg", effortMode: "reps", sideMode: "both" }] };
 }
 
 function makeWarmupSet(): TargetSet {
-    return { targetReps: "", isWarmup: true };
+    return { targetReps: "", isWarmup: true, weightMode: "kg", effortMode: "reps", sideMode: "both" };
 }
 
 function makeWorkingSet(): TargetSet {
-    return { targetReps: "", isWarmup: false };
+    return { targetReps: "", isWarmup: false, weightMode: "kg", effortMode: "reps", sideMode: "both" };
 }
 
 function insertSetByType<T extends { isWarmup?: boolean }>(sets: T[], nextSet: T, isWarmup: boolean): T[] {
@@ -193,6 +193,9 @@ export default function ProgramCreateScreen() {
                             targetWeight: s.targetWeight,
                             targetRPE: s.targetRPE,
                             targetRIR: s.targetRIR,
+                            weightMode: s.weightMode === "bodyweight" ? "bodyweight" : "kg",
+                            effortMode: s.effortMode === "duration" ? "duration" : "reps",
+                            sideMode: s.sideMode === "left_right" ? "left_right" : "both",
                             isWarmup: !!s.isWarmup,
                         })),
                     })),
@@ -678,6 +681,9 @@ export default function ProgramCreateScreen() {
                             targetWeight: safeString(s.targetWeight) || undefined,
                             targetRPE: safeString(s.targetRPE) || undefined,
                             targetRIR: safeString(s.targetRIR) || undefined,
+                            weightMode: s.weightMode === "bodyweight" ? "bodyweight" : "kg",
+                            effortMode: s.effortMode === "duration" ? "duration" : "reps",
+                            sideMode: s.sideMode === "left_right" ? "left_right" : "both",
                             isWarmup: !!s.isWarmup,
                         })),
                     })),
@@ -1097,12 +1103,23 @@ export default function ProgramCreateScreen() {
 
                                                     <View style={styles.setInputGroup}>
                                                         <View style={styles.setCol}>
-                                                            <Text style={styles.setColLabel}>Tekrar</Text>
+                                                            <Text style={styles.setColLabel}>{set.weightMode === "bodyweight" ? "Ek kg" : "Kg"}</Text>
                                                             <TextInput
                                                                 style={styles.setInput}
-                                                                placeholder="8-12"
+                                                                placeholder={set.weightMode === "bodyweight" ? "+0" : "ops."}
                                                                 placeholderTextColor={colors.textSecondary}
-                                                                keyboardType="number-pad"
+                                                                keyboardType="decimal-pad"
+                                                                value={set.targetWeight || ""}
+                                                                onChangeText={(t) => updateSet(exercise.id, setIndex, { targetWeight: t })}
+                                                            />
+                                                        </View>
+                                                        <View style={styles.setCol}>
+                                                            <Text style={styles.setColLabel}>{set.effortMode === "duration" ? "Süre" : "Tekrar"}</Text>
+                                                            <TextInput
+                                                                style={styles.setInput}
+                                                                placeholder={set.effortMode === "duration" ? "30 sn" : "8-12"}
+                                                                placeholderTextColor={colors.textSecondary}
+                                                                keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
                                                                 value={set.targetReps}
                                                                 onChangeText={(t) => updateSet(exercise.id, setIndex, { targetReps: t })}
                                                             />
@@ -1132,6 +1149,45 @@ export default function ProgramCreateScreen() {
                                                                 />
                                                             </View>
                                                         )}
+                                                    </View>
+
+                                                    <View style={styles.setModeRow}>
+                                                        <TouchableOpacity
+                                                            style={[styles.setModeChip, (set.weightMode ?? "kg") === "kg" && styles.setModeChipActive]}
+                                                            onPress={() => updateSet(exercise.id, setIndex, { weightMode: "kg" })}
+                                                        >
+                                                            <Text style={[styles.setModeChipText, (set.weightMode ?? "kg") === "kg" && styles.setModeChipTextActive]}>KG</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            style={[styles.setModeChip, set.weightMode === "bodyweight" && styles.setModeChipActive]}
+                                                            onPress={() => updateSet(exercise.id, setIndex, { weightMode: "bodyweight" })}
+                                                        >
+                                                            <Text style={[styles.setModeChipText, set.weightMode === "bodyweight" && styles.setModeChipTextActive]}>BW</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            style={[styles.setModeChip, (set.effortMode ?? "reps") === "reps" && styles.setModeChipActive]}
+                                                            onPress={() => updateSet(exercise.id, setIndex, { effortMode: "reps" })}
+                                                        >
+                                                            <Text style={[styles.setModeChipText, (set.effortMode ?? "reps") === "reps" && styles.setModeChipTextActive]}>Tekrar</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            style={[styles.setModeChip, set.effortMode === "duration" && styles.setModeChipActive]}
+                                                            onPress={() => updateSet(exercise.id, setIndex, { effortMode: "duration" })}
+                                                        >
+                                                            <Text style={[styles.setModeChipText, set.effortMode === "duration" && styles.setModeChipTextActive]}>Süre</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            style={[styles.setModeChip, (set.sideMode ?? "both") === "both" && styles.setModeChipActive]}
+                                                            onPress={() => updateSet(exercise.id, setIndex, { sideMode: "both" })}
+                                                        >
+                                                            <Text style={[styles.setModeChipText, (set.sideMode ?? "both") === "both" && styles.setModeChipTextActive]}>Normal</Text>
+                                                        </TouchableOpacity>
+                                                        <TouchableOpacity
+                                                            style={[styles.setModeChip, set.sideMode === "left_right" && styles.setModeChipActive]}
+                                                            onPress={() => updateSet(exercise.id, setIndex, { sideMode: "left_right" })}
+                                                        >
+                                                            <Text style={[styles.setModeChipText, set.sideMode === "left_right" && styles.setModeChipTextActive]}>L/R</Text>
+                                                        </TouchableOpacity>
                                                     </View>
 
                                                     <TouchableOpacity
@@ -1739,6 +1795,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         alignItems: "center",
         marginBottom: spacing.sm,
         gap: spacing.sm,
+        flexWrap: "wrap",
     },
     setLabel: {
         fontSize: fontSize.sm,
@@ -1749,10 +1806,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     setInputGroup: {
         flex: 1,
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: spacing.xs,
+        minWidth: 0,
     },
     setCol: {
-        flex: 1,
+        flexGrow: 1,
+        flexBasis: 62,
+        minWidth: 58,
         gap: 3,
     },
     setColLabel: {
@@ -1775,6 +1836,35 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     removeSetBtn: {
         padding: spacing.xs,
+    },
+    setModeRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.xs,
+        marginLeft: 68,
+        flexBasis: "100%",
+    },
+    setModeChip: {
+        minHeight: 28,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    setModeChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    setModeChipText: {
+        color: colors.textSecondary,
+        fontSize: 10,
+        fontWeight: fontWeight.semibold,
+    },
+    setModeChipTextActive: {
+        color: colors.accent,
     },
     addSetBtn: {
         flexDirection: "row",
