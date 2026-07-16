@@ -9,7 +9,6 @@ import {
     TextInput,
     TouchableOpacity,
     StyleSheet,
-    ScrollView,
     ActivityIndicator,
     Image,
     Platform,
@@ -25,6 +24,7 @@ import AccentButton from "../components/AccentButton";
 import AnimatedPressable from "../components/AnimatedPressable";
 import NoticeModal from "../components/NoticeModal";
 import ActionConfirmModal from "../components/ActionConfirmModal";
+import { KeyboardAwareScrollView, KeyboardSafeView } from "../components/KeyboardSafeScreen";
 
 export default function ProfileEditScreen() {
     const navigation = useNavigation();
@@ -125,7 +125,7 @@ export default function ProfileEditScreen() {
     const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase();
 
     return (
-        <View style={styles.container}>
+        <KeyboardSafeView style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
                 <AnimatedPressable
@@ -140,10 +140,9 @@ export default function ProfileEditScreen() {
                 <View style={{ width: 28 }} />
             </View>
 
-            <ScrollView
+            <KeyboardAwareScrollView
                 contentContainerStyle={styles.content}
-                showsVerticalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
+                extraBottomPadding={120}
             >
                 {/* Avatar */}
                 <AnimatedPressable style={styles.avatarSection} onPress={handlePickImage} pressedScale={0.96}>
@@ -202,7 +201,7 @@ export default function ProfileEditScreen() {
                     loading={saving}
                     style={styles.saveBtn}
                 />
-            </ScrollView>
+            </KeyboardAwareScrollView>
             <NoticeModal
                 visible={!!notice}
                 title={notice?.title || ""}
@@ -225,7 +224,7 @@ export default function ProfileEditScreen() {
                 }}
                 onDismiss={() => setPhotoSourceVisible(false)}
             />
-        </View>
+        </KeyboardSafeView>
     );
 }
 

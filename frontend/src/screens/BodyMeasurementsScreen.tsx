@@ -2,7 +2,6 @@ import React from "react";
 import {
     ActivityIndicator,
     Animated,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -19,6 +18,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import GymCard from "../components/GymCard";
 import NoticeModal from "../components/NoticeModal";
+import { KeyboardAwareScrollView } from "../components/KeyboardSafeScreen";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const FIELDS = [
@@ -148,7 +148,7 @@ export default function BodyMeasurementsScreen() {
                     <ActivityIndicator size="large" color={colors.accent} />
                 </View>
             ) : (
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <KeyboardAwareScrollView contentContainerStyle={styles.content} extraBottomPadding={130}>
                     <GymCard elevated style={styles.card}>
                         <Text style={styles.cardTitle}>Yeni kayıt</Text>
                         <TextInput
@@ -188,7 +188,7 @@ export default function BodyMeasurementsScreen() {
 
                     <GymCard elevated style={styles.card}>
                         <Text style={styles.cardTitle}>Progress grafiği</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentRow}>
+                        <KeyboardAwareScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.segmentRow} extraBottomPadding={0}>
                             {FIELDS.map(([key, label]) => (
                                 <TouchableOpacity
                                     key={key}
@@ -199,7 +199,7 @@ export default function BodyMeasurementsScreen() {
                                     <Text style={[styles.segmentText, selectedField === key && styles.segmentTextActive]}>{label}</Text>
                                 </TouchableOpacity>
                             ))}
-                        </ScrollView>
+                        </KeyboardAwareScrollView>
                         {chartRecords.length >= 2 ? (
                             <View style={styles.trendSummary}>
                                 <Text style={styles.trendLabel}>Overall değişim</Text>
@@ -247,7 +247,7 @@ export default function BodyMeasurementsScreen() {
                             {record.notes ? <Text style={styles.recordNote}>{record.notes}</Text> : null}
                         </GymCard>
                     ))}
-                </ScrollView>
+                </KeyboardAwareScrollView>
             )}
 
             <NoticeModal

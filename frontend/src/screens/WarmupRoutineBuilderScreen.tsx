@@ -1,7 +1,5 @@
 import React from "react";
 import {
-    KeyboardAvoidingView,
-    Platform,
     Animated,
     ScrollView,
     StyleSheet,
@@ -14,6 +12,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AccentButton from "../components/AccentButton";
+import { KeyboardAwareScrollView, KeyboardSafeView } from "../components/KeyboardSafeScreen";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -166,9 +165,8 @@ export default function WarmupRoutineBuilderScreen() {
     };
 
     return (
-        <KeyboardAvoidingView
+        <KeyboardSafeView
             style={styles.container}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
         >
             <View style={styles.header}>
                 <TouchableOpacity style={styles.iconBtn} onPress={() => navigation.goBack()}>
@@ -180,7 +178,7 @@ export default function WarmupRoutineBuilderScreen() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollView contentContainerStyle={styles.content} extraBottomPadding={120}>
                 <Text style={styles.helperText}>
                     Bu rutin W setlerinden bagimsizdir. Antrenman gunu baslamadan once ayri loglanir.
                 </Text>
@@ -296,12 +294,12 @@ export default function WarmupRoutineBuilderScreen() {
                 <TouchableOpacity style={styles.clearBtn} onPress={clearRoutine}>
                     <Text style={styles.clearText}>Bu gunun rutinini temizle</Text>
                 </TouchableOpacity>
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             <View style={styles.footer}>
                 <AccentButton title="Rutini Kaydet" onPress={save} />
             </View>
-        </KeyboardAvoidingView>
+        </KeyboardSafeView>
     );
 }
 

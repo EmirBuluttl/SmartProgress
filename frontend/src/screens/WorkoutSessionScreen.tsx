@@ -3185,7 +3185,7 @@ export default function WorkoutSessionScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
-                    onScrollBeginDrag={Platform.OS === "ios" ? Keyboard.dismiss : undefined}
+                    onScrollBeginDrag={Keyboard.dismiss}
                 >
                     {renderHeader()}
                     {visibleExercises.map((exercise, index) => (
@@ -3213,7 +3213,7 @@ export default function WorkoutSessionScreen() {
                     showsVerticalScrollIndicator={false}
                     keyboardShouldPersistTaps="handled"
                     keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
-                    onScrollBeginDrag={Platform.OS === "ios" ? Keyboard.dismiss : undefined}
+                    onScrollBeginDrag={Keyboard.dismiss}
                     containerStyle={styles.scrollView}
                     activationDistance={6}
                     autoscrollThreshold={80}

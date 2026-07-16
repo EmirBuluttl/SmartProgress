@@ -10,9 +10,7 @@ import {
     TextInput,
     ScrollView,
     TouchableOpacity,
-    KeyboardAvoidingView,
     Modal,
-    Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useFocusEffect, useNavigation, useRoute, RouteProp } from "@react-navigation/native";
@@ -30,6 +28,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import PrivacyModal from "../components/PrivacyModal";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import NoticeModal from "../components/NoticeModal";
+import { KeyboardAwareScrollView, KeyboardSafeView } from "../components/KeyboardSafeScreen";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
 import { useAuth } from "../store/AuthContext";
 import { consumeWarmupRoutineDraft } from "../utils/warmupRoutineDraftStore";
@@ -721,10 +720,8 @@ export default function ProgramCreateScreen() {
     // ─── Render ──────────────────────────────
 
     return (
-        <KeyboardAvoidingView
+        <KeyboardSafeView
             style={styles.root}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
-            keyboardVerticalOffset={Platform.OS === "ios" ? 10 : 80}
         >
             {/* ── Header ── */}
             <View style={styles.header}>
@@ -741,7 +738,7 @@ export default function ProgramCreateScreen() {
                 </TouchableOpacity>
             </View>
 
-            <ScrollView contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollView contentContainerStyle={styles.scrollContent} extraBottomPadding={140}>
 
                 {/* ── Meta ── */}
                 <View style={styles.metaCard}>
@@ -1230,7 +1227,7 @@ export default function ProgramCreateScreen() {
                 </View>
 
                 <View style={{ height: 80 }} />
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             {/* ── Privacy Modal (cross-platform) ── */}
             <Modal
@@ -1418,7 +1415,7 @@ export default function ProgramCreateScreen() {
                 message={conceptNotice?.message ?? ""}
                 onClose={() => setConceptNotice(null)}
             />
-        </KeyboardAvoidingView>
+        </KeyboardSafeView>
     );
 }
 

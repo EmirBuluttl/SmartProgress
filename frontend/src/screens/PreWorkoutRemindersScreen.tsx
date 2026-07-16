@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Animated, ScrollView, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
+import { ActivityIndicator, Animated, StyleSheet, Switch, Text, TextInput, TouchableOpacity, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
@@ -12,6 +12,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { ACTIVE_PROGRAM_KEY } from "../utils/workoutNavigation";
 import NoticeModal from "../components/NoticeModal";
 import { reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
+import { KeyboardAwareScrollView } from "../components/KeyboardSafeScreen";
 
 type DayReminderDraft = { enabled?: boolean; note?: string };
 type ProgramReminderDraft = {
@@ -121,7 +122,7 @@ export default function PreWorkoutRemindersScreen() {
                     <Text style={styles.emptyText}>Gun bazli hatirlatici kurmak icin once bir programi aktif takip et.</Text>
                 </View>
             ) : (
-                <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+                <KeyboardAwareScrollView contentContainerStyle={styles.content} extraBottomPadding={150}>
                     <View style={styles.programCard}>
                         <Text style={styles.cardEyebrow}>Aktif Program</Text>
                         <Text style={styles.programName}>{activeProgram.name}</Text>
@@ -157,7 +158,7 @@ export default function PreWorkoutRemindersScreen() {
                             </View>
                         );
                     })}
-                </ScrollView>
+                </KeyboardAwareScrollView>
             )}
 
             <NoticeModal

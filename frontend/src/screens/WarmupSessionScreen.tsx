@@ -1,8 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-    KeyboardAvoidingView,
     Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -14,6 +12,7 @@ import { useNavigation } from "@react-navigation/native";
 import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
 import AccentButton from "../components/AccentButton";
 import ActionConfirmModal from "../components/ActionConfirmModal";
+import { KeyboardAwareScrollView, KeyboardSafeView } from "../components/KeyboardSafeScreen";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
@@ -178,7 +177,7 @@ export default function WarmupSessionScreen() {
     }
 
     return (
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
+        <KeyboardSafeView style={styles.container}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.iconBtn} onPress={() => setExitModalVisible(true)}>
                     <Ionicons name="chevron-back" size={24} color={colors.text} />
@@ -189,7 +188,7 @@ export default function WarmupSessionScreen() {
                 </View>
             </View>
 
-            <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
+            <KeyboardAwareScrollView contentContainerStyle={styles.content} extraBottomPadding={170}>
                 <Text style={styles.helper}>
                     Bu alan ana antrenman setlerinden bagimsizdir. Rutini tamamlayabilir veya yarida birakip antrenmana gecebilirsin.
                 </Text>
@@ -254,7 +253,7 @@ export default function WarmupSessionScreen() {
                         <Text style={styles.targetText}>Programini duzenleyerek bu gun icin hareket veya kardiyo ekleyebilirsin.</Text>
                     </View>
                 ) : null}
-            </ScrollView>
+            </KeyboardAwareScrollView>
 
             <View style={styles.footer}>
                 <TouchableOpacity style={styles.secondaryBtn} onPress={abandonWarmup}>
@@ -277,7 +276,7 @@ export default function WarmupSessionScreen() {
                 onTertiary={abandonWarmup}
                 onDismiss={() => setExitModalVisible(false)}
             />
-        </KeyboardAvoidingView>
+        </KeyboardSafeView>
     );
 }
 

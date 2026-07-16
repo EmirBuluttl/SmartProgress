@@ -1,9 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
     Modal,
-    KeyboardAvoidingView,
-    Platform,
-    ScrollView,
     StyleSheet,
     Text,
     TextInput,
@@ -13,6 +10,7 @@ import {
 import { RouteProp, useNavigation, useRoute } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
 import AccentButton from "../components/AccentButton";
+import { KeyboardAwareScrollView, KeyboardSafeView } from "../components/KeyboardSafeScreen";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { RootStackParamList } from "../navigation/RootNavigator";
@@ -380,8 +378,8 @@ export default function CardioSessionScreen() {
     }
 
     return (
-        <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-            <ScrollView contentContainerStyle={styles.content}>
+        <KeyboardSafeView style={styles.container}>
+            <KeyboardAwareScrollView contentContainerStyle={styles.content} extraBottomPadding={150}>
                 <View style={styles.header}>
                     <TouchableOpacity
                         style={styles.iconBtn}
@@ -450,7 +448,7 @@ export default function CardioSessionScreen() {
                         </View>
                     </>
                 )}
-            </ScrollView>
+            </KeyboardAwareScrollView>
             <Modal visible={!!helpText} transparent animationType="fade" onRequestClose={() => setHelpText(null)}>
                 <View style={styles.modalOverlay}>
                     <View style={styles.helpModal}>
@@ -460,7 +458,7 @@ export default function CardioSessionScreen() {
                     </View>
                 </View>
             </Modal>
-        </KeyboardAvoidingView>
+        </KeyboardSafeView>
     );
 }
 
