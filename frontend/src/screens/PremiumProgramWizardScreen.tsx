@@ -409,6 +409,9 @@ export default function PremiumProgramWizardScreen() {
                         <View style={styles.chipGrid}>
                             {[2, 3, 4, 5, 6].map((day) => (
                                 <TouchableOpacity key={day} style={[styles.dayChip, frequency === day && styles.dayChipActive]} onPress={() => setFrequency(day)}>
+                                    {day >= 3 && day <= 5 && (
+                                        <Text style={[styles.dayChipBadge, frequency === day && styles.dayChipBadgeActive]}>onerilen</Text>
+                                    )}
                                     <Text style={[styles.dayChipText, frequency === day && styles.dayChipTextActive]}>{day}</Text>
                                     <Text style={[styles.dayChipSub, frequency === day && styles.dayChipTextActive]}>gün</Text>
                                 </TouchableOpacity>
@@ -1069,7 +1072,8 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     dayChip: {
         flex: 1,
-        minHeight: 68,
+        minHeight: 78,
+        gap: 2,
         borderRadius: borderRadius.md,
         backgroundColor: colors.background,
         borderWidth: 1,
@@ -1090,6 +1094,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
+    },
+    dayChipBadge: {
+        color: colors.accent,
+        fontSize: 10,
+        fontWeight: fontWeight.bold,
+    },
+    dayChipBadgeActive: {
+        color: colors.background,
     },
     dayChipTextActive: {
         color: colors.background,
