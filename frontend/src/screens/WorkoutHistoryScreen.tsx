@@ -38,7 +38,13 @@ interface WorkoutItem {
     title: string;
     logDate: string;
     data?: any;
+    programId?: string | null;
+    programName?: string | null;
+    dayLabel?: string | null;
 }
+
+type DateFilter = "all" | "7d" | "30d" | "90d";
+type TypeFilter = "all" | "program" | "free" | "cardio";
 
 export default function WorkoutHistoryScreen() {
     const navigation = useNavigation();
@@ -58,6 +64,10 @@ export default function WorkoutHistoryScreen() {
     const [syncing, setSyncing] = useState(false);
     const [pendingInfo, setPendingInfo] = useState({ pending: 0, failed: 0, permanent: 0 });
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
+    const [dateFilter, setDateFilter] = useState<DateFilter>("all");
+    const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+    const [programFilter, setProgramFilter] = useState("all");
+    const [scopeFilter, setScopeFilter] = useState("all");
 
     const sortNewestFirst = (items: WorkoutItem[]) =>
         [...items].sort((a, b) => new Date(b.logDate).getTime() - new Date(a.logDate).getTime());
@@ -174,6 +184,80 @@ export default function WorkoutHistoryScreen() {
         await AsyncStorage.removeItem(ORDER_KEY);
         setWorkouts((current) => sortNewestFirst(current));
     };
+
+    const programOptions = React.useMemo(() => {
+        const map = new Map<string, string>();
+        workouts.forEach((workout) => {
+            const id = workout.programId || workout.data?.programId;
+            const name = workout.programName || workout.data?.programName || workout.title;
+            if (id) map.set(String(id), String(name || "Program"));
+        });
+        return [{ key: "all", label: "Tüm programlar" }, ...Array.from(map.entries()).map(([key, label]) => ({ key, label }))];
+    }, [workouts]);
+
+    const scopeOptions = React.useMemo(() => {
+        const labels = new Set<string>();
+        workouts.forEach((workout) => {
+            const cardioBlocks = Array.isArray(workout.data?.cardioBlocks) ? workout.data.cardioBlocks : [];
+            if (cardioBlocks.length > 0) labels.add("Kardiyo");
+            const title = String(workout.title || "").trim();
+            if (title) labels.add(title);
+            const dayLabel = String(workout.dayLabel || workout.data?.dayLabel || "").trim();
+            if (dayLabel) labels.add(dayLabel);
+        });
+        return ["Tüm kapsam", ...Array.from(labels).slice(0, 12)];
+    }, [workouts]);
+
+    const filteredWorkouts = React.useMemo(() => {
+        const now = Date.now();
+        const dateWindow = dateFilter === "7d" ? 7 : dateFilter === "30d" ? 30 : dateFilter === "90d" ? 90 : null;
+        return workouts.filter((workout) => {
+            const time = new Date(workout.logDate).getTime();
+            if (dateWindow && Number.isFinite(time) && now - time > dateWindow * 24 * 60 * 60 * 1000) return false;
+
+            const workoutProgramId = workout.programId || workout.data?.programId;
+            const cardioBlocks = Array.isArray(workout.data?.cardioBlocks) ? workout.data.cardioBlocks : [];
+            const hasCardio = cardioBlocks.length > 0;
+            if (typeFilter === "program" && !workoutProgramId) return false;
+            if (typeFilter === "free" && workoutProgramId) return false;
+            if (typeFilter === "cardio" && !hasCardio) return false;
+
+            if (programFilter !== "all" && String(workoutProgramId || "") !== programFilter) return false;
+
+            if (scopeFilter !== "all") {
+                const scopeLabel = scopeFilter === "Tüm kapsam" ? "all" : scopeFilter;
+                if (scopeLabel !== "all") {
+                    const haystack = [
+                        workout.title,
+                        workout.dayLabel,
+                        workout.data?.dayLabel,
+                        hasCardio ? "Kardiyo" : "",
+                    ].filter(Boolean).join(" ").toLocaleLowerCase("tr-TR");
+                    if (!haystack.includes(scopeLabel.toLocaleLowerCase("tr-TR"))) return false;
+                }
+            }
+            return true;
+        });
+    }, [dateFilter, programFilter, scopeFilter, typeFilter, workouts]);
+
+    const clearFilters = () => {
+        setDateFilter("all");
+        setTypeFilter("all");
+        setProgramFilter("all");
+        setScopeFilter("all");
+    };
+
+    const activeFilterCount = [dateFilter !== "all", typeFilter !== "all", programFilter !== "all", scopeFilter !== "all"].filter(Boolean).length;
+
+    const renderFilterChip = (label: string, active: boolean, onPress: () => void) => (
+        <Pressable
+            key={label}
+            onPress={onPress}
+            style={[styles.filterChip, active && styles.filterChipActive]}
+        >
+            <Text style={[styles.filterChipText, active && styles.filterChipTextActive]} numberOfLines={1}>{label}</Text>
+        </Pressable>
+    );
 
     const renderWorkout = (item: WorkoutItem) => {
         const isFav = favorites.has(item.id);
@@ -296,15 +380,61 @@ export default function WorkoutHistoryScreen() {
                 </View>
             )}
 
+            <View style={styles.filterPanel}>
+                <View style={styles.filterHeaderRow}>
+                    <View>
+                        <Text style={styles.filterTitle}>Filtrele</Text>
+                        <Text style={styles.filterSummary}>
+                            {activeFilterCount > 0 ? `${activeFilterCount} filtre aktif` : "Tüm antrenmanlar gösteriliyor"}
+                        </Text>
+                    </View>
+                    {activeFilterCount > 0 ? (
+                        <Pressable onPress={clearFilters} style={styles.clearFilterBtn}>
+                            <Text style={styles.clearFilterText}>Temizle</Text>
+                        </Pressable>
+                    ) : null}
+                </View>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                    {renderFilterChip("Tümü", dateFilter === "all", () => setDateFilter("all"))}
+                    {renderFilterChip("7 gün", dateFilter === "7d", () => setDateFilter("7d"))}
+                    {renderFilterChip("30 gün", dateFilter === "30d", () => setDateFilter("30d"))}
+                    {renderFilterChip("90 gün", dateFilter === "90d", () => setDateFilter("90d"))}
+                </ScrollView>
+                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                    {renderFilterChip("Hepsi", typeFilter === "all", () => setTypeFilter("all"))}
+                    {renderFilterChip("Programlı", typeFilter === "program", () => setTypeFilter("program"))}
+                    {renderFilterChip("Serbest", typeFilter === "free", () => setTypeFilter("free"))}
+                    {renderFilterChip("Kardiyo", typeFilter === "cardio", () => setTypeFilter("cardio"))}
+                </ScrollView>
+                {programOptions.length > 1 ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                        {programOptions.map((option) => renderFilterChip(option.label, programFilter === option.key, () => setProgramFilter(option.key)))}
+                    </ScrollView>
+                ) : null}
+                {scopeOptions.length > 1 ? (
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                        {scopeOptions.map((option) => renderFilterChip(option, scopeFilter === (option === "Tüm kapsam" ? "all" : option), () => setScopeFilter(option === "Tüm kapsam" ? "all" : option)))}
+                    </ScrollView>
+                ) : null}
+            </View>
+
             {workouts.length === 0 && pendingTotal === 0 ? (
                 <View style={styles.empty}>
                     <Ionicons name="barbell-outline" size={48} color={colors.textMuted} />
                     <Text style={styles.emptyText}>Henuz antrenman kaydiniz yok.</Text>
                 </View>
+            ) : filteredWorkouts.length === 0 ? (
+                <View style={styles.empty}>
+                    <Ionicons name="filter-outline" size={42} color={colors.textMuted} />
+                    <Text style={styles.emptyText}>Bu filtrelerle antrenman bulunamadı.</Text>
+                    <Pressable onPress={clearFilters} style={styles.emptyClearBtn}>
+                        <Text style={styles.emptyClearText}>Filtreleri temizle</Text>
+                    </Pressable>
+                </View>
             ) : (
                 <FlatList
                     style={styles.listContainer}
-                    data={workouts}
+                    data={filteredWorkouts}
                     keyExtractor={(item) => item.id}
                     renderItem={({ item }) => renderWorkout(item)}
                     contentContainerStyle={styles.list}
@@ -486,6 +616,88 @@ const createStyles = (colors: any) => StyleSheet.create({
     pendingBtnText: {
         color: "#fff",
         fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    filterPanel: {
+        marginHorizontal: spacing.lg,
+        marginTop: spacing.sm,
+        marginBottom: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        gap: spacing.sm,
+    },
+    filterHeaderRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.md,
+    },
+    filterTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    filterSummary: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        marginTop: 2,
+    },
+    clearFilterBtn: {
+        minHeight: 34,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surfaceElevated,
+    },
+    clearFilterText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    filterRow: {
+        gap: spacing.sm,
+        paddingRight: spacing.md,
+    },
+    filterChip: {
+        minHeight: 36,
+        maxWidth: 180,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    filterChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    filterChipText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    filterChipTextActive: {
+        color: colors.accent,
+    },
+    emptyClearBtn: {
+        minHeight: 40,
+        paddingHorizontal: spacing.lg,
+        borderRadius: borderRadius.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accent,
+    },
+    emptyClearText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
     },
 });
