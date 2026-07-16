@@ -52,6 +52,13 @@ export default function PremiumDetailScreen() {
     const [loadingOffer, setLoadingOffer] = React.useState(false);
     const [busy, setBusy] = React.useState(false);
     const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
+    const trialDaysLeft = React.useMemo(() => {
+        const expiresAt = user?.settings?.pro_trial_expires_at;
+        if (!expiresAt) return null;
+        const expiresTime = new Date(expiresAt).getTime();
+        if (!Number.isFinite(expiresTime)) return null;
+        return Math.max(0, Math.ceil((expiresTime - Date.now()) / (1000 * 60 * 60 * 24)));
+    }, [user?.settings?.pro_trial_expires_at]);
 
     const syncBackendEntitlement = React.useCallback(async () => {
         const response = await authApi.syncEntitlements({ appUserId: user?.id });
@@ -157,6 +164,17 @@ export default function PremiumDetailScreen() {
                 <Text style={styles.heroText}>
                     Premium program kurar, haftalik raporlar, progress/plato/dusus sinyallerini yakalar ve aksiyon adaylarini kullanici onayina birakir.
                 </Text>
+                <View style={styles.trialInfoBox}>
+                    <Ionicons name="hourglass-outline" size={18} color={colors.accent} />
+                    <View style={styles.trialInfoCopy}>
+                        <Text style={styles.trialInfoTitle}>
+                            {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gun Premium deneme` : "Yeni hesaplara 60 gun Premium deneme"}
+                        </Text>
+                        <Text style={styles.trialInfoText}>
+                            Deneme suresinde akilli program wizard, haftalik rapor ve koc sinyalleri acik gelir. Magaza aboneligi deneme bittikten sonra Premium'u surdurmek icindir.
+                        </Text>
+                    </View>
+                </View>
                 <TouchableOpacity
                     style={[styles.primaryButton, (busy || loadingOffer) && styles.disabledButton]}
                     onPress={handlePurchase}
@@ -252,6 +270,18 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     heroTitle: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.heavy },
     heroText: { color: colors.textSecondary, fontSize: fontSize.md, lineHeight: 22 },
+    trialInfoBox: {
+        flexDirection: "row",
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.accentMuted,
+    },
+    trialInfoCopy: { flex: 1, minWidth: 0, gap: 2 },
+    trialInfoTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    trialInfoText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 19 },
     primaryButton: {
         minHeight: 52,
         borderRadius: borderRadius.md,
