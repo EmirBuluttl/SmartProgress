@@ -26,7 +26,13 @@ import CoachScreen from "../screens/CoachScreen";
 import ProfileScreen from "../screens/ProfileScreen";
 import { MainTabKey, subscribeMainTabSwitch } from "../utils/mainTabEvents";
 import AppTourOverlay, { AppTourStep } from "../components/AppTourOverlay";
-import { hasCompletedAppTour, markAppTourCompleted, subscribeAppTourRequest } from "../utils/appTourEvents";
+import {
+    hasCompletedAppTour,
+    markAppTourCompleted,
+    markDetailedAppTourCompleted,
+    subscribeAppTourRequest,
+    subscribeDetailedAppTourRequest,
+} from "../utils/appTourEvents";
 import { logPerf, markPerf } from "../utils/perfLogger";
 
 const tabScales: Record<string, Animated.Value> = {};
@@ -65,6 +71,58 @@ const APP_TOUR_STEPS: (AppTourStep & { tabIndex: number })[] = [
         icon: "person-outline",
         title: "Profil ve ayarlarını yönet",
         body: "Seviye, tema, ölçü, kalori ve kişisel ayarlarını buradan düzenleyebilirsin.",
+    },
+];
+
+const DETAILED_APP_TOUR_STEPS: (AppTourStep & { tabIndex: number })[] = [
+    {
+        tabIndex: 0,
+        tabLabel: "Program oluşturma",
+        icon: "reader-outline",
+        title: "Programını kurarken kararlar net",
+        body: "Frekans, split, süre, ekipman, ağrı/sakatlık ve öncelik seçimleri programın günlerini ve hareket önerilerini etkiler.",
+    },
+    {
+        tabIndex: 0,
+        tabLabel: "Workout log",
+        icon: "barbell-outline",
+        title: "Log ekranı verini korur",
+        body: "Kg, tekrar, süre, RPE/RIR, sağ-sol ve superset akışlarını set set kaydedersin; yarıda çıkarsan aktif session geri yüklenir.",
+    },
+    {
+        tabIndex: 1,
+        tabLabel: "Progress filtreleri",
+        icon: "analytics-outline",
+        title: "Grafikleri filtreleyerek oku",
+        body: "Performans, kas grubu, vücut ölçüsü ve beslenme metriklerini zaman aralığına göre değiştirip gelişimini takip edebilirsin.",
+    },
+    {
+        tabIndex: 2,
+        tabLabel: "Koç wizard",
+        icon: "bulb-outline",
+        title: "Koç motoru programı açıklar",
+        body: "Wizard programı verdikten sonra amaç, haftalık akış, RPE/RIR, ağrı uyarıları ve ne zaman değişiklik yapmaman gerektiğini özetler.",
+    },
+    {
+        tabIndex: 2,
+        tabLabel: "Raporlar",
+        icon: "document-text-outline",
+        title: "Haftalık rapor ve sinyaller",
+        body: "Yeterli log birikince progress, takip, plato ve müdahale adayları koç merkezinde görünür.",
+    },
+    {
+        tabIndex: 3,
+        tabLabel: "Bildirimler",
+        icon: "notifications-outline",
+        title: "Hatırlatıcılarını ayarlardan yönet",
+        body: "Aktif program günlerine özel notlar, bildirim izni ve tekrar izlenebilir tur ayarları profil sekmesinde bulunur.",
+    },
+    {
+        tabIndex: 3,
+        tabLabel: "Premium / Trial",
+        icon: "card-outline",
+        title: "60 gün deneme ve Premium",
+        body: "Yeni kullanıcılar 60 günlük denemeyle başlar; Premium ekranından satın alma ve restore akışlarını yönetebilirsin.",
     },
 ];
 
@@ -129,6 +187,7 @@ export default function TabNavigator({ route }: any) {
     const [externalSwitchVisible, setExternalSwitchVisible] = useState(false);
     const [tourVisible, setTourVisible] = useState(false);
     const [tourStepIndex, setTourStepIndex] = useState(0);
+    const [tourMode, setTourMode] = useState<"quick" | "detailed">("quick");
     const [mountedTabs, setMountedTabs] = useState<Set<number>>(() => new Set([0]));
     const scrollViewRef = useRef<ScrollView | null>(null);
     const isScrollingRef = useRef(false);
@@ -175,7 +234,10 @@ export default function TabNavigator({ route }: any) {
             .then((completed) => {
                 if (!mounted || completed) return;
                 setTimeout(() => {
-                    if (mounted) setTourVisible(true);
+                    if (mounted) {
+                        setTourMode("quick");
+                        setTourVisible(true);
+                    }
                 }, 700);
             })
             .catch(() => undefined);
@@ -186,6 +248,16 @@ export default function TabNavigator({ route }: any) {
 
     useEffect(() => {
         return subscribeAppTourRequest(() => {
+            setTourMode("quick");
+            setTourStepIndex(0);
+            switchToTab(0, true, 460);
+            setTimeout(() => setTourVisible(true), 260);
+        });
+    }, [screenWidth]);
+
+    useEffect(() => {
+        return subscribeDetailedAppTourRequest(() => {
+            setTourMode("detailed");
             setTourStepIndex(0);
             switchToTab(0, true, 460);
             setTimeout(() => setTourVisible(true), 260);
@@ -274,17 +346,22 @@ export default function TabNavigator({ route }: any) {
 
     const completeTour = async () => {
         setTourVisible(false);
+        if (tourMode === "detailed") {
+            await markDetailedAppTourCompleted();
+            return;
+        }
         await markAppTourCompleted();
     };
 
     const handleTourNext = () => {
+        const steps = tourMode === "detailed" ? DETAILED_APP_TOUR_STEPS : APP_TOUR_STEPS;
         const nextIndex = tourStepIndex + 1;
-        if (nextIndex >= APP_TOUR_STEPS.length) {
+        if (nextIndex >= steps.length) {
             completeTour();
             return;
         }
         setTourStepIndex(nextIndex);
-        const nextStep = APP_TOUR_STEPS[nextIndex];
+        const nextStep = steps[nextIndex];
         switchToTab(nextStep.tabIndex, true, 460);
     };
 
@@ -339,6 +416,8 @@ export default function TabNavigator({ route }: any) {
         }
     };
 
+    const currentTourSteps = tourMode === "detailed" ? DETAILED_APP_TOUR_STEPS : APP_TOUR_STEPS;
+
     return (
         <View style={styles.container}>
             <ScrollView
@@ -373,9 +452,9 @@ export default function TabNavigator({ route }: any) {
 
             <AppTourOverlay
                 visible={tourVisible}
-                step={APP_TOUR_STEPS[tourStepIndex]}
+                step={currentTourSteps[tourStepIndex]}
                 current={tourStepIndex}
-                total={APP_TOUR_STEPS.length}
+                total={currentTourSteps.length}
                 onNext={handleTourNext}
                 onSkip={completeTour}
             />

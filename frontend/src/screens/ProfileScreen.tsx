@@ -34,7 +34,7 @@ import SectionHeader from "../components/SectionHeader";
 import AccentButton from "../components/AccentButton";
 import AnimatedPressable from "../components/AnimatedPressable";
 import NoticeModal from "../components/NoticeModal";
-import { requestAppTourReplay } from "../utils/appTourEvents";
+import { requestAppTourReplay, requestDetailedAppTourReplay } from "../utils/appTourEvents";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import { confirmDialog } from "../utils/confirm";
@@ -548,6 +548,28 @@ export default function ProfileScreen() {
                         <View style={{ flex: 1 }}>
                             <Text style={styles.settingTitle}>Uygulama Turunu Tekrar Izle</Text>
                             <Text style={styles.settingDesc}>Ana akisi, MyProgress'i, kocu ve profil ayarlarini tekrar tanit</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
+                    onPress={() => {
+                        requestDetailedAppTourReplay();
+                        navigateWithFeedback(() => (navigation as any).navigate("MainTabs", { screen: "Home", switchKey: Date.now() }));
+                    }}
+                    activeOpacity={0.78}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="map-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Detayli Uygulama Rehberi</Text>
+                            <Text style={styles.settingDesc}>Program kurma, loglama, progress filtreleri ve koç akışını adım adım göster</Text>
                         </View>
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
