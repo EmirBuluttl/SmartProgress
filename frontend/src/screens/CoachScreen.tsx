@@ -217,35 +217,35 @@ export default function CoachScreen() {
                 <Animated.View style={[styles.teaserPanel, heroAnimStyle]}>
                     <View style={styles.panelTopRow}>
                         <View>
-                            <Text style={styles.panelLabel}>Premium deneme</Text>
-                            <Text style={styles.panelTitle}>Akıllı koçu deneyebilirsin</Text>
+                            <Text style={styles.panelLabel}>Premium</Text>
+                            <Text style={styles.panelTitle}>Koç özellikleri Premium ile açılır</Text>
                         </View>
                         <View style={styles.statusPill}>
-                            <Text style={styles.statusText}>{wizardUsesRemaining} wizard hakkı</Text>
+                            <Text style={styles.statusText}>60 gün deneme</Text>
                         </View>
                     </View>
                     <Text style={styles.panelText}>
-                        Yeni hesaplarda Premium deneme suresi acik gelir. Deneme bittiyse de iki kez kisisel program wizard'ini kullanabilirsin.
+                        Yeni hesaplarda 60 gün Premium deneme otomatik başlar. Deneme bittiyse koç merkezi, haftalık rapor ve akıllı program wizard Premium ile kullanılır.
                     </Text>
                     <View style={styles.accessSummaryRow}>
                         <View style={styles.accessSummaryItem}>
                             <Ionicons name="hourglass-outline" size={16} color={colors.accent} />
                             <Text style={styles.accessSummaryText}>
-                                {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gün Premium deneme` : "Premium aktif"}
+                                {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gün Premium deneme` : "Deneme tamamlandı"}
                             </Text>
                         </View>
                         <View style={styles.accessSummaryItem}>
-                            <Ionicons name="map-outline" size={16} color={colors.accent} />
-                            <Text style={styles.accessSummaryText}>{wizardUsesRemaining} wizard hakkı</Text>
+                            <Ionicons name="lock-closed-outline" size={16} color={colors.accent} />
+                            <Text style={styles.accessSummaryText}>Koç sekmesi kilitli</Text>
                         </View>
                     </View>
                     <AnimatedPressable
                         style={styles.primaryButton}
                         pressedScale={0.985}
-                        onPress={() => navigateStatic("PremiumProgramWizard", "modal")}
+                        onPress={() => navigateStatic("PremiumDetail")}
                     >
-                        <Ionicons name="map-outline" size={18} color={colors.background} />
-                        <Text style={styles.primaryButtonText}>Akilli Program Wizard'i Dene</Text>
+                        <Ionicons name="sparkles-outline" size={18} color={colors.background} />
+                        <Text style={styles.primaryButtonText}>Premium'u İncele</Text>
                     </AnimatedPressable>
                 </Animated.View>
             ) : (
@@ -293,7 +293,7 @@ export default function CoachScreen() {
                 </Animated.View>
             )}
 
-            {(
+            {!isFree && (
                 <Animated.View style={[styles.section, dashboardAnimStyle]}>
                     <View style={styles.dashboardHeader}>
                         <View>
@@ -339,6 +339,7 @@ export default function CoachScreen() {
                 </Animated.View>
             )}
 
+            {!isFree && (
             <Animated.View style={[styles.section, reportAnimStyle]}>
                 <Text style={styles.sectionTitle}>Haftalık rapor</Text>
                 <View style={styles.reportCard}>
@@ -459,8 +460,9 @@ export default function CoachScreen() {
                     )}
                 </View>
             </Animated.View>
+            )}
 
-            {coachInsights.length > 0 && (
+            {!isFree && coachInsights.length > 0 && (
                 <View style={styles.section}>
                     <View style={styles.reportTopRow}>
                         <Text style={styles.sectionTitle}>Son koç sinyalleri</Text>
@@ -499,6 +501,7 @@ export default function CoachScreen() {
                 </View>
             )}
 
+            {!isFree && (
             <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Akilli Program Wizard</Text>
                 {isFree ? (
@@ -581,6 +584,7 @@ export default function CoachScreen() {
                     </Animated.View>
                 )}
             </View>
+            )}
 
             <View style={styles.compareSection}>
                 <View style={styles.dashboardHeader}>
