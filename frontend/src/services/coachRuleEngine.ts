@@ -4,6 +4,7 @@ import { getExerciseMetadata } from "../data/exerciseMetadata";
 export type CoachLevel = "beginner" | "intermediate" | "advanced";
 export type CoachSplitType = "FB" | "UL" | "AP" | "TL" | "PPL" | "PPLUL";
 export type CoachGoal = "muscle" | "strength" | "fat_loss" | "general";
+export type CoachProgramStyle = "hypertrophy" | "calisthenics" | "streetlifting" | "powerlifting" | "crossfit";
 export type CoachStrengthFocus = "overall" | "powerlifting" | "streetlifting";
 export type CoachSessionDuration = "45-60" | "60-90" | "90+";
 
@@ -43,6 +44,7 @@ export type CoachProfileInput = {
     split: CoachSplitType;
     level: CoachLevel;
     goal: CoachGoal;
+    programStyle?: CoachProgramStyle;
     hasPain: "no" | "yes";
     painNote?: string;
     includePainArea?: "no" | "yes";
@@ -64,6 +66,7 @@ type ExerciseSelectionOptions = {
     preferPainSafe?: boolean;
     level?: CoachLevel;
     goal?: CoachGoal;
+    programStyle?: CoachProgramStyle;
     strengthFocus?: CoachStrengthFocus;
     allowUnsafeFallback?: boolean;
 };
@@ -79,6 +82,14 @@ export const COACH_GOALS: { key: CoachGoal; label: string }[] = [
     { key: "strength", label: "Güç artışı" },
     { key: "fat_loss", label: "Yağ kaybına destek" },
     { key: "general", label: "Genel progress" },
+];
+
+export const COACH_PROGRAM_STYLES: { key: CoachProgramStyle; label: string; desc: string }[] = [
+    { key: "hypertrophy", label: "Hipertrofi / kas gelistirme", desc: "Mevcut SmartProgress rule engine akisi." },
+    { key: "calisthenics", label: "Calisthenics", desc: "Bodyweight ve stabil varyasyonlari daha one alir." },
+    { key: "streetlifting", label: "Streetlifting", desc: "Pull-up, dip ve agirlikli bodyweight odagini one alir." },
+    { key: "powerlifting", label: "Powerlifting", desc: "Compound ve barbell odagini one alir." },
+    { key: "crossfit", label: "CrossFit", desc: "V1'de stil olarak kaydedilir; metcon motoru eklenmez." },
 ];
 
 export const COACH_STRENGTH_FOCUS_OPTIONS: { key: CoachStrengthFocus; label: string; desc: string }[] = [
@@ -229,14 +240,29 @@ export const COACH_SPLIT_PATTERNS: Record<CoachSplitType, { label: string; days:
     },
 };
 
-export function defaultSplitForFrequency(frequency: number): CoachSplitType {
+export function defaultSplitForFrequency(frequency: number, programStyle: CoachProgramStyle = "hypertrophy"): CoachSplitType {
+    if (programStyle === "calisthenics" && frequency <= 4) return "FB";
+    if (programStyle === "streetlifting") return frequency <= 3 ? "FB" : "UL";
+    if (programStyle === "powerlifting") return frequency <= 3 ? "FB" : "UL";
+    if (programStyle === "crossfit") return frequency <= 3 ? "FB" : "UL";
     if (frequency <= 3) return "FB";
     if (frequency === 5) return "PPLUL";
     if (frequency >= 6) return "PPL";
     return "UL";
 }
 
-export function splitOptionsForFrequency(frequency: number): CoachSplitType[] {
+export function splitOptionsForFrequency(frequency: number, programStyle: CoachProgramStyle = "hypertrophy"): CoachSplitType[] {
+    if (programStyle === "calisthenics") {
+        if (frequency <= 3) return ["FB"];
+        if (frequency === 4) return ["FB", "UL"];
+        return ["UL", "FB", "PPLUL"];
+    }
+    if (programStyle === "streetlifting" || programStyle === "powerlifting" || programStyle === "crossfit") {
+        if (frequency <= 3) return ["FB"];
+        if (frequency === 4) return ["UL", "FB"];
+        if (frequency === 5) return ["UL", "PPLUL", "FB"];
+        return ["UL", "PPL", "PPLUL"];
+    }
     if (frequency <= 3) return ["FB"];
     if (frequency === 4) return ["UL", "AP", "TL"];
     if (frequency === 5) return ["UL", "AP", "TL", "PPLUL"];
@@ -713,6 +739,30 @@ function exerciseGoalScore(exercise: ExerciseLibraryItem, options?: ExerciseSele
     const tags = new Set(exercise.tags);
     let score = 0;
 
+    if (options?.programStyle === "calisthenics") {
+        if (exercise.equipment.includes("bodyweight")) score += 10;
+        if (tags.has("calisthenics")) score += 8;
+        if (metadata.skillDemand === "high" && options.level !== "advanced") score -= 4;
+    }
+
+    if (options?.programStyle === "streetlifting") {
+        if (exercise.equipment.includes("bodyweight")) score += 10;
+        if (tags.has("calisthenics")) score += 8;
+        if (/weighted|loaded|pull up|chin up|dip|muscle up/i.test(exercise.name)) score += 8;
+    }
+
+    if (options?.programStyle === "powerlifting") {
+        if (tags.has("compound")) score += 10;
+        if (tags.has("strength")) score += 8;
+        if (exercise.equipment.includes("barbell")) score += 6;
+        if (/squat|bench|deadlift/i.test(exercise.name)) score += 8;
+    }
+
+    if (options?.programStyle === "crossfit") {
+        if (metadata.riskLevel === "low") score += 3;
+        if (metadata.stability === "very_stable" || metadata.stability === "stable") score += 3;
+    }
+
     if (options?.goal === "strength") {
         if (tags.has("compound")) score += 8;
         if (tags.has("strength")) score += 7;
@@ -959,6 +1009,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         allowUnsafeFallback: input.hasPain === "yes" && (injuryMode || input.includePainArea !== "no"),
         level: input.level,
         goal: input.goal,
+        programStyle: input.programStyle || "hypertrophy",
         strengthFocus: input.strengthFocus,
     };
 
@@ -1016,6 +1067,8 @@ export function buildCoachProgramData(input: CoachProfileInput) {
             ? "Güç ve ölçülebilir progress"
             : "Kas kazanımı ve sürdürülebilir progress";
 
+    const styleLabel = COACH_PROGRAM_STYLES.find((item) => item.key === (input.programStyle || "hypertrophy"))?.label || "Hipertrofi / kas gelistirme";
+
     return {
         frequency: input.frequency,
         splitType: input.split,
@@ -1023,6 +1076,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         coachProfile: {
             level: input.level,
             goal: input.goal,
+            programStyle: input.programStyle || "hypertrophy",
             strengthFocus: input.strengthFocus || "overall",
             painStatus: input.hasPain,
             painNote: input.painNote?.trim() || undefined,
@@ -1038,6 +1092,7 @@ export function buildCoachProgramData(input: CoachProfileInput) {
         programIntro: {
             title: "Program tanıtımı",
             sections: [
+                { title: "Program stili", body: styleLabel + " secildi; split ve egzersiz onerileri bu stile gore yonlendirildi." },
                 { title: "Programın amacı", body: goalIntro + " için " + COACH_SPLIT_PATTERNS[input.split].label + " akışı kuruldu." },
                 { title: "Haftalık akış", body: input.frequency + " antrenman günü, aralara yerleştirilen dinlenme günleri ve " + (input.sessionDuration || "60-90") + " dk hedefi ile planlandı." },
                 { title: "Efor kuralı", body: "Çalışma setlerinde RPE " + targetRpeForInput({ level: input.level, hasPain: "no" }) + ", RIR " + targetRirForInput({ level: input.level, goal: input.goal, strengthFocus: input.strengthFocus, hasPain: "no" }) + " hedefle." },
