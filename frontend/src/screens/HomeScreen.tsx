@@ -101,15 +101,46 @@ export default function HomeScreen() {
     const [notificationsVisible, setNotificationsVisible] = useState(false);
     const [quickWorkoutConfirmVisible, setQuickWorkoutConfirmVisible] = useState(false);
     const [notificationFilter, setNotificationFilter] = useState<"all" | "progress" | "reminder" | "program" | "social">("all");
+    const [streakCelebration, setStreakCelebration] = useState<number | null>(null);
     const hasLoadedDashboard = React.useRef(false);
     const scrollRef = useRef<ScrollView | null>(null);
     const shouldRestoreScroll = useRef(false);
     const activationLift = useRef(new Animated.Value(0)).current;
     const activeCardPulse = useRef(new Animated.Value(0)).current;
+    const streakCelebrationAnim = useRef(new Animated.Value(0)).current;
     const [activatedProgramId, setActivatedProgramId] = useState<string | null>(null);
 
     // 2 dakika TTL: stack ekrandan dönüşte sadece verisi bayatlamış HomeScreen yeniden yükler
     const { shouldReload: shouldReloadDashboard, markLoaded: markDashboardLoaded } = useStaleDataGuard(2 * 60 * 1000);
+
+    React.useEffect(() => {
+        if (!user?.id || loading || currentStreak <= 0) return;
+        const key = `last_seen_streak:${user.id}`;
+        let cancelled = false;
+        AsyncStorage.getItem(key)
+            .then((raw) => {
+                if (cancelled) return;
+                const previous = raw ? Number(raw) : null;
+                if (previous === null || !Number.isFinite(previous)) {
+                    AsyncStorage.setItem(key, String(currentStreak)).catch(() => undefined);
+                    return;
+                }
+                if (currentStreak > previous) {
+                    setStreakCelebration(currentStreak);
+                    streakCelebrationAnim.setValue(0);
+                    Animated.sequence([
+                        Animated.timing(streakCelebrationAnim, { toValue: 1, duration: 260, useNativeDriver: true }),
+                        Animated.delay(2200),
+                        Animated.timing(streakCelebrationAnim, { toValue: 0, duration: 240, useNativeDriver: true }),
+                    ]).start(() => setStreakCelebration(null));
+                }
+                AsyncStorage.setItem(key, String(currentStreak)).catch(() => undefined);
+            })
+            .catch(() => undefined);
+        return () => {
+            cancelled = true;
+        };
+    }, [currentStreak, loading, streakCelebrationAnim, user?.id]);
 
     // ── Memoized render-time hesaplamalar ─────────────────────────────────────
     // sortNewestFirst her render'da çalışmasın
@@ -879,6 +910,40 @@ export default function HomeScreen() {
             onSecondary={() => setQuickWorkoutConfirmVisible(false)}
             onDismiss={() => setQuickWorkoutConfirmVisible(false)}
         />
+        {streakCelebration !== null && (
+            <Animated.View
+                pointerEvents="none"
+                style={[
+                    styles.streakCelebration,
+                    {
+                        top: insets.top + spacing.md,
+                        opacity: streakCelebrationAnim,
+                        transform: [
+                            {
+                                translateY: streakCelebrationAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [-18, 0],
+                                }),
+                            },
+                            {
+                                scale: streakCelebrationAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [0.96, 1],
+                                }),
+                            },
+                        ],
+                    },
+                ]}
+            >
+                <View style={styles.streakCelebrationIcon}>
+                    <Ionicons name="flame" size={20} color={colors.background} />
+                </View>
+                <View style={styles.streakCelebrationCopy}>
+                    <Text style={styles.streakCelebrationTitle}>Seri artti</Text>
+                    <Text style={styles.streakCelebrationText}>{streakCelebration} gunluk seri yakaladin.</Text>
+                </View>
+            </Animated.View>
+        )}
         <Modal
             visible={notificationsVisible}
             transparent
@@ -1186,6 +1251,36 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
         letterSpacing: 0.5,
     },
+    streakCelebration: {
+        position: "absolute",
+        left: spacing.lg,
+        right: spacing.lg,
+        zIndex: 20,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.surface,
+        padding: spacing.md,
+        shadowColor: "#000",
+        shadowOpacity: 0.22,
+        shadowRadius: 16,
+        shadowOffset: { width: 0, height: 8 },
+        elevation: 8,
+    },
+    streakCelebrationIcon: {
+        width: 38,
+        height: 38,
+        borderRadius: 19,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accent,
+    },
+    streakCelebrationCopy: { flex: 1, minWidth: 0 },
+    streakCelebrationTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    streakCelebrationText: { color: colors.textSecondary, fontSize: fontSize.sm, marginTop: 2 },
     avatarCircle: {
         width: 48, height: 48, borderRadius: 24,
         backgroundColor: colors.accentMuted,
