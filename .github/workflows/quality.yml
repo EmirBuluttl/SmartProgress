@@ -1,0 +1,76 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: quality-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Frontend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --production=false
+
+      - name: Typecheck
+        run: ./node_modules/.bin/tsc --noEmit
+
+      - name: Store config check
+        run: npm run store:check
+
+      - name: Coach engine smoke
+        run: npm run test:coach-engine
+
+      - name: Progress engine smoke
+        run: npm run test:progress-engine
+
+      - name: Workout metrics smoke
+        run: npm run test:workout-metrics
+
+  backend:
+    name: Backend checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci --include=dev --production=false
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Build
+        run: npm run build
+
+      - name: Coach signal smoke
+        run: npm run test:coach-signals
