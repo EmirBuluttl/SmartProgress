@@ -651,11 +651,44 @@ export default function WorkoutSessionScreen() {
     const cacheKey = (exerciseId: string, setId: string, field: string) =>
         `${exerciseId}-${setId}-${field}`;
 
+    const sideCacheKey = (exerciseId: string, setId: string, side: "left" | "right", field: string) =>
+        `${exerciseId}-${setId}-${side}-${field}`;
+
+    const normalizeDecimalText = (text: string) => {
+        const normalized = text.replace(/,/g, ".").replace(/[^0-9.]/g, "");
+        const firstDotIndex = normalized.indexOf(".");
+        if (firstDotIndex === -1) return normalized;
+        return `${normalized.slice(0, firstDotIndex + 1)}${normalized.slice(firstDotIndex + 1).replace(/\./g, "")}`;
+    };
+
+    const clearTextCacheKey = (key: string) => {
+        setTextCache((prev) => {
+            if (!(key in prev)) return prev;
+            const next = { ...prev };
+            delete next[key];
+            return next;
+        });
+    };
+
     const getTextValue = (exerciseId: string, setId: string, field: string, numericValue: number | string): string => {
         const key = cacheKey(exerciseId, setId, field);
         if (key in textCache) return textCache[key];
         if (typeof numericValue === 'string') return numericValue || "";
-        return numericValue > 0 ? String(numericValue) : "";
+        return numericValue === 0 || numericValue > 0 ? String(numericValue) : "";
+    };
+
+    const getSideTextValue = (
+        exerciseId: string,
+        setId: string,
+        side: "left" | "right",
+        field: string,
+        value: unknown,
+        formatter?: (value: any) => string,
+    ) => {
+        const key = sideCacheKey(exerciseId, setId, side, field);
+        if (key in textCache) return textCache[key];
+        if (formatter) return formatter(value);
+        return value === 0 || value ? String(value) : "";
     };
 
     const getEffortTextValue = (exerciseId: string, set: WorkoutSet): string => {
@@ -1281,13 +1314,24 @@ export default function WorkoutSessionScreen() {
         rawValue: string,
     ) => {
         const repsForSide = Number((set[side] || {}).reps) || Number(set.reps) || undefined;
+        const normalizedRaw = field === "weight"
+            ? normalizeDecimalText(rawValue)
+            : field === "reps" || field === "rpe"
+                ? rawValue.replace(/[^0-9]/g, "")
+                : rawValue.replace(/,/g, ".");
+        setTextCache((prev) => ({
+            ...prev,
+            [sideCacheKey(exerciseId, set.id, side, field)]: normalizedRaw,
+        }));
         const value = field === "durationSeconds"
-            ? parseDurationInput(rawValue)
+            ? parseDurationInput(normalizedRaw)
             : field === "rir"
-                ? (normalizeRirLogValue(rawValue, repsForSide) ?? "")
+                ? (normalizeRirLogValue(normalizedRaw, repsForSide) ?? "")
                 : field === "rpe"
-                    ? clampRpe(rawValue)
-                    : Number(rawValue.replace(",", ".")) || 0;
+                    ? clampRpe(normalizedRaw)
+                    : field === "weight"
+                        ? (normalizedRaw === "" || normalizedRaw === "." ? "" : Number(normalizedRaw) || 0)
+                        : Number(normalizedRaw) || 0;
         const nextSide = { ...(set[side] || {}), [field]: value };
         const otherSide = set[side === "left" ? "right" : "left"] || {};
         const left = side === "left" ? nextSide : otherSide;
@@ -2194,9 +2238,10 @@ export default function WorkoutSessionScreen() {
                                     <Text style={styles.unilateralLabel}>{sideLabel}</Text>
                                     <TextInput
                                         style={styles.unilateralInput}
-                                        value={sideData.weight === 0 || sideData.weight ? String(sideData.weight) : ""}
+                                        value={getSideTextValue(targetExercise.id, set.id, side, "weight", sideData.weight)}
                                         editable={!targetLogDisabled}
                                         onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "weight", text)}
+                                        onBlur={() => clearTextCacheKey(sideCacheKey(targetExercise.id, set.id, side, "weight"))}
                                         placeholder={set.weightMode === "bodyweight" ? "BW" : sideData.targetWeight || "kg"}
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType="decimal-pad"
@@ -2207,8 +2252,8 @@ export default function WorkoutSessionScreen() {
                                         style={styles.unilateralInput}
                                         value={
                                             set.effortMode === "duration"
-                                                ? formatDurationInput(sideData.durationSeconds)
-                                                : sideData.reps === 0 || sideData.reps ? String(sideData.reps) : ""
+                                                ? getSideTextValue(targetExercise.id, set.id, side, "durationSeconds", sideData.durationSeconds, formatDurationInput)
+                                                : getSideTextValue(targetExercise.id, set.id, side, "reps", sideData.reps)
                                         }
                                         editable={!targetLogDisabled}
                                         onChangeText={(text) => updateUnilateralSide(
@@ -2218,6 +2263,12 @@ export default function WorkoutSessionScreen() {
                                             set.effortMode === "duration" ? "durationSeconds" : "reps",
                                             text,
                                         )}
+                                        onBlur={() => clearTextCacheKey(sideCacheKey(
+                                            targetExercise.id,
+                                            set.id,
+                                            side,
+                                            set.effortMode === "duration" ? "durationSeconds" : "reps",
+                                        ))}
                                         placeholder={set.effortMode === "duration" ? sideData.targetDuration || "sn" : sideData.targetReps || "tekrar"}
                                         placeholderTextColor={colors.textMuted}
                                         keyboardType={set.effortMode === "duration" ? "default" : "number-pad"}
@@ -2227,9 +2278,10 @@ export default function WorkoutSessionScreen() {
                                     {(rpeMode === "rpe" || rpeMode === "both") && (
                                         <TextInput
                                             style={styles.unilateralInput}
-                                            value={sideData.rpe ? String(sideData.rpe) : ""}
+                                            value={getSideTextValue(targetExercise.id, set.id, side, "rpe", sideData.rpe)}
                                             editable={!targetLogDisabled}
                                             onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "rpe", text)}
+                                            onBlur={() => clearTextCacheKey(sideCacheKey(targetExercise.id, set.id, side, "rpe"))}
                                             placeholder="RPE"
                                             placeholderTextColor={colors.textMuted}
                                             keyboardType="number-pad"
@@ -2240,9 +2292,10 @@ export default function WorkoutSessionScreen() {
                                     {(rpeMode === "rir" || rpeMode === "both") && (
                                         <TextInput
                                             style={styles.unilateralInput}
-                                            value={sideData.rir === 0 || sideData.rir ? String(sideData.rir) : ""}
+                                            value={getSideTextValue(targetExercise.id, set.id, side, "rir", sideData.rir)}
                                             editable={!targetLogDisabled}
                                             onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "rir", text)}
+                                            onBlur={() => clearTextCacheKey(sideCacheKey(targetExercise.id, set.id, side, "rir"))}
                                             placeholder="RIR"
                                             placeholderTextColor={colors.textMuted}
                                             keyboardType={Platform.OS === "ios" ? "numbers-and-punctuation" : "numeric"}
