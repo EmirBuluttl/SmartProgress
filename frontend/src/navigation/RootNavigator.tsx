@@ -33,6 +33,7 @@ import CoachInsightHistoryScreen from "../screens/CoachInsightHistoryScreen";
 import ExerciseLibraryScreen from "../screens/ExerciseLibraryScreen";
 import PreWorkoutRemindersScreen from "../screens/PreWorkoutRemindersScreen";
 import TrainingLevelScreen from "../screens/TrainingLevelScreen";
+import BlockedUsersScreen from "../screens/BlockedUsersScreen";
 import WarmupRoutineBuilderScreen from "../screens/WarmupRoutineBuilderScreen";
 import WarmupSessionScreen from "../screens/WarmupSessionScreen";
 import LegalInfoScreen from "../screens/LegalInfoScreen";
@@ -140,6 +141,7 @@ export type RootStackParamList = {
     ExerciseLibrary: undefined;
     PreWorkoutReminders: undefined;
     TrainingLevel: undefined;
+    BlockedUsers: undefined;
     PrivacyPolicy: undefined;
     Support: undefined;
     AccountDeletion: undefined;
@@ -325,6 +327,11 @@ function AppNavigator() {
             <AppStack.Screen
                 name="TrainingLevel"
                 component={TrainingLevelScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="BlockedUsers"
+                component={BlockedUsersScreen}
                 options={{ animation: "slide_from_right" }}
             />
             <AppStack.Screen

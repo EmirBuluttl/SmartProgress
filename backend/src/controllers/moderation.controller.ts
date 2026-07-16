@@ -16,6 +16,15 @@ const blockSchema = z.object({
 });
 
 export class ModerationController {
+    async listBlocks(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const users = await moderationService.listBlockedUsers(req.user!.userId);
+            res.status(200).json({ users });
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async report(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const parsed = reportSchema.safeParse(req.body);

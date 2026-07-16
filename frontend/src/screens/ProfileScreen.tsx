@@ -680,6 +680,25 @@ export default function ProfileScreen() {
 
                 <TouchableOpacity
                     style={styles.settingRow}
+                    activeOpacity={0.78}
+                    onPress={() => navigateStatic("BlockedUsers")}
+                >
+                    <View style={styles.settingInfo}>
+                        <View style={styles.settingIconWrap}>
+                            <Ionicons name="shield-outline" size={20} color={colors.accent} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.settingTitle}>Engellenen Kullanıcılar</Text>
+                            <Text style={styles.settingDesc}>Engellediğin profilleri görüntüle ve engeli kaldır</Text>
+                        </View>
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
+                </TouchableOpacity>
+
+                <View style={styles.settingDivider} />
+
+                <TouchableOpacity
+                    style={styles.settingRow}
                     activeOpacity={0.7}
                     onPress={() => setThemePickerVisible(true)}
                 >

@@ -23,6 +23,39 @@ export class ModerationService {
         return rows.map((row: any) => row.blockedUserId);
     }
 
+    async listBlockedUsers(blockerId: string) {
+        const rows = await (prisma as any).userBlock.findMany({
+            where: { blockerId },
+            orderBy: { createdAt: "desc" },
+            select: {
+                blockedUserId: true,
+                createdAt: true,
+                blockedUser: {
+                    select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        nickname: true,
+                        avatarUrl: true,
+                    },
+                },
+            },
+        });
+
+        return rows.map((row: any) => {
+            const user = row.blockedUser || {};
+            return {
+                id: row.blockedUserId,
+                firstName: user.firstName || "",
+                lastName: user.lastName || "",
+                nickname: user.nickname || null,
+                avatarUrl: user.avatarUrl || null,
+                displayName: user.nickname || [user.firstName, user.lastName].filter(Boolean).join(" ") || "Kullanıcı",
+                blockedAt: row.createdAt,
+            };
+        });
+    }
+
     async isEitherBlocked(viewerId: string, targetUserId: string): Promise<boolean> {
         if (viewerId === targetUserId) return false;
         const block = await (prisma as any).userBlock.findFirst({

@@ -284,6 +284,9 @@ export const profileApi = {
 };
 
 export const moderationApi = {
+    listBlockedUsers: () =>
+        api.get("/moderation/blocks"),
+
     report: (data: {
         targetType: "PROFILE" | "PROFILE_PHOTO" | "PROGRAM";
         targetUserId?: string;
