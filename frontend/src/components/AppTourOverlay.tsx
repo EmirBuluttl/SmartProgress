@@ -48,6 +48,8 @@ const FIRST_MEASURE_DELAY_MS = 280;
 const SECOND_MEASURE_DELAY_MS = 560;
 const FINAL_MEASURE_DELAY_MS = 900;
 const MEASURE_GIVE_UP_MS = 1200;
+const TARGET_VISIBLE_OPACITY = 0.72;
+const TARGET_REVEAL_MS = 520;
 
 export default function AppTourOverlay({
     visible,
@@ -152,15 +154,15 @@ export default function AppTourOverlay({
                 targetScale.setValue(0.996);
                 Animated.parallel([
                     Animated.timing(targetOpacity, {
-                        toValue: 1,
-                        duration: 340,
-                        easing: Easing.out(Easing.cubic),
+                        toValue: TARGET_VISIBLE_OPACITY,
+                        duration: TARGET_REVEAL_MS,
+                        easing: Easing.out(Easing.quad),
                         useNativeDriver: true,
                     }),
                     Animated.timing(targetScale, {
                         toValue: 1,
-                        duration: 360,
-                        easing: Easing.out(Easing.cubic),
+                        duration: TARGET_REVEAL_MS,
+                        easing: Easing.out(Easing.quad),
                         useNativeDriver: true,
                     }),
                 ]).start();
@@ -288,9 +290,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         backgroundColor: "transparent",
         shadowColor: colors.accent,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.16,
-        shadowRadius: 18,
-        elevation: 8,
+        shadowOpacity: 0.08,
+        shadowRadius: 14,
+        elevation: 5,
     },
     targetGlow: {
         position: "absolute",
@@ -300,12 +302,12 @@ const createStyles = (colors: any) => StyleSheet.create({
         bottom: -6,
         borderRadius: borderRadius.xl,
         backgroundColor: colors.accent,
-        opacity: 0.08,
+        opacity: 0.035,
     },
     targetBorder: {
         ...StyleSheet.absoluteFillObject,
         borderRadius: borderRadius.lg,
-        borderWidth: 1.5,
+        borderWidth: 1,
         borderColor: colors.accent,
         backgroundColor: "transparent",
     },
