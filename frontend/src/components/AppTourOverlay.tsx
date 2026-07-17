@@ -6,6 +6,7 @@ import {
     Text,
     TouchableOpacity,
     View,
+    Pressable,
     useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
@@ -60,15 +61,19 @@ export default function AppTourOverlay({
     const { height: screenHeight, width: screenWidth } = useWindowDimensions();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const opacity = React.useRef(new Animated.Value(0)).current;
-    const railY = React.useRef(new Animated.Value(18)).current;
+    const railY = React.useRef(new Animated.Value(10)).current;
     const pulse = React.useRef(new Animated.Value(0)).current;
+    const targetOpacity = React.useRef(new Animated.Value(0)).current;
+    const targetScale = React.useRef(new Animated.Value(0.985)).current;
     const [targetRect, setTargetRect] = React.useState<TargetRect | null>(null);
     const [targetPending, setTargetPending] = React.useState(false);
 
     React.useEffect(() => {
         if (!visible) {
             opacity.setValue(0);
-            railY.setValue(18);
+            railY.setValue(10);
+            targetOpacity.setValue(0);
+            targetScale.setValue(0.985);
             setTargetRect(null);
             setTargetPending(false);
             return;
@@ -77,18 +82,18 @@ export default function AppTourOverlay({
         Animated.parallel([
             Animated.timing(opacity, {
                 toValue: 1,
-                duration: 180,
-                easing: Easing.out(Easing.cubic),
+                duration: 240,
+                easing: Easing.out(Easing.quad),
                 useNativeDriver: true,
             }),
             Animated.timing(railY, {
                 toValue: 0,
-                duration: 220,
+                duration: 360,
                 easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
             }),
         ]).start();
-    }, [opacity, railY, visible, current]);
+    }, [opacity, railY, targetOpacity, targetScale, visible, current]);
 
     React.useEffect(() => {
         if (!visible) return;
@@ -97,13 +102,13 @@ export default function AppTourOverlay({
             Animated.sequence([
                 Animated.timing(pulse, {
                     toValue: 1,
-                    duration: 1200,
+                    duration: 2400,
                     easing: Easing.inOut(Easing.sin),
                     useNativeDriver: true,
                 }),
                 Animated.timing(pulse, {
                     toValue: 0,
-                    duration: 1200,
+                    duration: 2400,
                     easing: Easing.inOut(Easing.sin),
                     useNativeDriver: true,
                 }),
@@ -117,8 +122,15 @@ export default function AppTourOverlay({
         if (!visible || !step?.targetId) return;
         let cancelled = false;
         const targetId = step.targetId;
-        setTargetRect(null);
         setTargetPending(true);
+        Animated.timing(targetOpacity, {
+            toValue: 0,
+            duration: 120,
+            easing: Easing.out(Easing.quad),
+            useNativeDriver: true,
+        }).start(() => {
+            if (!cancelled) setTargetRect(null);
+        });
 
         const target = getTarget(targetId);
         target?.scrollTo?.();
@@ -136,6 +148,21 @@ export default function AppTourOverlay({
                 setTargetPending(false);
                 if (!width || !height) return;
                 setTargetRect({ x, y, width, height });
+                targetScale.setValue(0.985);
+                Animated.parallel([
+                    Animated.timing(targetOpacity, {
+                        toValue: 1,
+                        duration: 260,
+                        easing: Easing.out(Easing.cubic),
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(targetScale, {
+                        toValue: 1,
+                        duration: 360,
+                        easing: Easing.out(Easing.cubic),
+                        useNativeDriver: true,
+                    }),
+                ]).start();
             });
         };
 
@@ -152,13 +179,13 @@ export default function AppTourOverlay({
         };
         // targetRect is intentionally omitted so the retry does not restart itself.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [current, getTarget, step, targetVersion, visible]);
+    }, [current, getTarget, step, targetOpacity, targetScale, targetVersion, visible]);
 
     if (!visible || !step) return null;
 
     const pulseStyle = {
-        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.05] }),
-        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }],
+        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.04] }),
+        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1.01, 1.07] }) }],
     };
 
     const paddedRect = targetRect ? {
@@ -170,11 +197,23 @@ export default function AppTourOverlay({
 
     return (
         <Animated.View pointerEvents="box-none" style={[styles.layer, { opacity }]}>
+            <Pressable
+                pointerEvents="auto"
+                accessibilityRole="button"
+                accessibilityLabel="Uygulama turunda sonraki adima gec"
+                onPress={onNext}
+                style={StyleSheet.absoluteFill}
+            />
+
             {paddedRect ? (
-                <View
+                <Animated.View
                     pointerEvents="none"
                     style={[
                         styles.targetOutline,
+                        {
+                            opacity: targetOpacity,
+                            transform: [{ scale: targetScale }],
+                        },
                         {
                             left: paddedRect.x,
                             top: paddedRect.y,
@@ -184,7 +223,8 @@ export default function AppTourOverlay({
                     ]}
                 >
                     <Animated.View style={[styles.targetGlow, pulseStyle]} />
-                </View>
+                    <View style={styles.targetBorder} />
+                </Animated.View>
             ) : null}
 
             <Animated.View
@@ -244,23 +284,28 @@ const createStyles = (colors: any) => StyleSheet.create({
     targetOutline: {
         position: "absolute",
         borderRadius: borderRadius.lg,
-        borderWidth: 2,
-        borderColor: colors.accent,
         backgroundColor: "transparent",
         shadowColor: colors.accent,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.24,
-        shadowRadius: 14,
+        shadowOpacity: 0.16,
+        shadowRadius: 18,
         elevation: 8,
     },
     targetGlow: {
         position: "absolute",
-        left: -5,
-        right: -5,
-        top: -5,
-        bottom: -5,
+        left: -6,
+        right: -6,
+        top: -6,
+        bottom: -6,
         borderRadius: borderRadius.xl,
         backgroundColor: colors.accent,
+    },
+    targetBorder: {
+        ...StyleSheet.absoluteFillObject,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1.5,
+        borderColor: colors.accent,
+        backgroundColor: "transparent",
     },
     railWrap: {
         position: "absolute",
