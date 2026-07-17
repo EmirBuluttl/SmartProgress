@@ -44,6 +44,10 @@ type TargetRect = {
 };
 
 const TAB_BAR_HEIGHT = 76;
+const FIRST_MEASURE_DELAY_MS = 280;
+const SECOND_MEASURE_DELAY_MS = 560;
+const FINAL_MEASURE_DELAY_MS = 900;
+const MEASURE_GIVE_UP_MS = 1200;
 
 export default function AppTourOverlay({
     visible,
@@ -121,6 +125,14 @@ export default function AppTourOverlay({
         target?.action?.();
 
         const isCurrentRequest = () => !cancelled && measureRequestRef.current === requestId;
+        const isUsableRect = (x: number, y: number, width: number, height: number) => {
+            if (!width || !height) return false;
+            const visibleTop = insets.top;
+            const visibleBottom = screenHeight - TAB_BAR_HEIGHT - Math.max(insets.bottom, spacing.sm);
+            const hasHorizontalOverlap = x < screenWidth - spacing.md && x + width > spacing.md;
+            const hasVerticalOverlap = y < visibleBottom && y + height > visibleTop;
+            return hasHorizontalOverlap && hasVerticalOverlap;
+        };
 
         const measure = () => {
             if (!isCurrentRequest() || measured) return;
@@ -132,9 +144,9 @@ export default function AppTourOverlay({
             }
             node.measureInWindow((x, y, width, height) => {
                 if (!isCurrentRequest() || measured) return;
-                setTargetPending(false);
-                if (!width || !height) return;
+                if (!isUsableRect(x, y, width, height)) return;
                 measured = true;
+                setTargetPending(false);
                 setTargetRect({ x, y, width, height });
                 targetOpacity.setValue(0);
                 targetScale.setValue(0.996);
@@ -156,10 +168,16 @@ export default function AppTourOverlay({
         };
 
         const timers = [
-            setTimeout(measure, 520),
+            setTimeout(measure, FIRST_MEASURE_DELAY_MS),
             setTimeout(() => {
                 if (!measured) measure();
-            }, 920),
+            }, SECOND_MEASURE_DELAY_MS),
+            setTimeout(() => {
+                if (!measured) measure();
+            }, FINAL_MEASURE_DELAY_MS),
+            setTimeout(() => {
+                if (isCurrentRequest() && !measured) setTargetPending(false);
+            }, MEASURE_GIVE_UP_MS),
         ];
 
         return () => {
@@ -167,7 +185,7 @@ export default function AppTourOverlay({
             timers.forEach(clearTimeout);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [current, getTarget, step, targetOpacity, targetScale, targetVersion, visible]);
+    }, [current, getTarget, insets.bottom, insets.top, screenHeight, screenWidth, step, targetOpacity, targetScale, targetVersion, visible]);
 
     if (!visible || !step) return null;
 
