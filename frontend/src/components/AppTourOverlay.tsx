@@ -62,9 +62,9 @@ export default function AppTourOverlay({
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const opacity = React.useRef(new Animated.Value(0)).current;
     const railY = React.useRef(new Animated.Value(10)).current;
-    const pulse = React.useRef(new Animated.Value(0)).current;
     const targetOpacity = React.useRef(new Animated.Value(0)).current;
-    const targetScale = React.useRef(new Animated.Value(0.985)).current;
+    const targetScale = React.useRef(new Animated.Value(0.996)).current;
+    const measureRequestRef = React.useRef(0);
     const [targetRect, setTargetRect] = React.useState<TargetRect | null>(null);
     const [targetPending, setTargetPending] = React.useState(false);
 
@@ -73,7 +73,7 @@ export default function AppTourOverlay({
             opacity.setValue(0);
             railY.setValue(10);
             targetOpacity.setValue(0);
-            targetScale.setValue(0.985);
+            targetScale.setValue(0.996);
             setTargetRect(null);
             setTargetPending(false);
             return;
@@ -96,63 +96,52 @@ export default function AppTourOverlay({
     }, [opacity, railY, targetOpacity, targetScale, visible, current]);
 
     React.useEffect(() => {
-        if (!visible) return;
-        pulse.setValue(0);
-        const loop = Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulse, {
-                    toValue: 1,
-                    duration: 2400,
-                    easing: Easing.inOut(Easing.sin),
-                    useNativeDriver: true,
-                }),
-                Animated.timing(pulse, {
-                    toValue: 0,
-                    duration: 2400,
-                    easing: Easing.inOut(Easing.sin),
-                    useNativeDriver: true,
-                }),
-            ]),
-        );
-        loop.start();
-        return () => loop.stop();
-    }, [pulse, visible]);
-
-    React.useEffect(() => {
-        if (!visible || !step?.targetId) return;
+        if (!visible || !step?.targetId) {
+            targetOpacity.setValue(0);
+            targetScale.setValue(0.996);
+            setTargetRect(null);
+            setTargetPending(false);
+            return;
+        }
         let cancelled = false;
+        let measured = false;
+        const requestId = measureRequestRef.current + 1;
+        measureRequestRef.current = requestId;
         const targetId = step.targetId;
+
         setTargetPending(true);
-        Animated.timing(targetOpacity, {
-            toValue: 0,
-            duration: 120,
-            easing: Easing.out(Easing.quad),
-            useNativeDriver: true,
-        }).start(() => {
-            if (!cancelled) setTargetRect(null);
-        });
+        targetOpacity.stopAnimation();
+        targetScale.stopAnimation();
+        targetOpacity.setValue(0);
+        targetScale.setValue(0.996);
+        setTargetRect(null);
 
         const target = getTarget(targetId);
         target?.scrollTo?.();
         target?.action?.();
 
+        const isCurrentRequest = () => !cancelled && measureRequestRef.current === requestId;
+
         const measure = () => {
+            if (!isCurrentRequest() || measured) return;
             const nextTarget = getTarget(targetId);
             const node = nextTarget?.ref.current;
             if (!node?.measureInWindow) {
-                if (!cancelled) setTargetPending(false);
+                if (isCurrentRequest()) setTargetPending(false);
                 return;
             }
             node.measureInWindow((x, y, width, height) => {
-                if (cancelled) return;
+                if (!isCurrentRequest() || measured) return;
                 setTargetPending(false);
                 if (!width || !height) return;
+                measured = true;
                 setTargetRect({ x, y, width, height });
-                targetScale.setValue(0.985);
+                targetOpacity.setValue(0);
+                targetScale.setValue(0.996);
                 Animated.parallel([
                     Animated.timing(targetOpacity, {
                         toValue: 1,
-                        duration: 260,
+                        duration: 340,
                         easing: Easing.out(Easing.cubic),
                         useNativeDriver: true,
                     }),
@@ -167,26 +156,20 @@ export default function AppTourOverlay({
         };
 
         const timers = [
-            setTimeout(measure, 420),
+            setTimeout(measure, 520),
             setTimeout(() => {
-                if (!cancelled && !targetRect) measure();
-            }, 820),
+                if (!measured) measure();
+            }, 920),
         ];
 
         return () => {
             cancelled = true;
             timers.forEach(clearTimeout);
         };
-        // targetRect is intentionally omitted so the retry does not restart itself.
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [current, getTarget, step, targetOpacity, targetScale, targetVersion, visible]);
 
     if (!visible || !step) return null;
-
-    const pulseStyle = {
-        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.14, 0.04] }),
-        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1.01, 1.07] }) }],
-    };
 
     const paddedRect = targetRect ? {
         x: Math.max(spacing.sm, targetRect.x - spacing.xs),
@@ -222,7 +205,7 @@ export default function AppTourOverlay({
                         },
                     ]}
                 >
-                    <Animated.View style={[styles.targetGlow, pulseStyle]} />
+                    <View style={styles.targetGlow} />
                     <View style={styles.targetBorder} />
                 </Animated.View>
             ) : null}
@@ -299,6 +282,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         bottom: -6,
         borderRadius: borderRadius.xl,
         backgroundColor: colors.accent,
+        opacity: 0.08,
     },
     targetBorder: {
         ...StyleSheet.absoluteFillObject,
