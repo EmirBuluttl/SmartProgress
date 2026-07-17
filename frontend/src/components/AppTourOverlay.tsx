@@ -57,7 +57,6 @@ export default function AppTourOverlay({
     current,
     total,
     getTarget,
-    targetVersion = 0,
     onNext,
     onPrevious,
     onSkip,
@@ -187,7 +186,7 @@ export default function AppTourOverlay({
             timers.forEach(clearTimeout);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [current, getTarget, insets.bottom, insets.top, screenHeight, screenWidth, step, targetOpacity, targetScale, targetVersion, visible]);
+    }, [current, getTarget, insets.bottom, insets.top, screenHeight, screenWidth, step, targetOpacity, targetScale, visible]);
 
     if (!visible || !step) return null;
 
