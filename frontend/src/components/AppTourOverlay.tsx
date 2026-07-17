@@ -2,7 +2,6 @@ import React from "react";
 import {
     Animated,
     Easing,
-    Modal,
     StyleSheet,
     Text,
     TouchableOpacity,
@@ -10,6 +9,7 @@ import {
     useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { AppTourTarget } from "../contexts/AppTourContext";
@@ -42,6 +42,8 @@ type TargetRect = {
     height: number;
 };
 
+const TAB_BAR_HEIGHT = 76;
+
 export default function AppTourOverlay({
     visible,
     step,
@@ -54,44 +56,57 @@ export default function AppTourOverlay({
     onSkip,
 }: Props) {
     const { colors } = useTheme();
+    const insets = useSafeAreaInsets();
     const { height: screenHeight, width: screenWidth } = useWindowDimensions();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const opacity = React.useRef(new Animated.Value(0)).current;
-    const translateY = React.useRef(new Animated.Value(24)).current;
+    const railY = React.useRef(new Animated.Value(18)).current;
     const pulse = React.useRef(new Animated.Value(0)).current;
     const [targetRect, setTargetRect] = React.useState<TargetRect | null>(null);
+    const [targetPending, setTargetPending] = React.useState(false);
 
     React.useEffect(() => {
         if (!visible) {
             opacity.setValue(0);
-            translateY.setValue(24);
+            railY.setValue(18);
             setTargetRect(null);
+            setTargetPending(false);
             return;
         }
 
         Animated.parallel([
             Animated.timing(opacity, {
                 toValue: 1,
-                duration: 260,
+                duration: 180,
                 easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
             }),
-            Animated.timing(translateY, {
+            Animated.timing(railY, {
                 toValue: 0,
-                duration: 320,
+                duration: 220,
                 easing: Easing.out(Easing.cubic),
                 useNativeDriver: true,
             }),
         ]).start();
-    }, [opacity, translateY, visible, current]);
+    }, [opacity, railY, visible, current]);
 
     React.useEffect(() => {
         if (!visible) return;
         pulse.setValue(0);
         const loop = Animated.loop(
             Animated.sequence([
-                Animated.timing(pulse, { toValue: 1, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
-                Animated.timing(pulse, { toValue: 0, duration: 1300, easing: Easing.inOut(Easing.sin), useNativeDriver: true }),
+                Animated.timing(pulse, {
+                    toValue: 1,
+                    duration: 1200,
+                    easing: Easing.inOut(Easing.sin),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(pulse, {
+                    toValue: 0,
+                    duration: 1200,
+                    easing: Easing.inOut(Easing.sin),
+                    useNativeDriver: true,
+                }),
             ]),
         );
         loop.start();
@@ -103,6 +118,8 @@ export default function AppTourOverlay({
         let cancelled = false;
         const targetId = step.targetId;
         setTargetRect(null);
+        setTargetPending(true);
+
         const target = getTarget(targetId);
         target?.scrollTo?.();
         target?.action?.();
@@ -110,208 +127,183 @@ export default function AppTourOverlay({
         const measure = () => {
             const nextTarget = getTarget(targetId);
             const node = nextTarget?.ref.current;
-            if (!node?.measureInWindow) return;
+            if (!node?.measureInWindow) {
+                if (!cancelled) setTargetPending(false);
+                return;
+            }
             node.measureInWindow((x, y, width, height) => {
-                if (cancelled || !width || !height) return;
+                if (cancelled) return;
+                setTargetPending(false);
+                if (!width || !height) return;
                 setTargetRect({ x, y, width, height });
             });
         };
 
         const timers = [
-            setTimeout(measure, 90),
-            setTimeout(measure, 360),
-            setTimeout(measure, 720),
+            setTimeout(measure, 420),
+            setTimeout(() => {
+                if (!cancelled && !targetRect) measure();
+            }, 820),
         ];
 
         return () => {
             cancelled = true;
             timers.forEach(clearTimeout);
         };
+        // targetRect is intentionally omitted so the retry does not restart itself.
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [current, getTarget, step, targetVersion, visible]);
 
+    if (!visible || !step) return null;
+
     const pulseStyle = {
-        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.08] }),
-        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) }],
+        opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.28, 0.05] }),
+        transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.12] }) }],
     };
 
     const paddedRect = targetRect ? {
-        x: Math.max(spacing.md, targetRect.x - spacing.sm),
-        y: Math.max(44, targetRect.y - spacing.sm),
-        width: Math.min(screenWidth - spacing.md * 2, targetRect.width + spacing.md),
-        height: Math.max(50, targetRect.height + spacing.md),
+        x: Math.max(spacing.sm, targetRect.x - spacing.xs),
+        y: Math.max(insets.top + spacing.xs, targetRect.y - spacing.xs),
+        width: Math.min(screenWidth - spacing.sm * 2, targetRect.width + spacing.sm),
+        height: Math.max(42, Math.min(screenHeight - TAB_BAR_HEIGHT - spacing.xl, targetRect.height + spacing.sm)),
     } : null;
-    const cardOnTop = step.preferredCardPosition === "top" || (!!paddedRect && paddedRect.y > screenHeight * 0.48);
-    const cardStyle = [
-        styles.card,
-        cardOnTop ? styles.cardTop : styles.cardBottom,
-        { transform: [{ translateY }] },
-    ];
 
     return (
-        <Modal visible={visible} transparent animationType="none" onRequestClose={onSkip}>
-            <Animated.View style={[styles.overlay, { opacity }]}>
-                {paddedRect ? (
-                    <View
-                        pointerEvents="none"
-                        style={[
-                            styles.targetSpotlight,
-                            {
-                                left: paddedRect.x,
-                                top: paddedRect.y,
-                                width: paddedRect.width,
-                                height: paddedRect.height,
-                            },
-                        ]}
-                    >
-                        <Animated.View style={[styles.targetPulse, pulseStyle]} />
-                        <Ionicons name={step.icon} size={22} color={colors.accent} />
-                    </View>
-                ) : (
-                    <View style={styles.fallbackSpotlight} pointerEvents="none">
-                        <Animated.View style={[styles.spotlightPulse, pulseStyle]} />
-                        <View style={styles.spotlight}>
-                            <Ionicons name={step.icon} size={24} color={colors.accent} />
-                            <Text style={styles.spotlightText}>{step.tabLabel}</Text>
-                        </View>
-                    </View>
-                )}
+        <Animated.View pointerEvents="box-none" style={[styles.layer, { opacity }]}>
+            {paddedRect ? (
+                <View
+                    pointerEvents="none"
+                    style={[
+                        styles.targetOutline,
+                        {
+                            left: paddedRect.x,
+                            top: paddedRect.y,
+                            width: paddedRect.width,
+                            height: paddedRect.height,
+                        },
+                    ]}
+                >
+                    <Animated.View style={[styles.targetGlow, pulseStyle]} />
+                </View>
+            ) : null}
 
-                <Animated.View style={cardStyle}>
-                    <View style={styles.handle} />
-                    <View style={styles.cardHeader}>
+            <Animated.View
+                pointerEvents="box-none"
+                style={[
+                    styles.railWrap,
+                    {
+                        bottom: TAB_BAR_HEIGHT + Math.max(insets.bottom, spacing.sm),
+                        transform: [{ translateY: railY }],
+                    },
+                ]}
+            >
+                <View style={styles.rail}>
+                    <View style={styles.progressTrack}>
+                        <View style={[styles.progressFill, { width: `${Math.max(4, ((current + 1) / total) * 100)}%` }]} />
+                    </View>
+
+                    <View style={styles.railHeader}>
                         <View style={styles.iconWrap}>
-                            <Ionicons name={step.icon} size={22} color={colors.background} />
+                            <Ionicons name={step.icon} size={16} color={colors.accent} />
                         </View>
                         <View style={{ flex: 1 }}>
-                            <Text style={styles.kicker}>Uygulama turu</Text>
-                            <Text style={styles.title}>{step.title}</Text>
+                            <Text style={styles.kicker}>
+                                {targetPending ? "Alan hazirlaniyor" : "Uygulama turu"} · {current + 1}/{total}
+                            </Text>
+                            <Text style={styles.title} numberOfLines={1}>{step.title}</Text>
                         </View>
-                        <Text style={styles.counter}>{current + 1}/{total}</Text>
                     </View>
 
-                    <Text style={styles.body}>{step.body}</Text>
-
-                    <View style={styles.dots}>
-                        {Array.from({ length: total }).map((_, index) => (
-                            <View
-                                key={index}
-                                style={[
-                                    styles.dot,
-                                    index === current && styles.dotActive,
-                                ]}
-                            />
-                        ))}
-                    </View>
+                    <Text style={styles.body} numberOfLines={3}>{step.body}</Text>
 
                     <View style={styles.actions}>
-                        <TouchableOpacity style={styles.ghostBtn} onPress={onSkip} activeOpacity={0.78}>
-                            <Text style={styles.ghostText}>Gec</Text>
+                        <TouchableOpacity style={styles.secondaryBtn} onPress={onSkip} activeOpacity={0.78}>
+                            <Text style={styles.secondaryText}>Gec</Text>
                         </TouchableOpacity>
                         {onPrevious && current > 0 ? (
-                            <TouchableOpacity style={styles.ghostBtn} onPress={onPrevious} activeOpacity={0.78}>
-                                <Text style={styles.ghostText}>Geri</Text>
+                            <TouchableOpacity style={styles.secondaryBtn} onPress={onPrevious} activeOpacity={0.78}>
+                                <Text style={styles.secondaryText}>Geri</Text>
                             </TouchableOpacity>
                         ) : null}
                         <TouchableOpacity style={styles.primaryBtn} onPress={onNext} activeOpacity={0.84}>
                             <Text style={styles.primaryText}>{current === total - 1 ? "Basla" : "Sonraki"}</Text>
-                            <Ionicons name={current === total - 1 ? "checkmark" : "arrow-forward"} size={17} color={colors.background} />
+                            <Ionicons name={current === total - 1 ? "checkmark" : "arrow-forward"} size={16} color={colors.background} />
                         </TouchableOpacity>
                     </View>
-                </Animated.View>
+                </View>
             </Animated.View>
-        </Modal>
+        </Animated.View>
     );
 }
 
 const createStyles = (colors: any) => StyleSheet.create({
-    overlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.72)",
-        paddingHorizontal: spacing.xl,
+    layer: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 50,
     },
-    fallbackSpotlight: {
-        flex: 1,
-        alignItems: "center",
-        justifyContent: "center",
-    },
-    spotlightPulse: {
-        position: "absolute",
-        width: 190,
-        height: 190,
-        borderRadius: 95,
-        backgroundColor: colors.accent,
-    },
-    spotlight: {
-        minWidth: 180,
-        minHeight: 112,
-        borderRadius: borderRadius.xl,
-        borderWidth: 1,
-        borderColor: colors.accentBorder,
-        backgroundColor: colors.surface,
-        alignItems: "center",
-        justifyContent: "center",
-        gap: spacing.sm,
-        padding: spacing.xl,
-    },
-    spotlightText: {
-        color: colors.text,
-        fontSize: fontSize.md,
-        fontWeight: fontWeight.bold,
-    },
-    targetSpotlight: {
+    targetOutline: {
         position: "absolute",
         borderRadius: borderRadius.lg,
         borderWidth: 2,
         borderColor: colors.accent,
-        backgroundColor: "rgba(255,255,255,0.04)",
-        alignItems: "center",
-        justifyContent: "center",
-        overflow: "visible",
+        backgroundColor: "transparent",
+        shadowColor: colors.accent,
+        shadowOffset: { width: 0, height: 0 },
+        shadowOpacity: 0.24,
+        shadowRadius: 14,
+        elevation: 8,
     },
-    targetPulse: {
+    targetGlow: {
         position: "absolute",
-        left: -7,
-        right: -7,
-        top: -7,
-        bottom: -7,
+        left: -5,
+        right: -5,
+        top: -5,
+        bottom: -5,
         borderRadius: borderRadius.xl,
         backgroundColor: colors.accent,
     },
-    card: {
+    railWrap: {
         position: "absolute",
-        left: spacing.lg,
-        right: spacing.lg,
-        borderRadius: borderRadius.xl,
-        backgroundColor: colors.surfaceLight,
+        left: spacing.md,
+        right: spacing.md,
+    },
+    rail: {
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.surface,
         borderWidth: 1,
         borderColor: colors.borderLight,
-        padding: spacing.xl,
+        padding: spacing.md,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.26,
+        shadowRadius: 18,
+        elevation: 14,
     },
-    cardTop: {
-        top: 64,
-    },
-    cardBottom: {
-        bottom: 88,
-    },
-    handle: {
-        alignSelf: "center",
-        width: 44,
-        height: 4,
+    progressTrack: {
+        height: 3,
         borderRadius: 99,
-        backgroundColor: colors.borderLight,
-        marginBottom: spacing.lg,
+        backgroundColor: colors.surfaceElevated,
+        overflow: "hidden",
+        marginBottom: spacing.sm,
     },
-    cardHeader: {
+    progressFill: {
+        height: "100%",
+        borderRadius: 99,
+        backgroundColor: colors.accent,
+    },
+    railHeader: {
         flexDirection: "row",
         alignItems: "center",
-        gap: spacing.md,
-        marginBottom: spacing.md,
+        gap: spacing.sm,
+        marginBottom: spacing.xs,
     },
     iconWrap: {
-        width: 42,
-        height: 42,
-        borderRadius: 21,
-        backgroundColor: colors.accent,
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.accentMuted,
         alignItems: "center",
         justifyContent: "center",
     },
@@ -323,69 +315,50 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     title: {
         color: colors.text,
-        fontSize: fontSize.lg,
+        fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
-        marginTop: 2,
-    },
-    counter: {
-        color: colors.textMuted,
-        fontSize: fontSize.sm,
-        fontWeight: fontWeight.semibold,
+        marginTop: 1,
     },
     body: {
         color: colors.textSecondary,
-        fontSize: fontSize.md,
-        lineHeight: 22,
-    },
-    dots: {
-        flexDirection: "row",
-        flexWrap: "wrap",
-        gap: 7,
-        marginTop: spacing.lg,
-        marginBottom: spacing.xl,
-    },
-    dot: {
-        width: 7,
-        height: 7,
-        borderRadius: 4,
-        backgroundColor: colors.borderLight,
-    },
-    dotActive: {
-        width: 22,
-        backgroundColor: colors.accent,
+        fontSize: fontSize.sm,
+        lineHeight: 19,
+        marginBottom: spacing.md,
     },
     actions: {
         flexDirection: "row",
-        justifyContent: "space-between",
-        gap: spacing.md,
+        justifyContent: "flex-end",
+        gap: spacing.sm,
     },
-    ghostBtn: {
-        flex: 1,
-        minHeight: 48,
+    secondaryBtn: {
+        minHeight: 38,
+        minWidth: 72,
         borderRadius: borderRadius.md,
         borderWidth: 1,
         borderColor: colors.borderLight,
         alignItems: "center",
         justifyContent: "center",
+        paddingHorizontal: spacing.sm,
     },
-    ghostText: {
+    secondaryText: {
         color: colors.textSecondary,
-        fontSize: fontSize.md,
+        fontSize: fontSize.sm,
         fontWeight: fontWeight.semibold,
     },
     primaryBtn: {
-        flex: 1.35,
-        minHeight: 48,
+        minHeight: 38,
+        minWidth: 106,
         borderRadius: borderRadius.md,
         backgroundColor: colors.accent,
         alignItems: "center",
         justifyContent: "center",
         flexDirection: "row",
-        gap: spacing.sm,
+        gap: spacing.xs,
+        paddingHorizontal: spacing.md,
     },
     primaryText: {
         color: colors.background,
-        fontSize: fontSize.md,
+        fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
     },
 });
