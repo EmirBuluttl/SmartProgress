@@ -7,16 +7,20 @@ import {
     Text,
     TouchableOpacity,
     View,
+    useWindowDimensions,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
+import { AppTourTarget } from "../contexts/AppTourContext";
 
 export type AppTourStep = {
     title: string;
     body: string;
     icon: React.ComponentProps<typeof Ionicons>["name"];
     tabLabel: string;
+    targetId?: string;
+    preferredCardPosition?: "top" | "bottom";
 };
 
 type Props = {
@@ -24,21 +28,44 @@ type Props = {
     step: AppTourStep;
     current: number;
     total: number;
+    getTarget: (id: string) => AppTourTarget | null;
+    targetVersion?: number;
     onNext: () => void;
+    onPrevious?: () => void;
     onSkip: () => void;
 };
 
-export default function AppTourOverlay({ visible, step, current, total, onNext, onSkip }: Props) {
+type TargetRect = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+};
+
+export default function AppTourOverlay({
+    visible,
+    step,
+    current,
+    total,
+    getTarget,
+    targetVersion = 0,
+    onNext,
+    onPrevious,
+    onSkip,
+}: Props) {
     const { colors } = useTheme();
+    const { height: screenHeight, width: screenWidth } = useWindowDimensions();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const opacity = React.useRef(new Animated.Value(0)).current;
     const translateY = React.useRef(new Animated.Value(24)).current;
     const pulse = React.useRef(new Animated.Value(0)).current;
+    const [targetRect, setTargetRect] = React.useState<TargetRect | null>(null);
 
     React.useEffect(() => {
         if (!visible) {
             opacity.setValue(0);
             translateY.setValue(24);
+            setTargetRect(null);
             return;
         }
 
@@ -71,23 +98,85 @@ export default function AppTourOverlay({ visible, step, current, total, onNext, 
         return () => loop.stop();
     }, [pulse, visible]);
 
+    React.useEffect(() => {
+        if (!visible || !step?.targetId) return;
+        let cancelled = false;
+        const targetId = step.targetId;
+        setTargetRect(null);
+        const target = getTarget(targetId);
+        target?.scrollTo?.();
+        target?.action?.();
+
+        const measure = () => {
+            const nextTarget = getTarget(targetId);
+            const node = nextTarget?.ref.current;
+            if (!node?.measureInWindow) return;
+            node.measureInWindow((x, y, width, height) => {
+                if (cancelled || !width || !height) return;
+                setTargetRect({ x, y, width, height });
+            });
+        };
+
+        const timers = [
+            setTimeout(measure, 90),
+            setTimeout(measure, 360),
+            setTimeout(measure, 720),
+        ];
+
+        return () => {
+            cancelled = true;
+            timers.forEach(clearTimeout);
+        };
+    }, [current, getTarget, step, targetVersion, visible]);
+
     const pulseStyle = {
         opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.35, 0.08] }),
         transform: [{ scale: pulse.interpolate({ inputRange: [0, 1], outputRange: [1, 1.18] }) }],
     };
 
+    const paddedRect = targetRect ? {
+        x: Math.max(spacing.md, targetRect.x - spacing.sm),
+        y: Math.max(44, targetRect.y - spacing.sm),
+        width: Math.min(screenWidth - spacing.md * 2, targetRect.width + spacing.md),
+        height: Math.max(50, targetRect.height + spacing.md),
+    } : null;
+    const cardOnTop = step.preferredCardPosition === "top" || (!!paddedRect && paddedRect.y > screenHeight * 0.48);
+    const cardStyle = [
+        styles.card,
+        cardOnTop ? styles.cardTop : styles.cardBottom,
+        { transform: [{ translateY }] },
+    ];
+
     return (
         <Modal visible={visible} transparent animationType="none" onRequestClose={onSkip}>
             <Animated.View style={[styles.overlay, { opacity }]}>
-                <View style={styles.spotlightWrap} pointerEvents="none">
-                    <Animated.View style={[styles.spotlightPulse, pulseStyle]} />
-                    <View style={styles.spotlight}>
-                        <Ionicons name={step.icon} size={24} color={colors.accent} />
-                        <Text style={styles.spotlightText}>{step.tabLabel}</Text>
+                {paddedRect ? (
+                    <View
+                        pointerEvents="none"
+                        style={[
+                            styles.targetSpotlight,
+                            {
+                                left: paddedRect.x,
+                                top: paddedRect.y,
+                                width: paddedRect.width,
+                                height: paddedRect.height,
+                            },
+                        ]}
+                    >
+                        <Animated.View style={[styles.targetPulse, pulseStyle]} />
+                        <Ionicons name={step.icon} size={22} color={colors.accent} />
                     </View>
-                </View>
+                ) : (
+                    <View style={styles.fallbackSpotlight} pointerEvents="none">
+                        <Animated.View style={[styles.spotlightPulse, pulseStyle]} />
+                        <View style={styles.spotlight}>
+                            <Ionicons name={step.icon} size={24} color={colors.accent} />
+                            <Text style={styles.spotlightText}>{step.tabLabel}</Text>
+                        </View>
+                    </View>
+                )}
 
-                <Animated.View style={[styles.card, { transform: [{ translateY }] }]}>
+                <Animated.View style={cardStyle}>
                     <View style={styles.handle} />
                     <View style={styles.cardHeader}>
                         <View style={styles.iconWrap}>
@@ -116,10 +205,15 @@ export default function AppTourOverlay({ visible, step, current, total, onNext, 
 
                     <View style={styles.actions}>
                         <TouchableOpacity style={styles.ghostBtn} onPress={onSkip} activeOpacity={0.78}>
-                            <Text style={styles.ghostText}>Geç</Text>
+                            <Text style={styles.ghostText}>Gec</Text>
                         </TouchableOpacity>
+                        {onPrevious && current > 0 ? (
+                            <TouchableOpacity style={styles.ghostBtn} onPress={onPrevious} activeOpacity={0.78}>
+                                <Text style={styles.ghostText}>Geri</Text>
+                            </TouchableOpacity>
+                        ) : null}
                         <TouchableOpacity style={styles.primaryBtn} onPress={onNext} activeOpacity={0.84}>
-                            <Text style={styles.primaryText}>{current === total - 1 ? "Başla" : "Sonraki"}</Text>
+                            <Text style={styles.primaryText}>{current === total - 1 ? "Basla" : "Sonraki"}</Text>
                             <Ionicons name={current === total - 1 ? "checkmark" : "arrow-forward"} size={17} color={colors.background} />
                         </TouchableOpacity>
                     </View>
@@ -133,15 +227,12 @@ const createStyles = (colors: any) => StyleSheet.create({
     overlay: {
         flex: 1,
         backgroundColor: "rgba(0,0,0,0.72)",
-        justifyContent: "space-between",
         paddingHorizontal: spacing.xl,
-        paddingTop: 72,
-        paddingBottom: 96,
     },
-    spotlightWrap: {
+    fallbackSpotlight: {
+        flex: 1,
         alignItems: "center",
         justifyContent: "center",
-        minHeight: 190,
     },
     spotlightPulse: {
         position: "absolute",
@@ -167,12 +258,40 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
     },
+    targetSpotlight: {
+        position: "absolute",
+        borderRadius: borderRadius.lg,
+        borderWidth: 2,
+        borderColor: colors.accent,
+        backgroundColor: "rgba(255,255,255,0.04)",
+        alignItems: "center",
+        justifyContent: "center",
+        overflow: "visible",
+    },
+    targetPulse: {
+        position: "absolute",
+        left: -7,
+        right: -7,
+        top: -7,
+        bottom: -7,
+        borderRadius: borderRadius.xl,
+        backgroundColor: colors.accent,
+    },
     card: {
+        position: "absolute",
+        left: spacing.lg,
+        right: spacing.lg,
         borderRadius: borderRadius.xl,
         backgroundColor: colors.surfaceLight,
         borderWidth: 1,
         borderColor: colors.borderLight,
         padding: spacing.xl,
+    },
+    cardTop: {
+        top: 64,
+    },
+    cardBottom: {
+        bottom: 88,
     },
     handle: {
         alignSelf: "center",
@@ -220,6 +339,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     dots: {
         flexDirection: "row",
+        flexWrap: "wrap",
         gap: 7,
         marginTop: spacing.lg,
         marginBottom: spacing.xl,

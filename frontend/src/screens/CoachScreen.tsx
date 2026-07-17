@@ -13,6 +13,7 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import NoticeModal from "../components/NoticeModal";
+import { useAppTourTarget } from "../contexts/AppTourContext";
 
 type SubscriptionTier = "free" | "pro" | "coach_plus";
 
@@ -108,6 +109,17 @@ export default function CoachScreen() {
     const { animStyle: dashboardAnimStyle } = useScreenEnter({ delay: 140 });
     const { animStyle: flowAnimStyle } = useScreenEnter({ delay: 200 });
     const { animStyle: reportAnimStyle } = useScreenEnter({ delay: 260 });
+    const scrollRef = React.useRef<ScrollView | null>(null);
+    const tourOffsetsRef = React.useRef<Record<string, number>>({});
+    const rememberTourOffset = React.useCallback((id: string) => (event: any) => {
+        tourOffsetsRef.current[id] = event.nativeEvent.layout.y;
+    }, []);
+    const scrollToTourTarget = React.useCallback((id: string) => {
+        const y = tourOffsetsRef.current[id] ?? 0;
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
+    }, []);
+    const heroTourRef = useAppTourTarget("coach.hero", { scrollTo: () => scrollToTourTarget("coach.hero") });
+    const packageTourRef = useAppTourTarget("coach.package", { scrollTo: () => scrollToTourTarget("coach.package") });
     const navigateStatic = React.useCallback(
         (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
             navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
@@ -194,6 +206,7 @@ export default function CoachScreen() {
     return (
         <>
         <Animated.ScrollView
+            ref={scrollRef}
             style={[styles.container, animStyle]}
             contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 80 }]}
             showsVerticalScrollIndicator={false}
@@ -214,7 +227,7 @@ export default function CoachScreen() {
             </View>
 
             {isFree ? (
-                <Animated.View style={[styles.teaserPanel, heroAnimStyle]}>
+                <Animated.View ref={heroTourRef} collapsable={false} onLayout={rememberTourOffset("coach.hero")} style={[styles.teaserPanel, heroAnimStyle]}>
                     <View style={styles.panelTopRow}>
                         <View>
                             <Text style={styles.panelLabel}>Premium</Text>
@@ -249,7 +262,7 @@ export default function CoachScreen() {
                     </AnimatedPressable>
                 </Animated.View>
             ) : (
-                <Animated.View style={[styles.activeHero, heroAnimStyle]}>
+                <Animated.View ref={heroTourRef} collapsable={false} onLayout={rememberTourOffset("coach.hero")} style={[styles.activeHero, heroAnimStyle]}>
                     <View style={styles.panelTopRow}>
                         <View style={styles.activeHeroCopy}>
                             <Text style={styles.panelLabel}>Premium erisimi</Text>
@@ -586,7 +599,7 @@ export default function CoachScreen() {
             </View>
             )}
 
-            <View style={styles.compareSection}>
+            <View ref={packageTourRef} collapsable={false} onLayout={rememberTourOffset("coach.package")} style={styles.compareSection}>
                 <View style={styles.dashboardHeader}>
                     <View>
                         <Text style={styles.sectionTitle}>Paket bilgisi</Text>

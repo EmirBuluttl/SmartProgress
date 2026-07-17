@@ -47,6 +47,7 @@ import { getPersistedWorkoutAnalyticsSnapshot } from "../services/workoutAnalyti
 import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { getCachedProfile } from "../services/authCacheService";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
+import { useAppTourTarget } from "../contexts/AppTourContext";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const AVAILABLE_COLORS = [
@@ -82,6 +83,26 @@ export default function ProfileScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
     const { animStyle } = useScreenEnter();
+    const scrollRef = React.useRef<ScrollView | null>(null);
+    const tourOffsetsRef = React.useRef<Record<string, number>>({});
+    const rememberTourOffset = React.useCallback((id: string) => (event: any) => {
+        tourOffsetsRef.current[id] = event.nativeEvent.layout.y;
+    }, []);
+    const scrollToTourTarget = React.useCallback((id: string) => {
+        const y = tourOffsetsRef.current[id] ?? 0;
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
+    }, []);
+    const profileHeaderTourRef = useAppTourTarget("profile.header", { scrollTo: () => scrollToTourTarget("profile.header") });
+    const heatmapTourRef = useAppTourTarget("profile.heatmap", { scrollTo: () => scrollToTourTarget("profile.heatmap") });
+    const trackingTourRef = useAppTourTarget("profile.tracking", { scrollTo: () => scrollToTourTarget("profile.tracking") });
+    const notificationsTourRef = useAppTourTarget("profile.notifications", { scrollTo: () => scrollToTourTarget("profile.notifications") });
+    const levelTourRef = useAppTourTarget("profile.level", { scrollTo: () => scrollToTourTarget("profile.level") });
+    const rpeRirTourRef = useAppTourTarget("profile.rpeRir", { scrollTo: () => scrollToTourTarget("profile.rpeRir") });
+    const exerciseLibraryTourRef = useAppTourTarget("profile.exerciseLibrary", { scrollTo: () => scrollToTourTarget("profile.exerciseLibrary") });
+    const rememberRepsTourRef = useAppTourTarget("profile.rememberReps", { scrollTo: () => scrollToTourTarget("profile.rememberReps") });
+    const visibilityTourRef = useAppTourTarget("profile.visibility", { scrollTo: () => scrollToTourTarget("profile.visibility") });
+    const themeColorTourRef = useAppTourTarget("profile.themeColor", { scrollTo: () => scrollToTourTarget("profile.themeColor") });
+    const themeModeTourRef = useAppTourTarget("profile.themeMode", { scrollTo: () => scrollToTourTarget("profile.themeMode") });
     const navigateStatic = React.useCallback(
         (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
             navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
@@ -373,12 +394,13 @@ export default function ProfileScreen() {
     return (
         <>
         <Animated.ScrollView
+            ref={scrollRef}
             style={[styles.container, animStyle]}
-            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
+            contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg, paddingBottom: insets.bottom + 120 }]}
             showsVerticalScrollIndicator={false}
         >
             {/* ─── Profile Header ─── */}
-            <View style={styles.profileHeader}>
+            <View ref={profileHeaderTourRef} collapsable={false} onLayout={rememberTourOffset("profile.header")} style={styles.profileHeader}>
                 <AnimatedPressable style={styles.avatarPressable} onPress={pickProfileImage} pressedScale={0.96}>
                     <View style={styles.avatarLarge}>
                         {user?.avatarUrl || user?.profileImage ? (
@@ -426,9 +448,12 @@ export default function ProfileScreen() {
             </View>
 
             {/* ─── Activity Heatmap ─── */}
-            <HeatmapCalendar workouts={workouts} colors={colors} heatmapStyles={heatmapStyles} />
+            <View ref={heatmapTourRef} collapsable={false} onLayout={rememberTourOffset("profile.heatmap")}>
+                <HeatmapCalendar workouts={workouts} colors={colors} heatmapStyles={heatmapStyles} />
+            </View>
 
             <SectionHeader title="Takip" />
+            <View ref={trackingTourRef} collapsable={false} onLayout={rememberTourOffset("profile.tracking")}>
             <GymCard style={styles.settingsCard}>
                 <TouchableOpacity
                     style={styles.settingRow}
@@ -464,10 +489,12 @@ export default function ProfileScreen() {
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
             </GymCard>
+            </View>
 
             {/* ─── Settings ─── */}
             <SectionHeader title="Ayarlar" />
             <GymCard style={styles.settingsCard}>
+                <View ref={notificationsTourRef} collapsable={false} onLayout={rememberTourOffset("profile.notifications")}>
                 <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
@@ -509,10 +536,13 @@ export default function ProfileScreen() {
                     </View>
                     <Ionicons name="chevron-forward" size={20} color={colors.textMuted} />
                 </TouchableOpacity>
+                </View>
 
                 <View style={styles.settingDivider} />
 
                 <TouchableOpacity
+                    ref={levelTourRef}
+                    onLayout={rememberTourOffset("profile.level")}
                     style={styles.settingRow}
                     onPress={() => navigateStatic("TrainingLevel")}
                     activeOpacity={0.78}
@@ -596,7 +626,7 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
-                <View style={styles.settingRow}>
+                <View ref={rpeRirTourRef} collapsable={false} onLayout={rememberTourOffset("profile.rpeRir")} style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
@@ -623,6 +653,8 @@ export default function ProfileScreen() {
                 <View style={styles.settingDivider} />
 
                 <TouchableOpacity
+                    ref={exerciseLibraryTourRef}
+                    onLayout={rememberTourOffset("profile.exerciseLibrary")}
                     style={styles.settingRow}
                     activeOpacity={0.75}
                     onPress={() => navigateStatic("ExerciseLibrary")}
@@ -641,7 +673,7 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
-                <View style={styles.settingRow}>
+                <View ref={rememberRepsTourRef} collapsable={false} onLayout={rememberTourOffset("profile.rememberReps")} style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name="repeat-outline" size={20} color={colors.accent} />
@@ -672,7 +704,7 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
-                <View style={styles.settingRow}>
+                <View ref={visibilityTourRef} collapsable={false} onLayout={rememberTourOffset("profile.visibility")} style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name={profilePublic ? "globe-outline" : "lock-closed-outline"} size={20} color={colors.accent} />
@@ -720,6 +752,8 @@ export default function ProfileScreen() {
                 <View style={styles.settingDivider} />
 
                 <TouchableOpacity
+                    ref={themeColorTourRef}
+                    onLayout={rememberTourOffset("profile.themeColor")}
                     style={styles.settingRow}
                     activeOpacity={0.7}
                     onPress={() => setThemePickerVisible(true)}
@@ -736,7 +770,7 @@ export default function ProfileScreen() {
                     <View style={[styles.currentColorDot, { backgroundColor: colors.accent }]} />
                 </TouchableOpacity>
 
-                <View style={styles.settingRow}>
+                <View ref={themeModeTourRef} collapsable={false} onLayout={rememberTourOffset("profile.themeMode")} style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name={themeMode === "dark" ? "moon-outline" : "sunny-outline"} size={20} color={colors.textSecondary} />
@@ -842,12 +876,14 @@ export default function ProfileScreen() {
             </GymCard>
 
             {/* ─── My Programs ─── */}
+            {false ? (
+            <>
             <SectionHeader
                 title="Programlarım"
                 actionLabel="Tümü"
                 onAction={() => navigateStatic("ProgramList")}
             />
-            {topPrograms.length > 0 ? topPrograms.map((prog, index) => (
+            {false && topPrograms.length > 0 ? topPrograms.map((prog, index) => (
                 <TouchableOpacity
                     key={prog.id}
                     onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: prog.id }))}
@@ -913,6 +949,9 @@ export default function ProfileScreen() {
             </GymCard>
 
             {/* ─── Logout ─── */}
+            </>
+            ) : null}
+
             <AccentButton
                 title="Çıkış Yap"
                 variant="outline"
@@ -920,7 +959,7 @@ export default function ProfileScreen() {
                 style={styles.logoutBtn}
             />
 
-            <View style={{ height: spacing.xxxl }} />
+            <View style={{ height: insets.bottom + 120 }} />
         </Animated.ScrollView>
         <Modal
             visible={themePickerVisible}

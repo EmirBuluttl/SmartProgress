@@ -42,6 +42,7 @@ import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
 import WeeklyStrengthChart from "../components/WeeklyStrengthChart";
+import { useAppTourTarget } from "../contexts/AppTourContext";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const RECORD_LINKS_KEY = "personal_record_video_links";
@@ -178,6 +179,7 @@ export default function MyProgressScreen() {
     const navigation = useNavigation<any>();
     const isFocused = useIsFocused();
     const isFocusedRef = React.useRef(isFocused);
+    const scrollRef = React.useRef<ScrollView | null>(null);
     const { animStyle } = useScreenEnter();
     const { animStyle: filtersAnimStyle } = useScreenEnter({ delay: 80 });
     const { animStyle: chartAnimStyle } = useScreenEnter({ delay: 150 });
@@ -198,6 +200,17 @@ export default function MyProgressScreen() {
     const chartRequestIdRef = React.useRef(0);
     const isNavigatingToRecordsRef = React.useRef(false);
     const hasSetDefaultMetric = React.useRef(false);
+    const tourOffsetsRef = React.useRef<Record<string, number>>({});
+    const rememberTourOffset = React.useCallback((id: string) => (event: any) => {
+        tourOffsetsRef.current[id] = event.nativeEvent.layout.y;
+    }, []);
+    const scrollToTourTarget = React.useCallback((id: string) => {
+        const y = tourOffsetsRef.current[id] ?? 0;
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
+    }, []);
+    const chartTourRef = useAppTourTarget("progress.chart", { scrollTo: () => scrollToTourTarget("progress.chart") });
+    const filterTourRef = useAppTourTarget("progress.filter", { scrollTo: () => scrollToTourTarget("progress.filter") });
+    const recordsTourRef = useAppTourTarget("progress.records", { scrollTo: () => scrollToTourTarget("progress.records") });
 
     // 3 dakika TTL: stack ekrandan dönüşte sadece bayatlamış veri yeniden yüklenir
     const { shouldReload: shouldReloadAnalytics, markLoaded: markAnalyticsLoaded } = useStaleDataGuard(3 * 60 * 1000);
@@ -566,6 +579,7 @@ export default function MyProgressScreen() {
     return (
         <>
             <Animated.ScrollView
+                ref={scrollRef}
                 style={[styles.container, animStyle]}
                 contentContainerStyle={[styles.content, { paddingTop: insets.top + spacing.lg }]}
                 showsVerticalScrollIndicator={false}
@@ -591,7 +605,7 @@ export default function MyProgressScreen() {
                 )}
 
                 {/* ── Filtre özeti ── */}
-                <Animated.View style={[styles.filterSummaryCard, filtersAnimStyle]}>
+                <Animated.View ref={filterTourRef} collapsable={false} onLayout={rememberTourOffset("progress.filter")} style={[styles.filterSummaryCard, filtersAnimStyle]}>
                     <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.filterSummaryLabel}>Görünüm</Text>
                         <Text style={styles.filterSummaryValue} numberOfLines={1}>
@@ -612,7 +626,7 @@ export default function MyProgressScreen() {
                 </Animated.View>
 
                 {/* ── Progress Chart ── */}
-                <Animated.View style={chartAnimStyle}>
+                <Animated.View ref={chartTourRef} collapsable={false} onLayout={rememberTourOffset("progress.chart")} style={chartAnimStyle}>
                     <SectionHeader title={chartTitle} />
                     <GymCard elevated style={styles.chartCard}>
                         {/* Score summary row */}
@@ -694,7 +708,7 @@ export default function MyProgressScreen() {
                 )}
 
                 {/* ── Personal Records ── */}
-                <Animated.View style={prsAnimStyle}>
+                <Animated.View ref={recordsTourRef} collapsable={false} onLayout={rememberTourOffset("progress.records")} style={prsAnimStyle}>
                     <SectionHeader
                         title="En İyi Setlerim"
                         actionLabel="Tümünü Gör"

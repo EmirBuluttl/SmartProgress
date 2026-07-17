@@ -55,6 +55,7 @@ import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 import { applyProgramDayIndex } from "../services/programDayProgressService";
+import { useAppTourTarget } from "../contexts/AppTourContext";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -109,6 +110,22 @@ export default function HomeScreen() {
     const activeCardPulse = useRef(new Animated.Value(0)).current;
     const streakCelebrationAnim = useRef(new Animated.Value(0)).current;
     const [activatedProgramId, setActivatedProgramId] = useState<string | null>(null);
+    const tourOffsetsRef = React.useRef<Record<string, number>>({});
+    const rememberTourOffset = React.useCallback((id: string) => (event: any) => {
+        tourOffsetsRef.current[id] = event.nativeEvent.layout.y;
+    }, []);
+    const scrollToTourTarget = React.useCallback((id: string) => {
+        const y = tourOffsetsRef.current[id] ?? 0;
+        scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
+    }, []);
+    const streakTourRef = useAppTourTarget("home.streak", { scrollTo: () => scrollToTourTarget("home.streak") });
+    const headerActionsTourRef = useAppTourTarget("home.headerActions", { scrollTo: () => scrollToTourTarget("home.headerActions") });
+    const quickWorkoutTourRef = useAppTourTarget("home.quickWorkout", { scrollTo: () => scrollToTourTarget("home.quickWorkout") });
+    const statsTourRef = useAppTourTarget("home.stats", { scrollTo: () => scrollToTourTarget("home.stats") });
+    const activeProgramTourRef = useAppTourTarget("home.activeProgram", { scrollTo: () => scrollToTourTarget("home.activeProgram") });
+    const recentWorkoutsTourRef = useAppTourTarget("home.recentWorkouts", { scrollTo: () => scrollToTourTarget("home.recentWorkouts") });
+    const programsTourRef = useAppTourTarget("home.programs", { scrollTo: () => scrollToTourTarget("home.programs") });
+    const communityTourRef = useAppTourTarget("home.community", { scrollTo: () => scrollToTourTarget("home.community") });
 
     // 2 dakika TTL: stack ekrandan dönüşte sadece verisi bayatlamış HomeScreen yeniden yükler
     const { shouldReload: shouldReloadDashboard, markLoaded: markDashboardLoaded } = useStaleDataGuard(2 * 60 * 1000);
@@ -469,7 +486,7 @@ export default function HomeScreen() {
         >
             {/* ─── Header ─── */}
             <Animated.View style={[styles.header, headerAnimStyle]}>
-                <View>
+                <View ref={streakTourRef} collapsable={false} onLayout={rememberTourOffset("home.streak")}>
                     <View style={styles.streakRow}>
                         <Ionicons name="flame" size={22} color={colors.accent} />
                         <Text style={[styles.streakValue, { marginLeft: spacing.xs }]}>
@@ -478,7 +495,7 @@ export default function HomeScreen() {
                     </View>
                     <Text style={styles.streakText}>Antrenman Kaçırmadın</Text>
                 </View>
-                <View style={styles.headerActions}>
+                <View ref={headerActionsTourRef} collapsable={false} onLayout={rememberTourOffset("home.headerActions")} style={styles.headerActions}>
                     <AnimatedPressable
                         style={styles.notificationBtn}
                         onPress={() => setNotificationsVisible(true)}
@@ -514,7 +531,7 @@ export default function HomeScreen() {
             {/* ─── Active Workout Banner ─── */}
             <ActiveWorkoutBanner refreshKey={bannerRefresh} />
 
-            <Animated.View style={quickAnimStyle}>
+            <Animated.View ref={quickWorkoutTourRef} collapsable={false} onLayout={rememberTourOffset("home.quickWorkout")} style={quickAnimStyle}>
             <AnimatedPressable
                 style={styles.quickWorkoutCard}
                 onPress={() => setQuickWorkoutConfirmVisible(true)}
@@ -536,7 +553,7 @@ export default function HomeScreen() {
             </Animated.View>
 
             {/* ─── Stats Row ─── */}
-            <Animated.View style={[styles.statsRow, statsAnimStyle]}>
+            <Animated.View ref={statsTourRef} collapsable={false} onLayout={rememberTourOffset("home.stats")} style={[styles.statsRow, statsAnimStyle]}>
                 <StatBadge
                     value={totalWorkouts}
                     label="Antrenman"
@@ -558,6 +575,7 @@ export default function HomeScreen() {
             </Animated.View>
 
             {/* ─── Sıradaki Antrenman (Cycle-Based) ─── */}
+            <View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")}>
             {favoriteProgram && isCurrentProgramCycle && currentDay && (
                 <Animated.View style={mainCardAnimStyle}>
                 <Animated.View style={activeCardPulseStyle}>
@@ -724,6 +742,9 @@ export default function HomeScreen() {
             )}
 
             {/* ─── Recent Workouts ─── */}
+            </View>
+
+            <View ref={recentWorkoutsTourRef} collapsable={false} onLayout={rememberTourOffset("home.recentWorkouts")}>
             <SectionHeader
                 title="Son Antrenmanlar"
                 actionLabel="Tümü"
@@ -779,6 +800,9 @@ export default function HomeScreen() {
                 actionLabel={programs.length > 3 ? "Tümü" : "Yeni Oluştur"}
                 onAction={() => programs.length > 3 ? navigateStatic("ProgramList") : navigateStatic("ProgramCreate", "modal")}
             />
+            </View>
+
+            <View ref={programsTourRef} collapsable={false} onLayout={rememberTourOffset("home.programs")}>
             {programs.length > 3 && (
                 <TouchableOpacity
                     style={styles.inlineCreateBtn}
@@ -843,6 +867,9 @@ export default function HomeScreen() {
                 actionLabel="Keşfet"
                 onAction={() => navigateStatic("CommunityPrograms")}
             />
+            </View>
+
+            <View ref={communityTourRef} collapsable={false} onLayout={rememberTourOffset("home.community")}>
             {communityPrograms.length > 0 ? (
                 communityPrograms.map((prog) => {
                     const owner =
@@ -894,6 +921,7 @@ export default function HomeScreen() {
             ) : (
                 <Text style={styles.emptyStateText}>Toplulukta henüz public program yok.</Text>
             )}
+            </View>
 
             <View style={{ height: spacing.xxxl }} />
         </Animated.ScrollView>
