@@ -31,7 +31,7 @@ export function KeyboardSafeView({
     const content = (
         <KeyboardAvoidingView
             style={style}
-            behavior={Platform.OS === "ios" ? "padding" : undefined}
+            behavior={Platform.OS === "ios" ? "padding" : "height"}
             keyboardVerticalOffset={keyboardVerticalOffset ?? (Platform.OS === "ios" ? 12 : 0)}
         >
             {children}

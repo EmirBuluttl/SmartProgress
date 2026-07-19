@@ -62,7 +62,7 @@ export default function PremiumModalSurface({
                 <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
                 <KeyboardAvoidingView
                     pointerEvents="box-none"
-                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                    behavior={Platform.OS === "ios" ? "padding" : "height"}
                     keyboardVerticalOffset={keyboardVerticalOffset ?? (Platform.OS === "ios" ? 18 : 0)}
                     style={styles.keyboardWrap}
                 >
