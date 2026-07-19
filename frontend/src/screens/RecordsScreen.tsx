@@ -88,7 +88,12 @@ export default function RecordsScreen() {
             setRecords((analytics?.personalRecords || []) as PRRecord[]);
             const rawLinks = await AsyncStorage.getItem(RECORD_LINKS_KEY);
             setLinks(rawLinks ? JSON.parse(rawLinks) : {});
-            if (await isWorkoutAnalyticsStale()) {
+            const analyticsLooksEmpty =
+                !analytics ||
+                ((analytics.personalRecords || []).length === 0 &&
+                    (analytics.weeklySnapshot || []).length === 0 &&
+                    (analytics.exerciseCounts || []).length === 0);
+            if (analyticsLooksEmpty || await isWorkoutAnalyticsStale()) {
                 InteractionManager.runAfterInteractions(() => {
                     getCachedWorkouts(200, { forceRefresh: true })
                         .then((freshWorkouts) => {

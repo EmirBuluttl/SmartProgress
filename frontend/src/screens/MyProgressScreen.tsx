@@ -439,15 +439,20 @@ export default function MyProgressScreen() {
 
     const loadAnalytics = async () => {
         let staleAnalytics = false;
-        getPersistedWorkoutAnalyticsSnapshot()
-            .then((analytics) => {
-                if (!analytics) return;
-                setAnalyticsSnapshot(analytics);
-                setWeeklySnapshot(analytics.weeklySnapshot || []);
-                setPrs(analytics.personalRecords || []);
-                setLoading(false);
-            })
-            .catch(() => undefined);
+        let needsAnalyticsRefresh = false;
+        const persistedAnalytics = await getPersistedWorkoutAnalyticsSnapshot().catch(() => null);
+        if (persistedAnalytics) {
+            setAnalyticsSnapshot(persistedAnalytics);
+            setWeeklySnapshot(persistedAnalytics.weeklySnapshot || []);
+            setPrs(persistedAnalytics.personalRecords || []);
+            setLoading(false);
+            needsAnalyticsRefresh =
+                (persistedAnalytics.personalRecords || []).length === 0 &&
+                (persistedAnalytics.weeklySnapshot || []).length === 0 &&
+                (persistedAnalytics.exerciseCounts || []).length === 0;
+        } else {
+            needsAnalyticsRefresh = true;
+        }
 
         // Load from caches instantly if available!
         const cachedWorkouts = getWorkoutCacheSnapshot(200);
@@ -467,6 +472,7 @@ export default function MyProgressScreen() {
                 getCachedNutritionLogs(180),
             ]);
             staleAnalytics = await isWorkoutAnalyticsStale();
+            needsAnalyticsRefresh = needsAnalyticsRefresh || staleAnalytics;
 
             setBodyMeasurements(measurements);
             setNutritionLogs(nutrition);
@@ -474,7 +480,7 @@ export default function MyProgressScreen() {
             setRecordLinks(rawLinks ? JSON.parse(rawLinks) : {});
 
             scheduleChartData(cachedWorkouts, measurements, nutrition, filter, chartMetric);
-            if (staleAnalytics) {
+            if (needsAnalyticsRefresh) {
                 InteractionManager.runAfterInteractions(() => {
                     getCachedWorkouts(200, { forceRefresh: true })
                         .then((freshWorkouts) => {
