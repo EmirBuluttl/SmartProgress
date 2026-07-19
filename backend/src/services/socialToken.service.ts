@@ -35,6 +35,15 @@ export type VerifiedSocialIdentity = {
 };
 
 const jwksCache = new Map<string, JwksCache>();
+const DEFAULT_GOOGLE_AUDIENCES = [
+    "1078601726148-ft74tfg7c9cjtng2fssjoned1tjgh4sb.apps.googleusercontent.com",
+    "1078601726148-bqen7rinub7pnt0g6ljbe988o2sghf7f.apps.googleusercontent.com",
+    "1078601726148-v3kr95pa5qoue4al4unb0per68qgp5u4.apps.googleusercontent.com",
+];
+
+function isNonEmptyString(value: unknown): value is string {
+    return typeof value === "string" && value.length > 0;
+}
 
 function decodeBase64Url(input: string): Buffer {
     const normalized = input.replace(/-/g, "+").replace(/_/g, "/");
@@ -147,11 +156,17 @@ async function verifySignedJwt(
 }
 
 function getGoogleAudiences() {
-    return [
+    const audiences = [
         env.GOOGLE_ANDROID_CLIENT_ID,
         env.GOOGLE_IOS_CLIENT_ID,
         env.GOOGLE_WEB_CLIENT_ID,
-    ].filter(Boolean);
+        process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+        process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+        process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+        ...DEFAULT_GOOGLE_AUDIENCES,
+    ].filter(isNonEmptyString);
+
+    return [...new Set(audiences)];
 }
 
 export async function verifyGoogleIdToken(idToken: string): Promise<VerifiedSocialIdentity> {
