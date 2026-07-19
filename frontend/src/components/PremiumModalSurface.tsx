@@ -1,7 +1,9 @@
 import React from "react";
 import {
     Animated,
+    KeyboardAvoidingView,
     Modal,
+    Platform,
     Pressable,
     StyleProp,
     StyleSheet,
@@ -14,6 +16,7 @@ interface PremiumModalSurfaceProps {
     onDismiss: () => void;
     children: React.ReactNode;
     containerStyle?: StyleProp<ViewStyle>;
+    keyboardVerticalOffset?: number;
 }
 
 export default function PremiumModalSurface({
@@ -21,6 +24,7 @@ export default function PremiumModalSurface({
     onDismiss,
     children,
     containerStyle,
+    keyboardVerticalOffset,
 }: PremiumModalSurfaceProps) {
     const opacity = React.useRef(new Animated.Value(0)).current;
     const scale = React.useRef(new Animated.Value(0.96)).current;
@@ -56,16 +60,23 @@ export default function PremiumModalSurface({
         <Modal visible={visible} transparent animationType="none" onRequestClose={onDismiss}>
             <Animated.View style={[styles.overlay, { opacity }]}>
                 <Pressable style={StyleSheet.absoluteFill} onPress={onDismiss} />
-                <Animated.View
-                    style={[
-                        containerStyle,
-                        {
-                            transform: [{ scale }, { translateY }],
-                        },
-                    ]}
+                <KeyboardAvoidingView
+                    pointerEvents="box-none"
+                    behavior={Platform.OS === "ios" ? "padding" : undefined}
+                    keyboardVerticalOffset={keyboardVerticalOffset ?? (Platform.OS === "ios" ? 18 : 0)}
+                    style={styles.keyboardWrap}
                 >
-                    {children}
-                </Animated.View>
+                    <Animated.View
+                        style={[
+                            containerStyle,
+                            {
+                                transform: [{ scale }, { translateY }],
+                            },
+                        ]}
+                    >
+                        {children}
+                    </Animated.View>
+                </KeyboardAvoidingView>
             </Animated.View>
         </Modal>
     );
@@ -79,5 +90,10 @@ const styles = StyleSheet.create({
         padding: spacing.xl,
         backgroundColor: "rgba(0, 0, 0, 0.72)",
     },
+    keyboardWrap: {
+        width: "100%",
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+    },
 });
-

@@ -865,7 +865,7 @@ export default function PremiumProgramWizardScreen() {
             <KeyboardAwareScrollView
                 style={styles.scroll}
                 contentContainerStyle={styles.content}
-                extraBottomPadding={120}
+                extraBottomPadding={180}
             >
                 <View style={styles.hero}>
                     <Text style={styles.eyebrow}>AKILLI KOÇ WIZARD</Text>
