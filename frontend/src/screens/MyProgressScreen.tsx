@@ -41,6 +41,7 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
+import { KeyboardAwareScrollView } from "../components/KeyboardSafeScreen";
 import WeeklyStrengthChart from "../components/WeeklyStrengthChart";
 import { useAppTourTarget } from "../contexts/AppTourContext";
 
@@ -761,7 +762,11 @@ export default function MyProgressScreen() {
                     </AnimatedPressable>
                 </View>
                 {selectedPR && (
-                    <>
+                    <KeyboardAwareScrollView
+                        style={styles.modalBodyScroll}
+                        contentContainerStyle={styles.modalScrollContent}
+                        extraBottomPadding={spacing.lg}
+                    >
                         <Text style={styles.modalExercise}>{selectedPR.exercise}</Text>
                         <Text style={styles.modalWeight}>
                             {selectedPR.weight} {selectedPR.unit} x {selectedPR.reps}
@@ -810,84 +815,102 @@ export default function MyProgressScreen() {
                                 <Text style={styles.videoBtnText}>{selectedPrLink ? "PR Videosunu Aç" : "Video Bağlantısı Ekle"}</Text>
                             </AnimatedPressable>
                         )}
-                    </>
+                    </KeyboardAwareScrollView>
                 )}
             </PremiumModalSurface>
 
             {/* ── Filter Modal ── */}
             <PremiumModalSurface visible={filterModalVisible} onDismiss={() => setFilterModalVisible(false)} containerStyle={styles.filterModalCard}>
-                <View style={styles.modalHeader}>
+                <View style={[styles.modalHeader, styles.filterModalHeader]}>
                     <Text style={styles.modalTitle}>Grafik Filtresi</Text>
                     <AnimatedPressable onPress={() => setFilterModalVisible(false)} pressedScale={0.9}>
                         <Ionicons name="close" size={24} color={colors.text} />
                     </AnimatedPressable>
                 </View>
 
-                <Text style={styles.filterModalLabel}>Metrik</Text>
-                <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricTabRow}>
-                    {METRIC_TABS.map((tab) => (
-                        <TouchableOpacity
-                            key={tab.key}
-                            style={[styles.metricTabBtn, activeMetricTab === tab.key && styles.metricFilterBtnActive]}
-                            onPress={() => setActiveMetricTab(tab.key)}
-                            activeOpacity={0.85}
-                        >
-                            <Text style={[styles.metricFilterText, activeMetricTab === tab.key && styles.metricFilterTextActive]}>
-                                {tab.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-                <ScrollView style={styles.filterModalList} contentContainerStyle={styles.metricFilterGrid}>
-                    {metricOptions[activeMetricTab].length === 0 ? (
-                        <Text style={styles.emptyMetricText}>Bu metrik için önce birkaç log biriktir.</Text>
-                    ) : metricOptions[activeMetricTab].map((option) => (
-                        <TouchableOpacity
-                            key={option.key}
-                            style={[styles.metricFilterBtn, chartMetric === option.key && styles.metricFilterBtnActive]}
-                            onPress={() => handleSelectMetric(option.key)}
-                            activeOpacity={0.85}
-                        >
-                            <Text style={[styles.metricFilterText, chartMetric === option.key && styles.metricFilterTextActive]}>
-                                {option.label}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
+                <ScrollView
+                    style={styles.filterModalBody}
+                    contentContainerStyle={styles.filterModalBodyContent}
+                    keyboardShouldPersistTaps="handled"
+                    showsVerticalScrollIndicator={false}
+                >
+                    <Text style={styles.filterModalLabel}>Metrik</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.metricTabRow}>
+                        {METRIC_TABS.map((tab) => (
+                            <TouchableOpacity
+                                key={tab.key}
+                                style={[styles.metricTabBtn, activeMetricTab === tab.key && styles.metricFilterBtnActive]}
+                                onPress={() => setActiveMetricTab(tab.key)}
+                                activeOpacity={0.72}
+                            >
+                                <Text
+                                    numberOfLines={1}
+                                    style={[styles.metricFilterText, activeMetricTab === tab.key && styles.metricFilterTextActive]}
+                                >
+                                    {tab.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </ScrollView>
+                    <View style={styles.metricFilterGrid}>
+                        {metricOptions[activeMetricTab].length === 0 ? (
+                            <Text style={styles.emptyMetricText}>Bu metrik için önce birkaç log biriktir.</Text>
+                        ) : metricOptions[activeMetricTab].map((option) => (
+                            <TouchableOpacity
+                                key={option.key}
+                                style={[styles.metricFilterBtn, chartMetric === option.key && styles.metricFilterBtnActive]}
+                                onPress={() => handleSelectMetric(option.key)}
+                                activeOpacity={0.72}
+                            >
+                                <Text
+                                    numberOfLines={2}
+                                    style={[styles.metricFilterText, chartMetric === option.key && styles.metricFilterTextActive]}
+                                >
+                                    {option.label}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    <Text style={styles.filterModalLabel}>Antrenman</Text>
+                    <View style={styles.metricFilterGrid}>
+                        {splitOptions.map((option) => (
+                            <TouchableOpacity
+                                key={option}
+                                style={[styles.splitFilterBtn, splitFilter === option && styles.metricFilterBtnActive]}
+                                onPress={() => setSplitFilter(option)}
+                                activeOpacity={0.72}
+                            >
+                                <Text
+                                    numberOfLines={2}
+                                    style={[styles.metricFilterText, splitFilter === option && styles.metricFilterTextActive]}
+                                >
+                                    {option}
+                                </Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+
+                    <Text style={styles.filterModalLabel}>Zaman</Text>
+                    <View style={styles.timeFilterRow}>
+                        {FILTERS.map((f) => (
+                            <TouchableOpacity
+                                key={f}
+                                style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
+                                onPress={() => setFilter(f)}
+                                activeOpacity={0.72}
+                            >
+                                <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>{f}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
                 </ScrollView>
 
-                <Text style={styles.filterModalLabel}>Antrenman</Text>
-                <ScrollView style={styles.splitFilterList} contentContainerStyle={styles.metricFilterGrid}>
-                    {splitOptions.map((option) => (
-                        <TouchableOpacity
-                            key={option}
-                            style={[styles.splitFilterBtn, splitFilter === option && styles.metricFilterBtnActive]}
-                            onPress={() => setSplitFilter(option)}
-                            activeOpacity={0.82}
-                        >
-                            <Text style={[styles.metricFilterText, splitFilter === option && styles.metricFilterTextActive]}>
-                                {option}
-                            </Text>
-                        </TouchableOpacity>
-                    ))}
-                </ScrollView>
-
-                <Text style={styles.filterModalLabel}>Zaman</Text>
-                <View style={styles.timeFilterRow}>
-                    {FILTERS.map((f) => (
-                        <TouchableOpacity
-                            key={f}
-                            style={[styles.filterBtn, filter === f && styles.filterBtnActive]}
-                            onPress={() => setFilter(f)}
-                            activeOpacity={0.82}
-                        >
-                            <Text style={[styles.filterText, filter === f && styles.filterTextActive]}>{f}</Text>
-                        </TouchableOpacity>
-                    ))}
+                <View style={styles.filterModalFooter}>
+                    <AnimatedPressable style={[styles.primaryAction, styles.filterApplyAction]} onPress={() => setFilterModalVisible(false)} pressedScale={0.985}>
+                        <Text style={styles.primaryActionText}>Uygula</Text>
+                    </AnimatedPressable>
                 </View>
-
-                <AnimatedPressable style={styles.primaryAction} onPress={() => setFilterModalVisible(false)} pressedScale={0.98}>
-                    <Text style={styles.primaryActionText}>Uygula</Text>
-                </AnimatedPressable>
             </PremiumModalSurface>
         </>
     );
@@ -982,6 +1005,7 @@ const createStyles = (colors: any) =>
             gap: spacing.xs,
             paddingHorizontal: spacing.md,
             paddingVertical: spacing.sm,
+            flexShrink: 0,
             borderRadius: borderRadius.md,
             borderWidth: 1,
             borderColor: colors.accent,
@@ -1162,13 +1186,38 @@ const createStyles = (colors: any) =>
         },
         filterModalCard: {
             width: "100%",
-            maxWidth: 430,
-            maxHeight: "86%",
-            padding: spacing.xl,
+            maxWidth: 460,
+            maxHeight: "88%",
             borderRadius: borderRadius.xl,
             backgroundColor: colors.surface,
             borderWidth: 1,
             borderColor: colors.border,
+            overflow: "hidden",
+        },
+        filterModalHeader: {
+            paddingHorizontal: spacing.xl,
+            paddingTop: spacing.xl,
+            paddingBottom: spacing.md,
+            marginBottom: 0,
+        },
+        filterModalBody: {
+            flexGrow: 0,
+            flexShrink: 1,
+        },
+        filterModalBodyContent: {
+            paddingHorizontal: spacing.xl,
+            paddingBottom: spacing.md,
+        },
+        filterModalFooter: {
+            paddingHorizontal: spacing.xl,
+            paddingTop: spacing.md,
+            paddingBottom: spacing.xl,
+            borderTopWidth: 1,
+            borderTopColor: colors.border,
+            backgroundColor: colors.surface,
+        },
+        filterApplyAction: {
+            flex: 0,
         },
         filterModalLabel: {
             color: colors.text,
@@ -1192,14 +1241,16 @@ const createStyles = (colors: any) =>
         metricFilterGrid: {
             flexDirection: "row",
             flexWrap: "wrap",
+            alignItems: "stretch",
             gap: spacing.sm,
             paddingBottom: spacing.md,
             marginBottom: spacing.sm,
         },
         timeFilterRow: {
             flexDirection: "row",
+            flexWrap: "wrap",
             gap: spacing.sm,
-            marginBottom: spacing.xl,
+            marginBottom: spacing.md,
         },
         metricTabRow: {
             gap: spacing.sm,
@@ -1217,26 +1268,34 @@ const createStyles = (colors: any) =>
             justifyContent: "center",
         },
         metricFilterBtn: {
-            paddingHorizontal: spacing.md,
+            flexBasis: "47%",
+            flexGrow: 1,
+            paddingHorizontal: spacing.sm,
             paddingVertical: spacing.sm,
-            minHeight: 42,
+            minHeight: 46,
+            minWidth: 132,
             maxWidth: "100%",
             borderRadius: borderRadius.md,
             borderWidth: 1,
             borderColor: colors.border,
             backgroundColor: colors.surface,
+            alignItems: "center",
             justifyContent: "center",
             flexShrink: 1,
         },
         splitFilterBtn: {
-            paddingHorizontal: spacing.md,
+            flexBasis: "47%",
+            flexGrow: 1,
+            paddingHorizontal: spacing.sm,
             paddingVertical: spacing.sm,
-            minHeight: 40,
+            minHeight: 44,
+            minWidth: 118,
             maxWidth: "100%",
             borderRadius: borderRadius.full,
             borderWidth: 1,
             borderColor: colors.border,
             backgroundColor: colors.surface,
+            alignItems: "center",
             justifyContent: "center",
             flexShrink: 1,
         },
@@ -1249,6 +1308,8 @@ const createStyles = (colors: any) =>
             fontSize: fontSize.sm,
             fontWeight: fontWeight.semibold,
             flexShrink: 1,
+            textAlign: "center",
+            lineHeight: lineHeight.sm,
         },
         metricFilterTextActive: { color: colors.accent },
         emptyMetricText: {
@@ -1259,6 +1320,7 @@ const createStyles = (colors: any) =>
         },
         filterBtn: {
             flex: 1,
+            minWidth: 64,
             minHeight: 42,
             paddingVertical: spacing.sm,
             borderRadius: borderRadius.md,
@@ -1286,6 +1348,12 @@ const createStyles = (colors: any) =>
             justifyContent: "space-between",
             alignItems: "center",
             marginBottom: spacing.md,
+        },
+        modalBodyScroll: {
+            maxHeight: "100%",
+        },
+        modalScrollContent: {
+            paddingBottom: spacing.sm,
         },
         modalTitle: {
             fontSize: fontSize.lg,
@@ -1357,6 +1425,7 @@ const createStyles = (colors: any) =>
         },
         linkActions: {
             flexDirection: "row",
+            flexWrap: "wrap",
             gap: spacing.sm,
         },
         secondaryAction: {
