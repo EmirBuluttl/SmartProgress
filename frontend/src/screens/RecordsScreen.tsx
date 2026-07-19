@@ -21,7 +21,12 @@ import { useNavigation, useFocusEffect } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { getPersistedWorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { getCachedWorkouts } from "../services/workoutCacheService";
+import {
+    getPersistedWorkoutAnalyticsSnapshot,
+    getWorkoutAnalyticsSnapshot,
+    isWorkoutAnalyticsStale,
+} from "../services/workoutAnalyticsCacheService";
 import { groupForExerciseName, MUSCLE_GROUPS } from "../data/exerciseTaxonomy";
 import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
@@ -83,6 +88,18 @@ export default function RecordsScreen() {
             setRecords((analytics?.personalRecords || []) as PRRecord[]);
             const rawLinks = await AsyncStorage.getItem(RECORD_LINKS_KEY);
             setLinks(rawLinks ? JSON.parse(rawLinks) : {});
+            if (await isWorkoutAnalyticsStale()) {
+                InteractionManager.runAfterInteractions(() => {
+                    getCachedWorkouts(200, { forceRefresh: true })
+                        .then((freshWorkouts) => {
+                            const freshAnalytics = getWorkoutAnalyticsSnapshot(freshWorkouts);
+                            setRecords((freshAnalytics.personalRecords || []) as PRRecord[]);
+                        })
+                        .catch((error) => {
+                            console.warn("[Records] Analytics refresh failed:", error);
+                        });
+                });
+            }
         } catch (err) {
             console.error("[Records] Load error:", err);
         } finally {

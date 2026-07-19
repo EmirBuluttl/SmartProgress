@@ -14,6 +14,7 @@ import {
 import { calculateLoadScoreFromExercises, clampRpe, normalizeRirLogValue } from "../utils/workoutMetrics";
 import { cancelActiveWorkoutNotification, scheduleActiveWorkoutNotification } from "./localNotificationService";
 import { invalidateWorkoutCache, updateWorkoutInCache } from "./workoutCacheService";
+import { markWorkoutAnalyticsStale } from "./workoutAnalyticsCacheService";
 import { measurePerf } from "../utils/perfLogger";
 
 // ─── Helpers ─────────────────────────────────
@@ -297,6 +298,7 @@ async function runPendingWorkoutSync(): Promise<SyncResult> {
             const syncedWorkout = syncResponse?.data?.workouts?.[0];
             if (syncedWorkout) {
                 updateWorkoutInCache(syncedWorkout);
+                await markWorkoutAnalyticsStale();
             } else {
                 invalidateWorkoutCache();
             }

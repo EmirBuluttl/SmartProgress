@@ -22,8 +22,13 @@ import { spacing, fontSize, fontWeight, borderRadius, lineHeight } from "../cons
 import { useTheme } from "../hooks/ThemeContext";
 import { useFocusEffect, useIsFocused, useNavigation } from "@react-navigation/native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { subscribeToWorkoutCache, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
-import { getPersistedWorkoutAnalyticsSnapshot, type WorkoutAnalyticsSnapshot } from "../services/workoutAnalyticsCacheService";
+import { subscribeToWorkoutCache, getCachedWorkouts, getWorkoutCacheSnapshot } from "../services/workoutCacheService";
+import {
+    getPersistedWorkoutAnalyticsSnapshot,
+    getWorkoutAnalyticsSnapshot,
+    isWorkoutAnalyticsStale,
+    type WorkoutAnalyticsSnapshot,
+} from "../services/workoutAnalyticsCacheService";
 import { getCachedBodyMeasurements, subscribeToBodyMeasurementCache, getBodyMeasurementSnapshot } from "../services/bodyMeasurementCacheService";
 import { getCachedNutritionLogs, subscribeToNutritionCache, getNutritionSnapshot } from "../services/nutritionCacheService";
 import { useAuth } from "../store/AuthContext";
@@ -433,6 +438,7 @@ export default function MyProgressScreen() {
     // ── Load analytics ────────────────────────────────────────────────────────
 
     const loadAnalytics = async () => {
+        let staleAnalytics = false;
         getPersistedWorkoutAnalyticsSnapshot()
             .then((analytics) => {
                 if (!analytics) return;
@@ -460,6 +466,7 @@ export default function MyProgressScreen() {
                 getCachedBodyMeasurements(180),
                 getCachedNutritionLogs(180),
             ]);
+            staleAnalytics = await isWorkoutAnalyticsStale();
 
             setBodyMeasurements(measurements);
             setNutritionLogs(nutrition);
@@ -467,6 +474,22 @@ export default function MyProgressScreen() {
             setRecordLinks(rawLinks ? JSON.parse(rawLinks) : {});
 
             scheduleChartData(cachedWorkouts, measurements, nutrition, filter, chartMetric);
+            if (staleAnalytics) {
+                InteractionManager.runAfterInteractions(() => {
+                    getCachedWorkouts(200, { forceRefresh: true })
+                        .then((freshWorkouts) => {
+                            const analytics = getWorkoutAnalyticsSnapshot(freshWorkouts);
+                            setAnalyticsSnapshot(analytics);
+                            setWeeklySnapshot(analytics.weeklySnapshot || []);
+                            setPrs(analytics.personalRecords || []);
+                            setAllWorkouts(freshWorkouts);
+                            scheduleChartData(freshWorkouts, measurements, nutrition, filter, chartMetric);
+                        })
+                        .catch((error) => {
+                            console.warn("[MyProgress] Analytics refresh failed:", error);
+                        });
+                });
+            }
             setLoading(false);
         } catch (err) {
             console.error("Analytics Load Error", err);

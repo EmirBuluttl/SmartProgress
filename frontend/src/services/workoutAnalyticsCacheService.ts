@@ -12,6 +12,7 @@ import {
 } from "../utils/workoutMetrics";
 
 const WORKOUT_ANALYTICS_STORAGE_KEY = "workout_analytics_snapshot_v2";
+const WORKOUT_ANALYTICS_DIRTY_KEY = "workout_analytics_snapshot_dirty_v1";
 
 export type WorkoutAnalyticsSnapshot = {
     personalRecords: PersonalRecord[];
@@ -30,6 +31,29 @@ export function invalidateWorkoutAnalyticsCache() {
     cachedFingerprintRef = null;
     cachedSnapshot = null;
     AsyncStorage.removeItem(WORKOUT_ANALYTICS_STORAGE_KEY).catch(() => undefined);
+    AsyncStorage.removeItem(WORKOUT_ANALYTICS_DIRTY_KEY).catch(() => undefined);
+}
+
+export async function markWorkoutAnalyticsStale() {
+    cachedVersionRef = null;
+    cachedFingerprintRef = null;
+    await AsyncStorage.setItem(WORKOUT_ANALYTICS_DIRTY_KEY, String(Date.now()));
+}
+
+export async function isWorkoutAnalyticsStale(): Promise<boolean> {
+    try {
+        return Boolean(await AsyncStorage.getItem(WORKOUT_ANALYTICS_DIRTY_KEY));
+    } catch {
+        return false;
+    }
+}
+
+async function clearWorkoutAnalyticsStaleFlag() {
+    try {
+        await AsyncStorage.removeItem(WORKOUT_ANALYTICS_DIRTY_KEY);
+    } catch {
+        // no-op
+    }
 }
 
 function buildFingerprint(workouts: any[]): string {
@@ -51,6 +75,7 @@ async function savePersistedSnapshot(snapshot: WorkoutAnalyticsSnapshot, fingerp
             WORKOUT_ANALYTICS_STORAGE_KEY,
             JSON.stringify({ snapshot, fingerprint, savedAt: Date.now() }),
         );
+        await clearWorkoutAnalyticsStaleFlag();
     } catch (error) {
         console.warn("[workoutAnalyticsCacheService] Persist failed:", error);
     }
