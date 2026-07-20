@@ -28,6 +28,7 @@ import PublicProfileScreen from "../screens/PublicProfileScreen";
 import CardioSessionScreen from "../screens/CardioSessionScreen";
 import PremiumDetailScreen from "../screens/PremiumDetailScreen";
 import PremiumProgramWizardScreen from "../screens/PremiumProgramWizardScreen";
+import PostTourNextStepScreen from "../screens/PostTourNextStepScreen";
 import ProgramGuideScreen from "../screens/ProgramGuideScreen";
 import CoachWeeklyReportScreen from "../screens/CoachWeeklyReportScreen";
 import CoachInsightHistoryScreen from "../screens/CoachInsightHistoryScreen";
@@ -40,6 +41,7 @@ import WarmupSessionScreen from "../screens/WarmupSessionScreen";
 import LegalInfoScreen from "../screens/LegalInfoScreen";
 import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
 import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
+import { markPostOnboardingFlowPending } from "../utils/appTourEvents";
 
 type NavigationTargetSet = {
     targetReps: string;
@@ -141,6 +143,7 @@ export type RootStackParamList = {
     Nutrition: undefined;
     PublicProfile: { userId: string };
     PremiumDetail: undefined;
+    PostTourNextStep: undefined;
     PremiumProgramWizard: undefined;
     CoachWeeklyReport: undefined;
     CoachInsightHistory: undefined;
@@ -172,6 +175,11 @@ function AppNavigator() {
             await authApi.updateProfile({ settings });
         } catch (error) {
             console.warn("[RootNavigator] Failed to persist onboarding profile:", error);
+        }
+        try {
+            await markPostOnboardingFlowPending();
+        } catch (error) {
+            console.warn("[RootNavigator] Failed to mark post onboarding flow:", error);
         }
         updateUser({ settings });
     };
@@ -309,6 +317,11 @@ function AppNavigator() {
                 name="PremiumDetail"
                 component={PremiumDetailScreen}
                 options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="PostTourNextStep"
+                component={PostTourNextStepScreen}
+                options={{ animation: "fade" }}
             />
             <AppStack.Screen
                 name="PremiumProgramWizard"

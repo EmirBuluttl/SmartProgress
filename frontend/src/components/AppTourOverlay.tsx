@@ -111,6 +111,7 @@ export default function AppTourOverlay({
         }
         let cancelled = false;
         let measured = false;
+        let candidateRect: TargetRect | null = null;
         const requestId = measureRequestRef.current + 1;
         measureRequestRef.current = requestId;
         const targetId = step.targetId;
@@ -135,6 +136,32 @@ export default function AppTourOverlay({
             const hasVerticalOverlap = y < visibleBottom && y + height > visibleTop;
             return hasHorizontalOverlap && hasVerticalOverlap;
         };
+        const isStableRect = (a: TargetRect, b: TargetRect) =>
+            Math.abs(a.x - b.x) < 8 &&
+            Math.abs(a.y - b.y) < 8 &&
+            Math.abs(a.width - b.width) < 8 &&
+            Math.abs(a.height - b.height) < 8;
+        const revealRect = (rect: TargetRect) => {
+            measured = true;
+            setTargetPending(false);
+            setTargetRect(rect);
+            targetOpacity.setValue(0);
+            targetScale.setValue(0.992);
+            Animated.parallel([
+                Animated.timing(targetOpacity, {
+                    toValue: TARGET_VISIBLE_OPACITY,
+                    duration: TARGET_REVEAL_MS,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+                Animated.timing(targetScale, {
+                    toValue: 1,
+                    duration: TARGET_REVEAL_MS,
+                    easing: Easing.out(Easing.cubic),
+                    useNativeDriver: true,
+                }),
+            ]).start();
+        };
 
         const measure = () => {
             if (!isCurrentRequest() || measured) return;
@@ -147,25 +174,12 @@ export default function AppTourOverlay({
             node.measureInWindow((x, y, width, height) => {
                 if (!isCurrentRequest() || measured) return;
                 if (!isUsableRect(x, y, width, height)) return;
-                measured = true;
-                setTargetPending(false);
-                setTargetRect({ x, y, width, height });
-                targetOpacity.setValue(0);
-                targetScale.setValue(0.996);
-                Animated.parallel([
-                    Animated.timing(targetOpacity, {
-                        toValue: TARGET_VISIBLE_OPACITY,
-                        duration: TARGET_REVEAL_MS,
-                        easing: Easing.out(Easing.quad),
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(targetScale, {
-                        toValue: 1,
-                        duration: TARGET_REVEAL_MS,
-                        easing: Easing.out(Easing.quad),
-                        useNativeDriver: true,
-                    }),
-                ]).start();
+                const rect = { x, y, width, height };
+                if (candidateRect && isStableRect(candidateRect, rect)) {
+                    revealRect(rect);
+                    return;
+                }
+                candidateRect = rect;
             });
         };
 
@@ -178,7 +192,12 @@ export default function AppTourOverlay({
                 if (!measured) measure();
             }, FINAL_MEASURE_DELAY_MS),
             setTimeout(() => {
-                if (isCurrentRequest() && !measured) setTargetPending(false);
+                if (!isCurrentRequest() || measured) return;
+                if (candidateRect) {
+                    revealRect(candidateRect);
+                    return;
+                }
+                setTargetPending(false);
             }, MEASURE_GIVE_UP_MS),
         ];
 

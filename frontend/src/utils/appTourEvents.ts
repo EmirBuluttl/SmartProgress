@@ -2,6 +2,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export const APP_TOUR_COMPLETED_KEY = "@smartprogress_app_tour_completed";
 export const DETAILED_APP_TOUR_COMPLETED_KEY = "@smartprogress_detailed_app_tour_completed";
+export const POST_ONBOARDING_FLOW_PENDING_KEY = "@smartprogress_post_onboarding_flow_pending";
 
 type Listener = () => void;
 const listeners = new Set<Listener>();
@@ -45,4 +46,16 @@ export async function hasCompletedAppTour() {
 
 export async function hasCompletedDetailedAppTour() {
     return (await AsyncStorage.getItem(DETAILED_APP_TOUR_COMPLETED_KEY)) === "true";
+}
+
+export async function markPostOnboardingFlowPending() {
+    await AsyncStorage.setItem(POST_ONBOARDING_FLOW_PENDING_KEY, "true");
+}
+
+export async function clearPostOnboardingFlowPending() {
+    await AsyncStorage.removeItem(POST_ONBOARDING_FLOW_PENDING_KEY);
+}
+
+export async function hasPendingPostOnboardingFlow() {
+    return (await AsyncStorage.getItem(POST_ONBOARDING_FLOW_PENDING_KEY)) === "true";
 }

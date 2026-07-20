@@ -17,6 +17,7 @@ import {
     Keyboard,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
+import { useNavigation } from "@react-navigation/native";
 import { fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 
@@ -29,6 +30,7 @@ import AppTourOverlay, { AppTourStep } from "../components/AppTourOverlay";
 import { AppTourProvider, useAppTour } from "../contexts/AppTourContext";
 import {
     hasCompletedAppTour,
+    hasPendingPostOnboardingFlow,
     markAppTourCompleted,
     markDetailedAppTourCompleted,
     subscribeAppTourRequest,
@@ -215,6 +217,7 @@ export default function TabNavigator(props: any) {
 
 function TabNavigatorInner({ route }: any) {
     const { colors } = useTheme();
+    const navigation = useNavigation<any>();
     const { getTarget } = useAppTour();
     const { width: screenWidth } = useWindowDimensions();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -270,7 +273,17 @@ function TabNavigatorInner({ route }: any) {
         let mounted = true;
         hasCompletedAppTour()
             .then((completed) => {
-                if (!mounted || completed) return;
+                if (!mounted) return;
+                if (completed) {
+                    hasPendingPostOnboardingFlow()
+                        .then((pending) => {
+                            if (mounted && pending) {
+                                setTimeout(() => navigation.navigate("PostTourNextStep"), 420);
+                            }
+                        })
+                        .catch(() => undefined);
+                    return;
+                }
                 setTimeout(() => {
                     if (mounted) {
                         setTourMode("quick");
@@ -282,7 +295,7 @@ function TabNavigatorInner({ route }: any) {
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [navigation]);
 
     useEffect(() => {
         return subscribeAppTourRequest(() => {
@@ -389,6 +402,10 @@ function TabNavigatorInner({ route }: any) {
             return;
         }
         await markAppTourCompleted();
+        const shouldContinueOnboarding = await hasPendingPostOnboardingFlow().catch(() => false);
+        if (shouldContinueOnboarding) {
+            navigation.navigate("PostTourNextStep");
+        }
     };
 
     const handleTourNext = () => {
