@@ -341,6 +341,13 @@ export default function PremiumProgramWizardScreen() {
             setCreatedProgramId(programId || "created");
             setCreatedProgramIntro((programData as any).programIntro || null);
             setNotice(activate ? "Program oluşturuldu ve aktif takibe alındı." : "Program oluşturuldu ve kütüphanene eklendi.");
+            if (programId) {
+                navigation.navigate("ProgramGuide", {
+                    programId,
+                    programName,
+                    programIntro: (programData as any).programIntro,
+                });
+            }
         } catch (error) {
             const apiError = parseApiError(error);
             setNotice(apiError.message || "Program oluşturulamadı.");
