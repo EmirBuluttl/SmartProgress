@@ -66,6 +66,14 @@ const AUTOSAVE_DEBOUNCE_MS = 500;
 const ADDED_EXERCISE_HIGHLIGHT_MS = 1400;
 const ADDED_EXERCISE_FADE_OUT_MS = 900;
 const IOS_NUMERIC_ACCESSORY_ID = "workout-session-numeric-toolbar";
+const TRAINING_TIPS = [
+    "Ilk sette hedef tekrar araligina ulasabilecegin kontrollu bir agirlik sec.",
+    "Seti bitirince kg ve tekrar alanlarini hemen logla.",
+    "RPE/RIR biliyorsan ekle; koc analizi bu verilerle daha dogru calisir.",
+    "Seti tamamlandi olarak isaretle ve siradaki sete gecmeden hazir hisset.",
+    "Hareketleri program sirasi ile takip etmeye calis; gerekiyorsa sirayi sonra degistirebilirsin.",
+    "Demo bittiginde antrenmani bitir butonuyla akisi tamamla.",
+];
 
 // ─── ID Generator ────────────────────────────
 
@@ -556,6 +564,8 @@ export default function WorkoutSessionScreen() {
     const [bodyWeightModal, setBodyWeightModal] = useState<{ exerciseId: string; setId: string } | null>(null);
     const [bodyWeightDraft, setBodyWeightDraft] = useState("");
     const isWeb = Platform.OS === "web";
+    const isTrainingDemo = route.params?.trainingMode === "onboarding_demo";
+    const [trainingTipIndex, setTrainingTipIndex] = useState(0);
 
     // Use a ref for finishing flag so beforeRemove always has the latest value
     // (avoids stale closure problem where state is captured at render time)
@@ -845,7 +855,7 @@ export default function WorkoutSessionScreen() {
             // Clear any stale session and load program data
             // ────────────────────────────────────────
             if (!isFreeWorkout && hasProgramParams) {
-                const saved = await restoreActiveSession();
+                const saved = isTrainingDemo ? null : await restoreActiveSession();
                 if (saved) {
                     setSession(saved);
                     setRpeMode(inferTrackingModeFromSession(saved));
@@ -1017,7 +1027,9 @@ export default function WorkoutSessionScreen() {
                     setSession(newSession);
                     setRpeMode(programTrackingMode);
                     setElapsed(0);
-                    await saveActiveSession(newSession);
+                    if (!isTrainingDemo) {
+                        await saveActiveSession(newSession);
+                    }
                 } else {
                     console.warn("[WorkoutSession] No exercises found for this day");
                     navigation.goBack();
@@ -1052,6 +1064,7 @@ export default function WorkoutSessionScreen() {
 
     useFocusEffect(
         useCallback(() => {
+            if (isTrainingDemo) return;
             if (!restored || finishingRef.current || completedRef.current) return;
             let mounted = true;
             restoreActiveSession().then((saved) => {
@@ -1098,6 +1111,7 @@ export default function WorkoutSessionScreen() {
     }, [recentlyAddedExerciseGlow, recentlyAddedExerciseId]);
 
     useEffect(() => {
+        if (isTrainingDemo) return;
         const programId = route.params?.programId;
         const dayIndex = route.params?.dayIndex ?? 0;
         const dayReminder = programId
@@ -1128,6 +1142,7 @@ export default function WorkoutSessionScreen() {
     ]);
 
     useEffect(() => {
+        if (isTrainingDemo) return;
         if (
             preWorkoutWarmupShownRef.current ||
             route.params?.mode === "free" ||
@@ -1143,6 +1158,7 @@ export default function WorkoutSessionScreen() {
 
     // ─── Debounced Auto-Save ─────────────────
     useEffect(() => {
+        if (isTrainingDemo) return;
         if (!restored || finishingRef.current || completedRef.current) return;
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
         saveTimerRef.current = setTimeout(() => {
@@ -1156,6 +1172,7 @@ export default function WorkoutSessionScreen() {
     }, [elapsed, getSessionWithCachedInputs, restored]);
 
     useEffect(() => {
+        if (isTrainingDemo) return;
         if (!restored) return;
 
         const persistNow = () => {
@@ -1231,6 +1248,10 @@ export default function WorkoutSessionScreen() {
     }, [updateSession]);
 
     const setWarmupRoutineStatus = useCallback(async (status: "completed" | "skipped" | "cancelled") => {
+        if (isTrainingDemo) {
+            setPreWorkoutWarmupVisible(false);
+            return;
+        }
         const currentSession = materializeSessionInputs();
         const nextSession = {
             ...currentSession,
@@ -1248,9 +1269,17 @@ export default function WorkoutSessionScreen() {
         setSession(nextSession);
         await saveActiveSession({ ...nextSession, totalDuration: elapsed });
         setPreWorkoutWarmupVisible(false);
-    }, [elapsed, materializeSessionInputs]);
+    }, [elapsed, isTrainingDemo, materializeSessionInputs]);
 
     const openWarmupSession = useCallback(async () => {
+        if (isTrainingDemo) {
+            setPreWorkoutWarmupVisible(false);
+            setConceptNotice({
+                title: "Egitim modu",
+                message: "Bu demoda ana set loglama akisini ogreniyoruz. Isinma rutinini gercek antrenmanda kullanabilirsin.",
+            });
+            return;
+        }
         const currentSession = materializeSessionInputs();
         if (!currentSession.warmupRoutine || hasMainWorkoutLoggedData(currentSession)) {
             setPreWorkoutWarmupVisible(false);
@@ -1268,7 +1297,7 @@ export default function WorkoutSessionScreen() {
         await saveActiveSession({ ...nextSession, totalDuration: elapsed });
         setPreWorkoutWarmupVisible(false);
         navigation.navigate("WarmupSession");
-    }, [elapsed, materializeSessionInputs, navigation]);
+    }, [elapsed, isTrainingDemo, materializeSessionInputs, navigation]);
 
     const updateSet = useCallback(
         (exerciseId: string, setId: string, field: keyof WorkoutSet, value: string | number | boolean | undefined) => {
@@ -1628,9 +1657,13 @@ export default function WorkoutSessionScreen() {
             clearTimeout(saveTimerRef.current);
             saveTimerRef.current = null;
         }
+        if (isTrainingDemo) {
+            navigation.goBack();
+            return;
+        }
         await clearActiveSession();
         navigation.goBack();
-    }, [navigation]);
+    }, [isTrainingDemo, navigation]);
 
     const leaveWorkout = useCallback(async (mode: "save" | "discard") => {
         setExitModalVisible(false);
@@ -1645,7 +1678,9 @@ export default function WorkoutSessionScreen() {
             saveTimerRef.current = null;
         }
 
-        if (mode === "save") {
+        if (isTrainingDemo) {
+            // Demo sessions never overwrite or clear a real active workout.
+        } else if (mode === "save") {
             await saveActiveSession({ ...materializeSessionInputs(), totalDuration: elapsed });
         } else {
             await clearActiveSession();
@@ -1655,7 +1690,7 @@ export default function WorkoutSessionScreen() {
         pendingExitActionRef.current = null;
         if (action) navigation.dispatch(action);
         else navigation.goBack();
-    }, [elapsed, materializeSessionInputs, navigation]);
+    }, [elapsed, isTrainingDemo, materializeSessionInputs, navigation]);
 
     // ─── Finish Workout ──────────────────────
 
@@ -1683,6 +1718,19 @@ export default function WorkoutSessionScreen() {
 
         if (validExercises.length === 0 && validCardioBlocks.length === 0 && !hasCompletedWarmupRoutine) {
             setEmptyFinishModalVisible(true);
+            return;
+        }
+
+        if (isTrainingDemo) {
+            setFinishing(true);
+            finishingRef.current = true;
+            completedRef.current = true;
+            if (intervalRef.current) clearInterval(intervalRef.current);
+            if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+            navigation.replace("TrainingComplete", {
+                programId: route.params?.programId,
+                programName: route.params?.programName,
+            });
             return;
         }
 
@@ -1890,6 +1938,13 @@ export default function WorkoutSessionScreen() {
     const modeLabelMap = { none: "RPE/RIR Kapalı", rpe: "RPE", rir: "RIR", both: "RPE+RIR" };
 
     const openCardioSession = async (cardioBlockId?: string) => {
+        if (isTrainingDemo) {
+            setConceptNotice({
+                title: "Egitim modu",
+                message: "Bu demoda program hareketlerini loglamayi ogreniyoruz. Kardiyoyu gercek antrenmaninda ekleyebilirsin.",
+            });
+            return;
+        }
         const activeSession = { ...materializeSessionInputs(), totalDuration: elapsed };
         await saveActiveSession(activeSession);
         navigation.navigate("CardioSession", cardioBlockId ? { cardioBlockId } : undefined);
@@ -1942,6 +1997,32 @@ export default function WorkoutSessionScreen() {
             <Text style={styles.titleText}>
                 {session.title || "Program Antrenmanı"}
             </Text>
+
+            {isTrainingDemo ? (
+                <View style={styles.trainingCard}>
+                    <View style={styles.trainingHeader}>
+                        <View style={styles.trainingIcon}>
+                            <Ionicons name="school-outline" size={17} color={colors.background} />
+                        </View>
+                        <View style={{ flex: 1 }}>
+                            <Text style={styles.trainingEyebrow}>Egitim modu</Text>
+                            <Text style={styles.trainingTitle}>Gercek kayit olusturmaz</Text>
+                        </View>
+                        <Text style={styles.trainingStep}>{trainingTipIndex + 1}/{TRAINING_TIPS.length}</Text>
+                    </View>
+                    <Text style={styles.trainingText}>{TRAINING_TIPS[trainingTipIndex]}</Text>
+                    <TouchableOpacity
+                        style={styles.trainingNextBtn}
+                        onPress={() => setTrainingTipIndex((index) => Math.min(index + 1, TRAINING_TIPS.length - 1))}
+                        disabled={trainingTipIndex >= TRAINING_TIPS.length - 1}
+                        activeOpacity={0.78}
+                    >
+                        <Text style={[styles.trainingNextText, trainingTipIndex >= TRAINING_TIPS.length - 1 && styles.trainingNextTextDone]}>
+                            {trainingTipIndex >= TRAINING_TIPS.length - 1 ? "Son ipucu" : "Sonraki ipucu"}
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+            ) : null}
 
             <TouchableOpacity
                 style={[styles.sessionNoteBtn, session.notes && styles.sessionNoteBtnActive]}
@@ -4369,6 +4450,70 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.md,
         fontWeight: fontWeight.bold,
         color: colors.background,
+    },
+    trainingCard: {
+        gap: spacing.sm,
+        padding: spacing.md,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+        marginBottom: spacing.md,
+    },
+    trainingHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    trainingIcon: {
+        width: 34,
+        height: 34,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accent,
+    },
+    trainingEyebrow: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0,
+    },
+    trainingTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+        marginTop: 2,
+    },
+    trainingStep: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    trainingText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
+    trainingNextBtn: {
+        alignSelf: "flex-start",
+        minHeight: 34,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    trainingNextText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    trainingNextTextDone: {
+        color: colors.textMuted,
     },
 
     // Finish
