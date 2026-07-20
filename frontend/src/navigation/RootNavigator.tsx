@@ -39,6 +39,7 @@ import BlockedUsersScreen from "../screens/BlockedUsersScreen";
 import WarmupRoutineBuilderScreen from "../screens/WarmupRoutineBuilderScreen";
 import WarmupSessionScreen from "../screens/WarmupSessionScreen";
 import LegalInfoScreen from "../screens/LegalInfoScreen";
+import TrainingCompleteScreen from "../screens/TrainingCompleteScreen";
 import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
 import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
 import { markPostOnboardingFlowPending } from "../utils/appTourEvents";
@@ -60,6 +61,7 @@ export type RootStackParamList = {
     MainTabs: undefined;
     WorkoutSession: {
         mode?: "free";
+        trainingMode?: "onboarding_demo";
         programId?: string;
         programName?: string;
         dayIndex?: number;
@@ -120,6 +122,8 @@ export type RootStackParamList = {
         programId?: string;
         programName?: string;
         programIntro?: any;
+        programData?: any;
+        onboardingTraining?: boolean;
     };
     ProgramDayDetail: {
         programId: string;
@@ -144,11 +148,12 @@ export type RootStackParamList = {
     PublicProfile: { userId: string };
     PremiumDetail: undefined;
     PostTourNextStep: undefined;
+    TrainingComplete: { programId?: string; programName?: string } | undefined;
     PremiumProgramWizard: undefined;
     CoachWeeklyReport: undefined;
     CoachInsightHistory: undefined;
     ExerciseLibrary: undefined;
-    PreWorkoutReminders: undefined;
+    PreWorkoutReminders: { trainingMode?: "onboarding"; programId?: string } | undefined;
     TrainingLevel: undefined;
     BlockedUsers: undefined;
     PrivacyPolicy: undefined;
@@ -321,6 +326,11 @@ function AppNavigator() {
             <AppStack.Screen
                 name="PostTourNextStep"
                 component={PostTourNextStepScreen}
+                options={{ animation: "fade" }}
+            />
+            <AppStack.Screen
+                name="TrainingComplete"
+                component={TrainingCompleteScreen}
                 options={{ animation: "fade" }}
             />
             <AppStack.Screen
