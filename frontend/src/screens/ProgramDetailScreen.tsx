@@ -38,6 +38,7 @@ import { navigateWithFeedback } from "../utils/navigationFeedback";
 import { useScreenEnter } from "../hooks/useScreenEnter";
 import { getCachedProgramById, getProgramDetailSnapshot, invalidateProgramCache } from "../services/programCacheService";
 import { logPerf, markPerf } from "../utils/perfLogger";
+import { buildGuideSummary, normalizeProgramIntro, PROGRAM_GUIDE_SUMMARY_RULES } from "../utils/programGuide";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -400,7 +401,15 @@ export default function ProgramDetailScreen() {
         ownerName || "SP",
     );
     const selectedDay = selectedDayIndex !== null ? days[selectedDayIndex] : null;
-    const programIntro = (program.data as any)?.programIntro;
+    const programIntro = normalizeProgramIntro((program.data as any)?.programIntro);
+    const programIntroSummary = buildGuideSummary(programIntro);
+    const openProgramGuide = () => {
+        navigation.navigate("ProgramGuide", {
+            programId: program.id,
+            programName: program.name,
+            programIntro: (program.data as any)?.programIntro,
+        });
+    };
 
     return (
         <Animated.View style={[s.container, animStyle]}>
@@ -596,18 +605,22 @@ export default function ProgramDetailScreen() {
                     )}
                 </View>
 
-                {programIntro?.sections?.length ? (
+                {programIntro ? (
                     <View style={s.infoCard}>
                         <View style={s.sectionHeaderRow}>
                             <Ionicons name="school-outline" size={18} color={colors.accent} />
                             <Text style={s.sectionTitle}>{programIntro.title || "Program rehberi"}</Text>
                         </View>
-                        {programIntro.sections.map((section: any) => (
-                            <View key={section.title} style={s.introRow}>
-                                <Text style={s.introTitle}>{section.title}</Text>
-                                <Text style={s.introBody}>{section.body}</Text>
+                        {(programIntroSummary.length ? programIntroSummary : PROGRAM_GUIDE_SUMMARY_RULES).slice(0, 5).map((rule) => (
+                            <View key={rule} style={s.guideSummaryRow}>
+                                <Ionicons name="checkmark-circle" size={16} color={colors.accent} />
+                                <Text style={s.guideSummaryText}>{rule}</Text>
                             </View>
                         ))}
+                        <TouchableOpacity style={s.guideDetailBtn} onPress={openProgramGuide} activeOpacity={0.8}>
+                            <Text style={s.guideDetailText}>Detayli rehberi ac</Text>
+                            <Ionicons name="arrow-forward" size={16} color={colors.background} />
+                        </TouchableOpacity>
                     </View>
                 ) : null}
 
@@ -1025,6 +1038,33 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textSecondary,
         fontSize: fontSize.sm,
         lineHeight: 20,
+    },
+    guideSummaryRow: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.sm,
+        paddingTop: spacing.sm,
+    },
+    guideSummaryText: {
+        flex: 1,
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
+    guideDetailBtn: {
+        marginTop: spacing.md,
+        minHeight: 44,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+    },
+    guideDetailText: {
+        color: colors.background,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
 
     // Day cards
