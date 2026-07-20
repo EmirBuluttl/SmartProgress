@@ -88,6 +88,7 @@ interface ProgramData {
         generatedBy?: string;
         coachProfile?: Record<string, any>;
         coachRiskReport?: Record<string, any>;
+        coachRiskReports?: CoachRiskReport[];
     } | null;
     createdAt: string;
 }
@@ -98,11 +99,86 @@ type PendingStart = {
 };
 
 type CoachRiskReportType = "pain" | "injury";
+type CoachRiskReport = {
+    id: string;
+    type: CoachRiskReportType;
+    patterns: CoachPatternKey[];
+    reportedAt: string;
+    clearedAt?: string;
+};
 
 const COACH_PAIN_WARNING =
     "Agri bildirildi. Agirligi ciddi dusur, RPE 6 ustune cikma ve RIR 4-5 hedefle. Agri artarsa hareketi birak.";
 const COACH_INJURY_DISABLED_REASON =
     "Gecici sakatlik bildirildi. Bu bolgeyi calistiran hareketleri sakatlik gecene kadar loglama.";
+
+function normalizeCoachRiskReports(data?: ProgramData["data"] | null): CoachRiskReport[] {
+    if (!data) return [];
+    const rawReports = Array.isArray(data.coachRiskReports) ? data.coachRiskReports : [];
+    const legacyReport = data.coachRiskReport;
+    const reports = [
+        ...rawReports,
+        ...(legacyReport ? [legacyReport] : []),
+    ];
+
+    return reports
+        .map((report, index) => {
+            const type = report?.type === "injury" ? "injury" : report?.type === "pain" ? "pain" : null;
+            const patterns = Array.isArray(report?.patterns)
+                ? report.patterns.filter(Boolean)
+                : [];
+            if (!type || patterns.length === 0 || report?.clearedAt) return null;
+            const reportedAt = typeof report.reportedAt === "string" ? report.reportedAt : new Date(0).toISOString();
+            return {
+                id: typeof report.id === "string" && report.id.length > 0
+                    ? report.id
+                    : `${type}-${patterns.join("-")}-${reportedAt}-${index}`,
+                type,
+                patterns,
+                reportedAt,
+            } as CoachRiskReport;
+        })
+        .filter((report): report is CoachRiskReport => !!report);
+}
+
+function applyCoachRiskReportsToDays(days: ProgramDay[], reports: CoachRiskReport[]): ProgramDay[] {
+    return (days || []).map((day) => ({
+        ...day,
+        exercises: (day.exercises || []).map((exercise) => {
+            const matchingReports = exercise.targetPattern
+                ? reports.filter((report) => report.patterns.includes(exercise.targetPattern as CoachPatternKey))
+                : [];
+            const hasInjury = matchingReports.some((report) => report.type === "injury");
+            const hasPain = matchingReports.some((report) => report.type === "pain");
+
+            if (hasInjury) {
+                return {
+                    ...exercise,
+                    riskAdjusted: true,
+                    painWarning: undefined,
+                    logDisabled: true,
+                    logDisabledReason: COACH_INJURY_DISABLED_REASON,
+                };
+            }
+            if (hasPain) {
+                return {
+                    ...exercise,
+                    riskAdjusted: true,
+                    painWarning: COACH_PAIN_WARNING,
+                    logDisabled: false,
+                    logDisabledReason: undefined,
+                };
+            }
+            return {
+                ...exercise,
+                riskAdjusted: false,
+                painWarning: undefined,
+                logDisabled: false,
+                logDisabledReason: undefined,
+            };
+        }),
+    }));
+}
 
 export default function ProgramDetailScreen() {
     const navigation = useNavigation<Nav>();
@@ -145,6 +221,10 @@ export default function ProgramDetailScreen() {
         });
         return options;
     }, [program?.data]);
+    const activeCoachRiskReports = React.useMemo(
+        () => normalizeCoachRiskReports(program?.data),
+        [program?.data],
+    );
 
     const fetchProgram = useCallback(async () => {
         markPerf("program_detail_ready");
@@ -465,36 +545,25 @@ export default function ProgramDetailScreen() {
     };
     const applyCoachRiskReport = async () => {
         if (!program.data || selectedRiskPatterns.length === 0 || riskSaving) return;
-        const affected = new Set(selectedRiskPatterns);
+        const selectedSet = new Set(selectedRiskPatterns);
+        const report: CoachRiskReport = {
+            id: `${riskReportType}-${Date.now()}`,
+            type: riskReportType,
+            patterns: selectedRiskPatterns,
+            reportedAt: new Date().toISOString(),
+        };
+        const nextReports = [
+            ...activeCoachRiskReports.filter((existing) => !(
+                existing.type === riskReportType &&
+                existing.patterns.some((pattern) => selectedSet.has(pattern))
+            )),
+            report,
+        ];
         const nextData = {
             ...program.data,
-            coachRiskReport: {
-                type: riskReportType,
-                patterns: selectedRiskPatterns,
-                reportedAt: new Date().toISOString(),
-            },
-            days: (program.data.days || []).map((day) => ({
-                ...day,
-                exercises: (day.exercises || []).map((exercise) => {
-                    if (!exercise.targetPattern || !affected.has(exercise.targetPattern)) return exercise;
-                    if (riskReportType === "injury") {
-                        return {
-                            ...exercise,
-                            riskAdjusted: true,
-                            painWarning: undefined,
-                            logDisabled: true,
-                            logDisabledReason: COACH_INJURY_DISABLED_REASON,
-                        };
-                    }
-                    return {
-                        ...exercise,
-                        riskAdjusted: true,
-                        painWarning: COACH_PAIN_WARNING,
-                        logDisabled: false,
-                        logDisabledReason: undefined,
-                    };
-                }),
-            })),
+            coachRiskReport: undefined,
+            coachRiskReports: nextReports,
+            days: applyCoachRiskReportsToDays(program.data.days || [], nextReports),
         };
 
         try {
@@ -516,21 +585,14 @@ export default function ProgramDetailScreen() {
             setRiskSaving(false);
         }
     };
-    const clearCoachRiskReport = async () => {
+    const clearCoachRiskReport = async (reportId: string) => {
         if (!program.data || riskSaving) return;
+        const nextReports = activeCoachRiskReports.filter((report) => report.id !== reportId);
         const nextData = {
             ...program.data,
             coachRiskReport: undefined,
-            days: (program.data.days || []).map((day) => ({
-                ...day,
-                exercises: (day.exercises || []).map((exercise) => ({
-                    ...exercise,
-                    riskAdjusted: false,
-                    painWarning: undefined,
-                    logDisabled: false,
-                    logDisabledReason: undefined,
-                })),
-            })),
+            coachRiskReports: nextReports,
+            days: applyCoachRiskReportsToDays(program.data.days || [], nextReports),
         };
 
         try {
@@ -539,8 +601,8 @@ export default function ProgramDetailScreen() {
             invalidateProgramCache(program.id);
             setProgram(res.data as ProgramData);
             setNotice({
-                title: "Agri/sakatlik notu kaldirildi",
-                message: "Program degismedi. Hareketler tekrar normal sekilde loglanabilir.",
+                title: "Durum notu kaldirildi",
+                message: "Secilen agri/sakatlik notu kaldirildi. Kalan notlar varsa programda korunur.",
             });
         } catch (err) {
             const apiError = parseApiError(err);
@@ -773,6 +835,32 @@ export default function ProgramDetailScreen() {
                         <Text style={s.riskText}>
                             Gecici durumlarda program degismez. Agri icin guvenli mod uyarisi eklenir; sakatlikta ilgili hareketler gorunur kalir ama loglanamaz.
                         </Text>
+                        {activeCoachRiskReports.length > 0 ? (
+                            <View style={s.activeRiskList}>
+                                <Text style={s.activeRiskTitle}>Aktif durumlar</Text>
+                                {activeCoachRiskReports.map((report) => (
+                                    <View key={report.id} style={s.activeRiskRow}>
+                                        <View style={{ flex: 1 }}>
+                                            <Text style={s.activeRiskName}>
+                                                {report.type === "injury" ? "Sakatlik bildirimi" : "Agri bildirimi"}
+                                            </Text>
+                                            <Text style={s.activeRiskMeta} numberOfLines={2}>
+                                                {report.patterns.map((pattern) => COACH_PATTERN_LABELS[pattern] || pattern).join(", ")}
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity
+                                            style={s.activeRiskClearBtn}
+                                            onPress={() => clearCoachRiskReport(report.id)}
+                                            disabled={riskSaving}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Ionicons name="checkmark-circle-outline" size={14} color={colors.success} />
+                                            <Text style={s.activeRiskClearText}>Gecti</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </View>
+                        ) : null}
                         <View style={s.riskActionRow}>
                             <TouchableOpacity style={s.riskActionBtn} onPress={() => openCoachRiskModal("pain")} activeOpacity={0.8}>
                                 <Ionicons name="warning-outline" size={15} color={colors.accent} />
@@ -782,17 +870,6 @@ export default function ProgramDetailScreen() {
                                 <Ionicons name="lock-closed-outline" size={15} color={colors.accent} />
                                 <Text style={s.riskActionText}>Sakatlik bildir</Text>
                             </TouchableOpacity>
-                            {program.data?.coachRiskReport ? (
-                                <TouchableOpacity
-                                    style={[s.riskActionBtn, s.riskClearBtn]}
-                                    onPress={clearCoachRiskReport}
-                                    disabled={riskSaving}
-                                    activeOpacity={0.8}
-                                >
-                                    <Ionicons name="checkmark-circle-outline" size={15} color={colors.success} />
-                                    <Text style={[s.riskActionText, { color: colors.success }]}>Gecti / kaldir</Text>
-                                </TouchableOpacity>
-                            ) : null}
                         </View>
                     </View>
                 ) : null}
@@ -1300,6 +1377,53 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontSize: fontSize.sm,
         lineHeight: 20,
         marginBottom: spacing.md,
+    },
+    activeRiskList: {
+        gap: spacing.sm,
+        marginBottom: spacing.md,
+    },
+    activeRiskTitle: {
+        color: colors.text,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        textTransform: "uppercase",
+        letterSpacing: 0,
+    },
+    activeRiskRow: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+        borderWidth: 1,
+        borderColor: colors.border,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.background,
+        padding: spacing.sm,
+    },
+    activeRiskName: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    activeRiskMeta: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        marginTop: 2,
+    },
+    activeRiskClearBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        minHeight: 34,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.success,
+        backgroundColor: colors.successMuted,
+        paddingHorizontal: spacing.sm,
+    },
+    activeRiskClearText: {
+        color: colors.success,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
     },
     riskActionRow: {
         flexDirection: "row",
