@@ -34,6 +34,7 @@ function loadModule(filePath) {
 }
 
 const engine = loadModule(sourcePath);
+const exerciseLibrary = loadModule(exerciseLibraryPath).EXERCISE_LIBRARY;
 
 function assertEqual(actual, expected, label) {
     const actualText = JSON.stringify(actual);
@@ -48,6 +49,9 @@ assertEqual(ap4, ["Anterior A", "Posterior A", "Dinlenme", "Anterior B", "Poster
 
 const ul4 = engine.getWorkoutDays({ frequency: 4, split: "UL", priority: null }).map((day) => day.label);
 assertEqual(ul4, ["Upper A", "Lower A", "Dinlenme", "Upper B", "Lower B", "Dinlenme"], "UL 4 day cycle");
+
+assertEqual(engine.defaultSplitForFrequency(4, "calisthenics"), "UL", "Program style no longer changes default split");
+assertEqual(engine.splitOptionsForFrequency(4, "calisthenics"), ["UL", "AP", "TL"], "Program style no longer changes split options");
 
 const backFocus = engine.getTrainingDays({ frequency: 4, split: "UL", priority: "shoulder_adduction" })[0].patterns.slice(0, 3);
 assertEqual(backFocus, ["shoulder_adduction", "shoulder_extension", "horizontal_adduction"], "Back focus priority cluster");
@@ -106,6 +110,41 @@ assertEqual(
 );
 
 assertEqual(engine.COACH_PATTERN_LABELS.leg_press, "Vastuslar (ön bacak)", "Leg press target label");
+const bodyweightOnlyChestOptions = engine.getAvailableExercises("horizontal_adduction", "", [], {
+    hasEquipmentLimit: "yes",
+    equipmentLimitNote: "Sadece bodyweight var",
+});
+assertEqual(
+    bodyweightOnlyChestOptions.every((name) => {
+        const exercise = exerciseLibrary.find((item) => item.name === name);
+        return Boolean(exercise) && exercise.equipment.every((item) => item === "bodyweight");
+    }),
+    true,
+    "Only-bodyweight note removes equipment-based recommendations",
+);
+
+const noBodyweightChestOptions = engine.getAvailableExercises("horizontal_adduction", "", [], {
+    hasEquipmentLimit: "yes",
+    equipmentLimitNote: "Bodyweight/vucut agirligi hareketler uygun degil",
+});
+assertEqual(
+    noBodyweightChestOptions.some((name) => {
+        const exercise = exerciseLibrary.find((item) => item.name === name);
+        return Boolean(exercise) && exercise.equipment.includes("bodyweight");
+    }),
+    false,
+    "Unavailable bodyweight note removes bodyweight recommendations",
+);
+
+const styleNeutralShoulderOptions = engine.getAvailableExercises("shoulder_abduction", "", [], {
+    programStyle: "calisthenics",
+}).slice(0, 5);
+assertEqual(
+    styleNeutralShoulderOptions,
+    engine.getAvailableExercises("shoulder_abduction").slice(0, 5),
+    "Program style no longer changes exercise ordering",
+);
+
 assertEqual(engine.COACH_PATTERN_LABELS.hip_hinge, "Hinge", "Hip hinge target label");
 
 const generated = engine.buildCoachProgramData({

@@ -17,7 +17,6 @@ import {
     COACH_GOALS as GOALS,
     COACH_LEVELS as LEVELS,
     COACH_PATTERN_LABELS as PATTERN_LABELS,
-    COACH_PROGRAM_STYLES as PROGRAM_STYLES,
     COACH_PRIORITY_GROUPS as PRIORITY_GROUPS,
     COACH_PRIORITIES as PRIORITIES,
     COACH_SESSION_DURATIONS as SESSION_DURATIONS,
@@ -40,7 +39,6 @@ import {
     type CoachGoal as Goal,
     type CoachLevel as Level,
     type CoachPatternKey as PatternKey,
-    type CoachProgramStyle as ProgramStyle,
     type CoachSessionDuration as SessionDuration,
     type CoachSplitType as SplitType,
     type CoachStrengthFocus as StrengthFocus,
@@ -71,12 +69,6 @@ const normalizeGoal = (value: unknown): Goal => {
     if (text === "muscle" || text === "strength" || text === "fat_loss" || text === "general") return text;
     if (text === "fitness" || text === "performance") return "general";
     return "muscle";
-};
-
-const normalizeProgramStyle = (value: unknown): ProgramStyle => {
-    const text = String(value || "").toLowerCase();
-    if (text === "hypertrophy" || text === "calisthenics" || text === "streetlifting" || text === "powerlifting" || text === "crossfit") return text;
-    return "hypertrophy";
 };
 
 const normalizeFrequency = (value: unknown) => {
@@ -116,7 +108,6 @@ export default function PremiumProgramWizardScreen() {
     const [painNote, setPainNote] = React.useState("");
     const [includePainArea, setIncludePainArea] = React.useState<"no" | "yes">("yes");
     const [goal, setGoal] = React.useState<Goal>(() => normalizeGoal(coachProfile?.workoutGoal || coachProfile?.goal));
-    const [programStyle, setProgramStyle] = React.useState<ProgramStyle>(() => normalizeProgramStyle(coachProfile?.programStyle || coachProfile?.trainingStyle));
     const [strengthFocus, setStrengthFocus] = React.useState<StrengthFocus>("overall");
     const [hasEquipmentLimit, setHasEquipmentLimit] = React.useState<"no" | "yes">("no");
     const [equipmentLimitNote, setEquipmentLimitNote] = React.useState("");
@@ -146,7 +137,6 @@ export default function PremiumProgramWizardScreen() {
         setLevel(normalizeLevel(coachProfile.experienceLevel || coachProfile.level));
         setFrequency(normalizeFrequency(coachProfile.weeklyFrequency || coachProfile.frequency));
         setGoal(normalizeGoal(coachProfile.workoutGoal || coachProfile.goal));
-        setProgramStyle(normalizeProgramStyle(coachProfile.programStyle || coachProfile.trainingStyle));
         if (coachProfile.hasPain === true || coachProfile.injuryNote || coachProfile.painNote) {
             setHasPain("yes");
             setPainNote(String(coachProfile.injuryNote || coachProfile.painNote || ""));
@@ -156,15 +146,10 @@ export default function PremiumProgramWizardScreen() {
     }, [coachProfile, profileApplied]);
 
     React.useEffect(() => {
-        const recommended = defaultSplitForFrequency(frequency, programStyle);
-        const options = splitOptionsForFrequency(frequency, programStyle);
+        const recommended = defaultSplitForFrequency(frequency);
+        const options = splitOptionsForFrequency(frequency);
         if (!options.includes(split)) setSplit(recommended);
-    }, [frequency, programStyle, split]);
-
-    React.useEffect(() => {
-        if (programStyle === "streetlifting") setStrengthFocus("streetlifting");
-        if (programStyle === "powerlifting") setStrengthFocus("powerlifting");
-    }, [programStyle]);
+    }, [frequency, split]);
 
     const selectedSplit = SPLIT_PATTERNS[split];
     const selectedPriorityGroup = PRIORITY_GROUPS.find((group) => group.key === priorityGroup) || null;
@@ -179,9 +164,8 @@ export default function PremiumProgramWizardScreen() {
         preferPainSafe: hasPain === "yes" && !injuryMode,
         allowUnsafeFallback: hasPain === "yes" && (injuryMode || includePainArea === "yes"),
         goal,
-        programStyle,
         strengthFocus,
-    }), [equipmentLimitNote, goal, hasEquipmentLimit, hasPain, includePainArea, injuryMode, level, painNote, programStyle, strengthFocus]);
+    }), [equipmentLimitNote, goal, hasEquipmentLimit, hasPain, includePainArea, injuryMode, level, painNote, strengthFocus]);
     const resolveExercise = (pattern: PatternKey) =>
         resolveCoachExerciseWithAvoidance(pattern, selectedExercises, avoidNote, [], exerciseSelectionOptions);
     const activePriorityOrder = React.useMemo(
@@ -226,10 +210,9 @@ export default function PremiumProgramWizardScreen() {
         if (hasPain === "yes" && painNote.trim()) reasons.push("Agri/sakatlik filtresi aktif");
         if (avoidedExerciseTokens.length > 0) reasons.push("Kacinilan hareketler cikarildi");
         if (goal === "strength") reasons.push("Guc hedefi dikkate alindi");
-        if (programStyle !== "hypertrophy") reasons.push(`${PROGRAM_STYLES.find((item) => item.key === programStyle)?.label || "Stil"} dikkate alindi`);
         if (goal === "fat_loss") reasons.push("Yag kaybi icin toparlanma dikkate alindi");
         return reasons;
-    }, [avoidedExerciseTokens.length, equipmentLimitNote, goal, hasEquipmentLimit, hasPain, level, painNote, programStyle]);
+    }, [avoidedExerciseTokens.length, equipmentLimitNote, goal, hasEquipmentLimit, hasPain, level, painNote]);
     const hasUpperBackPriorityOverlap = priorityMode === "ordered" &&
         priorityOrder.includes("upper_back") &&
         (priorityOrder.includes("rear_delt") || priorityOrder.includes("trapezius"));
@@ -240,7 +223,6 @@ export default function PremiumProgramWizardScreen() {
         split,
         level,
         goal,
-        programStyle,
         strengthFocus,
         hasPain,
         painNote,
@@ -500,17 +482,6 @@ export default function PremiumProgramWizardScreen() {
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Hedef ve ortam</Text>
                         <Text style={styles.bodyText}>Hedef program parametrelerini, süre ve ekipman bilgisi ise seçilecek hareketleri etkiler.</Text>
-                        <Text style={styles.inlineLabel}>Program stili</Text>
-                        {PROGRAM_STYLES.map((item) => (
-                            <OptionCard
-                                key={item.key}
-                                active={programStyle === item.key}
-                                title={item.label}
-                                subtitle={item.desc}
-                                onPress={() => setProgramStyle(item.key)}
-                                colors={colors}
-                            />
-                        ))}
                         <Text style={styles.inlineLabel}>Ana hedef</Text>
                         {GOALS.map((item) => (
                             <OptionCard key={item.key} active={goal === item.key} title={item.label} onPress={() => setGoal(item.key)} colors={colors} />
@@ -718,7 +689,7 @@ export default function PremiumProgramWizardScreen() {
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Split seçimi</Text>
                         <Text style={styles.bodyText}>Frekansına uygun splitleri gösteriyoruz. Bilgisizsen açıklamaya göre seçebilirsin.</Text>
-                        {splitOptionsForFrequency(frequency, programStyle).map((option) => (
+                        {splitOptionsForFrequency(frequency).map((option) => (
                             <OptionCard key={option} active={split === option} title={SPLIT_PATTERNS[option].label} subtitle={splitReason(option)} onPress={() => setSplit(option)} colors={colors} />
                         ))}
                     </View>
