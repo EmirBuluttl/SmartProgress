@@ -744,12 +744,14 @@ export default function HomeScreen() {
             {/* ─── Recent Workouts ─── */}
             </View>
 
+            <View>
             <View ref={recentWorkoutsTourRef} collapsable={false} onLayout={rememberTourOffset("home.recentWorkouts")}>
             <SectionHeader
                 title="Son Antrenmanlar"
                 actionLabel="Tümü"
                 onAction={() => navigateStatic("WorkoutHistory")}
             />
+            </View>
             {workouts.length > 0 ? (
                 <Animated.View style={listAnimStyle}>
                 <FlatList
