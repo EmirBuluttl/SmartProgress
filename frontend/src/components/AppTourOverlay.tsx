@@ -44,12 +44,12 @@ type TargetRect = {
 };
 
 const TAB_BAR_HEIGHT = 76;
-const FIRST_MEASURE_DELAY_MS = 280;
-const SECOND_MEASURE_DELAY_MS = 560;
-const FINAL_MEASURE_DELAY_MS = 900;
-const MEASURE_GIVE_UP_MS = 1200;
-const TARGET_VISIBLE_OPACITY = 0.72;
-const TARGET_REVEAL_MS = 520;
+const FIRST_MEASURE_DELAY_MS = 180;
+const SECOND_MEASURE_DELAY_MS = 420;
+const FINAL_MEASURE_DELAY_MS = 720;
+const MEASURE_GIVE_UP_MS = 1000;
+const TARGET_VISIBLE_OPACITY = 0.66;
+const TARGET_REVEAL_MS = 340;
 
 export default function AppTourOverlay({
     visible,
@@ -57,6 +57,7 @@ export default function AppTourOverlay({
     current,
     total,
     getTarget,
+    targetVersion,
     onNext,
     onPrevious,
     onSkip,
@@ -127,7 +128,7 @@ export default function AppTourOverlay({
 
         const isCurrentRequest = () => !cancelled && measureRequestRef.current === requestId;
         const isUsableRect = (x: number, y: number, width: number, height: number) => {
-            if (!width || !height) return false;
+            if (width < 28 || height < 28) return false;
             const visibleTop = insets.top;
             const visibleBottom = screenHeight - TAB_BAR_HEIGHT - Math.max(insets.bottom, spacing.sm);
             const hasHorizontalOverlap = x < screenWidth - spacing.md && x + width > spacing.md;
@@ -186,7 +187,7 @@ export default function AppTourOverlay({
             timers.forEach(clearTimeout);
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [current, getTarget, insets.bottom, insets.top, screenHeight, screenWidth, step, targetOpacity, targetScale, visible]);
+    }, [current, getTarget, insets.bottom, insets.top, screenHeight, screenWidth, step, targetOpacity, targetScale, targetVersion, visible]);
 
     if (!visible || !step) return null;
 
