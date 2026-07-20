@@ -9,6 +9,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import { KeyboardAwareScrollView, KeyboardSafeView } from "../components/KeyboardSafeScreen";
 import { RootStackParamList } from "../navigation/RootNavigator";
 import { authApi, parseApiError, programApi } from "../services/api";
+import { hasPendingOnboardingTraining } from "../utils/appTourEvents";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
 import { getExerciseMetadata, riskLevelLabel, skillDemandLabel, stabilityLabel } from "../data/exerciseMetadata";
 import { useAuth } from "../store/AuthContext";
@@ -310,6 +311,7 @@ export default function PremiumProgramWizardScreen() {
         setNotice(null);
         try {
             const programData = buildProgramData();
+            const onboardingTrainingPending = await hasPendingOnboardingTraining();
             const response = await programApi.create({
                 name: programName,
                 description: "SmartProgress Akıllı Koç wizard ile oluşturuldu.",
@@ -318,7 +320,7 @@ export default function PremiumProgramWizardScreen() {
                 data: programData,
             });
             const programId = response.data?.id;
-            if (activate && programId) {
+            if ((activate || onboardingTrainingPending) && programId) {
                 await AsyncStorage.setItem(ACTIVE_PROGRAM_KEY, programId);
             }
             if (hasProAccess) {
@@ -346,6 +348,8 @@ export default function PremiumProgramWizardScreen() {
                     programId,
                     programName,
                     programIntro: (programData as any).programIntro,
+                    programData,
+                    onboardingTraining: onboardingTrainingPending,
                 });
             }
         } catch (error) {

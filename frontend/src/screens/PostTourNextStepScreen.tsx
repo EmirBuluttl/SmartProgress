@@ -12,7 +12,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { useAuth } from "../store/AuthContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
-import { clearPostOnboardingFlowPending } from "../utils/appTourEvents";
+import { clearPostOnboardingFlowPending, markOnboardingTrainingPending } from "../utils/appTourEvents";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "PostTourNextStep">;
 
@@ -48,6 +48,7 @@ export default function PostTourNextStepScreen() {
 
     const openWizard = React.useCallback(async () => {
         await clearPostOnboardingFlowPending();
+        await markOnboardingTrainingPending();
         navigation.replace("PremiumProgramWizard");
     }, [navigation]);
 

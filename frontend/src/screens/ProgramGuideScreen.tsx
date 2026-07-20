@@ -17,6 +17,7 @@ import {
     normalizeProgramIntro,
     PROGRAM_GUIDE_SUMMARY_RULES,
 } from "../utils/programGuide";
+import { clearOnboardingTrainingPending } from "../utils/appTourEvents";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramGuide">;
 type Route = RouteProp<RootStackParamList, "ProgramGuide">;
@@ -29,13 +30,31 @@ export default function ProgramGuideScreen() {
     const intro = normalizeProgramIntro(route.params.programIntro);
     const sections = buildGuideSections(intro);
     const programName = route.params.programName || "Program";
+    const isOnboardingTraining = route.params.onboardingTraining === true;
 
-    const openProgram = () => {
+    const openProgram = async () => {
+        if (isOnboardingTraining) {
+            await clearOnboardingTrainingPending();
+        }
         if (route.params.programId) {
             navigation.replace("ProgramDetail", { programId: route.params.programId });
             return;
         }
         navigation.goBack();
+    };
+
+    const startLoggingTraining = () => {
+        if (!route.params.programId || !route.params.programData) {
+            openProgram();
+            return;
+        }
+        navigation.replace("WorkoutSession", {
+            programId: route.params.programId,
+            programName,
+            dayIndex: 0,
+            programData: route.params.programData,
+            trainingMode: "onboarding_demo",
+        });
     };
 
     return (
@@ -106,8 +125,14 @@ export default function ProgramGuideScreen() {
                 <TouchableOpacity style={styles.secondaryBtn} onPress={openProgram} activeOpacity={0.8}>
                     <Text style={styles.secondaryText}>Sonra oku</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.primaryBtn} onPress={openProgram} activeOpacity={0.85}>
-                    <Text style={styles.primaryText}>Programi goruntule</Text>
+                <TouchableOpacity
+                    style={styles.primaryBtn}
+                    onPress={isOnboardingTraining ? startLoggingTraining : openProgram}
+                    activeOpacity={0.85}
+                >
+                    <Text style={styles.primaryText}>
+                        {isOnboardingTraining ? "Loglamayi ogren" : "Programi goruntule"}
+                    </Text>
                     <Ionicons name="arrow-forward" size={18} color={colors.background} />
                 </TouchableOpacity>
             </View>
