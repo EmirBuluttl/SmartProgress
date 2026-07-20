@@ -639,6 +639,13 @@ export default function ProgramCreateScreen() {
         setManualGuideSections((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
     };
 
+    const addCustomGuideNote = () => {
+        setManualGuideSections((prev) => ([
+            ...prev,
+            { title: "Program notu", body: "", icon: "create-outline" },
+        ]));
+    };
+
     const handleSave = useCallback(() => {
         if (safeString(name) === "") {
             setValidationNotice({ title: "Program adı eksik", message: "Kaydetmeden önce programa bir isim verin." });
@@ -775,26 +782,6 @@ export default function ProgramCreateScreen() {
             </View>
 
             <KeyboardAwareScrollView contentContainerStyle={styles.scrollContent} extraBottomPadding={140}>
-                <View style={styles.guideCard}>
-                    <View style={styles.guideCardText}>
-                        <Text style={styles.sectionTitle}>Program rehberi</Text>
-                        <Text style={styles.sectionSubtitle}>
-                            Istersen bu programi nasil kullanacagini anlatan kisa bir rehber hazirla.
-                        </Text>
-                        {manualGuideSections.length > 0 ? (
-                            <Text style={styles.guideCount}>{manualGuideSections.length} rehber bolumu hazir</Text>
-                        ) : null}
-                    </View>
-                    <TouchableOpacity
-                        style={styles.guideEditBtn}
-                        onPress={() => setGuideModalVisible(true)}
-                        activeOpacity={0.8}
-                    >
-                        <Ionicons name="school-outline" size={16} color={colors.background} />
-                        <Text style={styles.guideEditText}>Rehber hazirla</Text>
-                    </TouchableOpacity>
-                </View>
-
                 {/* ── Meta ── */}
                 <View style={styles.metaCard}>
                     <Text style={styles.label}>Program Adı *</Text>
@@ -814,6 +801,26 @@ export default function ProgramCreateScreen() {
                         onChangeText={setDescription}
                         multiline
                     />
+                </View>
+
+                <View style={styles.guideCard}>
+                    <View style={styles.guideCardText}>
+                        <Text style={styles.sectionTitle}>Program rehberi</Text>
+                        <Text style={styles.sectionSubtitle}>
+                            Istersen bu programi nasil kullanacagini anlatan kisa bir rehber hazirla.
+                        </Text>
+                        {manualGuideSections.length > 0 ? (
+                            <Text style={styles.guideCount}>{manualGuideSections.length} rehber bolumu hazir</Text>
+                        ) : null}
+                    </View>
+                    <TouchableOpacity
+                        style={styles.guideEditBtn}
+                        onPress={() => setGuideModalVisible(true)}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="school-outline" size={16} color={colors.background} />
+                        <Text style={styles.guideEditText}>Rehber hazirla</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* ── Frequency Selector ── */}
@@ -1327,6 +1334,14 @@ export default function ProgramCreateScreen() {
                                         </TouchableOpacity>
                                     );
                                 })}
+                                <TouchableOpacity
+                                    style={styles.guideTemplateChip}
+                                    onPress={addCustomGuideNote}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons name="create-outline" size={14} color={colors.accent} />
+                                    <Text style={styles.guideTemplateText}>Diger not</Text>
+                                </TouchableOpacity>
                             </View>
 
                             {manualGuideSections.length === 0 ? (
