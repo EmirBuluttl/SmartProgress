@@ -132,6 +132,19 @@ export default function ProgramDetailScreen() {
     const [riskSaving, setRiskSaving] = useState(false);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
+    const coachPatternOptions = React.useMemo(() => {
+        const seen = new Set<CoachPatternKey>();
+        const options: { key: CoachPatternKey; label: string }[] = [];
+        (program?.data?.days || []).forEach((day) => {
+            (day.exercises || []).forEach((exercise) => {
+                const key = exercise.targetPattern;
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                options.push({ key, label: exercise.targetMuscle || COACH_PATTERN_LABELS[key] || key });
+            });
+        });
+        return options;
+    }, [program?.data]);
 
     const fetchProgram = useCallback(async () => {
         markPerf("program_detail_ready");
@@ -431,19 +444,6 @@ export default function ProgramDetailScreen() {
         !!program.data.coachProfile ||
         programIntro?.source === "coach"
     );
-    const coachPatternOptions = React.useMemo(() => {
-        const seen = new Set<CoachPatternKey>();
-        const options: { key: CoachPatternKey; label: string }[] = [];
-        (program.data?.days || []).forEach((day) => {
-            (day.exercises || []).forEach((exercise) => {
-                const key = exercise.targetPattern;
-                if (!key || seen.has(key)) return;
-                seen.add(key);
-                options.push({ key, label: exercise.targetMuscle || COACH_PATTERN_LABELS[key] || key });
-            });
-        });
-        return options;
-    }, [program.data]);
     const openProgramGuide = () => {
         navigation.navigate("ProgramGuide", {
             programId: program.id,
