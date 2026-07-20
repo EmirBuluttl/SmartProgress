@@ -21,7 +21,7 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.smartprogress.app",
-      "buildNumber": "10",
+      "buildNumber": "12",
       "usesAppleSignIn": true,
       "infoPlist": {
         "NSCameraUsageDescription": "Profil fotoğrafı çekmek için kamera erişimi kullanılır.",
