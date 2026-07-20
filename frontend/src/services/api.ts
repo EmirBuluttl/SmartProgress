@@ -269,8 +269,23 @@ export const notificationApi = {
     clear: () => api.delete("/notifications"),
 };
 
+export type CoachSignalRatioRange = "7" | "30" | "365" | "all";
+
+export type CoachSignalRatioPoint = {
+    weekLabel: string;
+    weekStart: string;
+    weekEnd: string;
+    progressRatio: number;
+    plateauRatio: number;
+    regressionRatio: number;
+    watchRatio: number;
+    analyzedCount: number;
+    workoutCount: number;
+};
+
 export const coachApi = {
     weeklyReport: (params?: { date?: string }) => api.get("/coach/weekly-report", { params }),
+    signalRatios: (params?: { range?: CoachSignalRatioRange }) => api.get("/coach/signal-ratios", { params }),
     insights: (params?: { limit?: number }) => api.get("/coach/insights", { params }),
     updateInsightRecommendation: (insightId: string, payload: { decision: "accepted" | "rejected" | "follow" }) =>
         api.patch(`/coach/insights/${insightId}/recommendation`, payload),

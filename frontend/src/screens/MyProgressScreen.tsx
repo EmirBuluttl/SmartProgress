@@ -48,14 +48,29 @@ import AnimatedPressable from "../components/AnimatedPressable";
 import PremiumModalSurface from "../components/PremiumModalSurface";
 import { KeyboardAwareScrollView } from "../components/KeyboardSafeScreen";
 import WeeklyStrengthChart from "../components/WeeklyStrengthChart";
+import CoachSignalRatioChart from "../components/CoachSignalRatioChart";
 import { useAppTourTarget } from "../contexts/AppTourContext";
+import { coachApi, type CoachSignalRatioPoint, type CoachSignalRatioRange } from "../services/api";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const RECORD_LINKS_KEY = "personal_record_video_links";
+const SIGNAL_RATIO_CACHE_KEY = "coach_signal_ratio_snapshot_v1";
 
 type TimeFilter = "1H" | "1A" | "1Y" | "Tümü";
 const FILTERS: TimeFilter[] = ["1H", "1A", "1Y", "Tümü"];
 const FILTER_DAYS: Record<TimeFilter, number> = { "1H": 7, "1A": 30, "1Y": 365, "Tümü": 9999 };
+const SIGNAL_RATIO_RANGE_BY_FILTER: Record<TimeFilter, CoachSignalRatioRange> = {
+    "1H": "7",
+    "1A": "30",
+    "1Y": "365",
+    "Tümü": "all",
+};
+type SignalRatioSnapshot = {
+    range: CoachSignalRatioRange;
+    generatedAt?: string;
+    savedAt: string;
+    points: CoachSignalRatioPoint[];
+};
 type ChartMetric =
     | `exercise:${string}`
     | `muscle:${string}`
@@ -204,6 +219,7 @@ export default function MyProgressScreen() {
     const [animationProgress, setAnimationProgress] = React.useState(0);
     const chartAnimationTimerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
     const chartRequestIdRef = React.useRef(0);
+    const signalRatioRequestIdRef = React.useRef(0);
     const isNavigatingToRecordsRef = React.useRef(false);
     const hasSetDefaultMetric = React.useRef(false);
     const tourOffsetsRef = React.useRef<Record<string, number>>({});
@@ -234,6 +250,10 @@ export default function MyProgressScreen() {
     const [linkDraft, setLinkDraft] = React.useState("");
     const [linkError, setLinkError] = React.useState("");
     const [filterModalVisible, setFilterModalVisible] = React.useState(false);
+    const [signalRatioPoints, setSignalRatioPoints] = React.useState<CoachSignalRatioPoint[]>([]);
+    const [signalRatioLoading, setSignalRatioLoading] = React.useState(false);
+    const [signalRatioError, setSignalRatioError] = React.useState("");
+    const [signalRatioUpdatedAt, setSignalRatioUpdatedAt] = React.useState<string | null>(null);
 
     const styles = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -400,6 +420,50 @@ export default function MyProgressScreen() {
 
     // ── Derived chart info ────────────────────────────────────────────────────
 
+    const loadSignalRatios = React.useCallback(async (activeFilter: TimeFilter, options?: { force?: boolean }) => {
+        const range = SIGNAL_RATIO_RANGE_BY_FILTER[activeFilter];
+        const requestId = ++signalRatioRequestIdRef.current;
+        setSignalRatioError("");
+
+        try {
+            const rawSnapshot = await AsyncStorage.getItem(SIGNAL_RATIO_CACHE_KEY);
+            const cached = rawSnapshot ? JSON.parse(rawSnapshot) as SignalRatioSnapshot : null;
+            if (cached?.range === range && Array.isArray(cached.points)) {
+                setSignalRatioPoints(cached.points);
+                setSignalRatioUpdatedAt(cached.generatedAt || cached.savedAt);
+            }
+
+            const savedAtMs = cached?.savedAt ? new Date(cached.savedAt).getTime() : 0;
+            const isCacheFresh = cached?.range === range && Date.now() - savedAtMs < 3 * 60 * 1000;
+            const staleAnalytics = await isWorkoutAnalyticsStale().catch(() => false);
+            if (!options?.force && isCacheFresh && !staleAnalytics) return;
+
+            setSignalRatioLoading(true);
+            const response = await coachApi.signalRatios({ range });
+            if (requestId !== signalRatioRequestIdRef.current) return;
+
+            const points = Array.isArray(response.data?.points) ? response.data.points : [];
+            const generatedAt = response.data?.generatedAt || new Date().toISOString();
+            setSignalRatioPoints(points);
+            setSignalRatioUpdatedAt(generatedAt);
+            await AsyncStorage.setItem(SIGNAL_RATIO_CACHE_KEY, JSON.stringify({
+                range,
+                generatedAt,
+                savedAt: new Date().toISOString(),
+                points,
+            } satisfies SignalRatioSnapshot));
+        } catch (error) {
+            console.warn("[MyProgress] Signal ratio refresh failed:", error);
+            if (requestId === signalRatioRequestIdRef.current) {
+                setSignalRatioError("Koc sinyalleri yenilenemedi.");
+            }
+        } finally {
+            if (requestId === signalRatioRequestIdRef.current) {
+                setSignalRatioLoading(false);
+            }
+        }
+    }, []);
+
     const chartTitle = React.useMemo(() => {
         const opt = allMetricOptions.find((o) => o.key === chartMetric);
         return opt?.label || "Progress";
@@ -410,6 +474,16 @@ export default function MyProgressScreen() {
     }, []);
 
     const latestPoint = weeklyPoints[weeklyPoints.length - 1] ?? null;
+    const latestSignalPoint = React.useMemo(
+        () => [...signalRatioPoints].reverse().find((point) => point.analyzedCount > 0 || point.workoutCount > 0) || null,
+        [signalRatioPoints],
+    );
+    const signalRatioUpdatedLabel = React.useMemo(() => {
+        if (!signalRatioUpdatedAt) return "";
+        const date = new Date(signalRatioUpdatedAt);
+        if (!Number.isFinite(date.getTime())) return "";
+        return date.toLocaleTimeString("tr-TR", { hour: "2-digit", minute: "2-digit" });
+    }, [signalRatioUpdatedAt]);
 
     const isESSMetric =
         chartMetric.startsWith("exercise:") || chartMetric.startsWith("muscle:");
@@ -440,6 +514,7 @@ export default function MyProgressScreen() {
     const loadAnalytics = async () => {
         let staleAnalytics = false;
         let needsAnalyticsRefresh = false;
+        loadSignalRatios(filter).catch(() => undefined);
         const persistedAnalytics = await getPersistedWorkoutAnalyticsSnapshot().catch(() => null);
         if (persistedAnalytics) {
             setAnalyticsSnapshot(persistedAnalytics);
@@ -507,6 +582,7 @@ export default function MyProgressScreen() {
     // ── Re-build on filter change ─────────────────────────────────────────────
 
     React.useEffect(() => {
+        loadSignalRatios(filter).catch(() => undefined);
         if (allWorkouts.length > 0 || bodyMeasurements.length > 0 || nutritionLogs.length > 0) {
             scheduleChartData(allWorkouts, bodyMeasurements, nutritionLogs, filter, chartMetric);
         }
@@ -639,7 +715,7 @@ export default function MyProgressScreen() {
                     <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.filterSummaryLabel}>Görünüm</Text>
                         <Text style={styles.filterSummaryValue} numberOfLines={1}>
-                            {chartTitle} · {splitFilter} · {filter}
+                            Koc sinyalleri · {filter}
                         </Text>
                     </View>
                     <AnimatedPressable
@@ -657,7 +733,67 @@ export default function MyProgressScreen() {
 
                 {/* ── Progress Chart ── */}
                 <Animated.View ref={chartTourRef} collapsable={false} onLayout={rememberTourOffset("progress.chart")} style={chartAnimStyle}>
-                    <SectionHeader title={chartTitle} />
+                    <SectionHeader title="Koc sinyalleri" />
+                    <GymCard elevated style={styles.chartCard}>
+                        <View style={styles.scoreSummaryRow}>
+                            <View style={styles.scoreSummaryLeft}>
+                                <Text style={styles.scoreSummaryLabel}>Son analiz</Text>
+                                {latestSignalPoint ? (
+                                    <Text style={styles.scoreSummaryValue}>
+                                        %{latestSignalPoint.progressRatio.toFixed(1)}
+                                    </Text>
+                                ) : (
+                                    <Text style={styles.scoreSummaryEmpty}>—</Text>
+                                )}
+                                <Text style={styles.deltaHint}>progress orani</Text>
+                            </View>
+                            <View style={styles.scoreSummaryRight}>
+                                {latestSignalPoint ? (
+                                    <>
+                                        <View style={styles.signalPillRow}>
+                                            <View style={[styles.signalPill, { backgroundColor: (colors.warning || "#F59E0B") + "22" }]}>
+                                                <Text style={[styles.signalPillText, { color: colors.warning || "#F59E0B" }]}>Plato %{latestSignalPoint.plateauRatio.toFixed(1)}</Text>
+                                            </View>
+                                            <View style={[styles.signalPill, { backgroundColor: (colors.error || "#EF4444") + "20" }]}>
+                                                <Text style={[styles.signalPillText, { color: colors.error || "#EF4444" }]}>Dusus %{latestSignalPoint.regressionRatio.toFixed(1)}</Text>
+                                            </View>
+                                        </View>
+                                        <Text style={styles.deltaHint}>Takip/notr %{latestSignalPoint.watchRatio.toFixed(1)}</Text>
+                                    </>
+                                ) : signalRatioLoading ? (
+                                    <ActivityIndicator size="small" color={colors.accent} />
+                                ) : (
+                                    <Text style={styles.baselineLabel}>Veri bekleniyor</Text>
+                                )}
+                            </View>
+                        </View>
+
+                        <CoachSignalRatioChart data={signalRatioPoints} colors={colors} />
+
+                        <View style={styles.chartLegend}>
+                            <View style={styles.legendRow}>
+                                <View style={[styles.legendDot, { backgroundColor: colors.success || "#22C55E" }]} />
+                                <Text style={styles.legendText}>Progress</Text>
+                            </View>
+                            <View style={styles.legendRow}>
+                                <View style={[styles.legendDot, { backgroundColor: colors.warning || "#F59E0B" }]} />
+                                <Text style={styles.legendText}>Plato</Text>
+                            </View>
+                            <View style={styles.legendRow}>
+                                <View style={[styles.legendDot, { backgroundColor: colors.error || "#EF4444" }]} />
+                                <Text style={styles.legendText}>Dusus</Text>
+                            </View>
+                            <Text style={styles.legendText}>
+                                Payda yorumlanabilir hareketlerdir. Takip/notr kalan oran metin olarak gosterilir.
+                            </Text>
+                            {!!signalRatioError && <Text style={styles.errorText}>{signalRatioError}</Text>}
+                            {!!signalRatioUpdatedLabel && <Text style={styles.deltaHint}>Son yenileme {signalRatioUpdatedLabel}</Text>}
+                        </View>
+                    </GymCard>
+                </Animated.View>
+
+                <Animated.View style={chartAnimStyle}>
+                    <SectionHeader title="Detay metrikler" />
                     <GymCard elevated style={styles.chartCard}>
                         {/* Score summary row */}
                         <View style={styles.scoreSummaryRow}>
@@ -1080,6 +1216,22 @@ const createStyles = (colors: any) =>
         scoreSummaryRight: {
             alignItems: "flex-end",
             gap: 4,
+        },
+        signalPillRow: {
+            flexDirection: "row",
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+            gap: 6,
+            maxWidth: 190,
+        },
+        signalPill: {
+            paddingHorizontal: spacing.sm,
+            paddingVertical: 4,
+            borderRadius: borderRadius.full,
+        },
+        signalPillText: {
+            fontSize: fontSize.xs,
+            fontWeight: fontWeight.bold,
         },
         deltaHint: {
             fontSize: 10,
