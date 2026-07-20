@@ -516,6 +516,39 @@ export default function ProgramDetailScreen() {
             setRiskSaving(false);
         }
     };
+    const clearCoachRiskReport = async () => {
+        if (!program.data || riskSaving) return;
+        const nextData = {
+            ...program.data,
+            coachRiskReport: undefined,
+            days: (program.data.days || []).map((day) => ({
+                ...day,
+                exercises: (day.exercises || []).map((exercise) => ({
+                    ...exercise,
+                    riskAdjusted: false,
+                    painWarning: undefined,
+                    logDisabled: false,
+                    logDisabledReason: undefined,
+                })),
+            })),
+        };
+
+        try {
+            setRiskSaving(true);
+            const res = await programApi.update(program.id, { data: nextData });
+            invalidateProgramCache(program.id);
+            setProgram(res.data as ProgramData);
+            setNotice({
+                title: "Agri/sakatlik notu kaldirildi",
+                message: "Program degismedi. Hareketler tekrar normal sekilde loglanabilir.",
+            });
+        } catch (err) {
+            const apiError = parseApiError(err);
+            setNotice({ title: "Not kaldirilamadi", message: apiError.message || "Agri/sakatlik notu kaldirilamadi." });
+        } finally {
+            setRiskSaving(false);
+        }
+    };
 
     return (
         <Animated.View style={[s.container, animStyle]}>
@@ -749,6 +782,17 @@ export default function ProgramDetailScreen() {
                                 <Ionicons name="lock-closed-outline" size={15} color={colors.accent} />
                                 <Text style={s.riskActionText}>Sakatlik bildir</Text>
                             </TouchableOpacity>
+                            {program.data?.coachRiskReport ? (
+                                <TouchableOpacity
+                                    style={[s.riskActionBtn, s.riskClearBtn]}
+                                    onPress={clearCoachRiskReport}
+                                    disabled={riskSaving}
+                                    activeOpacity={0.8}
+                                >
+                                    <Ionicons name="checkmark-circle-outline" size={15} color={colors.success} />
+                                    <Text style={[s.riskActionText, { color: colors.success }]}>Gecti / kaldir</Text>
+                                </TouchableOpacity>
+                            ) : null}
                         </View>
                     </View>
                 ) : null}
@@ -1272,6 +1316,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.accentBorder,
         backgroundColor: colors.accentSubtle,
         paddingHorizontal: spacing.md,
+    },
+    riskClearBtn: {
+        borderColor: colors.success,
+        backgroundColor: colors.successMuted,
     },
     riskActionText: {
         color: colors.accent,
