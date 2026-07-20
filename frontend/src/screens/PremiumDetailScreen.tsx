@@ -42,6 +42,13 @@ function getStoreInstallHint() {
     return "Satin alma islemleri sadece iOS ve Android uygulama buildlerinde test edilebilir.";
 }
 
+function getPriceText(aPackage: any | null, loading: boolean) {
+    const priceString = aPackage?.product?.priceString;
+    if (priceString) return `${priceString} / ay`;
+    if (loading) return "Magaza fiyati yukleniyor";
+    return "Fiyat App Store veya Google Play odeme ekraninda gosterilir";
+}
+
 export default function PremiumDetailScreen() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { user, updateUser } = useAuth();
@@ -64,6 +71,33 @@ export default function PremiumDetailScreen() {
         const response = await authApi.syncEntitlements({ appUserId: user?.id });
         updateUser(response.data);
     }, [updateUser, user?.id]);
+
+    React.useEffect(() => {
+        let cancelled = false;
+        if (!user?.id || purchasePackage || loadingOffer) return;
+
+        const loadOffer = async () => {
+            setLoadingOffer(true);
+            try {
+                const revenueCat = await import("../services/revenueCat");
+                const readiness = await revenueCat.getRevenueCatReadiness();
+                if (!readiness.ready) return;
+                const offerings = await revenueCat.getPremiumOfferings(user.id);
+                if (!cancelled) {
+                    setPurchasePackage(offerings.packages[0] || null);
+                }
+            } catch (error) {
+                console.warn("Premium offer preload failed", error);
+            } finally {
+                if (!cancelled) setLoadingOffer(false);
+            }
+        };
+
+        loadOffer();
+        return () => {
+            cancelled = true;
+        };
+    }, [loadingOffer, purchasePackage, user?.id]);
 
     const handlePurchase = async () => {
         if (!user?.id) return;
@@ -175,6 +209,29 @@ export default function PremiumDetailScreen() {
                         </Text>
                     </View>
                 </View>
+                <View style={styles.subscriptionInfoBox}>
+                    <Text style={styles.subscriptionInfoTitle}>Abonelik bilgisi</Text>
+                    <InfoRow label="Urun" value="SmartProgress Premium Monthly" colors={colors} />
+                    <InfoRow label="Sure" value="1 ay, otomatik yenilenir" colors={colors} />
+                    <InfoRow label="Fiyat" value={getPriceText(purchasePackage, loadingOffer)} colors={colors} />
+                    <InfoRow label="Yenileme" value="Iptal edilmedigi surece donem sonunda otomatik yenilenir." colors={colors} />
+                    <View style={styles.legalLinksRow}>
+                        <TouchableOpacity
+                            style={styles.legalLinkButton}
+                            onPress={() => navigation.navigate("PrivacyPolicy")}
+                            activeOpacity={0.78}
+                        >
+                            <Text style={styles.legalLinkText}>Privacy Policy</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={styles.legalLinkButton}
+                            onPress={() => navigation.navigate("TermsOfService")}
+                            activeOpacity={0.78}
+                        >
+                            <Text style={styles.legalLinkText}>Terms of Use (EULA)</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
                 <TouchableOpacity
                     style={[styles.primaryButton, (busy || loadingOffer) && styles.disabledButton]}
                     onPress={handlePurchase}
@@ -213,6 +270,20 @@ export default function PremiumDetailScreen() {
                 onClose={() => setNotice(null)}
             />
         </ScrollView>
+    );
+}
+
+function InfoRow({ label, value, colors }: {
+    label: string;
+    value: string;
+    colors: any;
+}) {
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    return (
+        <View style={styles.infoRow}>
+            <Text style={styles.infoLabel}>{label}</Text>
+            <Text style={styles.infoValue}>{value}</Text>
+        </View>
     );
 }
 
@@ -282,6 +353,30 @@ const createStyles = (colors: any) => StyleSheet.create({
     trialInfoCopy: { flex: 1, minWidth: 0, gap: 2 },
     trialInfoTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     trialInfoText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 19 },
+    subscriptionInfoBox: {
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        padding: spacing.md,
+        gap: spacing.sm,
+    },
+    subscriptionInfoTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+    infoRow: { flexDirection: "row", gap: spacing.md, alignItems: "flex-start" },
+    infoLabel: { width: 76, color: colors.textMuted, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+    infoValue: { flex: 1, minWidth: 0, color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 19 },
+    legalLinksRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.xs },
+    legalLinkButton: {
+        minHeight: 36,
+        borderRadius: borderRadius.sm,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.md,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    legalLinkText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     primaryButton: {
         minHeight: 52,
         borderRadius: borderRadius.md,
