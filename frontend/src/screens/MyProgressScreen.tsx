@@ -54,7 +54,7 @@ import { coachApi, type CoachSignalRatioPoint, type CoachSignalRatioRange } from
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const RECORD_LINKS_KEY = "personal_record_video_links";
-const SIGNAL_RATIO_CACHE_KEY = "coach_signal_ratio_snapshot_v1";
+const SIGNAL_RATIO_CACHE_KEY = "coach_signal_ratio_snapshot_v2";
 
 type TimeFilter = "1H" | "1A" | "1Y" | "Tümü";
 const FILTERS: TimeFilter[] = ["1H", "1A", "1Y", "Tümü"];
@@ -475,7 +475,7 @@ export default function MyProgressScreen() {
 
     const latestPoint = weeklyPoints[weeklyPoints.length - 1] ?? null;
     const latestSignalPoint = React.useMemo(
-        () => [...signalRatioPoints].reverse().find((point) => point.analyzedCount > 0 || point.workoutCount > 0) || null,
+        () => [...signalRatioPoints].reverse().find((point) => point.analyzedCount > 0) || null,
         [signalRatioPoints],
     );
     const signalRatioUpdatedLabel = React.useMemo(() => {

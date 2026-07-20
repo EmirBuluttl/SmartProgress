@@ -143,6 +143,41 @@ function clampSignalRange(value: unknown): CoachSignalRatioRange {
         : "30";
 }
 
+function countSignalCategories(data: Record<string, any>, analyses: any[]) {
+    if (analyses.length > 0) {
+        return analyses.reduce(
+            (acc, item) => {
+                const flags = Array.isArray(item?.flags) ? item.flags : [];
+                if (item?.decision === "progress") {
+                    acc.progressCount += 1;
+                } else if (flags.includes("single_session_regression")) {
+                    acc.regressionCount += 1;
+                } else if (flags.includes("plateau_candidate")) {
+                    acc.plateauCount += 1;
+                } else {
+                    acc.neutralCount += 1;
+                }
+                acc.analyzedCount += 1;
+                return acc;
+            },
+            { progressCount: 0, plateauCount: 0, regressionCount: 0, neutralCount: 0, analyzedCount: 0 },
+        );
+    }
+
+    const progressCount = Number(data.progressCount || 0);
+    const plateauCount = Number(data.plateauCount || 0);
+    const regressionCount = Number(data.regressionCount || 0);
+    const watchCount = Number(data.watchCount || 0);
+    const analyzedCount = Math.max(progressCount + watchCount, progressCount + plateauCount + regressionCount);
+    return {
+        progressCount,
+        plateauCount,
+        regressionCount,
+        neutralCount: Math.max(0, analyzedCount - progressCount - plateauCount - regressionCount),
+        analyzedCount,
+    };
+}
+
 function insightTypeForAnalysis(analysis: { decision: string; flags: string[] }) {
     if (analysis.flags.includes("rir_adjustment_candidate")) return "RIR_ADJUSTMENT_CANDIDATE";
     if (analysis.flags.includes("volume_reduce_candidate")) return "VOLUME_REDUCE_CANDIDATE";
@@ -392,11 +427,7 @@ export class CoachReportService {
         const points: CoachSignalRatioPoint[] = reports.map((report, index) => {
             const data = getReportData(report);
             const analyses = Array.isArray(data.exerciseAnalyses) ? data.exerciseAnalyses : [];
-            const progressCount = Number(data.progressCount || 0);
-            const plateauCount = Number(data.plateauCount || 0);
-            const regressionCount = Number(data.regressionCount || 0);
-            const watchCount = Number(data.watchCount || 0);
-            const analyzedCount = analyses.length || progressCount + plateauCount + regressionCount + watchCount;
+            const { progressCount, plateauCount, regressionCount, neutralCount, analyzedCount } = countSignalCategories(data, analyses);
             const weekStart = weekStarts[index];
             const weekEnd = new Date(weekStart);
             weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
@@ -408,7 +439,7 @@ export class CoachReportService {
                 progressRatio: ratio(progressCount, analyzedCount),
                 plateauRatio: ratio(plateauCount, analyzedCount),
                 regressionRatio: ratio(regressionCount, analyzedCount),
-                watchRatio: ratio(watchCount, analyzedCount),
+                watchRatio: ratio(neutralCount, analyzedCount),
                 analyzedCount,
                 workoutCount: Number(data.workoutCount || 0),
             };
