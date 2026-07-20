@@ -1027,6 +1027,32 @@ export function buildCoachProgramData(input: CoachProfileInput) {
             ? "Güç ve ölçülebilir progress"
             : "Kas kazanımı ve sürdürülebilir progress";
 
+    const levelProgressNote = input.level === "beginner"
+        ? "Baslangic seviyesinde agirlik ve tekrarlarin basta daha kolay artabilir. Buna kapilip acele etme; once hareket formunu oturt, sonra form bozulmadan tekrar veya agirlik artir."
+        : input.level === "advanced"
+            ? "Ileri seviyede progress daha yavas gelir. Ust tekrar sinirina ulasmak, bir onceki antrenmana gore tekrarlarin belirgin artmasi veya agirligin artik hafif gelmesi agirlik artirmayi denemek icin daha dogru sinyallerdir."
+            : "Orta seviyede amac uzun vadede hareketlerde agirlik veya tekrar artirmaktir. Bunu her antrenmanda beklemek zorunda degilsin; ust tekrar sinirina form bozulmadan ulasinca kontrollu artis deneyebilirsin.";
+    const painGuideSection = input.hasPain === "yes"
+        ? [{
+            title: injuryMode ? "Agri ve sakatlik notu" : "Agri notu",
+            body: injuryMode
+                ? "Sakatlik gecici ise programin kendisi degismez. Etkilenen bolge programda gorunur kalir fakat sakatlik gecene kadar ilgili hareketleri loglama. Agri yapan hareketlerden kacin ve gerekiyorsa doktora gorun."
+                : "Agri olan bolgede agirligi ciddi dusur, RPE 6 ustune cikma ve RIR 4-5 hedefle. Hareket sirasinda agri veya aci artarsa antrenmani o bolge icin birak ve gerekiyorsa doktora gorun.",
+        }]
+        : [{
+            title: "Agri ve sakatlik",
+            body: "Hareket aninda agri veya aci hissedersen o bolge icin antrenmani birak. Agri olmayan bolgeleri calismaya devam edebilirsin; ornegin kolunda sorun varsa bacak gununu aksatmak zorunda degilsin.",
+        }];
+    const supersetGuideSection = supersetCount > 0
+        ? [{
+            title: "Dinlenme ve superset",
+            body: "Normal setlerde acele etme; kendini hazir hissettiginde sete gir. Genel dinlenme hedefi 3-5 dk civaridir. Programinda superset varsa ilk hareketten sonra cok beklemeden ikinci harekete gec, sonra kisa dinlen ve siradaki superset turune devam et.",
+        }]
+        : [{
+            title: "Dinlenme",
+            body: "Set oncesi dinlenme gelisim icin onemlidir. Pump kovalamak icin seti aceleye getirme; calisma setine hazir ve dikkatini harekete vererek gir. Genel dinlenme hedefi 3-5 dk civaridir.",
+        }];
+
     return {
         frequency: input.frequency,
         splitType: input.split,
@@ -1047,14 +1073,42 @@ export function buildCoachProgramData(input: CoachProfileInput) {
             avoidNote: input.avoidNote?.trim() || undefined,
         },
         programIntro: {
-            title: "Program tanıtımı",
+            title: "Program rehberi",
             sections: [
-                { title: "Programın amacı", body: goalIntro + " için " + COACH_SPLIT_PATTERNS[input.split].label + " akışı kuruldu." },
-                { title: "Haftalık akış", body: input.frequency + " antrenman günü, aralara yerleştirilen dinlenme günleri ve " + (input.sessionDuration || "60-90") + " dk hedefi ile planlandı." },
-                { title: "Efor kuralı", body: "Çalışma setlerinde RPE " + targetRpeForInput({ level: input.level, hasPain: "no" }) + ", RIR " + targetRirForInput({ level: input.level, goal: input.goal, strengthFocus: input.strengthFocus, hasPain: "no" }) + " hedefle." },
-                { title: "Progress kuralı", body: "Form bozulmadan üst tekrar sınırını gördüğünde sonraki antrenmanda kontrollü ağırlık artır. Tek bir kötü set yüzünden programı değiştirme." },
-                ...(input.hasPain === "yes" ? [{ title: injuryMode ? "Sakatlık notu" : "Ağrı notu", body: injuryMode ? "Etkilenen bölge programda tutuldu, fakat sakatlık geçene kadar ilgili hareketler loglanamaz." : "İlgili hareketlerde ağırlığı en az %60 düşür, RPE 6 üstüne çıkma ve RIR 4-5 hedefle." }] : []),
-                ...(supersetCount > 0 ? [{ title: "Superset uygulaması", body: "A1/A2 olarak işaretlenen hareketleri arka arkaya yap, sonra dinlen. Compound ve ağrı ilişkili hareketler superset dışı tutuldu." }] : []),
+                {
+                    title: "Programin amaci",
+                    body: goalIntro + " icin " + COACH_SPLIT_PATTERNS[input.split].label + " akisi kuruldu. Bu programin amaci uzun vadede sakatligi minimize ederek takip edilebilir ve surdurulebilir bir ilerleme yol haritasi olusturmaktir.",
+                },
+                {
+                    title: "Programi nasil baslatacaksin?",
+                    body: "Antrenman oncesinde calisacagin kas gruplarini veya vucudunu isit. Isinmis hissetmiyorsan hareketlerden once isinma setleri yap. Hareketleri program sirasiyla yapman tavsiye edilir ama zorunlu degildir.",
+                },
+                {
+                    title: "Takip ve loglama",
+                    body: "Programi ana sayfada basili tutarak takibe alabilirsin. Takibe aldiktan sonra aktif gun ana sayfada gorunur. Calisma setinden sonra kilogram ve tekrarini logla; RPE ve RIR biliyorsan mutlaka ekle.",
+                },
+                {
+                    title: "Seviyene gore odak",
+                    body: levelProgressNote,
+                },
+                {
+                    title: "Progress nasil okunur?",
+                    body: "Progress bu uygulamanin ana amacidir ama her antrenmanda gelmek zorunda degildir. Ust tekrar sinirina form bozulmadan ulasiyorsan veya ayni agirlik artik daha kolay geliyorsa tekrar ya da agirlik artirmayi deneyebilirsin. Kotu antrenmanlar surecin normal parcasidir.",
+                },
+                {
+                    title: "RPE ve RIR",
+                    body: "RPE ve RIR verileri koc analizinin daha dogru calismasina yardim eder. Ne olduklarini bilmiyorsan antrenman loglarken bilgi butonlarindan ogrenip deneye deneye loglamayi aliskanlik haline getir.",
+                },
+                ...supersetGuideSection,
+                ...painGuideSection,
+                {
+                    title: "Programi ne zaman degistirmelisin?",
+                    body: "Sevmedigin veya sana uygun olmayan hareketi program duzenleme ekranindan degistirebilirsin. Fakat sik program degistirmek adaptasyonu en basa sarabilir. Agirlik veya tekrarlar artiyorsa program calisiyor demektir; sabirli kal.",
+                },
+                {
+                    title: "Maksimum verim",
+                    body: "Setlerini videoya cekmek, hareket notlari almak ve kablo/sehpa ayari gibi detaylari sabit tutmak progress takibini daha dogru yapar. Calisma setlerine dikkatini vererek gir ve program disina cikmamaya calis.",
+                },
             ],
         },
         days,
