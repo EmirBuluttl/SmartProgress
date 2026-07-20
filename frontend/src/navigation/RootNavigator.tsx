@@ -28,6 +28,7 @@ import PublicProfileScreen from "../screens/PublicProfileScreen";
 import CardioSessionScreen from "../screens/CardioSessionScreen";
 import PremiumDetailScreen from "../screens/PremiumDetailScreen";
 import PremiumProgramWizardScreen from "../screens/PremiumProgramWizardScreen";
+import ProgramGuideScreen from "../screens/ProgramGuideScreen";
 import CoachWeeklyReportScreen from "../screens/CoachWeeklyReportScreen";
 import CoachInsightHistoryScreen from "../screens/CoachInsightHistoryScreen";
 import ExerciseLibraryScreen from "../screens/ExerciseLibraryScreen";
@@ -113,6 +114,11 @@ export type RootStackParamList = {
     CommunityPrograms: undefined;
     WorkoutDetail: { workout: any };
     ProgramDetail: { programId: string };
+    ProgramGuide: {
+        programId?: string;
+        programName?: string;
+        programIntro?: any;
+    };
     ProgramDayDetail: {
         programId: string;
         programName: string;
@@ -262,6 +268,11 @@ function AppNavigator() {
             <AppStack.Screen
                 name="ProgramDetail"
                 component={ProgramDetailScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <AppStack.Screen
+                name="ProgramGuide"
+                component={ProgramGuideScreen}
                 options={{ animation: "slide_from_right" }}
             />
             <AppStack.Screen
