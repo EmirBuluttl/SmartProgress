@@ -105,6 +105,17 @@ export class CoachController {
         }
     }
 
+    async signalRatios(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const userId = req.user!.userId;
+            const range = typeof req.query.range === "string" ? req.query.range : "30";
+            const ratios = await coachReportService.generateSignalRatios(userId, range);
+            res.status(200).json(ratios);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     async aiStatus(req: Request, res: Response, next: NextFunction): Promise<void> {
         try {
             const userId = req.user!.userId;

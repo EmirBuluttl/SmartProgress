@@ -21,6 +21,26 @@ type UpsertWeeklyReportInput = {
     data: Prisma.InputJsonValue;
 };
 
+export type CoachSignalRatioRange = "7" | "30" | "365" | "all";
+
+export type CoachSignalRatioPoint = {
+    weekLabel: string;
+    weekStart: string;
+    weekEnd: string;
+    progressRatio: number;
+    plateauRatio: number;
+    regressionRatio: number;
+    watchRatio: number;
+    analyzedCount: number;
+    workoutCount: number;
+};
+
+const SIGNAL_RATIO_WEEK_COUNTS: Record<Exclude<CoachSignalRatioRange, "all">, number> = {
+    "7": 1,
+    "30": 5,
+    "365": 53,
+};
+
 function toNumber(value: unknown): number {
     if (value === null || value === undefined || value === "") return 0;
     const parsed = Number(String(value).replace(",", "."));
@@ -104,6 +124,25 @@ function hashWorkoutSources(logs: { id: string; updatedAt: Date }[]) {
         .digest("hex");
 }
 
+function formatWeekLabel(weekStart: Date) {
+    return weekStart.toLocaleDateString("tr-TR", { day: "2-digit", month: "short", timeZone: "UTC" });
+}
+
+function ratio(count: number, denominator: number) {
+    if (denominator <= 0) return 0;
+    return Math.round((count / denominator) * 1000) / 10;
+}
+
+function getReportData(report: { data: Prisma.JsonValue }) {
+    return (report.data || {}) as Record<string, any>;
+}
+
+function clampSignalRange(value: unknown): CoachSignalRatioRange {
+    return value === "7" || value === "30" || value === "365" || value === "all"
+        ? value
+        : "30";
+}
+
 function insightTypeForAnalysis(analysis: { decision: string; flags: string[] }) {
     if (analysis.flags.includes("rir_adjustment_candidate")) return "RIR_ADJUSTMENT_CANDIDATE";
     if (analysis.flags.includes("volume_reduce_candidate")) return "VOLUME_REDUCE_CANDIDATE";
@@ -118,6 +157,10 @@ function insightTypeForAnalysis(analysis: { decision: string; flags: string[] })
 export class CoachReportService {
     getWeekStart(date = new Date()) {
         return startOfIsoWeek(date);
+    }
+
+    normalizeSignalRatioRange(value: unknown): CoachSignalRatioRange {
+        return clampSignalRange(value);
     }
 
     async findWeeklyReport(userId: string, date = new Date()) {
@@ -311,6 +354,71 @@ export class CoachReportService {
             sourceHash,
             data: data as Prisma.InputJsonValue,
         });
+    }
+
+    async generateSignalRatios(userId: string, rangeInput: unknown = "30") {
+        const range = clampSignalRange(rangeInput);
+        const currentWeekStart = startOfIsoWeek();
+        let weekCount = range === "all" ? 0 : SIGNAL_RATIO_WEEK_COUNTS[range];
+
+        if (range === "all") {
+            const oldestLog = await prisma.workoutLog.findFirst({
+                where: { userId },
+                orderBy: { logDate: "asc" },
+                select: { logDate: true },
+            });
+            if (!oldestLog) {
+                return {
+                    range,
+                    generatedAt: new Date().toISOString(),
+                    points: [] as CoachSignalRatioPoint[],
+                };
+            }
+            const oldestWeekStart = startOfIsoWeek(oldestLog.logDate);
+            const diffMs = currentWeekStart.getTime() - oldestWeekStart.getTime();
+            weekCount = Math.floor(diffMs / (7 * 24 * 60 * 60 * 1000)) + 1;
+        }
+
+        const weekStarts = Array.from({ length: weekCount }, (_, index) => {
+            const weekStart = new Date(currentWeekStart);
+            weekStart.setUTCDate(currentWeekStart.getUTCDate() - (weekCount - index - 1) * 7);
+            return weekStart;
+        });
+
+        const reports = await Promise.all(
+            weekStarts.map((weekStart) => this.generateWeeklyReport(userId, weekStart)),
+        );
+
+        const points: CoachSignalRatioPoint[] = reports.map((report, index) => {
+            const data = getReportData(report);
+            const analyses = Array.isArray(data.exerciseAnalyses) ? data.exerciseAnalyses : [];
+            const progressCount = Number(data.progressCount || 0);
+            const plateauCount = Number(data.plateauCount || 0);
+            const regressionCount = Number(data.regressionCount || 0);
+            const watchCount = Number(data.watchCount || 0);
+            const analyzedCount = analyses.length || progressCount + plateauCount + regressionCount + watchCount;
+            const weekStart = weekStarts[index];
+            const weekEnd = new Date(weekStart);
+            weekEnd.setUTCDate(weekEnd.getUTCDate() + 7);
+
+            return {
+                weekLabel: formatWeekLabel(weekStart),
+                weekStart: weekStart.toISOString(),
+                weekEnd: weekEnd.toISOString(),
+                progressRatio: ratio(progressCount, analyzedCount),
+                plateauRatio: ratio(plateauCount, analyzedCount),
+                regressionRatio: ratio(regressionCount, analyzedCount),
+                watchRatio: ratio(watchCount, analyzedCount),
+                analyzedCount,
+                workoutCount: Number(data.workoutCount || 0),
+            };
+        });
+
+        return {
+            range,
+            generatedAt: new Date().toISOString(),
+            points,
+        };
     }
 }
 

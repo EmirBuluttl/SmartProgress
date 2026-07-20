@@ -7,6 +7,7 @@ const router = Router();
 router.use(authenticate);
 
 router.get("/weekly-report", (req, res, next) => coachController.weeklyReport(req, res, next));
+router.get("/signal-ratios", (req, res, next) => coachController.signalRatios(req, res, next));
 router.get("/insights", (req, res, next) => coachController.insights(req, res, next));
 router.patch("/insights/:insightId/recommendation", (req, res, next) => coachController.updateInsightRecommendation(req, res, next));
 router.get("/ai-status", (req, res, next) => coachController.aiStatus(req, res, next));
