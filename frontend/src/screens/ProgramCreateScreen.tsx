@@ -32,6 +32,12 @@ import { KeyboardAwareScrollView, KeyboardSafeView } from "../components/Keyboar
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
 import { useAuth } from "../store/AuthContext";
 import { consumeWarmupRoutineDraft } from "../utils/warmupRoutineDraftStore";
+import {
+    buildManualProgramIntro,
+    MANUAL_GUIDE_TEMPLATES,
+    normalizeProgramIntro,
+    type ProgramGuideSection,
+} from "../utils/programGuide";
 
 // ─── Helpers ─────────────────────────────────
 
@@ -141,6 +147,8 @@ export default function ProgramCreateScreen() {
     const [showRIR, setShowRIR] = useState(false);
     const [privacyModalVisible, setPrivacyModalVisible] = useState(false);
     const [splitModalVisible, setSplitModalVisible] = useState(false);
+    const [guideModalVisible, setGuideModalVisible] = useState(false);
+    const [manualGuideSections, setManualGuideSections] = useState<ProgramGuideSection[]>([]);
     const [selectedSplit, setSelectedSplit] = useState<ProgramSplitType>("OTHER");
     const [pendingAction, setPendingAction] = useState<PendingAction>(null);
     const [copyTargetsVisible, setCopyTargetsVisible] = useState(false);
@@ -165,6 +173,10 @@ export default function ProgramCreateScreen() {
             }
             const freq = editProgramData.data?.frequency ?? null;
             setFrequency(typeof freq === "number" ? freq : null);
+            const existingIntro = normalizeProgramIntro(editProgramData.data?.programIntro);
+            if (existingIntro?.source === "manual" && existingIntro.sections?.length) {
+                setManualGuideSections(existingIntro.sections);
+            }
             const rawDays = editProgramData.data?.days || editProgramData.days || [];
             if (rawDays.length > 0) {
                 const hasRpeTargets = rawDays.some((day: any) =>
@@ -610,6 +622,23 @@ export default function ProgramCreateScreen() {
         };
     })();
 
+    const addGuideTemplate = (template: ProgramGuideSection) => {
+        setManualGuideSections((prev) => {
+            if (prev.some((section) => section.title === template.title)) return prev;
+            return [...prev, template];
+        });
+    };
+
+    const updateGuideSection = (index: number, patch: Partial<ProgramGuideSection>) => {
+        setManualGuideSections((prev) => prev.map((section, currentIndex) => (
+            currentIndex === index ? { ...section, ...patch } : section
+        )));
+    };
+
+    const removeGuideSection = (index: number) => {
+        setManualGuideSections((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+    };
+
     const handleSave = useCallback(() => {
         if (safeString(name) === "") {
             setValidationNotice({ title: "Program adı eksik", message: "Kaydetmeden önce programa bir isim verin." });
@@ -664,9 +693,16 @@ export default function ProgramCreateScreen() {
         setSplitModalVisible(false);
         try {
             setIsSaving(true);
+            const manualProgramIntro = buildManualProgramIntro(manualGuideSections);
+            const existingProgramIntro = normalizeProgramIntro(editProgramData?.data?.programIntro);
             const programData = {
                 ...(frequency !== null ? { frequency } : {}),
                 ...(isPublic ? { splitType: splitType ?? selectedSplit } : {}),
+                ...(manualProgramIntro
+                    ? { programIntro: manualProgramIntro }
+                    : existingProgramIntro?.source === "coach"
+                        ? { programIntro: editProgramData.data.programIntro }
+                        : {}),
                 days: days.map((d) => ({
                     label: d.label,
                     isRestDay: !!d.isRestDay,
@@ -713,7 +749,7 @@ export default function ProgramCreateScreen() {
         } finally {
             setIsSaving(false);
         }
-    }, [days, frequency, name, description, isEditMode, editProgramId, navigation, selectedSplit]);
+    }, [days, frequency, name, description, isEditMode, editProgramId, navigation, selectedSplit, manualGuideSections, editProgramData]);
 
     const activeDay = days[activeDayIdx];
 
@@ -739,6 +775,25 @@ export default function ProgramCreateScreen() {
             </View>
 
             <KeyboardAwareScrollView contentContainerStyle={styles.scrollContent} extraBottomPadding={140}>
+                <View style={styles.guideCard}>
+                    <View style={styles.guideCardText}>
+                        <Text style={styles.sectionTitle}>Program rehberi</Text>
+                        <Text style={styles.sectionSubtitle}>
+                            Istersen bu programi nasil kullanacagini anlatan kisa bir rehber hazirla.
+                        </Text>
+                        {manualGuideSections.length > 0 ? (
+                            <Text style={styles.guideCount}>{manualGuideSections.length} rehber bolumu hazir</Text>
+                        ) : null}
+                    </View>
+                    <TouchableOpacity
+                        style={styles.guideEditBtn}
+                        onPress={() => setGuideModalVisible(true)}
+                        activeOpacity={0.8}
+                    >
+                        <Ionicons name="school-outline" size={16} color={colors.background} />
+                        <Text style={styles.guideEditText}>Rehber hazirla</Text>
+                    </TouchableOpacity>
+                </View>
 
                 {/* ── Meta ── */}
                 <View style={styles.metaCard}>
@@ -1229,6 +1284,94 @@ export default function ProgramCreateScreen() {
                 <View style={{ height: 80 }} />
             </KeyboardAwareScrollView>
 
+            <Modal
+                visible={guideModalVisible}
+                transparent
+                animationType="slide"
+                onRequestClose={() => setGuideModalVisible(false)}
+            >
+                <View style={styles.libraryOverlay}>
+                    <View style={styles.guideModal}>
+                        <View style={styles.guideModalHeader}>
+                            <View>
+                                <Text style={styles.guideModalTitle}>Program rehberi hazirla</Text>
+                                <Text style={styles.guideModalSubtitle}>Hazir notlari ekleyip kendi programina gore duzenle.</Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setGuideModalVisible(false)} style={styles.modalCloseBtn}>
+                                <Ionicons name="close" size={22} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        <ScrollView
+                            showsVerticalScrollIndicator={false}
+                            contentContainerStyle={styles.guideModalContent}
+                        >
+                            <View style={styles.guideTemplateWrap}>
+                                {MANUAL_GUIDE_TEMPLATES.map((template) => {
+                                    const selected = manualGuideSections.some((section) => section.title === template.title);
+                                    return (
+                                        <TouchableOpacity
+                                            key={template.title}
+                                            style={[styles.guideTemplateChip, selected && styles.guideTemplateChipActive]}
+                                            onPress={() => addGuideTemplate(template)}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Ionicons
+                                                name={(template.icon || "add-circle-outline") as any}
+                                                size={14}
+                                                color={selected ? colors.background : colors.accent}
+                                            />
+                                            <Text style={[styles.guideTemplateText, selected && styles.guideTemplateTextActive]}>
+                                                {template.title}
+                                            </Text>
+                                        </TouchableOpacity>
+                                    );
+                                })}
+                            </View>
+
+                            {manualGuideSections.length === 0 ? (
+                                <View style={styles.emptyGuideBox}>
+                                    <Ionicons name="school-outline" size={22} color={colors.textSecondary} />
+                                    <Text style={styles.emptyGuideText}>Rehber bos. Yukaridaki onerilerden ekleyebilirsin.</Text>
+                                </View>
+                            ) : manualGuideSections.map((section, index) => (
+                                <View key={`${section.title}-${index}`} style={styles.guideEditSection}>
+                                    <View style={styles.guideEditSectionHeader}>
+                                        <Text style={styles.guideEditSectionLabel}>Bolum {index + 1}</Text>
+                                        <TouchableOpacity onPress={() => removeGuideSection(index)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                                            <Ionicons name="trash-outline" size={18} color={colors.error} />
+                                        </TouchableOpacity>
+                                    </View>
+                                    <TextInput
+                                        style={styles.input}
+                                        value={section.title}
+                                        onChangeText={(value) => updateGuideSection(index, { title: value })}
+                                        placeholder="Bolum basligi"
+                                        placeholderTextColor={colors.textSecondary}
+                                    />
+                                    <TextInput
+                                        style={[styles.input, styles.guideBodyInput]}
+                                        value={section.body}
+                                        onChangeText={(value) => updateGuideSection(index, { body: value })}
+                                        placeholder="Kullaniciya gosterilecek rehber metni"
+                                        placeholderTextColor={colors.textSecondary}
+                                        multiline
+                                    />
+                                </View>
+                            ))}
+                        </ScrollView>
+
+                        <TouchableOpacity
+                            style={styles.guideDoneBtn}
+                            onPress={() => setGuideModalVisible(false)}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={styles.guideDoneText}>Rehberi kaydet</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
+
             {/* ── Privacy Modal (cross-platform) ── */}
             <Modal
                 visible={!!reorderModal}
@@ -1466,6 +1609,41 @@ const createStyles = (colors: any) => StyleSheet.create({
         marginBottom: spacing.md,
         borderWidth: 1,
         borderColor: colors.border,
+    },
+    guideCard: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+        marginBottom: spacing.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.md,
+    },
+    guideCardText: {
+        flex: 1,
+    },
+    guideCount: {
+        marginTop: spacing.xs,
+        fontSize: fontSize.xs,
+        color: colors.accent,
+        fontWeight: fontWeight.semibold,
+    },
+    guideEditBtn: {
+        minHeight: 42,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+    },
+    guideEditText: {
+        color: colors.background,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     label: {
         fontSize: fontSize.xs,
@@ -1991,6 +2169,128 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         padding: spacing.lg,
+    },
+    guideModal: {
+        width: "100%",
+        maxWidth: 560,
+        maxHeight: "86%",
+        borderRadius: borderRadius.lg,
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+    },
+    guideModalHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        justifyContent: "space-between",
+        gap: spacing.md,
+        marginBottom: spacing.md,
+    },
+    guideModalTitle: {
+        fontSize: fontSize.xl,
+        fontWeight: fontWeight.heavy,
+        color: colors.text,
+    },
+    guideModalSubtitle: {
+        fontSize: fontSize.sm,
+        color: colors.textSecondary,
+        lineHeight: 20,
+        marginTop: 2,
+    },
+    modalCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    guideModalContent: {
+        gap: spacing.md,
+        paddingBottom: spacing.md,
+    },
+    guideTemplateWrap: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    guideTemplateChip: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: spacing.xs,
+    },
+    guideTemplateChipActive: {
+        backgroundColor: colors.accent,
+        borderColor: colors.accent,
+    },
+    guideTemplateText: {
+        fontSize: fontSize.xs,
+        color: colors.accent,
+        fontWeight: fontWeight.semibold,
+    },
+    guideTemplateTextActive: {
+        color: colors.background,
+    },
+    emptyGuideBox: {
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.sm,
+        padding: spacing.lg,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    emptyGuideText: {
+        textAlign: "center",
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
+    guideEditSection: {
+        gap: spacing.sm,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.md,
+        backgroundColor: colors.background,
+    },
+    guideEditSectionHeader: {
+        flexDirection: "row",
+        justifyContent: "space-between",
+        alignItems: "center",
+    },
+    guideEditSectionLabel: {
+        fontSize: fontSize.xs,
+        color: colors.textSecondary,
+        fontWeight: fontWeight.bold,
+    },
+    guideBodyInput: {
+        minHeight: 110,
+        paddingTop: spacing.sm,
+        textAlignVertical: "top",
+    },
+    guideDoneBtn: {
+        minHeight: 48,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: spacing.md,
+    },
+    guideDoneText: {
+        color: colors.background,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
     },
     libraryHeader: {
         flexDirection: "row",
