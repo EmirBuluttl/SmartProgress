@@ -14,6 +14,7 @@ import {
     RefreshControl,
     Image,
     Animated,
+    Modal,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -39,6 +40,7 @@ import { useScreenEnter } from "../hooks/useScreenEnter";
 import { getCachedProgramById, getProgramDetailSnapshot, invalidateProgramCache } from "../services/programCacheService";
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { buildGuideSummary, normalizeProgramIntro, PROGRAM_GUIDE_SUMMARY_RULES } from "../utils/programGuide";
+import { COACH_PATTERN_LABELS, type CoachPatternKey } from "../services/coachRuleEngine";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -49,6 +51,13 @@ interface ProgramDay {
     exercises: {
         id?: string;
         name: string;
+        targetPattern?: CoachPatternKey;
+        targetMuscle?: string;
+        primaryMuscles?: string[];
+        riskAdjusted?: boolean;
+        painWarning?: string;
+        logDisabled?: boolean;
+        logDisabledReason?: string;
         targetSets: { targetReps: string; targetRPE?: string; targetRIR?: string; targetWeight?: string; isWarmup?: boolean }[];
     }[];
 }
@@ -76,6 +85,9 @@ interface ProgramData {
     data: {
         frequency?: number;
         days: ProgramDay[];
+        generatedBy?: string;
+        coachProfile?: Record<string, any>;
+        coachRiskReport?: Record<string, any>;
     } | null;
     createdAt: string;
 }
@@ -84,6 +96,13 @@ type PendingStart = {
     program: StartableProgram;
     dayIndex: number;
 };
+
+type CoachRiskReportType = "pain" | "injury";
+
+const COACH_PAIN_WARNING =
+    "Agri bildirildi. Agirligi ciddi dusur, RPE 6 ustune cikma ve RIR 4-5 hedefle. Agri artarsa hareketi birak.";
+const COACH_INJURY_DISABLED_REASON =
+    "Gecici sakatlik bildirildi. Bu bolgeyi calistiran hareketleri sakatlik gecene kadar loglama.";
 
 export default function ProgramDetailScreen() {
     const navigation = useNavigation<Nav>();
@@ -107,6 +126,10 @@ export default function ProgramDetailScreen() {
     const [reportVisible, setReportVisible] = useState(false);
     const [blockVisible, setBlockVisible] = useState(false);
     const [moderationBusy, setModerationBusy] = useState(false);
+    const [riskModalVisible, setRiskModalVisible] = useState(false);
+    const [riskReportType, setRiskReportType] = useState<CoachRiskReportType>("pain");
+    const [selectedRiskPatterns, setSelectedRiskPatterns] = useState<CoachPatternKey[]>([]);
+    const [riskSaving, setRiskSaving] = useState(false);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
 
@@ -403,12 +426,95 @@ export default function ProgramDetailScreen() {
     const selectedDay = selectedDayIndex !== null ? days[selectedDayIndex] : null;
     const programIntro = normalizeProgramIntro((program.data as any)?.programIntro);
     const programIntroSummary = buildGuideSummary(programIntro);
+    const isCoachProgram = !!program.data && (
+        program.data.generatedBy === "smartprogress_rule_engine_v1" ||
+        !!program.data.coachProfile ||
+        programIntro?.source === "coach"
+    );
+    const coachPatternOptions = React.useMemo(() => {
+        const seen = new Set<CoachPatternKey>();
+        const options: { key: CoachPatternKey; label: string }[] = [];
+        (program.data?.days || []).forEach((day) => {
+            (day.exercises || []).forEach((exercise) => {
+                const key = exercise.targetPattern;
+                if (!key || seen.has(key)) return;
+                seen.add(key);
+                options.push({ key, label: exercise.targetMuscle || COACH_PATTERN_LABELS[key] || key });
+            });
+        });
+        return options;
+    }, [program.data]);
     const openProgramGuide = () => {
         navigation.navigate("ProgramGuide", {
             programId: program.id,
             programName: program.name,
             programIntro: (program.data as any)?.programIntro,
         });
+    };
+    const openCoachRiskModal = (type: CoachRiskReportType) => {
+        setRiskReportType(type);
+        setSelectedRiskPatterns([]);
+        setRiskModalVisible(true);
+    };
+    const toggleRiskPattern = (pattern: CoachPatternKey) => {
+        setSelectedRiskPatterns((prev) => (
+            prev.includes(pattern)
+                ? prev.filter((item) => item !== pattern)
+                : [...prev, pattern]
+        ));
+    };
+    const applyCoachRiskReport = async () => {
+        if (!program.data || selectedRiskPatterns.length === 0 || riskSaving) return;
+        const affected = new Set(selectedRiskPatterns);
+        const nextData = {
+            ...program.data,
+            coachRiskReport: {
+                type: riskReportType,
+                patterns: selectedRiskPatterns,
+                reportedAt: new Date().toISOString(),
+            },
+            days: (program.data.days || []).map((day) => ({
+                ...day,
+                exercises: (day.exercises || []).map((exercise) => {
+                    if (!exercise.targetPattern || !affected.has(exercise.targetPattern)) return exercise;
+                    if (riskReportType === "injury") {
+                        return {
+                            ...exercise,
+                            riskAdjusted: true,
+                            painWarning: undefined,
+                            logDisabled: true,
+                            logDisabledReason: COACH_INJURY_DISABLED_REASON,
+                        };
+                    }
+                    return {
+                        ...exercise,
+                        riskAdjusted: true,
+                        painWarning: COACH_PAIN_WARNING,
+                        logDisabled: false,
+                        logDisabledReason: undefined,
+                    };
+                }),
+            })),
+        };
+
+        try {
+            setRiskSaving(true);
+            const res = await programApi.update(program.id, { data: nextData });
+            invalidateProgramCache(program.id);
+            setProgram(res.data as ProgramData);
+            setRiskModalVisible(false);
+            setNotice({
+                title: riskReportType === "injury" ? "Sakatlik notu eklendi" : "Agri notu eklendi",
+                message: riskReportType === "injury"
+                    ? "Program degismedi. Secilen bolgedeki hareketler gorunur kalacak fakat loglanamayacak."
+                    : "Program degismedi. Secilen bolgedeki hareketler guvenli mod uyarisi ile loglanacak.",
+            });
+        } catch (err) {
+            const apiError = parseApiError(err);
+            setNotice({ title: "Not kaydedilemedi", message: apiError.message || "Agri/sakatlik notu kaydedilemedi." });
+        } finally {
+            setRiskSaving(false);
+        }
     };
 
     return (
@@ -625,6 +731,28 @@ export default function ProgramDetailScreen() {
                 ) : null}
 
                 {/* ─── Current Day Highlight ─── */}
+                {isOwner && isCoachProgram && coachPatternOptions.length > 0 ? (
+                    <View style={s.riskCard}>
+                        <View style={s.sectionHeaderRow}>
+                            <Ionicons name="medkit-outline" size={18} color={colors.accent} />
+                            <Text style={s.sectionTitle}>Agri / sakatlik bildir</Text>
+                        </View>
+                        <Text style={s.riskText}>
+                            Gecici durumlarda program degismez. Agri icin guvenli mod uyarisi eklenir; sakatlikta ilgili hareketler gorunur kalir ama loglanamaz.
+                        </Text>
+                        <View style={s.riskActionRow}>
+                            <TouchableOpacity style={s.riskActionBtn} onPress={() => openCoachRiskModal("pain")} activeOpacity={0.8}>
+                                <Ionicons name="warning-outline" size={15} color={colors.accent} />
+                                <Text style={s.riskActionText}>Agri bildir</Text>
+                            </TouchableOpacity>
+                            <TouchableOpacity style={s.riskActionBtn} onPress={() => openCoachRiskModal("injury")} activeOpacity={0.8}>
+                                <Ionicons name="lock-closed-outline" size={15} color={colors.accent} />
+                                <Text style={s.riskActionText}>Sakatlik bildir</Text>
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                ) : null}
+
                 {days.length > 0 && isOwner && (
                     <View style={s.currentDayBanner}>
                         <View style={s.currentDayInfo}>
@@ -723,6 +851,55 @@ export default function ProgramDetailScreen() {
                     </View>
                 )}
             </ScrollView>
+            <Modal
+                visible={riskModalVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setRiskModalVisible(false)}
+            >
+                <View style={s.riskOverlay}>
+                    <View style={s.riskModal}>
+                        <View style={s.riskModalHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={s.riskModalTitle}>
+                                    {riskReportType === "injury" ? "Sakatlik bolgesi" : "Agri bolgesi"}
+                                </Text>
+                                <Text style={s.riskModalText}>
+                                    Program degismeyecek. Etkilenen bolgeyi sec; log ekraninda guvenli uyari veya kilit uygulanacak.
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setRiskModalVisible(false)} style={s.riskCloseBtn}>
+                                <Ionicons name="close" size={20} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+                        <View style={s.riskPatternWrap}>
+                            {coachPatternOptions.map((option) => {
+                                const selected = selectedRiskPatterns.includes(option.key);
+                                return (
+                                    <TouchableOpacity
+                                        key={option.key}
+                                        style={[s.riskPatternChip, selected && s.riskPatternChipActive]}
+                                        onPress={() => toggleRiskPattern(option.key)}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[s.riskPatternText, selected && s.riskPatternTextActive]}>
+                                            {option.label}
+                                        </Text>
+                                    </TouchableOpacity>
+                                );
+                            })}
+                        </View>
+                        <TouchableOpacity
+                            style={[s.riskSaveBtn, (selectedRiskPatterns.length === 0 || riskSaving) && s.riskSaveBtnDisabled]}
+                            onPress={applyCoachRiskReport}
+                            disabled={selectedRiskPatterns.length === 0 || riskSaving}
+                            activeOpacity={0.85}
+                        >
+                            <Text style={s.riskSaveText}>{riskSaving ? "Kaydediliyor..." : "Notu uygula"}</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
             <ActionConfirmModal
                 visible={confirmDeleteVisible}
                 title="Programı sil?"
@@ -1062,6 +1239,127 @@ const createStyles = (colors: any) => StyleSheet.create({
         gap: spacing.xs,
     },
     guideDetailText: {
+        color: colors.background,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    riskCard: {
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        padding: spacing.lg,
+        marginBottom: spacing.lg,
+    },
+    riskText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+        marginBottom: spacing.md,
+    },
+    riskActionRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    riskActionBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        minHeight: 40,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.accentSubtle,
+        paddingHorizontal: spacing.md,
+    },
+    riskActionText: {
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+    },
+    riskOverlay: {
+        flex: 1,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(0,0,0,0.62)",
+        padding: spacing.lg,
+    },
+    riskModal: {
+        width: "100%",
+        maxWidth: 520,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        padding: spacing.lg,
+    },
+    riskModalHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+        marginBottom: spacing.md,
+    },
+    riskModalTitle: {
+        color: colors.text,
+        fontSize: fontSize.lg,
+        fontWeight: fontWeight.bold,
+        marginBottom: spacing.xs,
+    },
+    riskModalText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
+    riskCloseBtn: {
+        width: 36,
+        height: 36,
+        borderRadius: borderRadius.full,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.background,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    riskPatternWrap: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    riskPatternChip: {
+        minHeight: 38,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+        paddingHorizontal: spacing.md,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    riskPatternChipActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accent,
+    },
+    riskPatternText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+    },
+    riskPatternTextActive: {
+        color: colors.background,
+    },
+    riskSaveBtn: {
+        minHeight: 46,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+        marginTop: spacing.lg,
+    },
+    riskSaveBtnDisabled: {
+        opacity: 0.55,
+    },
+    riskSaveText: {
         color: colors.background,
         fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
