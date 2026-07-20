@@ -2368,6 +2368,7 @@ export default function WorkoutSessionScreen() {
             <View style={[
                     styles.exerciseCard,
                     isActive && styles.activeExerciseCard,
+                    exerciseLogDisabled && styles.lockedExerciseCard,
                 ]}>
                     {recentlyAddedExerciseId === exercise.id ? (
                         <Animated.View
@@ -2532,6 +2533,27 @@ export default function WorkoutSessionScreen() {
                             <Text style={[styles.addSetText, { color: colors.textMuted }]}>Isınma</Text>
                         </TouchableOpacity>
                     </View>
+                    ) : null}
+
+                    {exerciseLogDisabled ? (
+                        <TouchableOpacity
+                            style={styles.lockedExerciseOverlay}
+                            onPress={() => setConceptNotice({
+                                title: "Sakatlik nedeniyle kilitli",
+                                message: exercise.logDisabledReason || "Bu hareket sakatlik bildirimi nedeniyle loglanamaz. Sakatlik gectiyse program detayindan ilgili bildirimi kapatabilirsin.",
+                            })}
+                            activeOpacity={0.9}
+                        >
+                            <View style={styles.lockedExerciseBadge}>
+                                <View style={styles.lockedExerciseIcon}>
+                                    <Ionicons name="lock-closed" size={22} color={colors.accent} />
+                                </View>
+                                <Text style={styles.lockedExerciseTitle}>Loglama kilitli</Text>
+                                <Text style={styles.lockedExerciseText}>
+                                    Sakatlik bildirimi nedeniyle bu hareketi loglayamazsin.
+                                </Text>
+                            </View>
+                        </TouchableOpacity>
                     ) : null}
 
             </View>
@@ -3404,6 +3426,54 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.border,
         overflow: "hidden",
         position: "relative",
+    },
+    lockedExerciseCard: {
+        borderColor: colors.warning ?? "#F5A524",
+    },
+    lockedExerciseOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: "rgba(0,0,0,0.52)",
+        padding: spacing.lg,
+    },
+    lockedExerciseBadge: {
+        width: "100%",
+        maxWidth: 280,
+        alignItems: "center",
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: "#F5A52466",
+        backgroundColor: colors.surface,
+        paddingHorizontal: spacing.lg,
+        paddingVertical: spacing.md,
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.24,
+        shadowRadius: 16,
+        elevation: 8,
+    },
+    lockedExerciseIcon: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+        marginBottom: spacing.sm,
+    },
+    lockedExerciseTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+        textAlign: "center",
+        marginBottom: 4,
+    },
+    lockedExerciseText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 17,
+        textAlign: "center",
     },
     exerciseHeader: {
         flexDirection: "row",
