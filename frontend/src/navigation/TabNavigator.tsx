@@ -17,7 +17,7 @@ import {
     Keyboard,
 } from "react-native";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { useNavigation } from "@react-navigation/native";
+import { useIsFocused, useNavigation } from "@react-navigation/native";
 import { fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 
@@ -218,6 +218,7 @@ export default function TabNavigator(props: any) {
 function TabNavigatorInner({ route }: any) {
     const { colors } = useTheme();
     const navigation = useNavigation<any>();
+    const isFocused = useIsFocused();
     const { getTarget } = useAppTour();
     const { width: screenWidth } = useWindowDimensions();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
@@ -525,7 +526,7 @@ function TabNavigatorInner({ route }: any) {
             ) : null}
 
             <AppTourOverlay
-                visible={tourVisible}
+                visible={tourVisible && isFocused && !keyboardVisible}
                 step={currentTourSteps[tourStepIndex]}
                 current={tourStepIndex}
                 total={currentTourSteps.length}
