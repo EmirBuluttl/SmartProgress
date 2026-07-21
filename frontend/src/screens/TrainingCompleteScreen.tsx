@@ -21,7 +21,7 @@ export default function TrainingCompleteScreen() {
 
     const finishFlow = React.useCallback(async () => {
         await clearOnboardingTrainingPending();
-        navigation.replace("MainTabs");
+        navigation.replace("MainTabs", { setupComplete: true });
     }, [navigation]);
 
     const openReminders = React.useCallback(() => {

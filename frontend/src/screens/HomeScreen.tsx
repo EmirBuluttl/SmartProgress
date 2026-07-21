@@ -56,6 +56,7 @@ import { logPerf, markPerf } from "../utils/perfLogger";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 import { applyProgramDayIndex } from "../services/programDayProgressService";
 import { useAppTourTarget } from "../contexts/AppTourContext";
+import { hasPendingOnboardingTraining } from "../utils/appTourEvents";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 const WORKOUT_CARD_WIDTH = SCREEN_WIDTH * 0.7;
@@ -87,6 +88,7 @@ export default function HomeScreen() {
     const { data: programs = [] } = useMyProgramsQuery();
     const [communityPrograms, setCommunityPrograms] = useState<any[]>([]);
     const [favoriteId, setFavoriteId] = useState<string | null>(null);
+    const [onboardingTrainingPending, setOnboardingTrainingPending] = useState(false);
     const totalWorkouts = workouts.length;
     const currentStreak = React.useMemo(() => {
         return calculateWorkoutStreak(workouts, programs, favoriteId);
@@ -264,6 +266,9 @@ export default function HomeScreen() {
                 loadFavorite();
                 loadNotifications();
             }
+            hasPendingOnboardingTraining()
+                .then(setOnboardingTrainingPending)
+                .catch(() => setOnboardingTrainingPending(false));
             const restoreTimer = setTimeout(restoreScrollPosition, 50);
             return () => clearTimeout(restoreTimer);
         }, [])
@@ -436,6 +441,17 @@ export default function HomeScreen() {
         }));
     };
 
+    const continueOnboardingTraining = () => {
+        if (!favoriteProgram?.data) return;
+        navigateWithFeedback(() => navigation.navigate("WorkoutSession", {
+            programId: favoriteProgram.id,
+            programName: favoriteProgram.name,
+            dayIndex: 0,
+            programData: favoriteProgram.data,
+            trainingMode: "onboarding_demo",
+        }));
+    };
+
     const openNotification = async (notification: any) => {
         try {
             if (!notification.readAt && !String(notification.id).startsWith("local-")) {
@@ -576,6 +592,28 @@ export default function HomeScreen() {
 
             {/* ─── Sıradaki Antrenman (Cycle-Based) ─── */}
             <View>
+            {onboardingTrainingPending && favoriteProgram ? (
+                <Animated.View style={mainCardAnimStyle}>
+                    <GymCard elevated style={styles.trainingContinueCard}>
+                        <View style={styles.trainingContinueHeader}>
+                            <View style={styles.trainingContinueIcon}>
+                                <Ionicons name="school-outline" size={20} color={colors.background} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                                <Text style={styles.trainingContinueTitle}>Loglama egitimi yarim kaldi</Text>
+                                <Text style={styles.trainingContinueText}>
+                                    Demo antrenman gercek kayit olusturmaz. Set loglamayi tamamlayip sonra hatirlatici kurabilirsin.
+                                </Text>
+                            </View>
+                        </View>
+                        <TouchableOpacity style={styles.trainingContinueBtn} onPress={continueOnboardingTraining} activeOpacity={0.84}>
+                            <Text style={styles.trainingContinueBtnText}>Egitime devam et</Text>
+                            <Ionicons name="arrow-forward" size={16} color={colors.background} />
+                        </TouchableOpacity>
+                    </GymCard>
+                </Animated.View>
+            ) : null}
+
             {favoriteProgram && isCurrentProgramCycle && currentDay && (
                 <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
                 <Animated.View style={activeCardPulseStyle}>
@@ -1387,6 +1425,51 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     statsRow: { flexDirection: "row", marginBottom: spacing.xl },
     // Today/Next Card
+    trainingContinueCard: {
+        marginBottom: spacing.lg,
+        borderColor: colors.accent,
+        borderWidth: 1,
+        backgroundColor: colors.accentMuted,
+    },
+    trainingContinueHeader: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+    },
+    trainingContinueIcon: {
+        width: 42,
+        height: 42,
+        borderRadius: borderRadius.md,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accent,
+    },
+    trainingContinueTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    trainingContinueText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+        marginTop: 3,
+    },
+    trainingContinueBtn: {
+        minHeight: 44,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accent,
+        alignItems: "center",
+        justifyContent: "center",
+        flexDirection: "row",
+        gap: spacing.xs,
+        marginTop: spacing.md,
+    },
+    trainingContinueBtnText: {
+        color: colors.background,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
     todayCard: { marginBottom: spacing.xxl, borderColor: colors.accent, borderWidth: 1 },
     todayHeader: {
         flexDirection: "row", justifyContent: "space-between",

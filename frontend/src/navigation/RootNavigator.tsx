@@ -59,7 +59,7 @@ type NavigationTargetSet = {
 // ─── Types ───────────────────────────────────
 
 export type RootStackParamList = {
-    MainTabs: undefined;
+    MainTabs: { screen?: string; switchKey?: string | number; setupComplete?: boolean } | undefined;
     WorkoutSession: {
         mode?: "free";
         trainingMode?: "onboarding_demo";

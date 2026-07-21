@@ -103,7 +103,7 @@ export default function PreWorkoutRemindersScreen() {
             }
             if (isTrainingMode) {
                 await clearOnboardingTrainingPending();
-                navigation.replace("MainTabs");
+                navigation.replace("MainTabs", { setupComplete: true });
                 return;
             }
             setNotice({ title: "Kaydedildi", message: "Antrenman gunu hatirlaticilari guncellendi." });
@@ -114,7 +114,7 @@ export default function PreWorkoutRemindersScreen() {
 
     const skipTraining = React.useCallback(async () => {
         await clearOnboardingTrainingPending();
-        navigation.replace("MainTabs");
+        navigation.replace("MainTabs", { setupComplete: true });
     }, [navigation]);
 
     return (

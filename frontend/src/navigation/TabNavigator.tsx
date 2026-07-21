@@ -28,6 +28,7 @@ import ProfileScreen from "../screens/ProfileScreen";
 import { MainTabKey, subscribeMainTabSwitch } from "../utils/mainTabEvents";
 import AppTourOverlay, { AppTourStep } from "../components/AppTourOverlay";
 import { AppTourProvider, useAppTour } from "../contexts/AppTourContext";
+import NoticeModal from "../components/NoticeModal";
 import {
     hasCompletedAppTour,
     hasPendingPostOnboardingFlow,
@@ -230,6 +231,7 @@ function TabNavigatorInner({ route }: any) {
     const [tourStepIndex, setTourStepIndex] = useState(0);
     const [tourMode, setTourMode] = useState<"quick" | "detailed">("quick");
     const [tourTargetVersion, setTourTargetVersion] = useState(0);
+    const [setupCompleteNoticeVisible, setSetupCompleteNoticeVisible] = useState(false);
     const [mountedTabs, setMountedTabs] = useState<Set<number>>(() => new Set([0]));
     const scrollViewRef = useRef<ScrollView | null>(null);
     const isScrollingRef = useRef(false);
@@ -319,7 +321,9 @@ function TabNavigatorInner({ route }: any) {
     // Handle deep navigation or tab switches from external screens
     const screenParam = route?.params?.screen;
     const switchKey = route?.params?.switchKey;
+    const setupCompleteParam = route?.params?.setupComplete;
     const lastHandledScreen = useRef<string | null>(null);
+    const lastSetupCompleteKey = useRef<string | null>(null);
 
     useEffect(() => {
         const navigationKey = screenParam ? `${screenParam}:${switchKey ?? ""}` : null;
@@ -331,6 +335,14 @@ function TabNavigatorInner({ route }: any) {
             }
         }
     }, [screenParam, switchKey]);
+
+    useEffect(() => {
+        if (!setupCompleteParam) return;
+        const key = `setup:${switchKey ?? "default"}`;
+        if (lastSetupCompleteKey.current === key) return;
+        lastSetupCompleteKey.current = key;
+        setSetupCompleteNoticeVisible(true);
+    }, [setupCompleteParam, switchKey]);
 
     // Keep screen offset aligned on window resizing (responsiveness)
     useEffect(() => {
@@ -535,6 +547,13 @@ function TabNavigatorInner({ route }: any) {
                 onSkip={completeTour}
                 getTarget={getTarget}
                 targetVersion={tourTargetVersion}
+            />
+
+            <NoticeModal
+                visible={setupCompleteNoticeVisible}
+                title="Kurulum tamamlandi"
+                message="Ilk rehberlik akisin tamamlandi. Programina ana sayfadan devam edebilir, hatirlaticilarini profilden tekrar duzenleyebilirsin."
+                onClose={() => setSetupCompleteNoticeVisible(false)}
             />
 
             {/* Custom Bottom Tab Bar */}
