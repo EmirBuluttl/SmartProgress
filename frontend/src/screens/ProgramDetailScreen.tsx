@@ -15,6 +15,8 @@ import {
     Image,
     Animated,
     Modal,
+    Share,
+    Platform,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from "@react-navigation/native";
@@ -112,6 +114,7 @@ const COACH_PAIN_WARNING =
     "Agri bildirildi. Agirligi ciddi dusur, RPE 6 ustune cikma ve RIR 4-5 hedefle. Agri artarsa hareketi birak.";
 const COACH_INJURY_DISABLED_REASON =
     "Gecici sakatlik bildirildi. Bu bolgeyi calistiran hareketleri sakatlik gecene kadar loglama.";
+const PROGRAM_SHARE_BASE_URL = "https://app.smartprogress.online/programs";
 
 function normalizeCoachRiskReports(data?: ProgramData["data"] | null): CoachRiskReport[] {
     if (!data) return [];
@@ -203,6 +206,8 @@ export default function ProgramDetailScreen() {
     const [reportVisible, setReportVisible] = useState(false);
     const [blockVisible, setBlockVisible] = useState(false);
     const [moderationBusy, setModerationBusy] = useState(false);
+    const [shareConfirmVisible, setShareConfirmVisible] = useState(false);
+    const [sharingProgram, setSharingProgram] = useState(false);
     const [riskModalVisible, setRiskModalVisible] = useState(false);
     const [riskReportType, setRiskReportType] = useState<CoachRiskReportType>("pain");
     const [selectedRiskPatterns, setSelectedRiskPatterns] = useState<CoachPatternKey[]>([]);
@@ -499,6 +504,68 @@ export default function ProgramDetailScreen() {
         }
     };
 
+    const sharePublicProgram = async (programToShare: ProgramData) => {
+        const shareUrl = `${PROGRAM_SHARE_BASE_URL}/${programToShare.id}`;
+        const title = programToShare.name || "SmartProgress programi";
+        const message = `${title}\n${shareUrl}`;
+
+        if (Platform.OS === "web") {
+            const webNavigator = typeof navigator !== "undefined" ? navigator as any : null;
+            if (webNavigator?.share) {
+                await webNavigator.share({ title, text: title, url: shareUrl });
+                return;
+            }
+            if (webNavigator?.clipboard?.writeText) {
+                await webNavigator.clipboard.writeText(shareUrl);
+                setNotice({ title: "Link kopyalandi", message: "Program paylasim linki panoya kopyalandi." });
+                return;
+            }
+            setNotice({ title: "Paylasim linki", message: shareUrl });
+            return;
+        }
+
+        await Share.share({
+            title,
+            message,
+            url: shareUrl,
+        });
+    };
+
+    const handleShareProgram = async () => {
+        if (!program || sharingProgram) return;
+        if (!program.isPublic) {
+            setShareConfirmVisible(true);
+            return;
+        }
+        try {
+            setSharingProgram(true);
+            await sharePublicProgram(program);
+        } catch (err) {
+            const apiError = parseApiError(err);
+            setNotice({ title: "Paylasilamadi", message: apiError.message || "Program paylasim akisi basarisiz oldu." });
+        } finally {
+            setSharingProgram(false);
+        }
+    };
+
+    const makePublicAndShare = async () => {
+        if (!program || sharingProgram) return;
+        setSharingProgram(true);
+        try {
+            const res = await programApi.toggleVisibility(program.id);
+            const nextProgram = res.data as ProgramData;
+            invalidateProgramCache(program.id);
+            setProgram(nextProgram);
+            setShareConfirmVisible(false);
+            await sharePublicProgram(nextProgram);
+        } catch (err) {
+            const apiError = parseApiError(err);
+            setNotice({ title: "Paylasilamadi", message: apiError.message || "Program public yapilip paylasilamadi." });
+        } finally {
+            setSharingProgram(false);
+        }
+    };
+
     if (loading) {
         return (
             <Animated.View style={[s.centered, animStyle]}>
@@ -646,6 +713,19 @@ export default function ProgramDetailScreen() {
                 </Text>
 
                 <View style={s.headerActions}>
+                    <TouchableOpacity
+                        onPress={handleShareProgram}
+                        disabled={sharingProgram}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        style={s.headerIconBtn}
+                        activeOpacity={0.75}
+                    >
+                        <Ionicons
+                            name="share-social-outline"
+                            size={20}
+                            color={sharingProgram ? colors.textMuted : colors.accent}
+                        />
+                    </TouchableOpacity>
                     {isOwner && (
                         <>
                             <TouchableOpacity
@@ -1054,6 +1134,16 @@ export default function ProgramDetailScreen() {
                     </View>
                 </View>
             </Modal>
+            <ActionConfirmModal
+                visible={shareConfirmVisible}
+                title="Program public yapilsin mi?"
+                message="Paylasim linki olusturmak icin program herkese acik olmalidir. Public yaptiginda topluluk tarafindan gorulebilir ve linkle acilabilir."
+                primaryLabel={sharingProgram ? "Hazirlaniyor..." : "Public yap ve paylas"}
+                secondaryLabel="Vazgec"
+                onPrimary={makePublicAndShare}
+                onSecondary={() => setShareConfirmVisible(false)}
+                onDismiss={() => setShareConfirmVisible(false)}
+            />
             <ActionConfirmModal
                 visible={confirmDeleteVisible}
                 title="Programı sil?"
