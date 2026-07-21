@@ -1522,6 +1522,10 @@ export default function WorkoutSessionScreen() {
         }));
     }, [updateSession]);
 
+    const markSetCompleted = useCallback((exerciseId: string, setId: string) => {
+        updateSetPatch(exerciseId, setId, { completed: true });
+    }, [updateSetPatch]);
+
     const removeSet = useCallback((exerciseId: string, setId: string) => {
         updateSession((prev) => ({
             ...prev,
@@ -2207,7 +2211,7 @@ export default function WorkoutSessionScreen() {
                                 editable={!targetLogDisabled && set.sideMode !== "left_right" && set.weightMode !== "bodyweight"}
                                 onChangeText={(text) => {
                                     onNumericChange(targetExercise.id, set.id, "weight", text);
-                                    if (text.trim() && !set.completed) toggleSetCompleted(targetExercise.id, set.id);
+                                    if (text.trim() && !set.completed) markSetCompleted(targetExercise.id, set.id);
                                 }}
                                 onBlur={() => onNumericBlur(targetExercise.id, set.id, "weight")}
                                 placeholder={
@@ -2238,7 +2242,7 @@ export default function WorkoutSessionScreen() {
                                 editable={!targetLogDisabled && set.sideMode !== "left_right"}
                                 onChangeText={(text) => {
                                     onNumericChange(targetExercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" as any : "reps", text);
-                                    if (text.trim() && !set.completed) toggleSetCompleted(targetExercise.id, set.id);
+                                    if (text.trim() && !set.completed) markSetCompleted(targetExercise.id, set.id);
                                 }}
                                 onBlur={() => onNumericBlur(targetExercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" : "reps", set.effortMode !== "duration")}
                                 placeholder={set.effortMode === "duration" ? "sn" : (set.targetReps ?? targetExercise.targetReps ?? "tekrar")}
