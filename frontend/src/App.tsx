@@ -30,6 +30,7 @@ const linking: any = {
             PrivacyPolicy: "privacy",
             Support: "support",
             AccountDeletion: "account-deletion",
+            ProgramDetail: "programs/:programId",
             MainTabs: {
                 screens: {
                     Home: "",
