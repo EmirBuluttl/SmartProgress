@@ -115,6 +115,11 @@ const COACH_PAIN_WARNING =
 const COACH_INJURY_DISABLED_REASON =
     "Gecici sakatlik bildirildi. Bu bolgeyi calistiran hareketleri sakatlik gecene kadar loglama.";
 const PROGRAM_SHARE_BASE_URL = "https://app.smartprogress.online/programs";
+const PROGRAM_APP_LINK_BASE_URL = "smartprogress://programs";
+
+function unwrapProgramResponse(data: any, fallback?: ProgramData | null): ProgramData {
+    return (data?.program || data || fallback) as ProgramData;
+}
 
 function normalizeCoachRiskReports(data?: ProgramData["data"] | null): CoachRiskReport[] {
     if (!data) return [];
@@ -505,9 +510,16 @@ export default function ProgramDetailScreen() {
     };
 
     const sharePublicProgram = async (programToShare: ProgramData) => {
+        if (!programToShare.id) {
+            setNotice({ title: "Paylasilamadi", message: "Program linki icin program kimligi bulunamadi." });
+            return;
+        }
         const shareUrl = `${PROGRAM_SHARE_BASE_URL}/${programToShare.id}`;
+        const appUrl = `${PROGRAM_APP_LINK_BASE_URL}/${programToShare.id}`;
         const title = programToShare.name || "SmartProgress programi";
-        const message = `${title}\n${shareUrl}`;
+        const message = Platform.OS === "web"
+            ? `${title}\n${shareUrl}`
+            : `${title}\nUygulamada ac: ${appUrl}\nWeb: ${shareUrl}`;
 
         if (Platform.OS === "web") {
             const webNavigator = typeof navigator !== "undefined" ? navigator as any : null;
@@ -527,7 +539,7 @@ export default function ProgramDetailScreen() {
         await Share.share({
             title,
             message,
-            url: shareUrl,
+            url: appUrl,
         });
     };
 
@@ -553,7 +565,12 @@ export default function ProgramDetailScreen() {
         setSharingProgram(true);
         try {
             const res = await programApi.toggleVisibility(program.id);
-            const nextProgram = res.data as ProgramData;
+            const nextProgram = {
+                ...program,
+                ...unwrapProgramResponse(res.data, program),
+                id: unwrapProgramResponse(res.data, program).id || program.id,
+                isPublic: true,
+            };
             invalidateProgramCache(program.id);
             setProgram(nextProgram);
             setShareConfirmVisible(false);
