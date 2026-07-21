@@ -230,9 +230,9 @@ export default function MyProgressScreen() {
         const y = tourOffsetsRef.current[id] ?? 0;
         scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
     }, []);
-    const chartTourRef = useAppTourTarget("progress.chart", { scrollTo: () => scrollToTourTarget("progress.chart"), maxHeight: 250 });
-    const filterTourRef = useAppTourTarget("progress.filter", { scrollTo: () => scrollToTourTarget("progress.filter"), maxHeight: 88 });
-    const recordsTourRef = useAppTourTarget("progress.records", { scrollTo: () => scrollToTourTarget("progress.records"), maxHeight: 64 });
+    const chartTourRef = useAppTourTarget("progress.chart", { scrollTo: () => scrollToTourTarget("progress.chart"), maxHeight: 220, padding: 6 });
+    const filterTourRef = useAppTourTarget("progress.filter", { scrollTo: () => scrollToTourTarget("progress.filter"), maxHeight: 74, padding: 4 });
+    const recordsTourRef = useAppTourTarget("progress.records", { scrollTo: () => scrollToTourTarget("progress.records"), maxHeight: 56, padding: 4 });
 
     // 3 dakika TTL: stack ekrandan dönüşte sadece bayatlamış veri yeniden yüklenir
     const { shouldReload: shouldReloadAnalytics, markLoaded: markAnalyticsLoaded } = useStaleDataGuard(3 * 60 * 1000);

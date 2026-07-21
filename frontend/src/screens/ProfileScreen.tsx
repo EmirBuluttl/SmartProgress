@@ -92,17 +92,17 @@ export default function ProfileScreen() {
         const y = tourOffsetsRef.current[id] ?? 0;
         scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
     }, []);
-    const profileHeaderTourRef = useAppTourTarget("profile.header", { scrollTo: () => scrollToTourTarget("profile.header"), maxHeight: 180 });
-    const heatmapTourRef = useAppTourTarget("profile.heatmap", { scrollTo: () => scrollToTourTarget("profile.heatmap"), maxHeight: 220 });
-    const trackingTourRef = useAppTourTarget("profile.tracking", { scrollTo: () => scrollToTourTarget("profile.tracking"), maxHeight: 170 });
-    const notificationsTourRef = useAppTourTarget("profile.notifications", { scrollTo: () => scrollToTourTarget("profile.notifications"), maxHeight: 150 });
-    const levelTourRef = useAppTourTarget("profile.level", { scrollTo: () => scrollToTourTarget("profile.level"), maxHeight: 92 });
-    const rpeRirTourRef = useAppTourTarget("profile.rpeRir", { scrollTo: () => scrollToTourTarget("profile.rpeRir"), maxHeight: 92 });
-    const exerciseLibraryTourRef = useAppTourTarget("profile.exerciseLibrary", { scrollTo: () => scrollToTourTarget("profile.exerciseLibrary"), maxHeight: 92 });
-    const rememberRepsTourRef = useAppTourTarget("profile.rememberReps", { scrollTo: () => scrollToTourTarget("profile.rememberReps"), maxHeight: 92 });
-    const visibilityTourRef = useAppTourTarget("profile.visibility", { scrollTo: () => scrollToTourTarget("profile.visibility"), maxHeight: 92 });
-    const themeColorTourRef = useAppTourTarget("profile.themeColor", { scrollTo: () => scrollToTourTarget("profile.themeColor"), maxHeight: 92 });
-    const themeModeTourRef = useAppTourTarget("profile.themeMode", { scrollTo: () => scrollToTourTarget("profile.themeMode"), maxHeight: 92 });
+    const profileHeaderTourRef = useAppTourTarget("profile.header", { scrollTo: () => scrollToTourTarget("profile.header"), maxHeight: 150, padding: 6 });
+    const heatmapTourRef = useAppTourTarget("profile.heatmap", { scrollTo: () => scrollToTourTarget("profile.heatmap"), maxHeight: 190, padding: 6 });
+    const trackingTourRef = useAppTourTarget("profile.tracking", { scrollTo: () => scrollToTourTarget("profile.tracking"), maxHeight: 142, padding: 6 });
+    const notificationsTourRef = useAppTourTarget("profile.notifications", { scrollTo: () => scrollToTourTarget("profile.notifications"), maxHeight: 124, padding: 6 });
+    const levelTourRef = useAppTourTarget("profile.level", { scrollTo: () => scrollToTourTarget("profile.level"), maxHeight: 78, padding: 4 });
+    const rpeRirTourRef = useAppTourTarget("profile.rpeRir", { scrollTo: () => scrollToTourTarget("profile.rpeRir"), maxHeight: 78, padding: 4 });
+    const exerciseLibraryTourRef = useAppTourTarget("profile.exerciseLibrary", { scrollTo: () => scrollToTourTarget("profile.exerciseLibrary"), maxHeight: 78, padding: 4 });
+    const rememberRepsTourRef = useAppTourTarget("profile.rememberReps", { scrollTo: () => scrollToTourTarget("profile.rememberReps"), maxHeight: 78, padding: 4 });
+    const visibilityTourRef = useAppTourTarget("profile.visibility", { scrollTo: () => scrollToTourTarget("profile.visibility"), maxHeight: 78, padding: 4 });
+    const themeColorTourRef = useAppTourTarget("profile.themeColor", { scrollTo: () => scrollToTourTarget("profile.themeColor"), maxHeight: 78, padding: 4 });
+    const themeModeTourRef = useAppTourTarget("profile.themeMode", { scrollTo: () => scrollToTourTarget("profile.themeMode"), maxHeight: 78, padding: 4 });
     const navigateStatic = React.useCallback(
         (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
             navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),

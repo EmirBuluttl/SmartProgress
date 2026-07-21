@@ -118,8 +118,8 @@ export default function CoachScreen() {
         const y = tourOffsetsRef.current[id] ?? 0;
         scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
     }, []);
-    const heroTourRef = useAppTourTarget("coach.hero", { scrollTo: () => scrollToTourTarget("coach.hero"), maxHeight: 250 });
-    const packageTourRef = useAppTourTarget("coach.package", { scrollTo: () => scrollToTourTarget("coach.package"), maxHeight: 80 });
+    const heroTourRef = useAppTourTarget("coach.hero", { scrollTo: () => scrollToTourTarget("coach.hero"), maxHeight: 220, padding: 6 });
+    const packageTourRef = useAppTourTarget("coach.package", { scrollTo: () => scrollToTourTarget("coach.package"), maxHeight: 72, padding: 4 });
     const navigateStatic = React.useCallback(
         (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
             navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
