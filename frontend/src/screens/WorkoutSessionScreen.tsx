@@ -58,6 +58,7 @@ import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibr
 import { reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
 import { applyProgramDayIndex } from "../services/programDayProgressService";
 import { clearOnboardingTrainingPending } from "../utils/appTourEvents";
+import { getCachedWorkouts } from "../services/workoutCacheService";
 
 // ─── Constants ───────────────────────────────
 
@@ -463,7 +464,7 @@ function normalizeExerciseNameForLookup(name: unknown): string {
 
 function exerciseLookupKeys(exercise: any): string[] {
     const keys = [
-        exercise?.exerciseId ? `id:${String(exercise.exerciseId).trim()}` : "",
+        exercise?.exerciseId ? `id:${String(exercise.exerciseId).trim().toLowerCase()}` : "",
         normalizeExerciseNameForLookup(exercise?.name),
     ].filter(Boolean);
     return Array.from(new Set(keys));
@@ -519,6 +520,64 @@ function buildPreviousRepsLookup(workouts: any[]): Map<string, number[]> {
     });
 
     return lookup;
+}
+
+function normalizePreviousLookupPayload(payload: any): Record<string, any> {
+    const lookup = payload?.lookup || payload?.data?.lookup || {};
+    return lookup && typeof lookup === "object" && !Array.isArray(lookup) ? lookup : {};
+}
+
+function getPreviousLookupEntry(previousLookup: Map<string, any>, exercise: any): any {
+    for (const key of exerciseLookupKeys(exercise)) {
+        const direct = previousLookup.get(key);
+        if (direct) return direct;
+        const normalized = previousLookup.get(key.toLowerCase());
+        if (normalized) return normalized;
+    }
+    return {};
+}
+
+function hasPreviousLookupData(entry: any): boolean {
+    return Boolean(
+        (Array.isArray(entry?.weights) && entry.weights.length > 0) ||
+        (Array.isArray(entry?.reps) && entry.reps.length > 0) ||
+        (Array.isArray(entry?.durations) && entry.durations.length > 0) ||
+        (Array.isArray(entry?.left?.weights) && entry.left.weights.length > 0) ||
+        (Array.isArray(entry?.left?.reps) && entry.left.reps.length > 0) ||
+        (Array.isArray(entry?.right?.weights) && entry.right.weights.length > 0) ||
+        (Array.isArray(entry?.right?.reps) && entry.right.reps.length > 0),
+    );
+}
+
+function mergeCachedPreviousPlaceholders(previousLookup: Map<string, any>, workouts: any[], exercises: any[]) {
+    if (!Array.isArray(workouts) || workouts.length === 0) return;
+
+    const weightLookup = buildPreviousWeightLookup(workouts);
+    const repsLookup = buildPreviousRepsLookup(workouts);
+
+    exercises.forEach((exercise) => {
+        if (hasPreviousLookupData(getPreviousLookupEntry(previousLookup, exercise))) return;
+
+        const keys = exerciseLookupKeys(exercise);
+        const weights = keys
+            .map((key) => weightLookup.get(key) || weightLookup.get(key.toLowerCase()))
+            .find((values) => Array.isArray(values) && values.length > 0) || [];
+        const reps = keys
+            .map((key) => repsLookup.get(key) || repsLookup.get(key.toLowerCase()))
+            .find((values) => Array.isArray(values) && values.length > 0) || [];
+
+        if (weights.length === 0 && reps.length === 0) return;
+
+        const cachedEntry = {
+            weights,
+            reps,
+            durations: [],
+            weightModes: [],
+            effortModes: [],
+            sideModes: [],
+        };
+        keys.forEach((key) => previousLookup.set(key.toLowerCase(), cachedEntry));
+    });
 }
 
 // ─── Component ───────────────────────────────
@@ -962,17 +1021,30 @@ export default function WorkoutSessionScreen() {
                         const lookupKeys = Array.from(new Set(templateExercises.flatMap((exercise) => exerciseLookupKeys(exercise))));
                         if (lookupKeys.length > 0) {
                             const lookupRes = await workoutApi.previousSetLookup(lookupKeys);
-                            const lookup = lookupRes.data.lookup || {};
-                            previousLookup = new Map(Object.entries(lookup));
+                            const lookup = normalizePreviousLookupPayload(lookupRes.data);
+                            previousLookup = new Map(
+                                Object.entries(lookup).map(([key, value]) => [key.toLowerCase(), value]),
+                            );
                         }
                     } catch (err) {
                         console.warn("[WorkoutSession] Previous set placeholders could not be loaded:", err);
                     }
 
+                    const hasMissingPreviousPlaceholders = templateExercises.some(
+                        (exercise) => !hasPreviousLookupData(getPreviousLookupEntry(previousLookup, exercise)),
+                    );
+                    if (hasMissingPreviousPlaceholders) {
+                        try {
+                            const cachedWorkouts = await getCachedWorkouts(80);
+                            mergeCachedPreviousPlaceholders(previousLookup, cachedWorkouts, templateExercises);
+                        } catch (err) {
+                            console.warn("[WorkoutSession] Cached previous placeholders could not be loaded:", err);
+                        }
+                    }
+
                     const newExercises: WorkoutExercise[] = templateExercises.map((templateEx: any) => {
                         const targetSet = templateEx.targetSets?.[0] ?? templateEx.sets?.[0];
-                        const exercisePreviousLookup =
-                            exerciseLookupKeys(templateEx).map((key) => previousLookup.get(key)).find(Boolean) || {};
+                        const exercisePreviousLookup = getPreviousLookupEntry(previousLookup, templateEx);
                         const exercisePreviousWeights = Array.isArray(exercisePreviousLookup?.weights) ? exercisePreviousLookup.weights : [];
                         const exercisePreviousReps = rememberRepsEnabled && Array.isArray(exercisePreviousLookup?.reps) ? exercisePreviousLookup.reps : [];
                         const exercisePreviousDurations = Array.isArray(exercisePreviousLookup?.durations) ? exercisePreviousLookup.durations : [];
