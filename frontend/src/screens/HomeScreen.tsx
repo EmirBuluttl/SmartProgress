@@ -122,12 +122,12 @@ export default function HomeScreen() {
     }, []);
     const streakTourRef = useAppTourTarget("home.streak", { scrollTo: () => scrollToTourTarget("home.streak"), maxHeight: 72, maxWidthRatio: 0.62 });
     const headerActionsTourRef = useAppTourTarget("home.headerActions", { scrollTo: () => scrollToTourTarget("home.headerActions"), maxHeight: 64, maxWidthRatio: 0.42 });
-    const quickWorkoutTourRef = useAppTourTarget("home.quickWorkout", { scrollTo: () => scrollToTourTarget("home.quickWorkout"), maxHeight: 112 });
-    const statsTourRef = useAppTourTarget("home.stats", { scrollTo: () => scrollToTourTarget("home.stats"), maxHeight: 116 });
-    const activeProgramTourRef = useAppTourTarget("home.activeProgram", { scrollTo: () => scrollToTourTarget("home.activeProgram"), maxHeight: 230 });
-    const recentWorkoutsTourRef = useAppTourTarget("home.recentWorkouts", { scrollTo: () => scrollToTourTarget("home.recentWorkouts"), maxHeight: 56 });
-    const programsTourRef = useAppTourTarget("home.programs", { scrollTo: () => scrollToTourTarget("home.programs"), maxHeight: 56 });
-    const communityTourRef = useAppTourTarget("home.community", { scrollTo: () => scrollToTourTarget("home.community"), maxHeight: 56 });
+    const quickWorkoutTourRef = useAppTourTarget("home.quickWorkout", { scrollTo: () => scrollToTourTarget("home.quickWorkout"), maxHeight: 68, padding: 4 });
+    const statsTourRef = useAppTourTarget("home.stats", { scrollTo: () => scrollToTourTarget("home.stats"), maxHeight: 92, padding: 4 });
+    const activeProgramTourRef = useAppTourTarget("home.activeProgram", { scrollTo: () => scrollToTourTarget("home.activeProgram"), maxHeight: 210, padding: 6 });
+    const recentWorkoutsTourRef = useAppTourTarget("home.recentWorkouts", { scrollTo: () => scrollToTourTarget("home.recentWorkouts"), maxHeight: 48, padding: 4 });
+    const programsTourRef = useAppTourTarget("home.programs", { scrollTo: () => scrollToTourTarget("home.programs"), maxHeight: 126, padding: 4 });
+    const communityTourRef = useAppTourTarget("home.community", { scrollTo: () => scrollToTourTarget("home.community"), maxHeight: 126, padding: 4 });
 
     // 2 dakika TTL: stack ekrandan dönüşte sadece verisi bayatlamış HomeScreen yeniden yükler
     const { shouldReload: shouldReloadDashboard, markLoaded: markDashboardLoaded } = useStaleDataGuard(2 * 60 * 1000);

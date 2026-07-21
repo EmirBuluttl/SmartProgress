@@ -44,15 +44,16 @@ type TargetRect = {
 };
 
 const TAB_BAR_HEIGHT = 76;
-const FIRST_MEASURE_DELAY_MS = 180;
-const SECOND_MEASURE_DELAY_MS = 420;
-const FINAL_MEASURE_DELAY_MS = 720;
-const MEASURE_GIVE_UP_MS = 1000;
+const FIRST_MEASURE_DELAY_MS = 240;
+const SECOND_MEASURE_DELAY_MS = 520;
+const FINAL_MEASURE_DELAY_MS = 820;
+const MEASURE_GIVE_UP_MS = 1120;
 const TARGET_VISIBLE_OPACITY = 0.72;
 const TARGET_REVEAL_MS = 220;
 const MIN_TARGET_SIZE = 28;
 const MAX_TARGET_HEIGHT = 260;
 const MAX_TARGET_WIDTH_RATIO = 0.94;
+const MAX_TARGET_AREA_RATIO = 0.2;
 
 export default function AppTourOverlay({
     visible,
@@ -146,6 +147,10 @@ export default function AppTourOverlay({
             const hasHorizontalOverlap = x < screenWidth - spacing.md && x + width > spacing.md;
             const isReasonablyInsideHorizontalViewport = x >= -spacing.sm && x + width <= screenWidth + spacing.sm;
             const isFullyInVerticalViewport = y >= visibleTop - spacing.xs && y + height <= visibleBottom + spacing.xs;
+            const paddedWidth = width + (options?.padding ?? spacing.sm) * 2;
+            const paddedHeight = height + (options?.padding ?? spacing.sm) * 2;
+            const areaRatio = (paddedWidth * paddedHeight) / Math.max(1, screenWidth * visibleHeight);
+            if (areaRatio > MAX_TARGET_AREA_RATIO) return false;
             return hasHorizontalOverlap && isReasonablyInsideHorizontalViewport && isFullyInVerticalViewport;
         };
         const isStableRect = (a: TargetRect, b: TargetRect) =>
@@ -158,7 +163,7 @@ export default function AppTourOverlay({
             setTargetPending(false);
             setTargetRect(rect);
             targetOpacity.setValue(0);
-            targetScale.setValue(0.992);
+            targetScale.setValue(0.998);
             Animated.parallel([
                 Animated.timing(targetOpacity, {
                     toValue: TARGET_VISIBLE_OPACITY,
@@ -243,7 +248,7 @@ export default function AppTourOverlay({
     return (
         <Animated.View pointerEvents="box-none" style={[styles.layer, { opacity }]}>
             <Pressable
-                pointerEvents="auto"
+                pointerEvents={targetPending || !paddedRect ? "none" : "auto"}
                 accessibilityRole="button"
                 accessibilityLabel="Uygulama turunda sonraki adima gec"
                 onPress={onNext}
