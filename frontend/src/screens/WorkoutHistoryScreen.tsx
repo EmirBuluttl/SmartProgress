@@ -47,6 +47,33 @@ interface WorkoutItem {
 type DateFilter = "all" | "7d" | "30d" | "90d";
 type TypeFilter = "all" | "program" | "free" | "cardio";
 
+function normalizeProgramKey(value: unknown): string {
+    return String(value || "").trim().toLocaleLowerCase("tr-TR");
+}
+
+function getWorkoutProgramTrace(workout: WorkoutItem) {
+    const programId = workout.programId || workout.data?.programId || "";
+    const programName = workout.programName || workout.data?.programName || "";
+    const dayLabel = workout.dayLabel || workout.data?.dayLabel || "";
+    const dataProgramTitle = workout.data?.programTitle || workout.data?.sourceProgramName || "";
+    const programNameFallback = programName || dataProgramTitle;
+    const programKey = programId
+        ? `id:${String(programId)}`
+        : programNameFallback
+            ? `name:${normalizeProgramKey(programNameFallback)}`
+            : dayLabel
+                ? `day:${normalizeProgramKey(dayLabel)}`
+                : "";
+
+    return {
+        programId: programId ? String(programId) : "",
+        programName: programNameFallback ? String(programNameFallback) : "",
+        dayLabel: dayLabel ? String(dayLabel) : "",
+        programKey,
+        isProgramWorkout: Boolean(programId || programNameFallback || dayLabel),
+    };
+}
+
 export default function WorkoutHistoryScreen() {
     const navigation = useNavigation();
     const { colors } = useTheme();
@@ -190,9 +217,9 @@ export default function WorkoutHistoryScreen() {
     const programOptions = React.useMemo(() => {
         const map = new Map<string, string>();
         workouts.forEach((workout) => {
-            const id = workout.programId || workout.data?.programId;
-            const name = workout.programName || workout.data?.programName || workout.title;
-            if (id) map.set(String(id), String(name || "Program"));
+            const trace = getWorkoutProgramTrace(workout);
+            if (!trace.programKey) return;
+            map.set(trace.programKey, trace.programName || trace.dayLabel || "Program");
         });
         return [{ key: "all", label: "Tüm programlar" }, ...Array.from(map.entries()).map(([key, label]) => ({ key, label }))];
     }, [workouts]);
@@ -217,14 +244,14 @@ export default function WorkoutHistoryScreen() {
             const time = new Date(workout.logDate).getTime();
             if (dateWindow && Number.isFinite(time) && now - time > dateWindow * 24 * 60 * 60 * 1000) return false;
 
-            const workoutProgramId = workout.programId || workout.data?.programId;
+            const programTrace = getWorkoutProgramTrace(workout);
             const cardioBlocks = Array.isArray(workout.data?.cardioBlocks) ? workout.data.cardioBlocks : [];
             const hasCardio = cardioBlocks.length > 0;
-            if (typeFilter === "program" && !workoutProgramId) return false;
-            if (typeFilter === "free" && workoutProgramId) return false;
+            if (typeFilter === "program" && !programTrace.isProgramWorkout) return false;
+            if (typeFilter === "free" && programTrace.isProgramWorkout) return false;
             if (typeFilter === "cardio" && !hasCardio) return false;
 
-            if (programFilter !== "all" && String(workoutProgramId || "") !== programFilter) return false;
+            if (programFilter !== "all" && programTrace.programKey !== programFilter) return false;
 
             if (scopeFilter !== "all") {
                 const scopeLabel = scopeFilter === "Tüm kapsam" ? "all" : scopeFilter;
@@ -233,6 +260,8 @@ export default function WorkoutHistoryScreen() {
                         workout.title,
                         workout.dayLabel,
                         workout.data?.dayLabel,
+                        workout.programName,
+                        workout.data?.programName,
                         hasCardio ? "Kardiyo" : "",
                     ].filter(Boolean).join(" ").toLocaleLowerCase("tr-TR");
                     if (!haystack.includes(scopeLabel.toLocaleLowerCase("tr-TR"))) return false;
@@ -440,6 +469,7 @@ export default function WorkoutHistoryScreen() {
                 ) : null}
             </View>
 
+            {false && (
             <View style={styles.filterPanel}>
                 <View style={styles.filterHeaderRow}>
                     <View>
@@ -477,6 +507,7 @@ export default function WorkoutHistoryScreen() {
                     </ScrollView>
                 ) : null}
             </View>
+            )}
 
             {workouts.length === 0 && pendingTotal === 0 ? (
                 <View style={styles.empty}>

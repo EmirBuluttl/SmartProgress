@@ -31,7 +31,7 @@ export function invalidateWorkoutAnalyticsCache() {
     cachedFingerprintRef = null;
     cachedSnapshot = null;
     AsyncStorage.removeItem(WORKOUT_ANALYTICS_STORAGE_KEY).catch(() => undefined);
-    AsyncStorage.removeItem(WORKOUT_ANALYTICS_DIRTY_KEY).catch(() => undefined);
+    AsyncStorage.setItem(WORKOUT_ANALYTICS_DIRTY_KEY, String(Date.now())).catch(() => undefined);
 }
 
 export async function markWorkoutAnalyticsStale() {
