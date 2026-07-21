@@ -17,7 +17,6 @@ import {
     normalizeProgramIntro,
     PROGRAM_GUIDE_SUMMARY_RULES,
 } from "../utils/programGuide";
-import { clearOnboardingTrainingPending } from "../utils/appTourEvents";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramGuide">;
 type Route = RouteProp<RootStackParamList, "ProgramGuide">;
@@ -33,9 +32,6 @@ export default function ProgramGuideScreen() {
     const isOnboardingTraining = route.params.onboardingTraining === true;
 
     const openProgram = async () => {
-        if (isOnboardingTraining) {
-            await clearOnboardingTrainingPending();
-        }
         if (route.params.programId) {
             navigation.replace("ProgramDetail", { programId: route.params.programId });
             return;
@@ -80,7 +76,7 @@ export default function ProgramGuideScreen() {
                     </View>
                     <Text style={styles.heroTitle}>{intro?.title || "Programini nasil kullanmalisin?"}</Text>
                     <Text style={styles.heroBody}>
-                        Bu rehber programini bilincli takip etmen, setlerini dogru loglaman ve sureci aceleye getirmeden ilerletmen icin hazirlandi.
+                        Bu rehber programini bilincli takip etmen, setlerini dogru loglaman ve sureci aceleye getirmeden ilerletmen icin hazirlandi. Istersen sonra Program Detay'dan tekrar acabilirsin.
                     </Text>
                 </View>
 

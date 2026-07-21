@@ -41,6 +41,7 @@ import { getCachedProgramById, getProgramDetailSnapshot, invalidateProgramCache 
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { buildGuideSummary, normalizeProgramIntro, PROGRAM_GUIDE_SUMMARY_RULES } from "../utils/programGuide";
 import { COACH_PATTERN_LABELS, type CoachPatternKey } from "../services/coachRuleEngine";
+import { hasPendingOnboardingTraining } from "../utils/appTourEvents";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -206,6 +207,7 @@ export default function ProgramDetailScreen() {
     const [riskReportType, setRiskReportType] = useState<CoachRiskReportType>("pain");
     const [selectedRiskPatterns, setSelectedRiskPatterns] = useState<CoachPatternKey[]>([]);
     const [riskSaving, setRiskSaving] = useState(false);
+    const [onboardingTrainingPending, setOnboardingTrainingPending] = useState(false);
 
     const s = React.useMemo(() => createStyles(colors), [colors]);
     const coachPatternOptions = React.useMemo(() => {
@@ -264,6 +266,9 @@ export default function ProgramDetailScreen() {
         useCallback(() => {
             if (!getProgramDetailSnapshot(programId)) setLoading(true);
             fetchProgram();
+            hasPendingOnboardingTraining()
+                .then(setOnboardingTrainingPending)
+                .catch(() => setOnboardingTrainingPending(false));
         }, [fetchProgram]),
     );
 
@@ -529,6 +534,18 @@ export default function ProgramDetailScreen() {
             programId: program.id,
             programName: program.name,
             programIntro: (program.data as any)?.programIntro,
+            programData: program.data,
+            onboardingTraining: onboardingTrainingPending,
+        });
+    };
+    const startOnboardingTrainingDemo = () => {
+        if (!program.data) return;
+        navigation.navigate("WorkoutSession", {
+            programId: program.id,
+            programName: program.name,
+            dayIndex: 0,
+            programData: program.data as any,
+            trainingMode: "onboarding_demo",
         });
     };
     const openCoachRiskModal = (type: CoachRiskReportType) => {
@@ -826,6 +843,22 @@ export default function ProgramDetailScreen() {
                 ) : null}
 
                 {/* ─── Current Day Highlight ─── */}
+                {isOwner && onboardingTrainingPending ? (
+                    <View style={s.trainingResumeCard}>
+                        <View style={s.sectionHeaderRow}>
+                            <Ionicons name="school-outline" size={18} color={colors.accent} />
+                            <Text style={s.sectionTitle}>Loglamayi ogren</Text>
+                        </View>
+                        <Text style={s.trainingResumeText}>
+                            Ilk kurulum egitimin henuz tamamlanmadi. Demo antrenman gercek kayit olusturmaz; sadece set loglamayi ve antrenmani bitirme akisini ogretir.
+                        </Text>
+                        <TouchableOpacity style={s.guideDetailBtn} onPress={startOnboardingTrainingDemo} activeOpacity={0.8}>
+                            <Text style={s.guideDetailText}>Demo loglamaya devam et</Text>
+                            <Ionicons name="arrow-forward" size={16} color={colors.background} />
+                        </TouchableOpacity>
+                    </View>
+                ) : null}
+
                 {isOwner && isCoachProgram && coachPatternOptions.length > 0 ? (
                     <View style={s.riskCard}>
                         <View style={s.sectionHeaderRow}>
@@ -1363,6 +1396,19 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.background,
         fontSize: fontSize.sm,
         fontWeight: fontWeight.bold,
+    },
+    trainingResumeCard: {
+        backgroundColor: colors.accentMuted,
+        borderRadius: borderRadius.lg,
+        borderWidth: 1,
+        borderColor: colors.accent,
+        padding: spacing.lg,
+        marginBottom: spacing.lg,
+    },
+    trainingResumeText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
     },
     riskCard: {
         backgroundColor: colors.surface,

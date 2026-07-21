@@ -57,6 +57,7 @@ import { summarizeCardioBlocks } from "../utils/cardio";
 import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibrary";
 import { reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
 import { applyProgramDayIndex } from "../services/programDayProgressService";
+import { clearOnboardingTrainingPending } from "../utils/appTourEvents";
 
 // ─── Constants ───────────────────────────────
 
@@ -1694,12 +1695,31 @@ export default function WorkoutSessionScreen() {
             saveTimerRef.current = null;
         }
         if (isTrainingDemo) {
-            navigation.goBack();
+            navigation.replace("MainTabs");
             return;
         }
         await clearActiveSession();
         navigation.goBack();
     }, [isTrainingDemo, navigation]);
+
+    const leaveTrainingDemo = useCallback(async (mode: "continue_later" | "close") => {
+        setExitModalVisible(false);
+        finishingRef.current = true;
+
+        if (intervalRef.current) {
+            clearInterval(intervalRef.current);
+            intervalRef.current = null;
+        }
+        if (saveTimerRef.current) {
+            clearTimeout(saveTimerRef.current);
+            saveTimerRef.current = null;
+        }
+        if (mode === "close") {
+            await clearOnboardingTrainingPending();
+        }
+        pendingExitActionRef.current = null;
+        navigation.replace("MainTabs");
+    }, [navigation]);
 
     const leaveWorkout = useCallback(async (mode: "save" | "discard") => {
         setExitModalVisible(false);
@@ -2777,19 +2797,21 @@ export default function WorkoutSessionScreen() {
             />
             <ActionConfirmModal
                 visible={exitModalVisible}
-                title={exitModalHasData ? "Antrenman devam ediyor" : "Antrenman iptal edilsin mi?"}
+                title={isTrainingDemo ? "Egitimden cikilsin mi?" : exitModalHasData ? "Antrenman devam ediyor" : "Antrenman iptal edilsin mi?"}
                 message={
-                    exitModalHasData
+                    isTrainingDemo
+                        ? "Bu demo gercek antrenman kaydi olusturmaz. Istersen sonra kaldigin egitim akisina donebilir veya egitimi tamamen kapatabilirsin."
+                        : exitModalHasData
                         ? "Antrenmanı yarıda bırakıp daha sonra devam edebilir, loglamaya dönebilir veya tamamen iptal edebilirsiniz."
                         : "Henüz veri girmediniz. Bu antrenmanı iptal etmek ister misiniz?"
                 }
-                primaryLabel={exitModalHasData ? "Kaydet ve Çık" : "Antrenmanı İptal Et"}
-                secondaryLabel="Devam Et"
-                destructivePrimary={!exitModalHasData}
-                onPrimary={() => leaveWorkout(exitModalHasData ? "save" : "discard")}
-                tertiaryLabel={exitModalHasData ? "Antrenmanı İptal Et" : undefined}
+                primaryLabel={isTrainingDemo ? "Sonra devam et" : exitModalHasData ? "Kaydet ve Çık" : "Antrenmanı İptal Et"}
+                secondaryLabel={isTrainingDemo ? "Egitime devam et" : "Devam Et"}
+                destructivePrimary={!isTrainingDemo && !exitModalHasData}
+                onPrimary={() => isTrainingDemo ? leaveTrainingDemo("continue_later") : leaveWorkout(exitModalHasData ? "save" : "discard")}
+                tertiaryLabel={isTrainingDemo ? "Egitimi kapat" : exitModalHasData ? "Antrenmanı İptal Et" : undefined}
                 destructiveTertiary
-                onTertiary={exitModalHasData ? () => leaveWorkout("discard") : undefined}
+                onTertiary={isTrainingDemo ? () => leaveTrainingDemo("close") : exitModalHasData ? () => leaveWorkout("discard") : undefined}
                 onSecondary={() => {
                     pendingExitActionRef.current = null;
                     setExitModalVisible(false);
