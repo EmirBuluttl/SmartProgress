@@ -50,6 +50,9 @@ const FINAL_MEASURE_DELAY_MS = 720;
 const MEASURE_GIVE_UP_MS = 1000;
 const TARGET_VISIBLE_OPACITY = 0.66;
 const TARGET_REVEAL_MS = 340;
+const MIN_TARGET_SIZE = 28;
+const MAX_TARGET_HEIGHT = 260;
+const MAX_TARGET_WIDTH_RATIO = 0.94;
 
 export default function AppTourOverlay({
     visible,
@@ -129,12 +132,16 @@ export default function AppTourOverlay({
 
         const isCurrentRequest = () => !cancelled && measureRequestRef.current === requestId;
         const isUsableRect = (x: number, y: number, width: number, height: number) => {
-            if (width < 28 || height < 28) return false;
-            const visibleTop = insets.top;
+            if (width < MIN_TARGET_SIZE || height < MIN_TARGET_SIZE) return false;
+            const visibleTop = insets.top + spacing.xs;
             const visibleBottom = screenHeight - TAB_BAR_HEIGHT - Math.max(insets.bottom, spacing.sm);
+            const visibleHeight = visibleBottom - visibleTop;
+            if (visibleHeight <= MIN_TARGET_SIZE) return false;
+            if (width > screenWidth * MAX_TARGET_WIDTH_RATIO) return false;
+            if (height > Math.min(MAX_TARGET_HEIGHT, visibleHeight * 0.58)) return false;
             const hasHorizontalOverlap = x < screenWidth - spacing.md && x + width > spacing.md;
-            const hasVerticalOverlap = y < visibleBottom && y + height > visibleTop;
-            return hasHorizontalOverlap && hasVerticalOverlap;
+            const isFullyInVerticalViewport = y >= visibleTop - spacing.xs && y + height <= visibleBottom + spacing.xs;
+            return hasHorizontalOverlap && isFullyInVerticalViewport;
         };
         const isStableRect = (a: TargetRect, b: TargetRect) =>
             Math.abs(a.x - b.x) < 8 &&
@@ -193,7 +200,7 @@ export default function AppTourOverlay({
             }, FINAL_MEASURE_DELAY_MS),
             setTimeout(() => {
                 if (!isCurrentRequest() || measured) return;
-                if (candidateRect) {
+                if (candidateRect && isUsableRect(candidateRect.x, candidateRect.y, candidateRect.width, candidateRect.height)) {
                     revealRect(candidateRect);
                     return;
                 }
@@ -210,12 +217,21 @@ export default function AppTourOverlay({
 
     if (!visible || !step) return null;
 
-    const paddedRect = targetRect ? {
-        x: Math.max(spacing.sm, targetRect.x - spacing.xs),
-        y: Math.max(insets.top + spacing.xs, targetRect.y - spacing.xs),
-        width: Math.min(screenWidth - spacing.sm * 2, targetRect.width + spacing.sm),
-        height: Math.max(42, Math.min(screenHeight - TAB_BAR_HEIGHT - spacing.xl, targetRect.height + spacing.sm)),
-    } : null;
+    const paddedRect = React.useMemo(() => {
+        if (!targetRect) return null;
+        const visibleTop = insets.top + spacing.xs;
+        const visibleBottom = screenHeight - TAB_BAR_HEIGHT - Math.max(insets.bottom, spacing.sm);
+        const padding = Math.min(spacing.sm, Math.max(6, Math.round(Math.min(targetRect.width, targetRect.height) * 0.08)));
+        const x = Math.max(spacing.sm, targetRect.x - padding);
+        const y = Math.max(visibleTop, targetRect.y - padding);
+        const maxWidth = screenWidth - x - spacing.sm;
+        const maxHeight = visibleBottom - y;
+        const width = Math.min(maxWidth, targetRect.width + padding * 2);
+        const height = Math.min(maxHeight, targetRect.height + padding * 2);
+        if (width < MIN_TARGET_SIZE || height < MIN_TARGET_SIZE) return null;
+        if (y + height > visibleBottom + 1) return null;
+        return { x, y, width, height };
+    }, [insets.bottom, insets.top, screenHeight, screenWidth, targetRect]);
 
     return (
         <Animated.View pointerEvents="box-none" style={[styles.layer, { opacity }]}>
