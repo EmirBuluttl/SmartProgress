@@ -311,7 +311,7 @@ export default function AppTourOverlay({
                             </TouchableOpacity>
                         ) : null}
                         <TouchableOpacity style={styles.primaryBtn} onPress={onNext} activeOpacity={0.84}>
-                            <Text style={styles.primaryText}>{current === total - 1 ? "Basla" : "Sonraki"}</Text>
+                            <Text style={styles.primaryText}>{current === total - 1 ? "Turu tamamla" : "Sonraki"}</Text>
                             <Ionicons name={current === total - 1 ? "checkmark" : "arrow-forward"} size={16} color={colors.background} />
                         </TouchableOpacity>
                     </View>

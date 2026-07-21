@@ -58,12 +58,12 @@ export default function PostTourNextStepScreen() {
                 <View style={styles.iconWrap}>
                     <Ionicons name="map-outline" size={28} color={colors.background} />
                 </View>
-                <Text style={styles.eyebrow}>SIRADAKI ADIM</Text>
+                <Text style={styles.eyebrow}>UYGULAMA TURU TAMAMLANDI</Text>
                 <Text style={styles.title}>
                     {guidanceEnabled ? "Ilk programini birlikte kuralim" : "Istersen ornek program kurabiliriz"}
                 </Text>
                 <Text style={styles.body}>
-                    Onboarding cevaplarina gore baslangic noktan hazir. Wizard, bu bilgilerle takip edilebilir bir program taslagi olusturur; son karari yine sen verirsin.
+                    Uygulamanin ana bolumlerini gordun. Onboarding cevaplarina gore baslangic noktan hazir; wizard bu bilgilerle takip edilebilir bir program taslagi olusturur.
                 </Text>
 
                 <View style={styles.summary}>

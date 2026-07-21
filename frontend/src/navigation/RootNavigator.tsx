@@ -41,6 +41,7 @@ import WarmupSessionScreen from "../screens/WarmupSessionScreen";
 import LegalInfoScreen from "../screens/LegalInfoScreen";
 import TrainingCompleteScreen from "../screens/TrainingCompleteScreen";
 import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
+import OnboardingCompleteScreen from "../screens/onboarding/OnboardingCompleteScreen";
 import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
 import { markPostOnboardingFlowPending } from "../utils/appTourEvents";
 
@@ -167,6 +168,7 @@ const AppStack = createNativeStackNavigator<RootStackParamList>();
 function AppNavigator() {
     const { colors } = useTheme();
     const { user, updateUser } = useAuth();
+    const [showOnboardingComplete, setShowOnboardingComplete] = React.useState(false);
     const needsOnboarding = user?.settings?.onboarding_completed === false;
 
     const completeOnboarding = async (data: OnboardingData) => {
@@ -186,6 +188,7 @@ function AppNavigator() {
         } catch (error) {
             console.warn("[RootNavigator] Failed to mark post onboarding flow:", error);
         }
+        setShowOnboardingComplete(true);
         updateUser({ settings });
     };
 
@@ -194,6 +197,15 @@ function AppNavigator() {
             <OnboardingNavigator
                 firstName={user?.firstName || "Sporcu"}
                 onComplete={completeOnboarding}
+            />
+        );
+    }
+
+    if (showOnboardingComplete) {
+        return (
+            <OnboardingCompleteScreen
+                firstName={user?.firstName || "Sporcu"}
+                onContinue={() => setShowOnboardingComplete(false)}
             />
         );
     }
