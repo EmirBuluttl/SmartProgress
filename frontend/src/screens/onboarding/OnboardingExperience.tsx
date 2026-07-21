@@ -78,8 +78,8 @@ export default function OnboardingExperience({ onNext, onBack }: Props) {
         setShow(true);
     }, [update]);
 
-    const go = useCallback((enabled: boolean) => {
-        update({ guidanceEnabled: enabled });
+    const go = useCallback(() => {
+        update({ guidanceEnabled: true });
         onNext();
     }, [update, onNext]);
 
@@ -111,11 +111,8 @@ export default function OnboardingExperience({ onNext, onBack }: Props) {
                             ))}
                         </View>
                         <Text style={s.guidNote}>Ayarlardan istediğin zaman değiştirebilirsin.</Text>
-                        <TouchableOpacity style={[s.yesBtn, { backgroundColor: colors.accent }]} onPress={() => go(true)} activeOpacity={0.82}>
-                            <Text style={s.yesTxt}>{sel.guidance.yes}</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={s.noBtn} onPress={() => go(false)} activeOpacity={0.7}>
-                            <Text style={s.noTxt}>{sel.guidance.no}</Text>
+                        <TouchableOpacity style={[s.yesBtn, { backgroundColor: colors.accent }]} onPress={go} activeOpacity={0.82}>
+                            <Text style={s.yesTxt}>Devam Et</Text>
                         </TouchableOpacity>
                     </Animated.View>
                 )}
@@ -158,6 +155,4 @@ const s = StyleSheet.create({
     guidNote: { fontSize: 12, color: T.muted, fontStyle: 'italic' },
     yesBtn: { height: 50, borderRadius: 14, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
     yesTxt: { fontSize: 15, fontWeight: '700', color: '#000' },
-    noBtn: { height: 42, alignItems: 'center', justifyContent: 'center' },
-    noTxt: { fontSize: 14, color: T.muted },
 });

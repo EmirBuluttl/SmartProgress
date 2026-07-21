@@ -29,6 +29,9 @@ const SPORTS = [
     { id: 'weightlifting', emoji: '🏅',  label: 'Olympic Lifting',  sub: 'Snatch · C&J' },
 ];
 
+const HIDDEN_SPORT_IDS = new Set(["boxing", "team", "yoga", "cycling", "weightlifting"]);
+const VISIBLE_SPORTS = SPORTS.filter((sport) => !HIDDEN_SPORT_IDS.has(sport.id));
+
 function SportCard({ sport, selected, onPress }: {
     sport: typeof SPORTS[0]; selected: boolean; onPress: () => void;
 }) {
@@ -100,7 +103,7 @@ export default function OnboardingSports({ onNext, onBack }: Props) {
             </View>
 
             <ScrollView style={{ flex: 1 }} contentContainerStyle={s.grid} showsVerticalScrollIndicator={false}>
-                {rows(SPORTS).map((row, ri) => (
+                {rows(VISIBLE_SPORTS).map((row, ri) => (
                     <View key={ri} style={s.row}>
                         {row.map(sp => (
                             <SportCard key={sp.id} sport={sp} selected={data.sports.includes(sp.id)} onPress={() => toggle(sp.id)} />

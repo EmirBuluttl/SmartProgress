@@ -1,5 +1,5 @@
 import React, { useEffect } from "react";
-import { View, Text, StyleSheet, TouchableOpacity } from "react-native";
+import { View, Text, StyleSheet, TouchableOpacity, useWindowDimensions } from "react-native";
 import Animated, {
     useSharedValue, useAnimatedStyle,
     withRepeat, withSequence, withTiming, Easing,
@@ -16,16 +16,22 @@ const T = {
 } as const;
 
 const FEATURES = [
-    'Antrenmanlarını kaydet, PR\'larını takip et',
-    'Haftalık hacim ve yoğunluk analizleri',
-    'Hedefine özel kişiselleştirilmiş programlar',
+    'Antrenmanlarini kaydet, PRlarini takip et',
+    'Haftalik hacim ve yogunluk analizleri',
+    'Hedefine ozel kisisellestirilmis programlar',
 ];
 
 interface Props { firstName: string; onNext: () => void; }
 
 export default function OnboardingWelcome({ firstName, onNext }: Props) {
     const { colors } = useTheme();
+    const { width, height } = useWindowDimensions();
     const badgeScale = useSharedValue(1);
+    const compact = height < 720 || width < 380;
+    const heroType = {
+        fontSize: compact ? 34 : 44,
+        lineHeight: compact ? 39 : 50,
+    };
 
     useEffect(() => {
         badgeScale.value = withRepeat(
@@ -43,7 +49,6 @@ export default function OnboardingWelcome({ firstName, onNext }: Props) {
 
     return (
         <View style={s.root}>
-            {/* Monogram */}
             <View style={s.topRow}>
                 <Animated.View style={[s.badgeWrap, badgeStyle]}>
                     <View style={[s.badge, { backgroundColor: colors.accent }]}>
@@ -53,17 +58,15 @@ export default function OnboardingWelcome({ firstName, onNext }: Props) {
                 <Text style={s.wordmark}>SmartProgress</Text>
             </View>
 
-            {/* Hero editorial text */}
-            <View style={s.hero}>
-                <Text style={s.heroLine}>Antrenmanını</Text>
-                <Text style={s.heroLine}>bir üst seviyeye</Text>
-                <Text style={[s.heroLine, { color: colors.accent }]}>taşı.</Text>
+            <View style={[s.hero, compact && s.heroCompact]}>
+                <Text style={[s.heroLine, heroType]}>Antrenmanini</Text>
+                <Text style={[s.heroLine, heroType]}>bir ust seviyeye</Text>
+                <Text style={[s.heroLine, heroType, { color: colors.accent }]}>tasi.</Text>
                 <Text style={s.heroSub}>
-                    {firstName ? `Merhaba ${firstName}. ` : ''}Seni tanıyalım, hedeflerine göre programını oluşturalım.
+                    {firstName ? `Merhaba ${firstName}. ` : ''}Seni taniyalim, hedeflerine gore programini olusturalim.
                 </Text>
             </View>
 
-            {/* Feature bullets */}
             <View style={s.features}>
                 {FEATURES.map((f, i) => (
                     <View key={i} style={s.featureRow}>
@@ -73,29 +76,28 @@ export default function OnboardingWelcome({ firstName, onNext }: Props) {
                 ))}
             </View>
 
-            {/* CTA */}
             <View style={s.footer}>
                 <TouchableOpacity style={[s.btn, { backgroundColor: colors.accent }]} onPress={onNext} activeOpacity={0.82}>
-                    <Text style={s.btnText}>Başlayalım</Text>
+                    <Text style={s.btnText}>Baslayalim</Text>
                     <Ionicons name="arrow-forward" size={18} color="#000" />
                 </TouchableOpacity>
-                <Text style={s.note}>Yaklaşık 2 dakika sürer · İstediğin zaman değiştirebilirsin</Text>
+                <Text style={s.note}>Yaklasik 2 dakika surer. Istedigin zaman degistirebilirsin</Text>
             </View>
         </View>
     );
 }
 
 const s = StyleSheet.create({
-    root: { flex: 1, backgroundColor: T.bg, paddingHorizontal: T.px, paddingTop: 56, paddingBottom: 40 },
-    topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 48 },
+    root: { flex: 1, backgroundColor: T.bg, paddingHorizontal: T.px, paddingTop: 48, paddingBottom: 32 },
+    topRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 28 },
     badgeWrap: { shadowColor: T.accent, shadowOffset: { width: 0, height: 0 }, shadowRadius: 16, borderRadius: 8 },
     badge: { width: 30, height: 30, borderRadius: 8, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
-    badgeText: { fontSize: 11, fontWeight: '800', color: '#000', letterSpacing: 0.5 },
     wordmark: { fontSize: 13, fontWeight: '600', color: T.muted, letterSpacing: 0.5 },
-    hero: { flex: 1, justifyContent: 'center', gap: 2 },
-    heroLine: { fontSize: 44, fontWeight: '800', color: T.text, letterSpacing: -0.5, lineHeight: 50 },
+    hero: { flex: 1, justifyContent: 'center', gap: 2, minHeight: 190 },
+    heroCompact: { justifyContent: 'flex-start', minHeight: 150 },
+    heroLine: { fontSize: 44, fontWeight: '800', color: T.text, letterSpacing: 0, lineHeight: 50 },
     heroSub: { fontSize: 15, color: T.sub, lineHeight: 22, marginTop: 20 },
-    features: { gap: 18, marginBottom: 40 },
+    features: { gap: 18, marginBottom: 32 },
     featureRow: { flexDirection: 'row', alignItems: 'center', gap: 14 },
     dot: { width: 5, height: 5, borderRadius: 2.5, backgroundColor: T.accent },
     featureText: { fontSize: 14, color: T.sub, flex: 1, lineHeight: 20 },

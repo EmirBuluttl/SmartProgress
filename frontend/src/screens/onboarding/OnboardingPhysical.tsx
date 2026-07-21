@@ -95,6 +95,7 @@ function Picker({
                 scrollEventThrottle={16}
                 nestedScrollEnabled
                 directionalLockEnabled
+                disableIntervalMomentum
                 bounces={false}
                 overScrollMode="never"
                 keyboardShouldPersistTaps="handled"
@@ -198,8 +199,11 @@ export default function OnboardingPhysical({ onNext, onBack }: Props) {
                 style={s.scroll}
                 showsVerticalScrollIndicator={false}
                 keyboardShouldPersistTaps="handled"
-                nestedScrollEnabled
+                nestedScrollEnabled={false}
                 directionalLockEnabled={Platform.OS === "ios"}
+                bounces={false}
+                overScrollMode="never"
+                contentContainerStyle={s.scrollContent}
             >
                 <View style={s.heading}>
                     <Text style={s.label}>FİZİKSEL BİLGİLER</Text>
@@ -220,7 +224,7 @@ export default function OnboardingPhysical({ onNext, onBack }: Props) {
                     values={data.weightUnit === 'kg' ? WKG : WLB}
                     onToggle={toggleW} onChange={v => update({ weight: v })}
                 />
-                <View style={{ height: 24 }} />
+                <View style={{ height: 16 }} />
             </ScrollView>
 
             {/* Fixed footer */}
@@ -239,6 +243,7 @@ export default function OnboardingPhysical({ onNext, onBack }: Props) {
 const s = StyleSheet.create({
     root: { flex: 1, backgroundColor: T.bg },
     scroll: { flex: 1 },
+    scrollContent: { paddingBottom: 12 },
     heading: { paddingHorizontal: T.px, paddingTop: 20, paddingBottom: 4, gap: 6 },
     label: { fontSize: 11, fontWeight: '600', color: T.muted, letterSpacing: 1.5, textTransform: 'uppercase' },
     title: { fontSize: 26, fontWeight: '700', color: T.text, letterSpacing: -0.3 },

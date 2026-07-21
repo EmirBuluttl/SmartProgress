@@ -270,7 +270,7 @@ export function workingSetCount(level: CoachLevel): number {
 }
 
 export function targetReps(level: CoachLevel): string {
-    return level === "beginner" ? "8-12" : "4-8";
+    return level === "beginner" ? "8-12" : "4-6";
 }
 
 export function targetRir(level: CoachLevel): string {

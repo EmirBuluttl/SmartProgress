@@ -27,7 +27,7 @@ const GOAL_LABELS: Record<string, string> = {
     strength: "Guc artisi",
     fat_loss: "Yag yakma",
     fitness: "Genel fitness",
-    performance: "Sportif performans",
+    performance: "Genel fitness",
 };
 
 export default function PostTourNextStepScreen() {

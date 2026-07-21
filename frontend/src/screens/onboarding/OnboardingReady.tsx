@@ -87,7 +87,7 @@ export default function OnboardingReady({ onFinish, firstName }: Props) {
 
     const summary = [
         data.experienceLevel && { icon: 'trophy-outline' as const, label: 'Seviye', val: LEVEL_L[data.experienceLevel] },
-        data.workoutGoal     && { icon: 'flag-outline'   as const, label: 'Hedef',  val: GOAL_L[data.workoutGoal] },
+        data.workoutGoal     && { icon: 'flag-outline'   as const, label: 'Hedef',  val: data.workoutGoal === "performance" ? GOAL_L.fitness : GOAL_L[data.workoutGoal] },
         data.weeklyFrequency > 0 && { icon: 'calendar-outline' as const, label: 'Sıklık', val: `Haftada ${data.weeklyFrequency} gün` },
         data.sports.length > 0   && { icon: 'barbell-outline'  as const, label: 'Spor',   val: `${data.sports.length} spor türü` },
     ].filter(Boolean) as { icon: any; label: string; val: string }[];
@@ -148,15 +148,15 @@ export default function OnboardingReady({ onFinish, firstName }: Props) {
 const s = StyleSheet.create({
     root: {
         flex: 1, backgroundColor: T.bg,
-        alignItems: 'center', paddingHorizontal: T.px, paddingTop: 70, paddingBottom: 40,
+        alignItems: 'center', paddingHorizontal: T.px, paddingTop: 42, paddingBottom: 28,
     },
     checkWrap: {
         shadowColor: T.accent, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.65, shadowRadius: 32,
-        borderRadius: 54, marginBottom: 32,
+        borderRadius: 46, marginBottom: 20,
     },
-    checkCircle: { width: 108, height: 108, borderRadius: 54, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
+    checkCircle: { width: 92, height: 92, borderRadius: 46, backgroundColor: T.accent, alignItems: 'center', justifyContent: 'center' },
     content: { flex: 1, width: '100%', gap: 16, alignItems: 'center' },
-    title: { fontSize: 36, fontWeight: '800', color: T.text, textAlign: 'center', letterSpacing: -0.5 },
+    title: { fontSize: 32, fontWeight: '800', color: T.text, textAlign: 'center', letterSpacing: 0 },
     sub: { fontSize: 15, color: T.sub, textAlign: 'center', lineHeight: 22 },
     summaryCard: {
         width: '100%', backgroundColor: T.surface, borderRadius: T.r,
@@ -166,7 +166,7 @@ const s = StyleSheet.create({
     summaryRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
     summaryKey: { fontSize: 13, color: T.muted, minWidth: 56 },
     summaryVal: { flex: 1, fontSize: 13, fontWeight: '600', color: T.text },
-    btns: { width: '100%', gap: 10, paddingTop: 24 },
+    btns: { width: '100%', gap: 10, paddingTop: 14 },
     mainBtn: {
         height: 56, borderRadius: T.r, backgroundColor: T.accent,
         flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10,
