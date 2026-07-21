@@ -739,6 +739,29 @@ export default function WorkoutSessionScreen() {
         const normalized = text.replace(/,/g, ".");
         const key = cacheKey(exerciseId, setId, field);
         setTextCache((prev) => ({ ...prev, [key]: normalized }));
+
+        if (field === "durationSeconds") {
+            updateSet(exerciseId, setId, field as any, parseDurationInput(normalized));
+            return;
+        }
+
+        if (field === "rir") {
+            const currentSet = session.exercises
+                .find((exercise) => exercise.id === exerciseId)
+                ?.sets.find((set) => set.id === setId);
+            const repsKey = cacheKey(exerciseId, setId, "reps");
+            const repsRaw = textCache[repsKey];
+            const repsForClamp = repsRaw !== undefined ? parseInt(repsRaw, 10) || 0 : currentSet?.reps;
+            updateSet(exerciseId, setId, field as any, normalizeRirLogValue(normalized, repsForClamp) ?? "");
+            return;
+        }
+
+        const nextValue = field === "reps"
+            ? (parseInt(normalized, 10) || 0)
+            : field === "rpe"
+                ? clampRpe(normalized)
+                : (parseFloat(normalized) || 0);
+        updateSet(exerciseId, setId, field as any, nextValue);
     };
 
     const onNumericBlur = (exerciseId: string, setId: string, field: keyof WorkoutSet | string, isInteger = false) => {
