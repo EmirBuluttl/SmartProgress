@@ -118,14 +118,14 @@ export default function HomeScreen() {
         const y = tourOffsetsRef.current[id] ?? 0;
         scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
     }, []);
-    const streakTourRef = useAppTourTarget("home.streak", { scrollTo: () => scrollToTourTarget("home.streak") });
-    const headerActionsTourRef = useAppTourTarget("home.headerActions", { scrollTo: () => scrollToTourTarget("home.headerActions") });
-    const quickWorkoutTourRef = useAppTourTarget("home.quickWorkout", { scrollTo: () => scrollToTourTarget("home.quickWorkout") });
-    const statsTourRef = useAppTourTarget("home.stats", { scrollTo: () => scrollToTourTarget("home.stats") });
-    const activeProgramTourRef = useAppTourTarget("home.activeProgram", { scrollTo: () => scrollToTourTarget("home.activeProgram") });
-    const recentWorkoutsTourRef = useAppTourTarget("home.recentWorkouts", { scrollTo: () => scrollToTourTarget("home.recentWorkouts") });
-    const programsTourRef = useAppTourTarget("home.programs", { scrollTo: () => scrollToTourTarget("home.programs") });
-    const communityTourRef = useAppTourTarget("home.community", { scrollTo: () => scrollToTourTarget("home.community") });
+    const streakTourRef = useAppTourTarget("home.streak", { scrollTo: () => scrollToTourTarget("home.streak"), maxHeight: 72, maxWidthRatio: 0.62 });
+    const headerActionsTourRef = useAppTourTarget("home.headerActions", { scrollTo: () => scrollToTourTarget("home.headerActions"), maxHeight: 64, maxWidthRatio: 0.42 });
+    const quickWorkoutTourRef = useAppTourTarget("home.quickWorkout", { scrollTo: () => scrollToTourTarget("home.quickWorkout"), maxHeight: 112 });
+    const statsTourRef = useAppTourTarget("home.stats", { scrollTo: () => scrollToTourTarget("home.stats"), maxHeight: 116 });
+    const activeProgramTourRef = useAppTourTarget("home.activeProgram", { scrollTo: () => scrollToTourTarget("home.activeProgram"), maxHeight: 230 });
+    const recentWorkoutsTourRef = useAppTourTarget("home.recentWorkouts", { scrollTo: () => scrollToTourTarget("home.recentWorkouts"), maxHeight: 56 });
+    const programsTourRef = useAppTourTarget("home.programs", { scrollTo: () => scrollToTourTarget("home.programs"), maxHeight: 56 });
+    const communityTourRef = useAppTourTarget("home.community", { scrollTo: () => scrollToTourTarget("home.community"), maxHeight: 56 });
 
     // 2 dakika TTL: stack ekrandan dönüşte sadece verisi bayatlamış HomeScreen yeniden yükler
     const { shouldReload: shouldReloadDashboard, markLoaded: markDashboardLoaded } = useStaleDataGuard(2 * 60 * 1000);
@@ -575,9 +575,9 @@ export default function HomeScreen() {
             </Animated.View>
 
             {/* ─── Sıradaki Antrenman (Cycle-Based) ─── */}
-            <View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")}>
+            <View>
             {favoriteProgram && isCurrentProgramCycle && currentDay && (
-                <Animated.View style={mainCardAnimStyle}>
+                <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
                 <Animated.View style={activeCardPulseStyle}>
                 <TouchableOpacity activeOpacity={0.94} onPress={openCurrentProgramDayDetail}>
                 <GymCard elevated style={styles.todayCard}>
@@ -697,7 +697,7 @@ export default function HomeScreen() {
 
             {/* ─── Aktif Program (Non-Cycle) ─── */}
             {favoriteProgram && !isCurrentProgramCycle && (
-                <Animated.View style={mainCardAnimStyle}>
+                <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
                 <Animated.View style={activeCardPulseStyle}>
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
@@ -732,7 +732,7 @@ export default function HomeScreen() {
 
             {/* ─── No Favorite Hint ─── */}
             {!favoriteProgram && programs.length > 0 && (
-                <Animated.View style={mainCardAnimStyle}>
+                <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
                 <GymCard style={styles.todayCard}>
                     <Text style={styles.todayHint}>
                         Bir programı uzun basarak aktif takibe al; buraya "Sıradaki Antrenman" olarak sabitlensin.
@@ -804,7 +804,7 @@ export default function HomeScreen() {
             />
             </View>
 
-            <View ref={programsTourRef} collapsable={false} onLayout={rememberTourOffset("home.programs")}>
+            <View>
             {programs.length > 3 && (
                 <TouchableOpacity
                     style={styles.inlineCreateBtn}
@@ -816,12 +816,18 @@ export default function HomeScreen() {
                 </TouchableOpacity>
             )}
             {programs.length > 0 ? (
-                programs.slice(0, 3).map((prog: any) => {
+                programs.slice(0, 3).map((prog: any, index: number) => {
                     const isCycle = isCycleProgram(prog.data);
                     const dayIdx = prog.currentDayIndex ?? 0;
                     const dayCount = isCycle ? prog.data.days.length : 0;
                     return (
-                        <Animated.View key={prog.id} style={programActivationStyle(prog.id)}>
+                        <Animated.View
+                            key={prog.id}
+                            ref={index === 0 ? programsTourRef : undefined}
+                            collapsable={index === 0 ? false : undefined}
+                            onLayout={index === 0 ? rememberTourOffset("home.programs") : undefined}
+                            style={programActivationStyle(prog.id)}
+                        >
                         <AnimatedPressable
                             pressedScale={0.985}
                             onPress={() => navigateWithFeedback(() => {
@@ -871,9 +877,9 @@ export default function HomeScreen() {
             />
             </View>
 
-            <View ref={communityTourRef} collapsable={false} onLayout={rememberTourOffset("home.community")}>
+            <View>
             {communityPrograms.length > 0 ? (
-                communityPrograms.map((prog) => {
+                communityPrograms.map((prog, index) => {
                     const owner =
                         prog.user?.nickname ||
                         [prog.user?.firstName, prog.user?.lastName].filter(Boolean).join(" ") ||
@@ -888,8 +894,13 @@ export default function HomeScreen() {
                             : 0;
 
                     return (
-                        <AnimatedPressable
+                        <View
                             key={prog.id}
+                            ref={index === 0 ? communityTourRef : undefined}
+                            collapsable={index === 0 ? false : undefined}
+                            onLayout={index === 0 ? rememberTourOffset("home.community") : undefined}
+                        >
+                        <AnimatedPressable
                             pressedScale={0.985}
                             onPress={() => navigateWithFeedback(() => navigation.navigate("ProgramDetail", { programId: prog.id }))}
                         >
@@ -918,6 +929,7 @@ export default function HomeScreen() {
                                 </Text>
                             </GymCard>
                         </AnimatedPressable>
+                        </View>
                     );
                 })
             ) : (

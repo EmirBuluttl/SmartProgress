@@ -5,6 +5,11 @@ export type AppTourTarget = {
     ref: React.RefObject<View | null>;
     scrollTo?: () => void;
     action?: () => void;
+    maxHeight?: number;
+    maxWidthRatio?: number;
+    minWidth?: number;
+    minHeight?: number;
+    padding?: number;
 };
 
 type AppTourTargetRegistration = {

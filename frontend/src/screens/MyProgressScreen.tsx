@@ -230,9 +230,9 @@ export default function MyProgressScreen() {
         const y = tourOffsetsRef.current[id] ?? 0;
         scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
     }, []);
-    const chartTourRef = useAppTourTarget("progress.chart", { scrollTo: () => scrollToTourTarget("progress.chart") });
-    const filterTourRef = useAppTourTarget("progress.filter", { scrollTo: () => scrollToTourTarget("progress.filter") });
-    const recordsTourRef = useAppTourTarget("progress.records", { scrollTo: () => scrollToTourTarget("progress.records") });
+    const chartTourRef = useAppTourTarget("progress.chart", { scrollTo: () => scrollToTourTarget("progress.chart"), maxHeight: 250 });
+    const filterTourRef = useAppTourTarget("progress.filter", { scrollTo: () => scrollToTourTarget("progress.filter"), maxHeight: 88 });
+    const recordsTourRef = useAppTourTarget("progress.records", { scrollTo: () => scrollToTourTarget("progress.records"), maxHeight: 64 });
 
     // 3 dakika TTL: stack ekrandan dönüşte sadece bayatlamış veri yeniden yüklenir
     const { shouldReload: shouldReloadAnalytics, markLoaded: markAnalyticsLoaded } = useStaleDataGuard(3 * 60 * 1000);
@@ -732,15 +732,16 @@ export default function MyProgressScreen() {
                 </Animated.View>
 
                 {/* ── Progress Chart ── */}
-                <Animated.View ref={chartTourRef} collapsable={false} onLayout={rememberTourOffset("progress.chart")} style={chartAnimStyle}>
+                <Animated.View style={chartAnimStyle}>
                     <SectionHeader title="Koc sinyalleri" />
+                    <View ref={chartTourRef} collapsable={false} onLayout={rememberTourOffset("progress.chart")}>
                     <GymCard elevated style={styles.chartCard}>
                         <View style={styles.scoreSummaryRow}>
                             <View style={styles.scoreSummaryLeft}>
                                 <Text style={styles.scoreSummaryLabel}>Son analiz</Text>
                                 {latestSignalPoint ? (
                                     <Text style={styles.scoreSummaryValue}>
-                                        %{latestSignalPoint.progressRatio.toFixed(1)}
+                                        {latestSignalPoint.progressRatio.toFixed(1)}%
                                     </Text>
                                 ) : (
                                     <Text style={styles.scoreSummaryEmpty}>—</Text>
@@ -752,13 +753,13 @@ export default function MyProgressScreen() {
                                     <>
                                         <View style={styles.signalPillRow}>
                                             <View style={[styles.signalPill, { backgroundColor: (colors.warning || "#F59E0B") + "22" }]}>
-                                                <Text style={[styles.signalPillText, { color: colors.warning || "#F59E0B" }]}>Plato %{latestSignalPoint.plateauRatio.toFixed(1)}</Text>
+                                                <Text style={[styles.signalPillText, { color: colors.warning || "#F59E0B" }]}>Plato {latestSignalPoint.plateauRatio.toFixed(1)}%</Text>
                                             </View>
                                             <View style={[styles.signalPill, { backgroundColor: (colors.error || "#EF4444") + "20" }]}>
-                                                <Text style={[styles.signalPillText, { color: colors.error || "#EF4444" }]}>Dusus %{latestSignalPoint.regressionRatio.toFixed(1)}</Text>
+                                                <Text style={[styles.signalPillText, { color: colors.error || "#EF4444" }]}>Dusus {latestSignalPoint.regressionRatio.toFixed(1)}%</Text>
                                             </View>
                                         </View>
-                                        <Text style={styles.deltaHint}>Takip/notr %{latestSignalPoint.watchRatio.toFixed(1)}</Text>
+                                        <Text style={styles.deltaHint}>Takip/nötr {latestSignalPoint.watchRatio.toFixed(1)}%</Text>
                                     </>
                                 ) : signalRatioLoading ? (
                                     <ActivityIndicator size="small" color={colors.accent} />
@@ -784,12 +785,13 @@ export default function MyProgressScreen() {
                                 <Text style={styles.legendText}>Dusus</Text>
                             </View>
                             <Text style={styles.legendText}>
-                                Payda yorumlanabilir hareketlerdir. Takip/notr kalan oran metin olarak gosterilir.
+                                Payda yorumlanabilir hareketlerdir. Takip/nötr kalan oran metin olarak gösterilir.
                             </Text>
                             {!!signalRatioError && <Text style={styles.errorText}>{signalRatioError}</Text>}
                             {!!signalRatioUpdatedLabel && <Text style={styles.deltaHint}>Son yenileme {signalRatioUpdatedLabel}</Text>}
                         </View>
                     </GymCard>
+                    </View>
                 </Animated.View>
 
                 <Animated.View style={chartAnimStyle}>
@@ -874,12 +876,14 @@ export default function MyProgressScreen() {
                 )}
 
                 {/* ── Personal Records ── */}
-                <Animated.View ref={recordsTourRef} collapsable={false} onLayout={rememberTourOffset("progress.records")} style={prsAnimStyle}>
+                <Animated.View style={prsAnimStyle}>
+                    <View ref={recordsTourRef} collapsable={false} onLayout={rememberTourOffset("progress.records")}>
                     <SectionHeader
                         title="En İyi Setlerim"
                         actionLabel="Tümünü Gör"
                         onAction={handleOpenRecords}
                     />
+                    </View>
                     {prs.length > 0 ? (
                         prs.slice(0, 5).map((pr, index) => (
                             <AnimatedPressable

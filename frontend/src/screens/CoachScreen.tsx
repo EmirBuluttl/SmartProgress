@@ -118,8 +118,8 @@ export default function CoachScreen() {
         const y = tourOffsetsRef.current[id] ?? 0;
         scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
     }, []);
-    const heroTourRef = useAppTourTarget("coach.hero", { scrollTo: () => scrollToTourTarget("coach.hero") });
-    const packageTourRef = useAppTourTarget("coach.package", { scrollTo: () => scrollToTourTarget("coach.package") });
+    const heroTourRef = useAppTourTarget("coach.hero", { scrollTo: () => scrollToTourTarget("coach.hero"), maxHeight: 250 });
+    const packageTourRef = useAppTourTarget("coach.package", { scrollTo: () => scrollToTourTarget("coach.package"), maxHeight: 80 });
     const navigateStatic = React.useCallback(
         (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
             navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
@@ -599,8 +599,8 @@ export default function CoachScreen() {
             </View>
             )}
 
-            <View ref={packageTourRef} collapsable={false} onLayout={rememberTourOffset("coach.package")} style={styles.compareSection}>
-                <View style={styles.dashboardHeader}>
+            <View style={styles.compareSection}>
+                <View ref={packageTourRef} collapsable={false} onLayout={rememberTourOffset("coach.package")} style={styles.dashboardHeader}>
                     <View>
                         <Text style={styles.sectionTitle}>Paket bilgisi</Text>
                     </View>
