@@ -680,11 +680,18 @@ export default function WorkoutSessionScreen() {
         });
     };
 
-    const getTextValue = (exerciseId: string, setId: string, field: string, numericValue: number | string): string => {
+    const getTextValue = (
+        exerciseId: string,
+        setId: string,
+        field: string,
+        numericValue: number | string,
+        options: { showZero?: boolean } = {},
+    ): string => {
         const key = cacheKey(exerciseId, setId, field);
         if (key in textCache) return textCache[key];
         if (typeof numericValue === 'string') return numericValue || "";
-        return numericValue === 0 || numericValue > 0 ? String(numericValue) : "";
+        if (numericValue === 0) return options.showZero ? "0" : "";
+        return numericValue > 0 ? String(numericValue) : "";
     };
 
     const getSideTextValue = (
@@ -694,11 +701,13 @@ export default function WorkoutSessionScreen() {
         field: string,
         value: unknown,
         formatter?: (value: any) => string,
+        options: { showZero?: boolean } = {},
     ) => {
         const key = sideCacheKey(exerciseId, setId, side, field);
         if (key in textCache) return textCache[key];
         if (formatter) return formatter(value);
-        return value === 0 || value ? String(value) : "";
+        if (value === 0) return options.showZero ? "0" : "";
+        return value ? String(value) : "";
     };
 
     const getEffortTextValue = (exerciseId: string, set: WorkoutSet): string => {
@@ -2204,7 +2213,7 @@ export default function WorkoutSessionScreen() {
                                 placeholder={
                                     set.weightMode === "bodyweight"
                                         ? `${set.weight || latestBodyWeight || 0} kg`
-                                        : set.targetWeight ?? targetExercise.targetWeight ?? "0"
+                                        : set.targetWeight ?? targetExercise.targetWeight ?? "kg"
                                 }
                                 placeholderTextColor={
                                     set.weightMode === "bodyweight" || (set.targetWeight || targetExercise.targetWeight)
@@ -2232,7 +2241,7 @@ export default function WorkoutSessionScreen() {
                                     if (text.trim() && !set.completed) toggleSetCompleted(targetExercise.id, set.id);
                                 }}
                                 onBlur={() => onNumericBlur(targetExercise.id, set.id, set.effortMode === "duration" ? "durationSeconds" : "reps", set.effortMode !== "duration")}
-                                placeholder={set.effortMode === "duration" ? "sn" : (set.targetReps ?? targetExercise.targetReps ?? "0")}
+                                placeholder={set.effortMode === "duration" ? "sn" : (set.targetReps ?? targetExercise.targetReps ?? "tekrar")}
                                 placeholderTextColor={
                                     set.effortMode !== "duration" && (set.targetReps || targetExercise.targetReps)
                                         ? colors.accentDark
@@ -2279,7 +2288,7 @@ export default function WorkoutSessionScreen() {
                                 <TextInput
                                     ref={(el) => registerInput(inputKey(targetExIndex, setIndex, "rir"), el)}
                                     style={styles.numericInput}
-                                    value={set.sideMode === "left_right" ? "L/R" : getTextValue(targetExercise.id, set.id, "rir" as any, (set as any).rir ?? "")}
+                                    value={set.sideMode === "left_right" ? "L/R" : getTextValue(targetExercise.id, set.id, "rir" as any, (set as any).rir ?? "", { showZero: true })}
                                     editable={!targetLogDisabled && set.sideMode !== "left_right"}
                                     onChangeText={(text) => onNumericChange(targetExercise.id, set.id, "rir" as any, text)}
                                     onBlur={() => onNumericBlur(targetExercise.id, set.id, "rir" as any)}
@@ -2373,7 +2382,7 @@ export default function WorkoutSessionScreen() {
                                     {(rpeMode === "rir" || rpeMode === "both") && (
                                         <TextInput
                                             style={styles.unilateralInput}
-                                            value={getSideTextValue(targetExercise.id, set.id, side, "rir", sideData.rir)}
+                                            value={getSideTextValue(targetExercise.id, set.id, side, "rir", sideData.rir, undefined, { showZero: true })}
                                             editable={!targetLogDisabled}
                                             onChangeText={(text) => updateUnilateralSide(targetExercise.id, set, side, "rir", text)}
                                             onBlur={() => clearTextCacheKey(sideCacheKey(targetExercise.id, set.id, side, "rir"))}
