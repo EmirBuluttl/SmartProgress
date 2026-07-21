@@ -80,15 +80,26 @@ function generateTemplate(freq: number): ProgramDay[] {
 }
 
 function makeExercise(): TargetExercise {
-    return { id: Math.random().toString(36).slice(2), name: "", targetSets: [{ targetReps: "", weightMode: "kg", effortMode: "reps", sideMode: "both" }] };
+    return { id: Math.random().toString(36).slice(2), name: "", targetSets: [{ targetReps: "", effortMode: "reps", sideMode: "both" }] };
 }
 
 function makeWarmupSet(): TargetSet {
-    return { targetReps: "", isWarmup: true, weightMode: "kg", effortMode: "reps", sideMode: "both" };
+    return { targetReps: "", isWarmup: true, effortMode: "reps", sideMode: "both" };
 }
 
 function makeWorkingSet(): TargetSet {
-    return { targetReps: "", isWarmup: false, weightMode: "kg", effortMode: "reps", sideMode: "both" };
+    return { targetReps: "", isWarmup: false, effortMode: "reps", sideMode: "both" };
+}
+
+function normalizeWeightMode(value: unknown): TargetSet["weightMode"] {
+    return value === "kg" || value === "bodyweight" ? value : undefined;
+}
+
+function getSetSettingsSummary(set: TargetSet): string {
+    const weight = set.weightMode === "kg" ? "KG" : set.weightMode === "bodyweight" ? "BW" : "Ağırlık boş";
+    const effort = set.effortMode === "duration" ? "Süre" : "Tekrar";
+    const side = set.sideMode === "left_right" ? "L/R" : "Normal";
+    return `${weight} · ${effort} · ${side}`;
 }
 
 function insertSetByType<T extends { isWarmup?: boolean }>(sets: T[], nextSet: T, isWarmup: boolean): T[] {
@@ -161,6 +172,7 @@ export default function ProgramCreateScreen() {
         target: string;
     } | null>(null);
     const [libraryPicker, setLibraryPicker] = useState<{ exerciseId: string; query: string } | null>(null);
+    const [setSettingsModal, setSetSettingsModal] = useState<{ exerciseId: string; setIndex: number } | null>(null);
 
     // Pre-populate fields in edit mode
     useEffect(() => {
@@ -204,7 +216,7 @@ export default function ProgramCreateScreen() {
                             targetWeight: s.targetWeight,
                             targetRPE: s.targetRPE,
                             targetRIR: s.targetRIR,
-                            weightMode: s.weightMode === "bodyweight" ? "bodyweight" : "kg",
+                            weightMode: normalizeWeightMode(s.weightMode),
                             effortMode: s.effortMode === "duration" ? "duration" : "reps",
                             sideMode: s.sideMode === "left_right" ? "left_right" : "both",
                             isWarmup: !!s.isWarmup,
@@ -498,6 +510,49 @@ export default function ProgramCreateScreen() {
         );
     };
 
+    const setSettingsContext = React.useMemo(() => {
+        if (!setSettingsModal) return null;
+        const exercise = days[activeDayIdx]?.exercises.find((ex) => ex.id === setSettingsModal.exerciseId);
+        const set = exercise?.targetSets[setSettingsModal.setIndex];
+        if (!exercise || !set) return null;
+        return { exercise, set, setIndex: setSettingsModal.setIndex };
+    }, [activeDayIdx, days, setSettingsModal]);
+
+    const updateOpenSetSettings = (patch: Partial<TargetSet>) => {
+        if (!setSettingsContext) return;
+        updateSet(setSettingsContext.exercise.id, setSettingsContext.setIndex, patch);
+    };
+
+    const applyOpenSetSettingsToExercise = (scope: "working" | "all") => {
+        if (!setSettingsContext) return;
+        const sourceSet = setSettingsContext.set;
+        const patch: Pick<TargetSet, "weightMode" | "effortMode" | "sideMode"> = {
+            weightMode: sourceSet.weightMode,
+            effortMode: sourceSet.effortMode ?? "reps",
+            sideMode: sourceSet.sideMode ?? "both",
+        };
+
+        setDays((prev) =>
+            prev.map((d, i) =>
+                i === activeDayIdx
+                    ? {
+                        ...d,
+                        exercises: d.exercises.map((exercise) => {
+                            if (exercise.id !== setSettingsContext.exercise.id) return exercise;
+                            return {
+                                ...exercise,
+                                targetSets: exercise.targetSets.map((set) => {
+                                    if (scope === "working" && set.isWarmup) return set;
+                                    return { ...set, ...patch };
+                                }),
+                            };
+                        }),
+                    }
+                    : d,
+            ),
+        );
+    };
+
     const reorderSet = (exId: string, fromIdx: number, direction: "up" | "down") => {
         setDays((prev) =>
             prev.map((d, i) => {
@@ -718,16 +773,20 @@ export default function ProgramCreateScreen() {
                         id: ex.id,
                         exerciseId: ex.exerciseId,
                         name: safeString(ex.name),
-                        targetSets: ex.targetSets.map((s) => ({
-                            targetReps: safeString(s.targetReps),
-                            targetWeight: safeString(s.targetWeight) || undefined,
-                            targetRPE: safeString(s.targetRPE) || undefined,
-                            targetRIR: safeString(s.targetRIR) || undefined,
-                            weightMode: s.weightMode === "bodyweight" ? "bodyweight" : "kg",
-                            effortMode: s.effortMode === "duration" ? "duration" : "reps",
-                            sideMode: s.sideMode === "left_right" ? "left_right" : "both",
-                            isWarmup: !!s.isWarmup,
-                        })),
+                        targetSets: ex.targetSets.map((s) => {
+                            const normalizedSet: TargetSet = {
+                                targetReps: safeString(s.targetReps),
+                                targetWeight: safeString(s.targetWeight) || undefined,
+                                targetRPE: safeString(s.targetRPE) || undefined,
+                                targetRIR: safeString(s.targetRIR) || undefined,
+                                effortMode: s.effortMode === "duration" ? "duration" : "reps",
+                                sideMode: s.sideMode === "left_right" ? "left_right" : "both",
+                                isWarmup: !!s.isWarmup,
+                            };
+                            const weightMode = normalizeWeightMode(s.weightMode);
+                            if (weightMode) normalizedSet.weightMode = weightMode;
+                            return normalizedSet;
+                        }),
                     })),
                 })),
             };
@@ -1162,7 +1221,7 @@ export default function ProgramCreateScreen() {
 
                                                     <View style={styles.setInputGroup}>
                                                         <View style={styles.setCol}>
-                                                            <Text style={styles.setColLabel}>{set.weightMode === "bodyweight" ? "Ek kg" : "Kg"}</Text>
+                                                            <Text style={styles.setColLabel}>{set.weightMode === "bodyweight" ? "Ek kg" : set.weightMode === "kg" ? "Kg" : "Ağırlık"}</Text>
                                                             <TextInput
                                                                 style={styles.setInput}
                                                                 placeholder={set.weightMode === "bodyweight" ? "+0" : "ops."}
@@ -1210,6 +1269,15 @@ export default function ProgramCreateScreen() {
                                                         )}
                                                     </View>
 
+                                                    <TouchableOpacity
+                                                        style={styles.setSettingsBtn}
+                                                        onPress={() => setSetSettingsModal({ exerciseId: exercise.id, setIndex })}
+                                                        activeOpacity={0.8}
+                                                    >
+                                                        <Ionicons name="options-outline" size={14} color={colors.accent} />
+                                                        <Text style={styles.setSettingsBtnText}>{getSetSettingsSummary(set)}</Text>
+                                                    </TouchableOpacity>
+                                                    {false && (
                                                     <View style={styles.setModeRow}>
                                                         <TouchableOpacity
                                                             style={[styles.setModeChip, (set.weightMode ?? "kg") === "kg" && styles.setModeChipActive]}
@@ -1248,6 +1316,7 @@ export default function ProgramCreateScreen() {
                                                             <Text style={[styles.setModeChipText, set.sideMode === "left_right" && styles.setModeChipTextActive]}>L/R</Text>
                                                         </TouchableOpacity>
                                                     </View>
+                                                    )}
 
                                                     <TouchableOpacity
                                                         onPress={() => removeSet(exercise.id, setIndex)}
@@ -1290,6 +1359,124 @@ export default function ProgramCreateScreen() {
 
                 <View style={{ height: 80 }} />
             </KeyboardAwareScrollView>
+
+            <Modal
+                visible={!!setSettingsModal}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setSetSettingsModal(null)}
+            >
+                <View style={styles.libraryOverlay}>
+                    <View style={styles.setSettingsModal}>
+                        <View style={styles.guideModalHeader}>
+                            <View style={{ flex: 1 }}>
+                                <Text style={styles.guideModalTitle}>Set ayarları</Text>
+                                <Text style={styles.guideModalSubtitle}>
+                                    Ağırlık, tekrar/süre ve sağ-sol loglama tipini buradan seç.
+                                </Text>
+                            </View>
+                            <TouchableOpacity onPress={() => setSetSettingsModal(null)} style={styles.modalCloseBtn}>
+                                <Ionicons name="close" size={22} color={colors.text} />
+                            </TouchableOpacity>
+                        </View>
+
+                        {setSettingsContext ? (
+                            <ScrollView
+                                showsVerticalScrollIndicator={false}
+                                contentContainerStyle={styles.setSettingsContent}
+                            >
+                                <View style={styles.setSettingsSection}>
+                                    <Text style={styles.setSettingsLabel}>Ağırlık modu</Text>
+                                    <View style={styles.setSettingsOptions}>
+                                        <TouchableOpacity
+                                            style={[styles.setSettingsOption, !setSettingsContext.set.weightMode && styles.setSettingsOptionActive]}
+                                            onPress={() => updateOpenSetSettings({ weightMode: undefined })}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[styles.setSettingsOptionText, !setSettingsContext.set.weightMode && styles.setSettingsOptionTextActive]}>Boş</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.setSettingsOption, setSettingsContext.set.weightMode === "kg" && styles.setSettingsOptionActive]}
+                                            onPress={() => updateOpenSetSettings({ weightMode: "kg" })}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[styles.setSettingsOptionText, setSettingsContext.set.weightMode === "kg" && styles.setSettingsOptionTextActive]}>KG</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.setSettingsOption, setSettingsContext.set.weightMode === "bodyweight" && styles.setSettingsOptionActive]}
+                                            onPress={() => updateOpenSetSettings({ weightMode: "bodyweight" })}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[styles.setSettingsOptionText, setSettingsContext.set.weightMode === "bodyweight" && styles.setSettingsOptionTextActive]}>BW</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                <View style={styles.setSettingsSection}>
+                                    <Text style={styles.setSettingsLabel}>Efor tipi</Text>
+                                    <View style={styles.setSettingsOptions}>
+                                        <TouchableOpacity
+                                            style={[styles.setSettingsOption, (setSettingsContext.set.effortMode ?? "reps") === "reps" && styles.setSettingsOptionActive]}
+                                            onPress={() => updateOpenSetSettings({ effortMode: "reps" })}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[styles.setSettingsOptionText, (setSettingsContext.set.effortMode ?? "reps") === "reps" && styles.setSettingsOptionTextActive]}>Tekrar</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.setSettingsOption, setSettingsContext.set.effortMode === "duration" && styles.setSettingsOptionActive]}
+                                            onPress={() => updateOpenSetSettings({ effortMode: "duration" })}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[styles.setSettingsOptionText, setSettingsContext.set.effortMode === "duration" && styles.setSettingsOptionTextActive]}>Süre</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                <View style={styles.setSettingsSection}>
+                                    <Text style={styles.setSettingsLabel}>Taraf loglama</Text>
+                                    <View style={styles.setSettingsOptions}>
+                                        <TouchableOpacity
+                                            style={[styles.setSettingsOption, (setSettingsContext.set.sideMode ?? "both") === "both" && styles.setSettingsOptionActive]}
+                                            onPress={() => updateOpenSetSettings({ sideMode: "both" })}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[styles.setSettingsOptionText, (setSettingsContext.set.sideMode ?? "both") === "both" && styles.setSettingsOptionTextActive]}>Normal</Text>
+                                        </TouchableOpacity>
+                                        <TouchableOpacity
+                                            style={[styles.setSettingsOption, setSettingsContext.set.sideMode === "left_right" && styles.setSettingsOptionActive]}
+                                            onPress={() => updateOpenSetSettings({ sideMode: "left_right" })}
+                                            activeOpacity={0.8}
+                                        >
+                                            <Text style={[styles.setSettingsOptionText, setSettingsContext.set.sideMode === "left_right" && styles.setSettingsOptionTextActive]}>L/R</Text>
+                                        </TouchableOpacity>
+                                    </View>
+                                </View>
+
+                                <View style={styles.setSettingsBulkActions}>
+                                    <TouchableOpacity
+                                        style={styles.setSettingsBulkBtn}
+                                        onPress={() => applyOpenSetSettingsToExercise("working")}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.setSettingsBulkText}>Bu egzersizin çalışma setlerine uygula</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
+                                        style={styles.setSettingsBulkBtn}
+                                        onPress={() => applyOpenSetSettingsToExercise("all")}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={styles.setSettingsBulkText}>Bu egzersizin tüm setlerine uygula</Text>
+                                    </TouchableOpacity>
+                                </View>
+                            </ScrollView>
+                        ) : (
+                            <View style={styles.emptyGuideBox}>
+                                <Text style={styles.emptyGuideText}>Set bulunamadı.</Text>
+                            </View>
+                        )}
+                    </View>
+                </View>
+            </Modal>
 
             <Modal
                 visible={guideModalVisible}
@@ -2026,6 +2213,93 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     removeSetBtn: {
         padding: spacing.xs,
+    },
+    setSettingsBtn: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+        minHeight: 32,
+        paddingHorizontal: spacing.sm,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        marginLeft: 68,
+    },
+    setSettingsBtnText: {
+        color: colors.textSecondary,
+        fontSize: 11,
+        fontWeight: fontWeight.semibold,
+    },
+    setSettingsModal: {
+        width: "92%",
+        maxWidth: 480,
+        maxHeight: "78%",
+        backgroundColor: colors.surface,
+        borderRadius: borderRadius.lg,
+        padding: spacing.lg,
+        borderWidth: 1,
+        borderColor: colors.border,
+    },
+    setSettingsContent: {
+        gap: spacing.md,
+        paddingBottom: spacing.sm,
+    },
+    setSettingsSection: {
+        gap: spacing.sm,
+    },
+    setSettingsLabel: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    setSettingsOptions: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.sm,
+    },
+    setSettingsOption: {
+        minHeight: 40,
+        minWidth: 86,
+        paddingHorizontal: spacing.md,
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    setSettingsOptionActive: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accentMuted,
+    },
+    setSettingsOptionText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+    },
+    setSettingsOptionTextActive: {
+        color: colors.accent,
+    },
+    setSettingsBulkActions: {
+        gap: spacing.sm,
+        marginTop: spacing.sm,
+    },
+    setSettingsBulkBtn: {
+        minHeight: 42,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surfaceElevated,
+        alignItems: "center",
+        justifyContent: "center",
+        paddingHorizontal: spacing.md,
+    },
+    setSettingsBulkText: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.semibold,
+        textAlign: "center",
     },
     setModeRow: {
         flexDirection: "row",
