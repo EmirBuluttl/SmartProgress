@@ -582,6 +582,25 @@ export default function PremiumProgramWizardScreen() {
                     <View style={styles.card}>
                         <Text style={styles.cardTitle}>Öncelik ve kaçınmalar</Text>
                         <Text style={styles.bodyText}>Basit modda tek ana eksik bölge seçebilirsin. Detaylı modda kaslara sırayla dokunup program öncelik sırasını kurarsın.</Text>
+                        <View style={styles.prioritySummaryCard}>
+                            <View style={styles.prioritySummaryIcon}>
+                                <Ionicons name="options-outline" size={18} color={colors.accent} />
+                            </View>
+                            <View style={{ flex: 1, minWidth: 0 }}>
+                                <Text style={styles.prioritySummaryTitle}>
+                                    {priorityMode === "simple" ? "Basit hedefleme" : "Sıralı hedefleme"}
+                                </Text>
+                                <Text style={styles.prioritySummaryText} numberOfLines={2}>
+                                    {priorityMode === "simple"
+                                        ? priority
+                                            ? `${PATTERN_LABELS[priority]} bölgesini öne alıyoruz.`
+                                            : "Bir eksik bölge seçersen koç o paterni daha görünür tutar."
+                                        : priorityOrder.length > 0
+                                            ? `${priorityOrder.length} öncelik seçildi. İlk sıradaki bölge programda daha güçlü temsil edilir.`
+                                            : "Kaslara sırayla dokunarak öncelik listesini oluşturabilirsin."}
+                                </Text>
+                            </View>
+                        </View>
                         <View style={styles.segmentRow}>
                             <TouchableOpacity style={[styles.segmentBtn, priorityMode === "simple" && styles.segmentBtnActive]} onPress={() => setPriorityMode("simple")}>
                                 <Text style={[styles.segmentText, priorityMode === "simple" && styles.segmentTextActive]}>Basit öncelik</Text>
@@ -592,7 +611,10 @@ export default function PremiumProgramWizardScreen() {
                         </View>
                         {priorityMode === "simple" ? (
                             <>
-                                <Text style={styles.inlineLabel}>Eksik bölge</Text>
+                                <View style={styles.prioritySectionHeader}>
+                                    <Text style={styles.inlineLabel}>Eksik bölge</Text>
+                                    <Text style={styles.prioritySectionHint}>İstersen boş bırakabilirsin</Text>
+                                </View>
                                 <View style={styles.priorityGrid}>
                                     {PRIORITY_GROUPS.map((group) => (
                                         <TouchableOpacity
@@ -614,7 +636,10 @@ export default function PremiumProgramWizardScreen() {
                                 </View>
                                 {selectedPriorityGroup && selectedPriorityGroup.patterns.length > 1 && (
                                     <>
-                                        <Text style={styles.inlineLabel}>Alt odak</Text>
+                                        <View style={styles.prioritySectionHeader}>
+                                            <Text style={styles.inlineLabel}>Alt odak</Text>
+                                            <Text style={styles.prioritySectionHint}>Daha spesifik seçim</Text>
+                                        </View>
                                         <View style={styles.priorityGrid}>
                                             {selectedPriorityGroup.patterns.map((pattern) => (
                                                 <TouchableOpacity
@@ -633,8 +658,10 @@ export default function PremiumProgramWizardScreen() {
                             </>
                         ) : (
                             <>
-                                <Text style={styles.inlineLabel}>Kas öncelik sırası</Text>
-                                <Text style={styles.bodyText}>Dokunduğun sıra korunur. Tekrar dokunursan listeden çıkar.</Text>
+                                <View style={styles.prioritySectionHeader}>
+                                    <Text style={styles.inlineLabel}>Kas öncelik sırası</Text>
+                                    <Text style={styles.prioritySectionHint}>Dokun, sırala, tekrar dokununca çıkar</Text>
+                                </View>
                                 <TouchableOpacity
                                     style={[styles.guidanceToggle, !priorityGuidanceEnabled && styles.guidanceToggleOff]}
                                     onPress={() => setPriorityGuidanceEnabled((current) => !current)}
@@ -643,15 +670,17 @@ export default function PremiumProgramWizardScreen() {
                                     <Ionicons name={priorityGuidanceEnabled ? "lock-closed-outline" : "lock-open-outline"} size={16} color={colors.accent} />
                                     <Text style={styles.guidanceToggleText}>{priorityGuidanceEnabled ? "Öneri kilitleri açık" : "Öneri kilitleri kapalı"}</Text>
                                 </TouchableOpacity>
-                                {priorityOrder.length > 0 && (
-                                    <View style={styles.orderPreview}>
-                                        {priorityOrder.map((pattern, index) => (
+                                <View style={styles.orderPreview}>
+                                    {priorityOrder.length > 0 ? (
+                                        priorityOrder.map((pattern, index) => (
                                             <View key={pattern} style={styles.orderPill}>
                                                 <Text style={styles.orderPillText}>{index + 1}. {PATTERN_LABELS[pattern]}</Text>
                                             </View>
-                                        ))}
-                                    </View>
-                                )}
+                                        ))
+                                    ) : (
+                                        <Text style={styles.orderEmptyText}>Henüz öncelik seçilmedi.</Text>
+                                    )}
+                                </View>
                                 {hasUpperBackPriorityOverlap && (
                                     <View style={styles.cautionBox}>
                                         <Ionicons name="alert-circle-outline" size={18} color="#F5A524" />
@@ -1159,6 +1188,51 @@ const createStyles = (colors: any) => StyleSheet.create({
         fontWeight: fontWeight.bold,
         marginTop: spacing.xs,
     },
+    prioritySummaryCard: {
+        flexDirection: "row",
+        alignItems: "flex-start",
+        gap: spacing.md,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.accentMuted,
+    },
+    prioritySummaryIcon: {
+        width: 36,
+        height: 36,
+        borderRadius: 18,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.surface,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+    },
+    prioritySummaryTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    prioritySummaryText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        lineHeight: 18,
+        marginTop: 2,
+    },
+    prioritySectionHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
+        gap: spacing.sm,
+        marginTop: spacing.xs,
+    },
+    prioritySectionHint: {
+        flexShrink: 1,
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
+        textAlign: "right",
+    },
     durationGrid: {
         flexDirection: "row",
         flexWrap: "wrap",
@@ -1192,16 +1266,24 @@ const createStyles = (colors: any) => StyleSheet.create({
         gap: spacing.sm,
     },
     priorityChip: {
+        minHeight: 42,
         paddingHorizontal: spacing.md,
         paddingVertical: spacing.sm,
         borderRadius: borderRadius.full,
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.background,
+        alignItems: "center",
+        justifyContent: "center",
     },
     priorityChipActive: {
         borderColor: colors.accent,
         backgroundColor: colors.accentMuted,
+        shadowColor: colors.accent,
+        shadowOffset: { width: 0, height: 3 },
+        shadowOpacity: 0.08,
+        shadowRadius: 8,
+        elevation: 2,
     },
     priorityChipDisabled: {
         opacity: 0.36,
@@ -1270,11 +1352,13 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         flexWrap: "wrap",
         gap: spacing.sm,
+        minHeight: 54,
         padding: spacing.md,
         borderRadius: borderRadius.md,
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.background,
+        alignItems: "center",
     },
     orderPill: {
         borderRadius: borderRadius.full,
@@ -1286,6 +1370,11 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.accent,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.bold,
+    },
+    orderEmptyText: {
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.semibold,
     },
     cautionBox: {
         flexDirection: "row",
