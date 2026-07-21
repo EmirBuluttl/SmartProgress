@@ -53,31 +53,35 @@ export default function WorkoutSummaryScreen() {
     const [notesVisible, setNotesVisible] = useState(false);
     const trimmedNotes = notes?.trim();
 
-    const scaleAnim = useRef(new Animated.Value(0)).current;
+    const entryAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
     const sparkleAnim = useRef(new Animated.Value(0)).current;
     const statAnims = useRef([0, 1, 2, 3].map(() => new Animated.Value(0))).current;
 
     useEffect(() => {
-        scaleAnim.setValue(0);
+        entryAnim.setValue(0);
         fadeAnim.setValue(0);
         sparkleAnim.setValue(0);
         statAnims.forEach((anim) => anim.setValue(0));
 
         Animated.sequence([
             Animated.parallel([
-                Animated.spring(scaleAnim, {
+                Animated.timing(entryAnim, {
                     toValue: 1,
-                    tension: 80,
-                    friction: 6,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(sparkleAnim, {
-                    toValue: 1,
-                    duration: 720,
+                    duration: 620,
+                    easing: (value) => {
+                        const c1 = 1.70158;
+                        const c3 = c1 + 1;
+                        return 1 + c3 * Math.pow(value - 1, 3) + c1 * Math.pow(value - 1, 2);
+                    },
                     useNativeDriver: true,
                 }),
             ]),
+            Animated.timing(sparkleAnim, {
+                toValue: 1,
+                duration: 680,
+                useNativeDriver: true,
+            }),
             Animated.parallel([
                 Animated.timing(fadeAnim, {
                     toValue: 1,
@@ -97,7 +101,7 @@ export default function WorkoutSummaryScreen() {
                 ),
             ]),
         ]).start();
-    }, [fadeAnim, scaleAnim, sparkleAnim, statAnims]);
+    }, [entryAnim, fadeAnim, sparkleAnim, statAnims]);
 
     const handleGoHome = () => {
         navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
@@ -126,8 +130,47 @@ export default function WorkoutSummaryScreen() {
         >
             {/* ─── Trophy Animation ─── */}
             <Animated.View
-                style={[styles.trophyWrap, { transform: [{ scale: scaleAnim }] }]}
+                style={[
+                    styles.trophyWrap,
+                    {
+                        opacity: entryAnim,
+                        transform: [
+                            {
+                                translateY: entryAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [18, 0],
+                                }),
+                            },
+                            {
+                                scale: entryAnim.interpolate({
+                                    inputRange: [0, 0.72, 1],
+                                    outputRange: [0.72, 1.08, 1],
+                                }),
+                            },
+                        ],
+                    },
+                ]}
             >
+                <Animated.View
+                    pointerEvents="none"
+                    style={[
+                        styles.trophyAura,
+                        {
+                            opacity: entryAnim.interpolate({
+                                inputRange: [0, 0.5, 1],
+                                outputRange: [0, 0.32, 0.18],
+                            }),
+                            transform: [
+                                {
+                                    scale: entryAnim.interpolate({
+                                        inputRange: [0, 1],
+                                        outputRange: [0.82, 1.18],
+                                    }),
+                                },
+                            ],
+                        },
+                    ]}
+                />
                 <View pointerEvents="none" style={styles.sparkleLayer}>
                     {sparkleDots.map((dot, index) => (
                         <Animated.View
@@ -300,6 +343,19 @@ const createStyles = (colors: any) => StyleSheet.create({
     trophyWrap: {
         marginBottom: spacing.xl,
         position: "relative",
+        width: 136,
+        height: 136,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    trophyAura: {
+        position: "absolute",
+        width: 126,
+        height: 126,
+        borderRadius: 63,
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accent,
     },
     sparkleLayer: {
         ...StyleSheet.absoluteFillObject,
@@ -324,6 +380,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         shadowOpacity: 0.5,
         shadowRadius: 20,
         elevation: 10,
+        zIndex: 1,
     },
     trophyEmoji: {
         fontSize: 48,
