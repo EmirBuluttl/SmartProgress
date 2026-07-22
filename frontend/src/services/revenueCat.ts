@@ -1,9 +1,10 @@
 import { Platform } from "react-native";
-import type { PurchasesPackage } from "react-native-purchases";
+import type { PurchasesPackage, PurchasesStoreProduct } from "react-native-purchases";
 
 const IOS_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_IOS_API_KEY || "";
 const ANDROID_API_KEY = process.env.EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY || "";
 export const PREMIUM_ENTITLEMENT_ID = process.env.EXPO_PUBLIC_REVENUECAT_PREMIUM_ENTITLEMENT_ID || "premium";
+export const PREMIUM_PRODUCT_ID = process.env.EXPO_PUBLIC_REVENUECAT_PREMIUM_PRODUCT_ID || "smartprogress_premium_monthly";
 
 let configuredForUserId: string | null = null;
 
@@ -13,6 +14,7 @@ function getPurchasesModule() {
         return {
             Purchases: module.default || module,
             LOG_LEVEL: module.LOG_LEVEL,
+            PRODUCT_CATEGORY: module.PRODUCT_CATEGORY,
         };
     } catch {
         return null;
@@ -106,6 +108,14 @@ export async function getPremiumOfferings(userId: string) {
     };
 }
 
+export async function getPremiumStoreProducts(userId: string) {
+    const configured = await configureRevenueCat(userId);
+    if (!configured) return [] as PurchasesStoreProduct[];
+    const module = getPurchasesModule();
+    if (!module?.Purchases) return [] as PurchasesStoreProduct[];
+    return module.Purchases.getProducts([PREMIUM_PRODUCT_ID], module.PRODUCT_CATEGORY?.SUBSCRIPTION);
+}
+
 export function hasPremiumEntitlement(customerInfo: any) {
     return customerInfo?.entitlements?.active?.[PREMIUM_ENTITLEMENT_ID]?.isActive === true ||
         customerInfo?.entitlements?.all?.[PREMIUM_ENTITLEMENT_ID]?.isActive === true;
@@ -115,6 +125,16 @@ export async function purchasePremiumPackage(aPackage: PurchasesPackage) {
     const module = getPurchasesModule();
     if (!module?.Purchases) throw new Error("Mağaza bağlantısı bu cihazda hazır değil.");
     const result = await module.Purchases.purchasePackage(aPackage);
+    return {
+        customerInfo: result.customerInfo,
+        active: hasPremiumEntitlement(result.customerInfo),
+    };
+}
+
+export async function purchasePremiumStoreProduct(product: PurchasesStoreProduct) {
+    const module = getPurchasesModule();
+    if (!module?.Purchases) throw new Error("MaÄŸaza baÄŸlantÄ±sÄ± bu cihazda hazÄ±r deÄŸil.");
+    const result = await module.Purchases.purchaseStoreProduct(product);
     return {
         customerInfo: result.customerInfo,
         active: hasPremiumEntitlement(result.customerInfo),

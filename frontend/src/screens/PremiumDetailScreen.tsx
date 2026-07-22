@@ -42,8 +42,8 @@ function getStoreInstallHint() {
     return "Satin alma islemleri sadece iOS ve Android uygulama buildlerinde test edilebilir.";
 }
 
-function getPriceText(aPackage: any | null, loading: boolean) {
-    const priceString = aPackage?.product?.priceString;
+function getPriceText(aPackage: any | null, storeProduct: any | null, loading: boolean) {
+    const priceString = aPackage?.product?.priceString || storeProduct?.priceString;
     if (priceString) return `${priceString} / ay`;
     if (loading) return "Magaza fiyati yukleniyor";
     return "Fiyat App Store veya Google Play odeme ekraninda gosterilir";
@@ -56,6 +56,7 @@ export default function PremiumDetailScreen() {
     const insets = useSafeAreaInsets();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [purchasePackage, setPurchasePackage] = React.useState<any | null>(null);
+    const [purchaseProduct, setPurchaseProduct] = React.useState<any | null>(null);
     const [loadingOffer, setLoadingOffer] = React.useState(false);
     const [busy, setBusy] = React.useState(false);
     const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
@@ -74,7 +75,7 @@ export default function PremiumDetailScreen() {
 
     React.useEffect(() => {
         let cancelled = false;
-        if (!user?.id || purchasePackage || loadingOffer) return;
+        if (!user?.id || purchasePackage || purchaseProduct || loadingOffer) return;
 
         const loadOffer = async () => {
             setLoadingOffer(true);
@@ -84,7 +85,12 @@ export default function PremiumDetailScreen() {
                 if (!readiness.ready) return;
                 const offerings = await revenueCat.getPremiumOfferings(user.id);
                 if (!cancelled) {
-                    setPurchasePackage(offerings.packages[0] || null);
+                    const selectedPackage = offerings.packages[0] || null;
+                    setPurchasePackage(selectedPackage);
+                    if (!selectedPackage) {
+                        const products = await revenueCat.getPremiumStoreProducts(user.id);
+                        if (!cancelled) setPurchaseProduct(products[0] || null);
+                    }
                 }
             } catch (error) {
                 console.warn("Premium offer preload failed", error);
@@ -97,7 +103,7 @@ export default function PremiumDetailScreen() {
         return () => {
             cancelled = true;
         };
-    }, [loadingOffer, purchasePackage, user?.id]);
+    }, [loadingOffer, purchasePackage, purchaseProduct, user?.id]);
 
     const handlePurchase = async () => {
         if (!user?.id) return;
@@ -111,23 +117,31 @@ export default function PremiumDetailScreen() {
             }
 
             let selectedPackage = purchasePackage;
+            let selectedProduct = purchaseProduct;
             if (!selectedPackage) {
                 setLoadingOffer(true);
                 const offerings = await revenueCat.getPremiumOfferings(user.id);
                 selectedPackage = offerings.packages[0] || null;
                 setPurchasePackage(selectedPackage);
+                if (!selectedPackage) {
+                    const products = await revenueCat.getPremiumStoreProducts(user.id);
+                    selectedProduct = products[0] || null;
+                    setPurchaseProduct(selectedProduct);
+                }
                 setLoadingOffer(false);
             }
 
-            if (!selectedPackage) {
+            if (!selectedPackage && !selectedProduct) {
                 setNotice({
                     title: "Paket bulunamadi",
-                    message: "RevenueCat offering icinde Premium paketi gorunmuyor. Store urunlerini ve entitlement eslesmesini kontrol et.",
+                    message: "Premium urunu App Store sandbox tarafindan dondurulmedi. App Store Connect urun durumunu, Paid Apps Agreement durumunu ve RevenueCat urun eslesmesini kontrol et.",
                 });
                 return;
             }
 
-            const result = await revenueCat.purchasePremiumPackage(selectedPackage);
+            const result = selectedPackage
+                ? await revenueCat.purchasePremiumPackage(selectedPackage)
+                : await revenueCat.purchasePremiumStoreProduct(selectedProduct);
             if (result.active) {
                 await syncBackendEntitlement();
                 setNotice({ title: "Premium aktif", message: "Premium erisimin basariyla acildi." });
@@ -213,7 +227,7 @@ export default function PremiumDetailScreen() {
                     <Text style={styles.subscriptionInfoTitle}>Abonelik bilgisi</Text>
                     <InfoRow label="Urun" value="SmartProgress Premium Monthly" colors={colors} />
                     <InfoRow label="Sure" value="1 ay, otomatik yenilenir" colors={colors} />
-                    <InfoRow label="Fiyat" value={getPriceText(purchasePackage, loadingOffer)} colors={colors} />
+                    <InfoRow label="Fiyat" value={getPriceText(purchasePackage, purchaseProduct, loadingOffer)} colors={colors} />
                     <InfoRow label="Yenileme" value="Iptal edilmedigi surece donem sonunda otomatik yenilenir." colors={colors} />
                     <View style={styles.legalLinksRow}>
                         <TouchableOpacity
@@ -239,7 +253,7 @@ export default function PremiumDetailScreen() {
                     activeOpacity={0.82}
                 >
                     <Text style={styles.primaryButtonText}>
-                        {busy ? "Isleniyor..." : purchasePackage?.product?.priceString ? `Premium'u Baslat - ${purchasePackage.product.priceString}` : "Premium'u Baslat"}
+                        {busy ? "Isleniyor..." : (purchasePackage?.product?.priceString || purchaseProduct?.priceString) ? `Premium'u Baslat - ${purchasePackage?.product?.priceString || purchaseProduct?.priceString}` : "Premium'u Baslat"}
                     </Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.restoreBtn} onPress={handleRestore} disabled={busy || loadingOffer} activeOpacity={0.78}>
