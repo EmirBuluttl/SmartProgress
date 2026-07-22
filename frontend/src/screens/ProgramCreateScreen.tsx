@@ -824,6 +824,7 @@ export default function ProgramCreateScreen() {
     return (
         <KeyboardSafeView
             style={styles.root}
+            dismissOnPressOutside={false}
         >
             {/* ── Header ── */}
             <View style={styles.header}>
@@ -931,6 +932,8 @@ export default function ProgramCreateScreen() {
                     <ScrollView
                         horizontal
                         showsHorizontalScrollIndicator={false}
+                        nestedScrollEnabled
+                        keyboardShouldPersistTaps="handled"
                         style={styles.dayTabsScroll}
                         contentContainerStyle={styles.dayTabsContent}
                     >
@@ -1039,6 +1042,8 @@ export default function ProgramCreateScreen() {
                         <ScrollView
                             horizontal
                             showsHorizontalScrollIndicator={false}
+                            nestedScrollEnabled
+                            keyboardShouldPersistTaps="handled"
                             contentContainerStyle={styles.copyDayTargets}
                             style={styles.copyDayTargetScroll}
                         >

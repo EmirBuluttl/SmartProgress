@@ -66,6 +66,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
                 keyboardShouldPersistTaps={keyboardShouldPersistTaps}
                 keyboardDismissMode={keyboardDismissMode ?? (Platform.OS === "ios" ? "interactive" : "on-drag")}
                 showsVerticalScrollIndicator={showsVerticalScrollIndicator}
+                nestedScrollEnabled
                 automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
                 contentInsetAdjustmentBehavior={Platform.OS === "ios" ? "automatic" : undefined}
                 contentContainerStyle={[contentContainerStyle, { paddingBottom: extraBottomPadding }]}

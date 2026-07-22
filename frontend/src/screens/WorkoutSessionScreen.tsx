@@ -35,7 +35,6 @@ import {
     WarmupRoutineTemplate,
 } from "../types/workout";
 import DraggableFlatList, {
-    ScaleDecorator,
     RenderItemParams,
 } from "react-native-draggable-flatlist";
 import {
@@ -2309,7 +2308,7 @@ export default function WorkoutSessionScreen() {
                         ) : (
                             <TouchableOpacity
                                 onLongPress={dragSet}
-                                delayLongPress={180}
+                                delayLongPress={300}
                                 style={[styles.setDragHandle, isWarmup && styles.warmupSetDragHandle]}
                             >
                                 <Text style={[styles.setNumber, isWarmup && styles.warmupSetNumber]}>
@@ -2521,7 +2520,7 @@ export default function WorkoutSessionScreen() {
                 </View>
             );
 
-            return isWeb ? setContent : <ScaleDecorator>{setContent}</ScaleDecorator>;
+            return setContent;
         };
 
         const renderSupersetMergedSets = () => {
@@ -2609,7 +2608,7 @@ export default function WorkoutSessionScreen() {
                         ) : (
                             <TouchableOpacity
                                 onLongPress={drag}
-                                delayLongPress={120}
+                                delayLongPress={300}
                                 activeOpacity={0.75}
                                 hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                                 style={[styles.dragHandle, styles.mobileDragHandle]}
@@ -2719,7 +2718,7 @@ export default function WorkoutSessionScreen() {
                             renderItem={renderSetItem}
                             onDragEnd={({ data }) => reorderSets(exercise.id, data)}
                             scrollEnabled={false}
-                            activationDistance={8}
+                            activationDistance={28}
                         />
                     )}
 
@@ -2768,7 +2767,7 @@ export default function WorkoutSessionScreen() {
             </View>
         );
 
-        return isWeb ? exerciseContent : <ScaleDecorator>{exerciseContent}</ScaleDecorator>;
+        return exerciseContent;
     };
 
     const settingsExercise = setSettingsExercise
@@ -2801,7 +2800,7 @@ export default function WorkoutSessionScreen() {
     return (
         <KeyboardAvoidingView
             style={styles.container}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "ios" ? "padding" : undefined}
             keyboardVerticalOffset={Platform.OS === "ios" ? 8 : 0}
         >
             {Platform.OS === "ios" ? (
@@ -3448,7 +3447,7 @@ export default function WorkoutSessionScreen() {
                     keyboardDismissMode={Platform.OS === "ios" ? "interactive" : "none"}
                     onScrollBeginDrag={Keyboard.dismiss}
                     containerStyle={styles.scrollView}
-                    activationDistance={6}
+                    activationDistance={32}
                     autoscrollThreshold={80}
                     autoscrollSpeed={120}
                     dragItemOverflow
