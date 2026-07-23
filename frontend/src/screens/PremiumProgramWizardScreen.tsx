@@ -599,6 +599,19 @@ export default function PremiumProgramWizardScreen() {
                                             ? `${priorityOrder.length} öncelik seçildi. İlk sıradaki bölge programda daha güçlü temsil edilir.`
                                             : "Kaslara sırayla dokunarak öncelik listesini oluşturabilirsin."}
                                 </Text>
+                                <View style={styles.priorityStatusRow}>
+                                    <Text style={styles.priorityStatusPill}>
+                                        {priorityMode === "simple" ? "Basit" : "Sıralı"}
+                                    </Text>
+                                    <Text style={styles.priorityStatusPill}>
+                                        {priorityMode === "simple"
+                                            ? priority ? PATTERN_LABELS[priority] : "Odak yok"
+                                            : priorityOrder.length > 0 ? `${priorityOrder.length} odak` : "Odak yok"}
+                                    </Text>
+                                    <Text style={[styles.priorityStatusPill, avoidedExerciseTokens.length > 0 && styles.priorityStatusPillWarning]}>
+                                        {avoidedExerciseTokens.length > 0 ? `${avoidedExerciseTokens.length} kaçınma` : "Kaçınma yok"}
+                                    </Text>
+                                </View>
                             </View>
                         </View>
                         <View style={styles.segmentRow}>
@@ -712,16 +725,31 @@ export default function PremiumProgramWizardScreen() {
                                 </View>
                             </>
                         )}
-                        <TextInput value={avoidNote} onChangeText={setAvoidNote} placeholder="Kaçındığın/sevmediğin hareket varsa yaz" placeholderTextColor={colors.textMuted} style={styles.input} />
-                        <Text style={styles.helperText}>
-                            Örn: Pec deck yazarsan göğüs önerilerinden çıkarılır; koç aynı patern için diğer uygun hareketleri öne alır.
-                        </Text>
-                        {avoidedExerciseTokens.length > 0 && (
+                        <View style={styles.avoidanceCard}>
+                            <View style={styles.avoidanceHeader}>
+                                <View style={styles.avoidanceIcon}>
+                                    <Ionicons name="ban-outline" size={16} color={colors.accent} />
+                                </View>
+                                <View style={{ flex: 1, minWidth: 0 }}>
+                                    <Text style={styles.avoidanceTitle}>Kaçınma filtresi</Text>
+                                    <Text style={styles.avoidanceSubtitle}>Sevmediğin veya istemediğin hareketleri öneriden çıkarır.</Text>
+                                </View>
+                            </View>
+                            <TextInput value={avoidNote} onChangeText={setAvoidNote} placeholder="Kaçındığın/sevmediğin hareket varsa yaz" placeholderTextColor={colors.textMuted} style={styles.input} />
                             <Text style={styles.helperText}>
-                                Kaçınma filtresi aktif: {avoidedExerciseTokens.slice(0, 4).join(", ")}
-                                {avoidedExerciseTokens.length > 4 ? "..." : ""}
+                                Örn: Pec deck yazarsan göğüs önerilerinden çıkarılır; koç aynı patern için diğer uygun hareketleri öne alır.
                             </Text>
-                        )}
+                            {avoidedExerciseTokens.length > 0 && (
+                                <View style={styles.avoidanceTokenRow}>
+                                    {avoidedExerciseTokens.slice(0, 4).map((token) => (
+                                        <Text key={token} style={styles.avoidanceToken}>{token}</Text>
+                                    ))}
+                                    {avoidedExerciseTokens.length > 4 && (
+                                        <Text style={styles.avoidanceToken}>+{avoidedExerciseTokens.length - 4}</Text>
+                                    )}
+                                </View>
+                            )}
+                        </View>
                     </View>
                 );
             case 5:
@@ -1219,6 +1247,29 @@ const createStyles = (colors: any) => StyleSheet.create({
         lineHeight: 18,
         marginTop: 2,
     },
+    priorityStatusRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.xs,
+        marginTop: spacing.sm,
+    },
+    priorityStatusPill: {
+        overflow: "hidden",
+        borderRadius: borderRadius.full,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.surface,
+        color: colors.textSecondary,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
+    },
+    priorityStatusPillWarning: {
+        color: colors.warning || colors.accent,
+        borderColor: colors.warning || colors.accentBorder,
+        backgroundColor: colors.background,
+    },
     prioritySectionHeader: {
         flexDirection: "row",
         alignItems: "center",
@@ -1375,6 +1426,56 @@ const createStyles = (colors: any) => StyleSheet.create({
         color: colors.textMuted,
         fontSize: fontSize.xs,
         fontWeight: fontWeight.semibold,
+    },
+    avoidanceCard: {
+        gap: spacing.sm,
+        marginTop: spacing.md,
+        padding: spacing.md,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.background,
+    },
+    avoidanceHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.sm,
+    },
+    avoidanceIcon: {
+        width: 30,
+        height: 30,
+        borderRadius: 15,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+    },
+    avoidanceTitle: {
+        color: colors.text,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
+    },
+    avoidanceSubtitle: {
+        marginTop: 2,
+        color: colors.textMuted,
+        fontSize: fontSize.xs,
+        lineHeight: 17,
+    },
+    avoidanceTokenRow: {
+        flexDirection: "row",
+        flexWrap: "wrap",
+        gap: spacing.xs,
+    },
+    avoidanceToken: {
+        overflow: "hidden",
+        borderRadius: borderRadius.full,
+        backgroundColor: colors.accentMuted,
+        color: colors.accent,
+        fontSize: fontSize.xs,
+        fontWeight: fontWeight.bold,
+        paddingHorizontal: spacing.sm,
+        paddingVertical: 4,
     },
     cautionBox: {
         flexDirection: "row",
