@@ -170,6 +170,31 @@ export default function HomeScreen() {
         for (const w of workouts) map[w.id] = countWorkoutSets(w);
         return map;
     }, [workouts]);
+    const recentProgramLogTimes = React.useMemo(() => {
+        const map = new Map<string, number>();
+        for (const workout of sortedWorkouts) {
+            const time = new Date(workout?.logDate || workout?.createdAt || 0).getTime();
+            if (!Number.isFinite(time) || time <= 0) continue;
+            for (const key of getWorkoutProgramTraceKeys(workout)) {
+                if (!map.has(key)) map.set(key, time);
+            }
+        }
+        return map;
+    }, [sortedWorkouts]);
+    const displayedPrograms = React.useMemo(() => {
+        return [...programs].sort((a: any, b: any) => {
+            if (favoriteId) {
+                if (a.id === favoriteId && b.id !== favoriteId) return -1;
+                if (b.id === favoriteId && a.id !== favoriteId) return 1;
+            }
+            const aLast = getProgramLastLogTime(a, recentProgramLogTimes);
+            const bLast = getProgramLastLogTime(b, recentProgramLogTimes);
+            if (aLast !== bLast) return bLast - aLast;
+            const aCreated = new Date(a.updatedAt || a.createdAt || 0).getTime();
+            const bCreated = new Date(b.updatedAt || b.createdAt || 0).getTime();
+            return (Number.isFinite(bCreated) ? bCreated : 0) - (Number.isFinite(aCreated) ? aCreated : 0);
+        });
+    }, [favoriteId, programs, recentProgramLogTimes]);
 
     const loadDashboard = async () => {
         markPerf("home_data_ready");
@@ -853,8 +878,8 @@ export default function HomeScreen() {
                     <Text style={styles.inlineCreateText}>Yeni program oluştur</Text>
                 </TouchableOpacity>
             )}
-            {programs.length > 0 ? (
-                programs.slice(0, 3).map((prog: any, index: number) => {
+            {displayedPrograms.length > 0 ? (
+                displayedPrograms.slice(0, 3).map((prog: any, index: number) => {
                     const isCycle = isCycleProgram(prog.data);
                     const dayIdx = prog.currentDayIndex ?? 0;
                     const dayCount = isCycle ? prog.data.days.length : 0;
@@ -1110,6 +1135,37 @@ function sortNewestFirst(items: any[]): any[] {
         const right = new Date(a.logDate || a.createdAt || 0).getTime();
         return left - right;
     });
+}
+
+function normalizeProgramKey(value: unknown): string {
+    return String(value || "")
+        .trim()
+        .toLocaleLowerCase("tr-TR")
+        .replace(/\s+/g, " ");
+}
+
+function getWorkoutProgramTraceKeys(workout: any): string[] {
+    const keys = new Set<string>();
+    const programId =
+        workout?.programId ||
+        workout?.data?.programId ||
+        workout?.data?.sourceProgramId ||
+        workout?.sourceProgramId;
+    const programName =
+        workout?.programName ||
+        workout?.data?.programName ||
+        workout?.data?.sourceProgramName;
+    if (programId) keys.add(`id:${String(programId)}`);
+    const normalizedName = normalizeProgramKey(programName);
+    if (normalizedName) keys.add(`name:${normalizedName}`);
+    return Array.from(keys);
+}
+
+function getProgramLastLogTime(program: any, recentLogTimes: Map<string, number>): number {
+    const idMatch = program?.id ? recentLogTimes.get(`id:${String(program.id)}`) : undefined;
+    if (idMatch) return idMatch;
+    const nameMatch = recentLogTimes.get(`name:${normalizeProgramKey(program?.name)}`);
+    return nameMatch || 0;
 }
 
 function formatDuration(seconds: number): string {
@@ -1692,7 +1748,7 @@ const createStyles = (colors: any) => StyleSheet.create({
     inlineCreateBtn: {
         flexDirection: "row",
         alignItems: "center",
-        alignSelf: "flex-start",
+        alignSelf: "center",
         gap: spacing.xs,
         paddingHorizontal: spacing.sm,
         paddingVertical: spacing.xs,
