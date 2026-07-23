@@ -31,7 +31,7 @@ export function KeyboardSafeView({
     const content = (
         <KeyboardAvoidingView
             style={style}
-            behavior={Platform.OS === "ios" ? "padding" : "height"}
+            behavior={Platform.OS === "web" ? undefined : "padding"}
             keyboardVerticalOffset={keyboardVerticalOffset ?? (Platform.OS === "ios" ? 12 : 0)}
         >
             {children}
@@ -67,6 +67,7 @@ export const KeyboardAwareScrollView = React.forwardRef<ScrollView, KeyboardAwar
                 keyboardDismissMode={keyboardDismissMode ?? (Platform.OS === "ios" ? "interactive" : "on-drag")}
                 showsVerticalScrollIndicator={showsVerticalScrollIndicator}
                 nestedScrollEnabled
+                scrollEventThrottle={16}
                 automaticallyAdjustKeyboardInsets={Platform.OS === "ios"}
                 contentInsetAdjustmentBehavior={Platform.OS === "ios" ? "automatic" : undefined}
                 contentContainerStyle={[contentContainerStyle, { paddingBottom: extraBottomPadding }]}

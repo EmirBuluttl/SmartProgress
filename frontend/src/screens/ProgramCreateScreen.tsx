@@ -173,6 +173,8 @@ export default function ProgramCreateScreen() {
     } | null>(null);
     const [libraryPicker, setLibraryPicker] = useState<{ exerciseId: string; query: string } | null>(null);
     const [setSettingsModal, setSetSettingsModal] = useState<{ exerciseId: string; setIndex: number } | null>(null);
+    const [setSettingsDraft, setSetSettingsDraft] = useState<Pick<TargetSet, "weightMode" | "effortMode" | "sideMode"> | null>(null);
+    const [setSettingsDiscardConfirm, setSetSettingsDiscardConfirm] = useState(false);
 
     // Pre-populate fields in edit mode
     useEffect(() => {
@@ -518,18 +520,54 @@ export default function ProgramCreateScreen() {
         return { exercise, set, setIndex: setSettingsModal.setIndex };
     }, [activeDayIdx, days, setSettingsModal]);
 
-    const updateOpenSetSettings = (patch: Partial<TargetSet>) => {
-        if (!setSettingsContext) return;
-        updateSet(setSettingsContext.exercise.id, setSettingsContext.setIndex, patch);
+    const openSetSettings = (exerciseId: string, setIndex: number, set: TargetSet) => {
+        setSetSettingsDraft({
+            weightMode: set.weightMode,
+            effortMode: set.effortMode ?? "reps",
+            sideMode: set.sideMode ?? "both",
+        });
+        setSetSettingsModal({ exerciseId, setIndex });
     };
 
-    const applyOpenSetSettingsToExercise = (scope: "working" | "all") => {
-        if (!setSettingsContext) return;
-        const sourceSet = setSettingsContext.set;
+    const isSetSettingsDraftDirty = React.useMemo(() => {
+        if (!setSettingsContext || !setSettingsDraft) return false;
+        const set = setSettingsContext.set;
+        return (
+            setSettingsDraft.weightMode !== set.weightMode ||
+            (setSettingsDraft.effortMode ?? "reps") !== (set.effortMode ?? "reps") ||
+            (setSettingsDraft.sideMode ?? "both") !== (set.sideMode ?? "both")
+        );
+    }, [setSettingsContext, setSettingsDraft]);
+
+    const closeSetSettings = () => {
+        setSetSettingsModal(null);
+        setSetSettingsDraft(null);
+        setSetSettingsDiscardConfirm(false);
+    };
+
+    const requestCloseSetSettings = () => {
+        if (isSetSettingsDraftDirty) {
+            setSetSettingsDiscardConfirm(true);
+            return;
+        }
+        closeSetSettings();
+    };
+
+    const updateOpenSetSettings = (patch: Partial<TargetSet>) => {
+        setSetSettingsDraft((prev) => ({
+            weightMode: prev?.weightMode,
+            effortMode: prev?.effortMode ?? "reps",
+            sideMode: prev?.sideMode ?? "both",
+            ...patch,
+        }));
+    };
+
+    const applySetSettingsPatch = (scope: "single" | "working" | "all") => {
+        if (!setSettingsContext || !setSettingsDraft) return;
         const patch: Pick<TargetSet, "weightMode" | "effortMode" | "sideMode"> = {
-            weightMode: sourceSet.weightMode,
-            effortMode: sourceSet.effortMode ?? "reps",
-            sideMode: sourceSet.sideMode ?? "both",
+            weightMode: setSettingsDraft.weightMode,
+            effortMode: setSettingsDraft.effortMode ?? "reps",
+            sideMode: setSettingsDraft.sideMode ?? "both",
         };
 
         setDays((prev) =>
@@ -541,7 +579,8 @@ export default function ProgramCreateScreen() {
                             if (exercise.id !== setSettingsContext.exercise.id) return exercise;
                             return {
                                 ...exercise,
-                                targetSets: exercise.targetSets.map((set) => {
+                                targetSets: exercise.targetSets.map((set, setIndex) => {
+                                    if (scope === "single" && setIndex !== setSettingsContext.setIndex) return set;
                                     if (scope === "working" && set.isWarmup) return set;
                                     return { ...set, ...patch };
                                 }),
@@ -551,6 +590,7 @@ export default function ProgramCreateScreen() {
                     : d,
             ),
         );
+        closeSetSettings();
     };
 
     const reorderSet = (exId: string, fromIdx: number, direction: "up" | "down") => {
@@ -1225,6 +1265,7 @@ export default function ProgramCreateScreen() {
                                                     </Text>
 
                                                     <View style={styles.setInputGroup}>
+                                                        {set.weightMode ? (
                                                         <View style={styles.setCol}>
                                                             <Text style={styles.setColLabel}>{set.weightMode === "bodyweight" ? "Ek kg" : set.weightMode === "kg" ? "Kg" : "Ağırlık"}</Text>
                                                             <TextInput
@@ -1236,6 +1277,7 @@ export default function ProgramCreateScreen() {
                                                                 onChangeText={(t) => updateSet(exercise.id, setIndex, { targetWeight: t })}
                                                             />
                                                         </View>
+                                                        ) : null}
                                                         <View style={styles.setCol}>
                                                             <Text style={styles.setColLabel}>{set.effortMode === "duration" ? "Süre" : "Tekrar"}</Text>
                                                             <TextInput
@@ -1276,7 +1318,7 @@ export default function ProgramCreateScreen() {
 
                                                     <TouchableOpacity
                                                         style={styles.setSettingsBtn}
-                                                        onPress={() => setSetSettingsModal({ exerciseId: exercise.id, setIndex })}
+                                                        onPress={() => openSetSettings(exercise.id, setIndex, set)}
                                                         activeOpacity={0.8}
                                                     >
                                                         <Ionicons name="options-outline" size={14} color={colors.accent} />
@@ -1369,7 +1411,7 @@ export default function ProgramCreateScreen() {
                 visible={!!setSettingsModal}
                 transparent
                 animationType="fade"
-                onRequestClose={() => setSetSettingsModal(null)}
+                onRequestClose={requestCloseSetSettings}
             >
                 <View style={styles.libraryOverlay}>
                     <View style={styles.setSettingsModal}>
@@ -1380,12 +1422,12 @@ export default function ProgramCreateScreen() {
                                     Ağırlık, tekrar/süre ve sağ-sol loglama tipini buradan seç.
                                 </Text>
                             </View>
-                            <TouchableOpacity onPress={() => setSetSettingsModal(null)} style={styles.modalCloseBtn}>
+                            <TouchableOpacity onPress={requestCloseSetSettings} style={styles.modalCloseBtn}>
                                 <Ionicons name="close" size={22} color={colors.text} />
                             </TouchableOpacity>
                         </View>
 
-                        {setSettingsContext ? (
+                        {setSettingsContext && setSettingsDraft ? (
                             <ScrollView
                                 showsVerticalScrollIndicator={false}
                                 contentContainerStyle={styles.setSettingsContent}
@@ -1394,25 +1436,25 @@ export default function ProgramCreateScreen() {
                                     <Text style={styles.setSettingsLabel}>Ağırlık modu</Text>
                                     <View style={styles.setSettingsOptions}>
                                         <TouchableOpacity
-                                            style={[styles.setSettingsOption, !setSettingsContext.set.weightMode && styles.setSettingsOptionActive]}
+                                            style={[styles.setSettingsOption, !setSettingsDraft.weightMode && styles.setSettingsOptionActive]}
                                             onPress={() => updateOpenSetSettings({ weightMode: undefined })}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={[styles.setSettingsOptionText, !setSettingsContext.set.weightMode && styles.setSettingsOptionTextActive]}>Boş</Text>
+                                            <Text style={[styles.setSettingsOptionText, !setSettingsDraft.weightMode && styles.setSettingsOptionTextActive]}>Boş</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.setSettingsOption, setSettingsContext.set.weightMode === "kg" && styles.setSettingsOptionActive]}
+                                            style={[styles.setSettingsOption, setSettingsDraft.weightMode === "kg" && styles.setSettingsOptionActive]}
                                             onPress={() => updateOpenSetSettings({ weightMode: "kg" })}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={[styles.setSettingsOptionText, setSettingsContext.set.weightMode === "kg" && styles.setSettingsOptionTextActive]}>KG</Text>
+                                            <Text style={[styles.setSettingsOptionText, setSettingsDraft.weightMode === "kg" && styles.setSettingsOptionTextActive]}>KG</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.setSettingsOption, setSettingsContext.set.weightMode === "bodyweight" && styles.setSettingsOptionActive]}
+                                            style={[styles.setSettingsOption, setSettingsDraft.weightMode === "bodyweight" && styles.setSettingsOptionActive]}
                                             onPress={() => updateOpenSetSettings({ weightMode: "bodyweight" })}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={[styles.setSettingsOptionText, setSettingsContext.set.weightMode === "bodyweight" && styles.setSettingsOptionTextActive]}>BW</Text>
+                                            <Text style={[styles.setSettingsOptionText, setSettingsDraft.weightMode === "bodyweight" && styles.setSettingsOptionTextActive]}>BW</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -1421,18 +1463,18 @@ export default function ProgramCreateScreen() {
                                     <Text style={styles.setSettingsLabel}>Efor tipi</Text>
                                     <View style={styles.setSettingsOptions}>
                                         <TouchableOpacity
-                                            style={[styles.setSettingsOption, (setSettingsContext.set.effortMode ?? "reps") === "reps" && styles.setSettingsOptionActive]}
+                                            style={[styles.setSettingsOption, (setSettingsDraft.effortMode ?? "reps") === "reps" && styles.setSettingsOptionActive]}
                                             onPress={() => updateOpenSetSettings({ effortMode: "reps" })}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={[styles.setSettingsOptionText, (setSettingsContext.set.effortMode ?? "reps") === "reps" && styles.setSettingsOptionTextActive]}>Tekrar</Text>
+                                            <Text style={[styles.setSettingsOptionText, (setSettingsDraft.effortMode ?? "reps") === "reps" && styles.setSettingsOptionTextActive]}>Tekrar</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.setSettingsOption, setSettingsContext.set.effortMode === "duration" && styles.setSettingsOptionActive]}
+                                            style={[styles.setSettingsOption, setSettingsDraft.effortMode === "duration" && styles.setSettingsOptionActive]}
                                             onPress={() => updateOpenSetSettings({ effortMode: "duration" })}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={[styles.setSettingsOptionText, setSettingsContext.set.effortMode === "duration" && styles.setSettingsOptionTextActive]}>Süre</Text>
+                                            <Text style={[styles.setSettingsOptionText, setSettingsDraft.effortMode === "duration" && styles.setSettingsOptionTextActive]}>Süre</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
@@ -1441,33 +1483,40 @@ export default function ProgramCreateScreen() {
                                     <Text style={styles.setSettingsLabel}>Taraf loglama</Text>
                                     <View style={styles.setSettingsOptions}>
                                         <TouchableOpacity
-                                            style={[styles.setSettingsOption, (setSettingsContext.set.sideMode ?? "both") === "both" && styles.setSettingsOptionActive]}
+                                            style={[styles.setSettingsOption, (setSettingsDraft.sideMode ?? "both") === "both" && styles.setSettingsOptionActive]}
                                             onPress={() => updateOpenSetSettings({ sideMode: "both" })}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={[styles.setSettingsOptionText, (setSettingsContext.set.sideMode ?? "both") === "both" && styles.setSettingsOptionTextActive]}>Normal</Text>
+                                            <Text style={[styles.setSettingsOptionText, (setSettingsDraft.sideMode ?? "both") === "both" && styles.setSettingsOptionTextActive]}>Normal</Text>
                                         </TouchableOpacity>
                                         <TouchableOpacity
-                                            style={[styles.setSettingsOption, setSettingsContext.set.sideMode === "left_right" && styles.setSettingsOptionActive]}
+                                            style={[styles.setSettingsOption, setSettingsDraft.sideMode === "left_right" && styles.setSettingsOptionActive]}
                                             onPress={() => updateOpenSetSettings({ sideMode: "left_right" })}
                                             activeOpacity={0.8}
                                         >
-                                            <Text style={[styles.setSettingsOptionText, setSettingsContext.set.sideMode === "left_right" && styles.setSettingsOptionTextActive]}>L/R</Text>
+                                            <Text style={[styles.setSettingsOptionText, setSettingsDraft.sideMode === "left_right" && styles.setSettingsOptionTextActive]}>L/R</Text>
                                         </TouchableOpacity>
                                     </View>
                                 </View>
 
                                 <View style={styles.setSettingsBulkActions}>
                                     <TouchableOpacity
+                                        style={[styles.setSettingsBulkBtn, styles.setSettingsPrimaryBtn]}
+                                        onPress={() => applySetSettingsPatch("single")}
+                                        activeOpacity={0.8}
+                                    >
+                                        <Text style={[styles.setSettingsBulkText, styles.setSettingsPrimaryText]}>Bu sete uygula</Text>
+                                    </TouchableOpacity>
+                                    <TouchableOpacity
                                         style={styles.setSettingsBulkBtn}
-                                        onPress={() => applyOpenSetSettingsToExercise("working")}
+                                        onPress={() => applySetSettingsPatch("working")}
                                         activeOpacity={0.8}
                                     >
                                         <Text style={styles.setSettingsBulkText}>Bu egzersizin çalışma setlerine uygula</Text>
                                     </TouchableOpacity>
                                     <TouchableOpacity
                                         style={styles.setSettingsBulkBtn}
-                                        onPress={() => applyOpenSetSettingsToExercise("all")}
+                                        onPress={() => applySetSettingsPatch("all")}
                                         activeOpacity={0.8}
                                     >
                                         <Text style={styles.setSettingsBulkText}>Bu egzersizin tüm setlerine uygula</Text>
@@ -1740,6 +1789,17 @@ export default function ProgramCreateScreen() {
                     </View>
                 </View>
             </Modal>
+            <ActionConfirmModal
+                visible={setSettingsDiscardConfirm}
+                title="Ayar degisiklikleri silinsin mi?"
+                message="Bu set ayarlari henuz uygulanmadi. Kapatirsan son modal degisiklikleri kaybolur."
+                primaryLabel="Sil ve kapat"
+                secondaryLabel="Devam et"
+                destructivePrimary
+                onPrimary={closeSetSettings}
+                onSecondary={() => setSetSettingsDiscardConfirm(false)}
+                onDismiss={() => setSetSettingsDiscardConfirm(false)}
+            />
             {pendingModalProps && (
                 <ActionConfirmModal
                     visible={!!pendingAction}
@@ -2176,8 +2236,8 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         alignItems: "center",
         marginBottom: spacing.sm,
-        gap: spacing.sm,
-        flexWrap: "wrap",
+        gap: spacing.xs,
+        flexWrap: "nowrap",
     },
     setLabel: {
         fontSize: fontSize.sm,
@@ -2188,14 +2248,14 @@ const createStyles = (colors: any) => StyleSheet.create({
     setInputGroup: {
         flex: 1,
         flexDirection: "row",
-        flexWrap: "wrap",
+        flexWrap: "nowrap",
         gap: spacing.xs,
         minWidth: 0,
     },
     setCol: {
         flexGrow: 1,
-        flexBasis: 62,
-        minWidth: 58,
+        flexBasis: 72,
+        minWidth: 62,
         gap: 3,
     },
     setColLabel: {
@@ -2215,6 +2275,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         textAlign: "center",
         borderWidth: 1,
         borderColor: colors.borderLight,
+        minHeight: 42,
     },
     removeSetBtn: {
         padding: spacing.xs,
@@ -2229,7 +2290,7 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderWidth: 1,
         borderColor: colors.border,
         backgroundColor: colors.surfaceElevated,
-        marginLeft: 68,
+        maxWidth: 132,
     },
     setSettingsBtnText: {
         color: colors.textSecondary,
@@ -2300,11 +2361,18 @@ const createStyles = (colors: any) => StyleSheet.create({
         justifyContent: "center",
         paddingHorizontal: spacing.md,
     },
+    setSettingsPrimaryBtn: {
+        borderColor: colors.accent,
+        backgroundColor: colors.accent,
+    },
     setSettingsBulkText: {
         color: colors.text,
         fontSize: fontSize.sm,
         fontWeight: fontWeight.semibold,
         textAlign: "center",
+    },
+    setSettingsPrimaryText: {
+        color: colors.background,
     },
     setModeRow: {
         flexDirection: "row",
