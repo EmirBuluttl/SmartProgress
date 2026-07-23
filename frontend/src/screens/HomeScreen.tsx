@@ -17,6 +17,7 @@ import {
     Modal,
     NativeSyntheticEvent,
     NativeScrollEvent,
+    Share,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useFocusEffect } from "@react-navigation/native";
@@ -477,6 +478,32 @@ export default function HomeScreen() {
         }));
     };
 
+    const shareWorkoutSummary = async (workout: any) => {
+        const durationSeconds = workout?.data?.totalDuration || workout?.data?.duration || workout?.totalDuration || workout?.duration || 0;
+        const setCount = workoutSetCounts[workout.id] ?? countWorkoutSets(workout);
+        const exerciseCount = Number(workout?.data?.exerciseCount || workout?.exerciseCount || 0);
+        const totalVolume = Number(workout?.data?.totalVolume || workout?.totalVolume || 0);
+        const lines = [
+            workout?.title || "SmartProgress antrenman ozeti",
+            (workout?.programName || workout?.data?.programName) ? `Program: ${workout.programName || workout.data?.programName}` : undefined,
+            workout?.data?.dayLabel ? `Gun: ${workout.data.dayLabel}` : undefined,
+            workout?.logDate ? `Tarih: ${formatDate(workout.logDate)}` : undefined,
+            `Sure: ${formatDuration(durationSeconds)}`,
+            exerciseCount > 0 ? `Egzersiz: ${exerciseCount}` : undefined,
+            `Set: ${setCount}`,
+            totalVolume > 0 ? `Yuk skoru: ${totalVolume.toFixed(1)}` : undefined,
+            "SmartProgress ile loglandi.",
+        ].filter(Boolean);
+        try {
+            await Share.share({
+                title: workout?.title || "SmartProgress antrenman ozeti",
+                message: lines.join("\n"),
+            });
+        } catch (error) {
+            console.warn("[HomeScreen] Workout summary could not be shared:", error);
+        }
+    };
+
     const openNotification = async (notification: any) => {
         try {
             if (!notification.readAt && !String(notification.id).startsWith("local-")) {
@@ -835,7 +862,17 @@ export default function HomeScreen() {
                         >
                             <GymCard elevated style={[styles.workoutCard, { width: WORKOUT_CARD_WIDTH }]}>
                                 <View style={styles.workoutCardHeader}>
-                                    <Text style={styles.workoutTitle}>{item.title}</Text>
+                                    <Text style={styles.workoutTitle} numberOfLines={1}>{item.title}</Text>
+                                    <TouchableOpacity
+                                        style={styles.workoutShareBtn}
+                                        onPress={(event) => {
+                                            event.stopPropagation();
+                                            shareWorkoutSummary(item);
+                                        }}
+                                        activeOpacity={0.75}
+                                    >
+                                        <Ionicons name="share-social-outline" size={16} color={colors.accent} />
+                                    </TouchableOpacity>
                                 </View>
                                 <Text style={styles.workoutDate}>
                                     {formatDate(item.logDate)}
@@ -1649,6 +1686,15 @@ const createStyles = (colors: any) => StyleSheet.create({
     workoutTitle: {
         fontSize: fontSize.lg, fontWeight: fontWeight.bold,
         color: colors.text, flex: 1,
+    },
+    workoutShareBtn: {
+        width: 34,
+        height: 34,
+        borderRadius: 17,
+        alignItems: "center",
+        justifyContent: "center",
+        backgroundColor: colors.accentMuted,
+        marginLeft: spacing.sm,
     },
     sportBadge: {
         backgroundColor: colors.accentMuted,
