@@ -1,7 +1,7 @@
 import React, { useRef, useEffect, useCallback } from "react";
 import {
     View, Text, StyleSheet, TouchableOpacity,
-    ScrollView, NativeSyntheticEvent, NativeScrollEvent, Dimensions, Platform, FlatList,
+    ScrollView, NativeSyntheticEvent, NativeScrollEvent, Dimensions, Platform, FlatList, TextInput,
 } from "react-native";
 import { useOnboarding } from "./OnboardingContext";
 import { useTheme } from "../../hooks/ThemeContext";
@@ -21,10 +21,10 @@ const ITEM_W = 60;
 const VISIBLE = 5;
 const PAD = Math.max(0, Math.floor((SW - T.px * 2 - ITEM_W) / 2)); // center item inside section
 
-const AGES     = Array.from({ length: 67  }, (_, i) => i + 14);
-const HCM      = Array.from({ length: 81  }, (_, i) => i + 140);
+const AGES     = Array.from({ length: 57  }, (_, i) => i + 14);
+const HCM      = Array.from({ length: 71  }, (_, i) => i + 140);
 const HFT      = Array.from({ length: 36  }, (_, i) => i + 55);
-const WKG      = Array.from({ length: 221 }, (_, i) => i + 30);
+const WKG      = Array.from({ length: 121 }, (_, i) => i + 30);
 const WLB      = Array.from({ length: 485 }, (_, i) => i + 66);
 
 // ── Scroll Picker ──────────────────────────────
@@ -147,6 +147,24 @@ function Section({
     values: number[]; onToggle?: () => void; onChange: (v: number) => void;
 }) {
     const { colors } = useTheme();
+    const min = values[0] ?? value;
+    const max = values[values.length - 1] ?? value;
+    const [inputText, setInputText] = React.useState(String(value));
+
+    useEffect(() => {
+        setInputText(String(value));
+    }, [value]);
+
+    const commitInput = () => {
+        const next = Number(inputText.replace(/[^\d]/g, ""));
+        if (!Number.isFinite(next) || next <= 0) {
+            setInputText(String(value));
+            return;
+        }
+        const clamped = Math.max(min, Math.min(max, next));
+        setInputText(String(clamped));
+        onChange(clamped);
+    };
     return (
         <View style={sec.root}>
             <View style={sec.labelRow}>
@@ -161,6 +179,20 @@ function Section({
                 <Text style={sec.bigNum}>{value}</Text>
                 <Text style={sec.unit}>{unit}</Text>
             </View>
+            <View style={sec.directInputRow}>
+                <Text style={sec.directInputLabel}>Direkt gir</Text>
+                <TextInput
+                    style={[sec.directInput, { borderColor: colors.border, color: colors.text }]}
+                    value={inputText}
+                    onChangeText={(text) => setInputText(text.replace(/[^\d]/g, ""))}
+                    onBlur={commitInput}
+                    onSubmitEditing={commitInput}
+                    keyboardType="number-pad"
+                    placeholder={`${min}-${max}`}
+                    placeholderTextColor={T.muted}
+                    selectTextOnFocus
+                />
+            </View>
             <Picker values={values} value={value} onChange={onChange} accent={colors.accent} />
         </View>
     );
@@ -174,6 +206,25 @@ const sec = StyleSheet.create({
     numRow: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, marginBottom: 10 },
     bigNum: { fontSize: 76, fontWeight: '800', color: T.text, letterSpacing: -3, lineHeight: 80 },
     unit: { fontSize: 22, fontWeight: '400', color: T.sub, marginBottom: 12 },
+    directInputRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        gap: 12,
+        marginBottom: 12,
+    },
+    directInputLabel: { fontSize: 12, fontWeight: '600', color: T.sub },
+    directInput: {
+        minWidth: 96,
+        height: 40,
+        borderRadius: 12,
+        borderWidth: 1,
+        backgroundColor: T.surface,
+        paddingHorizontal: 12,
+        textAlign: 'center',
+        fontSize: 16,
+        fontWeight: '700',
+    },
 });
 
 const HR = () => <View style={{ height: 1, backgroundColor: T.border, marginHorizontal: T.px }} />;

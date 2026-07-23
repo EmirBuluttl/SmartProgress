@@ -13,14 +13,20 @@ const T = {
 } as const;
 
 const GOALS: { id: WorkoutGoal; icon: string; label: string; desc: string; color: string }[] = [
-    { id: 'muscle', icon: 'MG', label: 'Kas Kazanimi', desc: 'Hipertrofi odakli, takip edilebilir progress', color: '#3B82F6' },
-    { id: 'strength', icon: 'G', label: 'Guc Artisi', desc: 'Olculebilir kuvvet ve compound odagi', color: '#EF4444' },
-    { id: 'fat_loss', icon: 'Y', label: 'Yag Yakma', desc: 'Resistance training ile toparlanabilir tempo', color: '#F59E0B' },
-    { id: 'fitness', icon: 'F', label: 'Genel Fitness', desc: 'Dengeli programlar ve surdurulebilir aliskanlik', color: '#3B82F6' },
+    { id: 'muscle', icon: 'Kas', label: 'Kas Kazanimi', desc: 'Hipertrofi odakli, takip edilebilir progress', color: '#3B82F6' },
+    { id: 'strength', icon: 'Guc', label: 'Guc Artisi', desc: 'Olculebilir kuvvet ve compound odagi', color: '#EF4444' },
+    { id: 'fat_loss', icon: 'Yag', label: 'Yag Yakma', desc: 'Resistance training ile toparlanabilir tempo', color: '#F59E0B' },
+    { id: 'fitness', icon: 'Fit', label: 'Genel Fitness', desc: 'Dengeli programlar ve surdurulebilir aliskanlik', color: '#3B82F6' },
 ];
 const FREQS = [2, 3, 4, 5, 6];
 const RECOMMENDED_FREQS = new Set([3, 4, 5]);
-const HINTS: Record<number, string> = { 2: 'Full body split', 3: 'Full body 3 gun', 4: 'Upper/Lower split', 5: 'PPL split', 6: 'Bolgesel split' };
+const HINTS: Record<number, string> = {
+    2: 'Full body split',
+    3: 'Full body 3 gun',
+    4: 'Upper/Lower, Anterior/Posterior veya Torso/Limbs',
+    5: 'PPL+UL, PPL+AP veya PPL+TL',
+    6: 'Bolgesel split',
+};
 
 function GoalCard({ g, selected, onPress }: { g: typeof GOALS[0]; selected: boolean; onPress: () => void }) {
     const scale = useSharedValue(1);
@@ -126,8 +132,8 @@ const s = StyleSheet.create({
         flexDirection: 'row', alignItems: 'center', gap: 14,
         backgroundColor: T.surface, borderRadius: T.r, borderWidth: 1, borderColor: T.border, padding: 16,
     },
-    goalIcon: { width: 34, height: 34, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-    goalIconText: { fontSize: 12, fontWeight: '800' },
+    goalIcon: { width: 40, height: 34, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+    goalIconText: { fontSize: 11, fontWeight: '800' },
     goalLabel: { fontSize: 14, fontWeight: '700', color: T.text },
     goalDesc: { fontSize: 12, color: T.sub, lineHeight: 17 },
     dot: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

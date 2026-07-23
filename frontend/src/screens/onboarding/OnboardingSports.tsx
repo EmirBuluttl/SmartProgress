@@ -15,7 +15,7 @@ const T = {
 const GAP = 10;
 
 const SPORTS = [
-    { id: 'fitness',       emoji: '🏋️',  label: 'Fitness',          sub: 'Bodybuilding' },
+    { id: 'fitness',       emoji: '🏋️',  label: 'Vucut gelistirme', sub: 'Fitness / Bodybuilding' },
     { id: 'powerlifting',  emoji: '🏋️‍♂️', label: 'Powerlifting',     sub: 'Squat · Bench · Dead' },
     { id: 'streetlifting', emoji: '💪',  label: 'Streetlifting',    sub: 'Ağırlıklı Calisthenics' },
     { id: 'calisthenics',  emoji: '🤸',  label: 'Calisthenics',     sub: 'Vücut Ağırlığı' },

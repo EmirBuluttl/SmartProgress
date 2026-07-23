@@ -2,7 +2,7 @@ import { EXERCISE_LIBRARY, type ExerciseLibraryItem } from "../data/exerciseLibr
 import { getExerciseMetadata } from "../data/exerciseMetadata";
 
 export type CoachLevel = "beginner" | "intermediate" | "advanced";
-export type CoachSplitType = "FB" | "UL" | "AP" | "TL" | "PPL" | "PPLUL";
+export type CoachSplitType = "FB" | "UL" | "AP" | "TL" | "PPL" | "PPLUL" | "PPLAP" | "PPLTL";
 export type CoachGoal = "muscle" | "strength" | "fat_loss" | "general";
 export type CoachProgramStyle = "hypertrophy" | "calisthenics" | "streetlifting" | "powerlifting" | "crossfit";
 export type CoachStrengthFocus = "overall" | "powerlifting" | "streetlifting";
@@ -238,6 +238,26 @@ export const COACH_SPLIT_PATTERNS: Record<CoachSplitType, { label: string; days:
             { label: "Lower", patterns: ["knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
         ],
     },
+    PPLAP: {
+        label: "PPL + AP",
+        days: [
+            { label: "Push", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_abduction", "elbow_extension"] },
+            { label: "Pull", patterns: ["shoulder_extension", "shoulder_adduction", "upper_back", "elbow_flexion", "reverse_curl"] },
+            { label: "Legs", patterns: ["knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
+            { label: "Anterior", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_abduction", "elbow_extension", "knee_extension", "leg_press", "spinal_flexion"] },
+            { label: "Posterior", patterns: ["shoulder_extension", "shoulder_adduction", "upper_back", "elbow_flexion", "reverse_curl", "hip_hinge", "knee_flexion", "hip_adduction", "calf_raise"] },
+        ],
+    },
+    PPLTL: {
+        label: "PPL + TL",
+        days: [
+            { label: "Push", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_abduction", "elbow_extension"] },
+            { label: "Pull", patterns: ["shoulder_extension", "shoulder_adduction", "upper_back", "elbow_flexion", "reverse_curl"] },
+            { label: "Legs", patterns: ["knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
+            { label: "Torso", patterns: ["horizontal_adduction", "upper_chest", "shoulder_flexion", "shoulder_extension", "shoulder_adduction", "upper_back", "shoulder_abduction"] },
+            { label: "Limbs", patterns: ["elbow_extension", "elbow_flexion", "reverse_curl", "knee_extension", "leg_press", "hip_hinge", "knee_flexion", "hip_adduction", "spinal_flexion", "calf_raise"] },
+        ],
+    },
 };
 
 export function defaultSplitForFrequency(frequency: number, _programStyle: CoachProgramStyle = "hypertrophy"): CoachSplitType {
@@ -250,7 +270,7 @@ export function defaultSplitForFrequency(frequency: number, _programStyle: Coach
 export function splitOptionsForFrequency(frequency: number, _programStyle: CoachProgramStyle = "hypertrophy"): CoachSplitType[] {
     if (frequency <= 3) return ["FB"];
     if (frequency === 4) return ["UL", "AP", "TL"];
-    if (frequency === 5) return ["UL", "AP", "TL", "PPLUL"];
+    if (frequency === 5) return ["UL", "AP", "TL", "PPLUL", "PPLAP", "PPLTL"];
     return ["PPL", "UL", "AP", "TL"];
 }
 
@@ -259,6 +279,8 @@ export function splitReason(split: CoachSplitType): string {
     if (split === "AP") return "Aynı gün göğüs ve sırt çalışmayı sevmiyorsan daha temiz ayrım sunar.";
     if (split === "TL") return "Kollar eksik bölgeyse torso/limbs ayrımı daha uygun olabilir.";
     if (split === "PPLUL") return "5 günlük düzende PPL hissini koruyup haftayı upper/lower ile tamamlar.";
+    if (split === "PPLAP") return "5 günlük düzende PPL hissini anterior/posterior ile tamamlar.";
+    if (split === "PPLTL") return "5 günlük düzende PPL hissini torso/limbs ile tamamlar.";
     if (split === "PPL") return "6 günlük düzende yüksek frekanslı, düzenli takip edilebilir split.";
     return "3 gün veya daha az frekansta frekans/verim oranı en iyi başlangıçtır.";
 }

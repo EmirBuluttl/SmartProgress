@@ -76,6 +76,7 @@ export default function AppTourOverlay({
     const targetScale = React.useRef(new Animated.Value(0.996)).current;
     const measureRequestRef = React.useRef(0);
     const [targetRect, setTargetRect] = React.useState<TargetRect | null>(null);
+    const [targetRectId, setTargetRectId] = React.useState<string | null>(null);
     const [targetPending, setTargetPending] = React.useState(false);
 
     React.useEffect(() => {
@@ -85,6 +86,7 @@ export default function AppTourOverlay({
             targetOpacity.setValue(0);
             targetScale.setValue(0.996);
             setTargetRect(null);
+            setTargetRectId(null);
             setTargetPending(false);
             return;
         }
@@ -110,6 +112,7 @@ export default function AppTourOverlay({
             targetOpacity.setValue(0);
             targetScale.setValue(0.996);
             setTargetRect(null);
+            setTargetRectId(null);
             setTargetPending(false);
             return;
         }
@@ -126,6 +129,7 @@ export default function AppTourOverlay({
         targetOpacity.setValue(0);
         targetScale.setValue(0.996);
         setTargetRect(null);
+        setTargetRectId(null);
 
         const target = getTarget(targetId);
         target?.scrollTo?.();
@@ -162,6 +166,7 @@ export default function AppTourOverlay({
             measured = true;
             setTargetPending(false);
             setTargetRect(rect);
+            setTargetRectId(targetId);
             targetOpacity.setValue(0);
             targetScale.setValue(0.998);
             Animated.parallel([
@@ -228,6 +233,7 @@ export default function AppTourOverlay({
 
     const paddedRect = React.useMemo(() => {
         if (!targetRect) return null;
+        if (targetRectId !== step?.targetId) return null;
         const targetOptions = step?.targetId ? getTarget(step.targetId) : null;
         const visibleTop = insets.top + spacing.xs;
         const visibleBottom = screenHeight - TAB_BAR_HEIGHT - Math.max(insets.bottom, spacing.sm);
@@ -241,7 +247,7 @@ export default function AppTourOverlay({
         if (width < MIN_TARGET_SIZE || height < MIN_TARGET_SIZE) return null;
         if (y + height > visibleBottom + 1) return null;
         return { x, y, width, height };
-    }, [getTarget, insets.bottom, insets.top, screenHeight, screenWidth, step?.targetId, targetRect]);
+    }, [getTarget, insets.bottom, insets.top, screenHeight, screenWidth, step?.targetId, targetRect, targetRectId]);
 
     if (!visible || !step) return null;
 
