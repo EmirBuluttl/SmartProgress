@@ -1,7 +1,6 @@
 import React from "react";
 import {
     ActivityIndicator,
-    Linking,
     Modal,
     Platform,
     ScrollView,
@@ -17,16 +16,25 @@ import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { parseApiError, programApi } from "../services/api";
 import type { AuthStackParamList } from "../navigation/AuthStack";
+import {
+    APP_STORE_URL,
+    PLAY_STORE_URL,
+    getStoreUrl,
+    isMobileWebUserAgent,
+    openProgramDeepLink,
+    openStoreForCurrentPlatform,
+} from "../utils/programLinks";
 
 type Route = RouteProp<AuthStackParamList, "ProgramDetail">;
 type Nav = NativeStackNavigationProp<AuthStackParamList>;
 
-const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=com.smartprogress.app";
-const APP_STORE_URL = "https://apps.apple.com/app/id6780054560";
-
 function ownerName(program: any) {
     const user = program?.user;
     return user?.nickname || [user?.firstName, user?.lastName].filter(Boolean).join(" ") || "SmartProgress";
+}
+
+function splitLabel(program: any) {
+    return program?.data?.splitType || program?.data?.split || program?.splitType || "Program";
 }
 
 export default function PublicProgramPreviewScreen() {
@@ -62,12 +70,11 @@ export default function PublicProgramPreviewScreen() {
     }, [route.params.programId]);
 
     const openStore = () => {
-        const url = Platform.OS === "ios" ? APP_STORE_URL : PLAY_STORE_URL;
-        Linking.openURL(url).catch(() => undefined);
+        openStoreForCurrentPlatform().catch(() => undefined);
     };
 
     const openApp = () => {
-        Linking.openURL(`smartprogress://programs/${route.params.programId}`).catch(() => {
+        openProgramDeepLink(route.params.programId).catch(() => {
             if (Platform.OS === "web") {
                 setInstallPromptVisible(true);
                 return;
@@ -77,17 +84,23 @@ export default function PublicProgramPreviewScreen() {
     };
 
     React.useEffect(() => {
-        if (loading || error || !program || attemptedAutoOpenRef.current || Platform.OS !== "web") return;
+        if (
+            loading ||
+            error ||
+            !program ||
+            attemptedAutoOpenRef.current ||
+            Platform.OS !== "web" ||
+            !isMobileWebUserAgent()
+        ) return;
         attemptedAutoOpenRef.current = true;
         const timer = setTimeout(() => setInstallPromptVisible(true), 1200);
-        Linking.openURL(`smartprogress://programs/${route.params.programId}`).catch(() => {
-            setInstallPromptVisible(true);
-        });
+        openProgramDeepLink(route.params.programId).catch(() => setInstallPromptVisible(true));
         return () => clearTimeout(timer);
     }, [error, loading, program, route.params.programId]);
 
     const days = Array.isArray(program?.data?.days) ? program.data.days : [];
     const exerciseCount = Number(program?.data?.exerciseCount || 0);
+    const storeUrl = getStoreUrl();
 
     if (loading) {
         return (
@@ -113,13 +126,25 @@ export default function PublicProgramPreviewScreen() {
 
     return (
         <ScrollView style={styles.root} contentContainerStyle={styles.content}>
+            <View style={styles.installBanner}>
+                <View style={styles.installBannerText}>
+                    <Text style={styles.installTitle}>SmartProgress ile takip et</Text>
+                    <Text style={styles.installBody}>
+                        Programi kaydetmek, gunleri baslatmak ve loglamak icin uygulamada ac.
+                    </Text>
+                </View>
+                <TouchableOpacity style={styles.installBtn} onPress={openApp} activeOpacity={0.85}>
+                    <Text style={styles.installBtnText}>Ac</Text>
+                </TouchableOpacity>
+            </View>
+
             <View style={styles.brandRow}>
                 <View style={styles.brandIcon}>
                     <Ionicons name="barbell-outline" size={22} color={colors.accent} />
                 </View>
                 <View>
                     <Text style={styles.brand}>SmartProgress</Text>
-                    <Text style={styles.muted}>Public program onizleme</Text>
+                    <Text style={styles.mutedLeft}>Public program onizleme</Text>
                 </View>
             </View>
 
@@ -145,46 +170,19 @@ export default function PublicProgramPreviewScreen() {
                         <Text style={styles.statValue}>{program.starCount || 0}</Text>
                         <Text style={styles.statLabel}>yildiz</Text>
                     </View>
+                    <View style={styles.stat}>
+                        <Text style={styles.statValueSmall} numberOfLines={1}>{splitLabel(program)}</Text>
+                        <Text style={styles.statLabel}>split</Text>
+                    </View>
                 </View>
             </View>
 
             <View style={styles.noticeCard}>
                 <Ionicons name="lock-closed-outline" size={18} color={colors.accent} />
                 <Text style={styles.noticeText}>
-                    Gun detaylarini, hareketleri ve loglama akislarini uygulamada hesap olusturduktan sonra gorebilirsin.
+                    Uye olmayan kullanicilar program ozetini gorebilir. Gun detaylari, hareketleri kaydetme ve loglama akisi icin uygulamada devam et.
                 </Text>
             </View>
-
-            <Modal
-                visible={installPromptVisible}
-                transparent
-                animationType="fade"
-                onRequestClose={() => setInstallPromptVisible(false)}
-            >
-                <View style={styles.promptOverlay}>
-                    <View style={styles.promptCard}>
-                        <TouchableOpacity style={styles.promptClose} onPress={() => setInstallPromptVisible(false)} activeOpacity={0.8}>
-                            <Ionicons name="close" size={18} color={colors.textMuted} />
-                        </TouchableOpacity>
-                        <View style={styles.promptIcon}>
-                            <Ionicons name="phone-portrait-outline" size={22} color={colors.accent} />
-                        </View>
-                        <Text style={styles.promptTitle}>Programi uygulamada ac</Text>
-                        <Text style={styles.promptText}>
-                            SmartProgress yüklüyse program direkt uygulamada açılır. Yüklü değilse mağazadan kurup programı hesabına kaydedebilirsin.
-                        </Text>
-                        <TouchableOpacity style={styles.primaryBtn} onPress={openApp}>
-                            <Text style={styles.primaryText}>Uygulamada ac</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.secondaryBtn} onPress={openStore}>
-                            <Text style={styles.secondaryText}>Magazadan indir</Text>
-                        </TouchableOpacity>
-                        <TouchableOpacity style={styles.linkBtn} onPress={() => setInstallPromptVisible(false)}>
-                            <Text style={styles.linkText}>Webde devam et</Text>
-                        </TouchableOpacity>
-                    </View>
-                </View>
-            </Modal>
 
             {days.length > 0 && (
                 <View style={styles.section}>
@@ -194,7 +192,7 @@ export default function PublicProgramPreviewScreen() {
                             key={`${day.label}-${index}`}
                             style={styles.dayRow}
                             activeOpacity={0.8}
-                            onPress={() => navigation.navigate("Register")}
+                            onPress={() => setInstallPromptVisible(true)}
                         >
                             <View>
                                 <Text style={styles.dayTitle}>{day.label || `${index + 1}. gun`}</Text>
@@ -221,9 +219,45 @@ export default function PublicProgramPreviewScreen() {
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.linkBtn} onPress={Platform.OS === "web" ? openStore : openApp}>
                     <Ionicons name="phone-portrait-outline" size={16} color={colors.accent} />
-                    <Text style={styles.linkText}>Uygulamada ac</Text>
+                    <Text style={styles.linkText}>{Platform.OS === "web" ? "Magaza sayfasini ac" : "Uygulamada ac"}</Text>
                 </TouchableOpacity>
+                {Platform.OS === "web" && (
+                    <Text style={styles.storeHint} selectable>
+                        Android: {PLAY_STORE_URL}{"\n"}iOS: {APP_STORE_URL}{"\n"}Secili magaza: {storeUrl}
+                    </Text>
+                )}
             </View>
+
+            <Modal
+                visible={installPromptVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setInstallPromptVisible(false)}
+            >
+                <View style={styles.promptOverlay}>
+                    <View style={styles.promptCard}>
+                        <TouchableOpacity style={styles.promptClose} onPress={() => setInstallPromptVisible(false)} activeOpacity={0.8}>
+                            <Ionicons name="close" size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                        <View style={styles.promptIcon}>
+                            <Ionicons name="phone-portrait-outline" size={22} color={colors.accent} />
+                        </View>
+                        <Text style={styles.promptTitle}>Programi uygulamada ac</Text>
+                        <Text style={styles.promptText}>
+                            SmartProgress yukluyse program direkt uygulamada acilir. Yuklu degilse magazadan kurup programi hesabina kaydedebilirsin.
+                        </Text>
+                        <TouchableOpacity style={styles.primaryBtn} onPress={openApp}>
+                            <Text style={styles.primaryText}>Uygulamada ac</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.secondaryBtn} onPress={openStore}>
+                            <Text style={styles.secondaryText}>Magazadan indir</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.linkBtn} onPress={() => setInstallPromptVisible(false)}>
+                            <Text style={styles.linkText}>Webde devam et</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
         </ScrollView>
     );
 }
@@ -240,6 +274,30 @@ function createStyles(colors: any) {
             padding: spacing.xl,
             gap: spacing.md,
         },
+        installBanner: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.md,
+            backgroundColor: colors.accentMuted,
+            borderWidth: 1,
+            borderColor: colors.accentBorder,
+            borderRadius: borderRadius.lg,
+            padding: spacing.md,
+            marginBottom: spacing.lg,
+        },
+        installBannerText: { flex: 1 },
+        installTitle: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
+        installBody: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 19, marginTop: 2 },
+        installBtn: {
+            minWidth: 74,
+            height: 40,
+            borderRadius: borderRadius.md,
+            backgroundColor: colors.accent,
+            alignItems: "center",
+            justifyContent: "center",
+            paddingHorizontal: spacing.md,
+        },
+        installBtnText: { color: colors.background, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
         brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, marginBottom: spacing.lg },
         brandIcon: {
             width: 44,
@@ -264,6 +322,7 @@ function createStyles(colors: any) {
         title: { color: colors.text, fontSize: 28, fontWeight: fontWeight.bold, letterSpacing: 0 },
         body: { color: colors.textSecondary, fontSize: fontSize.md, lineHeight: 22 },
         muted: { color: colors.textMuted, fontSize: fontSize.sm, textAlign: "center" },
+        mutedLeft: { color: colors.textMuted, fontSize: fontSize.sm },
         statsRow: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, marginTop: spacing.md },
         stat: {
             flexGrow: 1,
@@ -275,6 +334,7 @@ function createStyles(colors: any) {
             padding: spacing.md,
         },
         statValue: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.bold },
+        statValueSmall: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.bold },
         statLabel: { color: colors.textMuted, fontSize: fontSize.xs, marginTop: 2 },
         noticeCard: {
             flexDirection: "row",
@@ -331,6 +391,7 @@ function createStyles(colors: any) {
         secondaryText: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
         linkBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, padding: spacing.sm },
         linkText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+        storeHint: { color: colors.textMuted, fontSize: fontSize.xs, lineHeight: 16, textAlign: "center" },
         promptOverlay: {
             flex: 1,
             backgroundColor: "rgba(0,0,0,0.45)",
@@ -370,15 +431,7 @@ function createStyles(colors: any) {
             borderWidth: 1,
             borderColor: colors.accentBorder,
         },
-        promptTitle: {
-            color: colors.text,
-            fontSize: fontSize.xl,
-            fontWeight: fontWeight.bold,
-        },
-        promptText: {
-            color: colors.textSecondary,
-            fontSize: fontSize.sm,
-            lineHeight: 20,
-        },
+        promptTitle: { color: colors.text, fontSize: fontSize.xl, fontWeight: fontWeight.bold },
+        promptText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 20 },
     });
 }

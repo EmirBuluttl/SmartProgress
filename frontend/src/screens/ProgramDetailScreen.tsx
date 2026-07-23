@@ -44,6 +44,7 @@ import { logPerf, markPerf } from "../utils/perfLogger";
 import { buildGuideSummary, normalizeProgramIntro, PROGRAM_GUIDE_SUMMARY_RULES } from "../utils/programGuide";
 import { COACH_PATTERN_LABELS, type CoachPatternKey } from "../services/coachRuleEngine";
 import { hasPendingOnboardingTraining } from "../utils/appTourEvents";
+import { buildProgramAppUrl, buildProgramShareUrl } from "../utils/programLinks";
 
 type Nav = NativeStackNavigationProp<RootStackParamList, "ProgramDetail">;
 type Route = RouteProp<RootStackParamList, "ProgramDetail">;
@@ -114,9 +115,6 @@ const COACH_PAIN_WARNING =
     "Agri bildirildi. Agirligi ciddi dusur, RPE 6 ustune cikma ve RIR 4-5 hedefle. Agri artarsa hareketi birak.";
 const COACH_INJURY_DISABLED_REASON =
     "Gecici sakatlik bildirildi. Bu bolgeyi calistiran hareketleri sakatlik gecene kadar loglama.";
-const PROGRAM_SHARE_BASE_URL = "https://app.smartprogress.online/programs";
-const PROGRAM_APP_LINK_BASE_URL = "smartprogress://programs";
-
 function unwrapProgramResponse(data: any, fallback?: ProgramData | null): ProgramData {
     return (data?.program || data || fallback) as ProgramData;
 }
@@ -252,7 +250,15 @@ export default function ProgramDetailScreen() {
                 setWorkoutCount(cachedWorkouts.filter((w: any) => w.data?.programId === programId).length);
             }
 
-            const progRes = await getCachedProgramById(programId);
+            let progRes: any;
+            try {
+                progRes = await getCachedProgramById(programId);
+            } catch (privateErr) {
+                progRes = await programApi.getPublicPreview(programId).then((res) => ({
+                    ...res.data,
+                    isMine: false,
+                }));
+            }
             setProgram(progRes as ProgramData);
             setLoading(false);
 
@@ -518,8 +524,8 @@ export default function ProgramDetailScreen() {
             setNotice({ title: "Paylasilamadi", message: "Program linki icin program kimligi bulunamadi." });
             return;
         }
-        const shareUrl = `${PROGRAM_SHARE_BASE_URL}/${shareId}`;
-        const appUrl = `${PROGRAM_APP_LINK_BASE_URL}/${shareId}`;
+        const shareUrl = buildProgramShareUrl(shareId);
+        const appUrl = buildProgramAppUrl(shareId);
         const title = programToShare.name || "SmartProgress programi";
         const message = Platform.OS === "web"
             ? `${title}\n${shareUrl}`
