@@ -48,6 +48,20 @@ export class ProgramRepository {
         });
     }
 
+    async findPublicPreviewCandidate(id: string) {
+        return prisma.program.findFirst({
+            where: {
+                isPublic: true,
+                OR: [
+                    { id },
+                    { sourceProgramId: id },
+                ],
+            },
+            include: socialInclude(),
+            orderBy: { updatedAt: "desc" },
+        });
+    }
+
     async findLibraryCopiesBySource(sourceProgramId: string) {
         return prisma.program.findMany({
             where: {

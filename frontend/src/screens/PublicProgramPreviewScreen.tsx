@@ -141,7 +141,9 @@ export default function PublicProgramPreviewScreen() {
             <View style={styles.center}>
                 <Ionicons name="alert-circle-outline" size={34} color={colors.error} />
                 <Text style={styles.title}>Program acilamadi</Text>
-                <Text style={styles.muted}>{error || "Bu program private olabilir veya kaldirilmis olabilir."}</Text>
+                <Text style={styles.muted}>
+                    {error || "Bu program public yapilmamis, kaldirilmis veya paylasim linki gecersiz olabilir."}
+                </Text>
                 <TouchableOpacity style={styles.primaryBtn} onPress={openStore}>
                     <Text style={styles.primaryText}>Uygulamayi indir</Text>
                 </TouchableOpacity>

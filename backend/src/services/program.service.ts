@@ -155,8 +155,8 @@ export class ProgramService {
     }
 
     async getPublicProgramPreview(programId: string) {
-        const program = await programRepository.findByIdWithSocial(programId);
-        if (!program || !program.isPublic) {
+        const program = await programRepository.findPublicPreviewCandidate(programId);
+        if (!program) {
             throw new NotFoundError("Program not found");
         }
 
