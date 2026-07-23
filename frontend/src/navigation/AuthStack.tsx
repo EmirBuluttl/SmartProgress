@@ -20,7 +20,7 @@ export type AuthStackParamList = {
     Support: undefined;
     AccountDeletion: undefined;
     TermsOfService: undefined;
-    ProgramDetail: { programId: string };
+    PublicProgramPreview: { programId: string };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -69,7 +69,7 @@ export default function AuthStack() {
                 options={{ animation: "slide_from_right" }}
             />
             <Stack.Screen
-                name="ProgramDetail"
+                name="PublicProgramPreview"
                 component={PublicProgramPreviewScreen}
                 options={{ animation: "slide_from_right" }}
             />

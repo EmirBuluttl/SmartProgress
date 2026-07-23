@@ -16,6 +16,8 @@ import { spacing, fontSize, fontWeight, borderRadius } from "../constants/theme"
 import { useTheme } from "../hooks/ThemeContext";
 import { parseApiError, programApi } from "../services/api";
 import type { AuthStackParamList } from "../navigation/AuthStack";
+import type { RootStackParamList } from "../navigation/RootNavigator";
+import { useAuth } from "../store/AuthContext";
 import {
     APP_STORE_URL,
     PLAY_STORE_URL,
@@ -25,8 +27,8 @@ import {
     openStoreForCurrentPlatform,
 } from "../utils/programLinks";
 
-type Route = RouteProp<AuthStackParamList, "ProgramDetail">;
-type Nav = NativeStackNavigationProp<AuthStackParamList>;
+type Route = RouteProp<AuthStackParamList & RootStackParamList, "PublicProgramPreview">;
+type Nav = NativeStackNavigationProp<any>;
 
 function ownerName(program: any) {
     const user = program?.user;
@@ -40,6 +42,7 @@ function splitLabel(program: any) {
 export default function PublicProgramPreviewScreen() {
     const route = useRoute<Route>();
     const navigation = useNavigation<Nav>();
+    const { isAuthenticated } = useAuth();
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [program, setProgram] = React.useState<any | null>(null);
@@ -83,19 +86,41 @@ export default function PublicProgramPreviewScreen() {
         });
     };
 
+    const openProgramAction = () => {
+        if (isAuthenticated) {
+            navigation.navigate("ProgramDetail", { programId: route.params.programId });
+            return;
+        }
+        navigation.navigate("Register");
+    };
+
+    const openExistingAccountAction = () => {
+        if (isAuthenticated) {
+            navigation.navigate("ProgramDetail", { programId: route.params.programId });
+            return;
+        }
+        navigation.navigate("Login");
+    };
+
     React.useEffect(() => {
         if (
             loading ||
             error ||
             !program ||
             attemptedAutoOpenRef.current ||
-            Platform.OS !== "web" ||
-            !isMobileWebUserAgent()
+            Platform.OS !== "web"
         ) return;
         attemptedAutoOpenRef.current = true;
-        const timer = setTimeout(() => setInstallPromptVisible(true), 1200);
-        openProgramDeepLink(route.params.programId).catch(() => setInstallPromptVisible(true));
-        return () => clearTimeout(timer);
+        const promptTimer = setTimeout(() => setInstallPromptVisible(true), 4200);
+        const appTimer = isMobileWebUserAgent()
+            ? setTimeout(() => {
+                openProgramDeepLink(route.params.programId).catch(() => undefined);
+            }, 800)
+            : undefined;
+        return () => {
+            clearTimeout(promptTimer);
+            if (appTimer) clearTimeout(appTimer);
+        };
     }, [error, loading, program, route.params.programId]);
 
     const days = Array.isArray(program?.data?.days) ? program.data.days : [];
@@ -117,8 +142,11 @@ export default function PublicProgramPreviewScreen() {
                 <Ionicons name="alert-circle-outline" size={34} color={colors.error} />
                 <Text style={styles.title}>Program acilamadi</Text>
                 <Text style={styles.muted}>{error || "Bu program private olabilir veya kaldirilmis olabilir."}</Text>
-                <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate("Login")}>
-                    <Text style={styles.primaryText}>Giris yap</Text>
+                <TouchableOpacity style={styles.primaryBtn} onPress={openStore}>
+                    <Text style={styles.primaryText}>Uygulamayi indir</Text>
+                </TouchableOpacity>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={openExistingAccountAction}>
+                    <Text style={styles.secondaryText}>{isAuthenticated ? "Program detayina git" : "Hesabimla giris yap"}</Text>
                 </TouchableOpacity>
             </View>
         );
@@ -192,7 +220,13 @@ export default function PublicProgramPreviewScreen() {
                             key={`${day.label}-${index}`}
                             style={styles.dayRow}
                             activeOpacity={0.8}
-                            onPress={() => setInstallPromptVisible(true)}
+                            onPress={() => {
+                                if (isAuthenticated) {
+                                    navigation.navigate("ProgramDetail", { programId: route.params.programId });
+                                    return;
+                                }
+                                setInstallPromptVisible(true);
+                            }}
                         >
                             <View>
                                 <Text style={styles.dayTitle}>{day.label || `${index + 1}. gun`}</Text>
@@ -211,11 +245,11 @@ export default function PublicProgramPreviewScreen() {
                 <Text style={styles.body}>
                     Kaydedip takip etmek, gunleri baslatmak ve loglamak icin SmartProgress hesabi ile devam et.
                 </Text>
-                <TouchableOpacity style={styles.primaryBtn} onPress={() => navigation.navigate("Register")}>
-                    <Text style={styles.primaryText}>Ucretsiz hesap olustur</Text>
+                <TouchableOpacity style={styles.primaryBtn} onPress={openProgramAction}>
+                    <Text style={styles.primaryText}>{isAuthenticated ? "Program detayini ac" : "Ucretsiz hesap olustur"}</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={styles.secondaryBtn} onPress={() => navigation.navigate("Login")}>
-                    <Text style={styles.secondaryText}>Zaten hesabim var</Text>
+                <TouchableOpacity style={styles.secondaryBtn} onPress={openExistingAccountAction}>
+                    <Text style={styles.secondaryText}>{isAuthenticated ? "Uygulamada devam et" : "Zaten hesabim var"}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity style={styles.linkBtn} onPress={Platform.OS === "web" ? openStore : openApp}>
                     <Ionicons name="phone-portrait-outline" size={16} color={colors.accent} />
