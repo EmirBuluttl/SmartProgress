@@ -48,8 +48,8 @@ const FIRST_MEASURE_DELAY_MS = 240;
 const SECOND_MEASURE_DELAY_MS = 520;
 const FINAL_MEASURE_DELAY_MS = 820;
 const MEASURE_GIVE_UP_MS = 1120;
-const TARGET_VISIBLE_OPACITY = 0.72;
-const TARGET_REVEAL_MS = 220;
+const TARGET_VISIBLE_OPACITY = 0.62;
+const TARGET_REVEAL_MS = 180;
 const MIN_TARGET_SIZE = 28;
 const MAX_TARGET_HEIGHT = 260;
 const MAX_TARGET_WIDTH_RATIO = 0.94;
@@ -105,7 +105,7 @@ export default function AppTourOverlay({
                 useNativeDriver: true,
             }),
         ]).start();
-    }, [opacity, railY, targetOpacity, targetScale, visible, current]);
+    }, [opacity, railY, targetOpacity, targetScale, visible]);
 
     React.useEffect(() => {
         if (!visible || !step?.targetId) {
@@ -163,6 +163,7 @@ export default function AppTourOverlay({
             Math.abs(a.width - b.width) < 8 &&
             Math.abs(a.height - b.height) < 8;
         const revealRect = (rect: TargetRect) => {
+            if (!isCurrentRequest()) return;
             measured = true;
             setTargetPending(false);
             setTargetRect(rect);
@@ -250,14 +251,19 @@ export default function AppTourOverlay({
     }, [getTarget, insets.bottom, insets.top, screenHeight, screenWidth, step?.targetId, targetRect, targetRectId]);
 
     if (!visible || !step) return null;
+    const targetReady = Boolean(paddedRect) && !targetPending;
+    const handleLayerNext = () => {
+        if (!targetReady) return;
+        onNext();
+    };
 
     return (
         <Animated.View pointerEvents="box-none" style={[styles.layer, { opacity }]}>
             <Pressable
-                pointerEvents={targetPending || !paddedRect ? "none" : "auto"}
+                pointerEvents={targetReady ? "auto" : "none"}
                 accessibilityRole="button"
                 accessibilityLabel="Uygulama turunda sonraki adima gec"
-                onPress={onNext}
+                onPress={handleLayerNext}
                 style={StyleSheet.absoluteFill}
             />
 
@@ -321,7 +327,12 @@ export default function AppTourOverlay({
                                 <Text style={styles.secondaryText}>Geri</Text>
                             </TouchableOpacity>
                         ) : null}
-                        <TouchableOpacity style={styles.primaryBtn} onPress={onNext} activeOpacity={0.84}>
+                        <TouchableOpacity
+                            style={[styles.primaryBtn, targetPending && styles.primaryBtnDisabled]}
+                            onPress={targetPending ? undefined : onNext}
+                            activeOpacity={0.84}
+                            disabled={targetPending}
+                        >
                             <Text style={styles.primaryText}>{current === total - 1 ? "Turu tamamla" : "Sonraki"}</Text>
                             <Ionicons name={current === total - 1 ? "checkmark" : "arrow-forward"} size={16} color={colors.background} />
                         </TouchableOpacity>
@@ -457,6 +468,9 @@ const createStyles = (colors: any) => StyleSheet.create({
         flexDirection: "row",
         gap: spacing.xs,
         paddingHorizontal: spacing.md,
+    },
+    primaryBtnDisabled: {
+        opacity: 0.56,
     },
     primaryText: {
         color: colors.background,

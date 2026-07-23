@@ -830,6 +830,15 @@ export default function HomeScreen() {
                 </GymCard>
                 </Animated.View>
             )}
+            {!favoriteProgram && programs.length === 0 && (
+                <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
+                <GymCard style={styles.todayCard}>
+                    <Text style={styles.todayHint}>
+                        Programını oluşturduktan sonra sıradaki antrenman ve aktif gün bilgisi burada görünecek.
+                    </Text>
+                </GymCard>
+                </Animated.View>
+            )}
 
             {/* ─── Recent Workouts ─── */}
             </View>
@@ -897,11 +906,13 @@ export default function HomeScreen() {
             )}
 
             {/* ─── My Programs ─── */}
-            <SectionHeader
-                title="Programlarım"
-                actionLabel={programs.length > 3 ? "Tümü" : "Yeni Oluştur"}
-                onAction={() => programs.length > 3 ? navigateStatic("ProgramList") : navigateStatic("ProgramCreate", "modal")}
-            />
+            <View ref={programsTourRef} collapsable={false} onLayout={rememberTourOffset("home.programs")}>
+                <SectionHeader
+                    title="Programlarım"
+                    actionLabel={programs.length > 3 ? "Tümü" : "Yeni Oluştur"}
+                    onAction={() => programs.length > 3 ? navigateStatic("ProgramList") : navigateStatic("ProgramCreate", "modal")}
+                />
+            </View>
             </View>
 
             <View>
@@ -923,9 +934,6 @@ export default function HomeScreen() {
                     return (
                         <Animated.View
                             key={prog.id}
-                            ref={index === 0 ? programsTourRef : undefined}
-                            collapsable={index === 0 ? false : undefined}
-                            onLayout={index === 0 ? rememberTourOffset("home.programs") : undefined}
                             style={programActivationStyle(prog.id)}
                         >
                         <AnimatedPressable
@@ -970,11 +978,13 @@ export default function HomeScreen() {
                 <Text style={styles.emptyStateText}>Henüz bir program oluşturmadınız.</Text>
             )}
 
-            <SectionHeader
-                title="Topluluk Programları"
-                actionLabel="Keşfet"
-                onAction={() => navigateStatic("CommunityPrograms")}
-            />
+            <View ref={communityTourRef} collapsable={false} onLayout={rememberTourOffset("home.community")}>
+                <SectionHeader
+                    title="Topluluk Programları"
+                    actionLabel="Keşfet"
+                    onAction={() => navigateStatic("CommunityPrograms")}
+                />
+            </View>
             </View>
 
             <View>
@@ -996,9 +1006,6 @@ export default function HomeScreen() {
                     return (
                         <View
                             key={prog.id}
-                            ref={index === 0 ? communityTourRef : undefined}
-                            collapsable={index === 0 ? false : undefined}
-                            onLayout={index === 0 ? rememberTourOffset("home.community") : undefined}
                         >
                         <AnimatedPressable
                             pressedScale={0.985}

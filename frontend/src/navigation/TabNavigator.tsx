@@ -499,10 +499,7 @@ function TabNavigatorInner({ route }: any) {
         const step = currentTourSteps[tourStepIndex];
         if (!step) return;
         switchToTab(step.tabIndex, true, 460);
-        const refreshTimers = [520, 900].map((delay) =>
-            setTimeout(() => setTourTargetVersion((value) => value + 1), delay),
-        );
-        return () => refreshTimers.forEach(clearTimeout);
+        setTourTargetVersion((value) => value + 1);
     }, [tourVisible, tourStepIndex, screenWidth]);
 
     return (

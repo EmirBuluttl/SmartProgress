@@ -44,7 +44,7 @@ import TrainingCompleteScreen from "../screens/TrainingCompleteScreen";
 import OnboardingNavigator from "../screens/onboarding/OnboardingNavigator";
 import OnboardingCompleteScreen from "../screens/onboarding/OnboardingCompleteScreen";
 import type { OnboardingData } from "../screens/onboarding/OnboardingContext";
-import { markPostOnboardingFlowPending } from "../utils/appTourEvents";
+import { markPostOnboardingFlowPending, requestAppTourReplay } from "../utils/appTourEvents";
 
 type NavigationTargetSet = {
     targetReps: string;
@@ -208,7 +208,12 @@ function AppNavigator() {
         return (
             <OnboardingCompleteScreen
                 firstName={user?.firstName || "Sporcu"}
-                onContinue={() => setShowOnboardingComplete(false)}
+                onContinue={() => {
+                    setShowOnboardingComplete(false);
+                    setTimeout(() => {
+                        requestAppTourReplay().catch(() => undefined);
+                    }, 520);
+                }}
             />
         );
     }
