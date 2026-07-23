@@ -70,30 +70,31 @@ export default function WorkoutSummaryScreen() {
         sparkleAnim.setValue(0);
         statAnims.forEach((anim) => anim.setValue(0));
 
-        Animated.sequence([
-            Animated.parallel([
-                Animated.timing(entryAnim, {
+        Animated.parallel([
+            Animated.spring(entryAnim, {
+                toValue: 1,
+                tension: 76,
+                friction: 8,
+                useNativeDriver: true,
+            }),
+            Animated.sequence([
+                Animated.delay(160),
+                Animated.timing(sparkleAnim, {
                     toValue: 1,
-                    duration: 620,
-                    easing: (value) => {
-                        const c1 = 1.70158;
-                        const c3 = c1 + 1;
-                        return 1 + c3 * Math.pow(value - 1, 3) + c1 * Math.pow(value - 1, 2);
-                    },
+                    duration: 680,
                     useNativeDriver: true,
                 }),
             ]),
-            Animated.timing(sparkleAnim, {
-                toValue: 1,
-                duration: 680,
-                useNativeDriver: true,
-            }),
-            Animated.parallel([
+            Animated.sequence([
+                Animated.delay(240),
                 Animated.timing(fadeAnim, {
                     toValue: 1,
                     duration: 360,
                     useNativeDriver: true,
                 }),
+            ]),
+            Animated.sequence([
+                Animated.delay(340),
                 Animated.stagger(
                     70,
                     statAnims.map((anim) =>
@@ -495,8 +496,6 @@ const createStyles = (colors: any) => StyleSheet.create({
         height: 126,
         borderRadius: 63,
         backgroundColor: colors.accentMuted,
-        borderWidth: 1,
-        borderColor: colors.accent,
     },
     sparkleLayer: {
         ...StyleSheet.absoluteFillObject,
@@ -511,15 +510,15 @@ const createStyles = (colors: any) => StyleSheet.create({
         width: 100,
         height: 100,
         borderRadius: 50,
-        backgroundColor: colors.accentMuted,
+        backgroundColor: colors.surface,
         alignItems: "center",
         justifyContent: "center",
-        borderWidth: 3,
+        borderWidth: 2,
         borderColor: colors.accent,
         shadowColor: colors.accent,
         shadowOffset: { width: 0, height: 0 },
-        shadowOpacity: 0.5,
-        shadowRadius: 20,
+        shadowOpacity: 0.28,
+        shadowRadius: 18,
         elevation: 10,
         zIndex: 1,
     },
