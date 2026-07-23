@@ -72,5 +72,8 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Backend API smoke
+        run: npm run test:api-smoke
+
       - name: Coach signal smoke
         run: npm run test:coach-signals

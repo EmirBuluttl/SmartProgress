@@ -11,7 +11,8 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:studio": "prisma studio",
     "lint": "eslint src --ext .ts",
-    "test:coach-signals": "node scripts/coach-signal-engine-smoke.mjs"
+    "test:coach-signals": "node scripts/coach-signal-engine-smoke.mjs",
+    "test:api-smoke": "node --test scripts/backend-api-smoke.mjs"
   },
   "dependencies": {
     "@prisma/client": "^6.4.0",
