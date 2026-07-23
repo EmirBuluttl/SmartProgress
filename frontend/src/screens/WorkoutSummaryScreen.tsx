@@ -55,6 +55,7 @@ export default function WorkoutSummaryScreen() {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [notesVisible, setNotesVisible] = useState(false);
     const [savingProgram, setSavingProgram] = useState(false);
+    const [savedProgramId, setSavedProgramId] = useState<string | null>(null);
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
     const trimmedNotes = notes?.trim();
     const canSaveAsProgram = !programName && Array.isArray(sourceWorkout?.exercises) && sourceWorkout.exercises.length > 0;
@@ -153,6 +154,10 @@ export default function WorkoutSummaryScreen() {
 
     const saveFreeWorkoutAsProgram = async () => {
         if (!canSaveAsProgram || savingProgram) return;
+        if (savedProgramId) {
+            navigation.navigate("ProgramDetail", { programId: savedProgramId });
+            return;
+        }
         setSavingProgram(true);
         try {
             const exercises = (sourceWorkout.exercises || [])
@@ -190,6 +195,7 @@ export default function WorkoutSummaryScreen() {
                 },
             });
             const created = res.data?.program || res.data;
+            if (created?.id) setSavedProgramId(created.id);
             setNotice({
                 title: "Program kaydedildi",
                 message: "Bu antrenman private program olarak kutuphanene eklendi.",
@@ -427,9 +433,9 @@ export default function WorkoutSummaryScreen() {
                             disabled={savingProgram}
                             pressedScale={0.985}
                         >
-                            <View style={[styles.saveProgramBtn, savingProgram && { opacity: 0.65 }]}>
+                            <View style={[styles.saveProgramBtn, savingProgram && { opacity: 0.65 }, savedProgramId && styles.saveProgramBtnDone]}>
                                 <Text style={styles.saveProgramBtnText}>
-                                    {savingProgram ? "Kaydediliyor..." : "Program olarak kaydet"}
+                                    {savingProgram ? "Kaydediliyor..." : savedProgramId ? "Programa git" : "Program olarak kaydet"}
                                 </Text>
                             </View>
                         </AnimatedPressable>
@@ -673,6 +679,10 @@ const createStyles = (colors: any) => StyleSheet.create({
         borderColor: colors.accentBorder,
         alignItems: "center",
         justifyContent: "center",
+    },
+    saveProgramBtnDone: {
+        backgroundColor: colors.surfaceElevated,
+        borderColor: colors.border,
     },
     saveProgramBtnText: {
         color: colors.accent,
