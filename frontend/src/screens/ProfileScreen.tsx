@@ -37,7 +37,6 @@ import NoticeModal from "../components/NoticeModal";
 import { requestAppTourReplay, requestDetailedAppTourReplay } from "../utils/appTourEvents";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import ActionConfirmModal from "../components/ActionConfirmModal";
-import { confirmDialog } from "../utils/confirm";
 import { calculateWorkoutLoadScore } from "../utils/workoutMetrics";
 import { calculateWorkoutStreak } from "../utils/streak";
 import { useScreenEnter } from "../hooks/useScreenEnter";
@@ -131,6 +130,7 @@ export default function ProfileScreen() {
     const [reminderDraft, setReminderDraft] = useState("");
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
     const [photoSourceVisible, setPhotoSourceVisible] = useState(false);
+    const [logoutConfirmVisible, setLogoutConfirmVisible] = useState(false);
     const [deleteAccountPending, setDeleteAccountPending] = useState(false);
 
     const { data: programs = [] } = useMyProgramsQuery();
@@ -309,11 +309,7 @@ export default function ProfileScreen() {
     );
 
     const handleLogout = async () => {
-        const confirmed = await confirmDialog(
-            "Çıkış Yap",
-            "Hesabınızdan çıkmak istediğinize emin misiniz?",
-        );
-        if (!confirmed) return;
+        setLogoutConfirmVisible(false);
         await logout();
     };
 
@@ -955,7 +951,7 @@ export default function ProfileScreen() {
             <AccentButton
                 title="Çıkış Yap"
                 variant="outline"
-                onPress={handleLogout}
+                onPress={() => setLogoutConfirmVisible(true)}
                 style={styles.logoutBtn}
             />
 
@@ -1091,6 +1087,16 @@ export default function ProfileScreen() {
             title={notice?.title || ""}
             message={notice?.message || ""}
             onClose={() => setNotice(null)}
+        />
+        <ActionConfirmModal
+            visible={logoutConfirmVisible}
+            title="Çıkış yap?"
+            message="Hesabından çıkmak istediğine emin misin? Tekrar giriş yaparak devam edebilirsin."
+            primaryLabel="Çıkış yap"
+            secondaryLabel="Vazgeç"
+            onPrimary={handleLogout}
+            onSecondary={() => setLogoutConfirmVisible(false)}
+            onDismiss={() => setLogoutConfirmVisible(false)}
         />
         <ActionConfirmModal
             visible={deleteAccountPending}
