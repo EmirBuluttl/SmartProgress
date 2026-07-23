@@ -13,7 +13,7 @@ import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme"
 import { ACTIVE_PROGRAM_KEY } from "../utils/workoutNavigation";
 import NoticeModal from "../components/NoticeModal";
 import { reschedulePreWorkoutRemindersForProgram } from "../services/localNotificationService";
-import { KeyboardAwareScrollView } from "../components/KeyboardSafeScreen";
+import { KeyboardAwareScrollView, KeyboardSafeView } from "../components/KeyboardSafeScreen";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { clearOnboardingTrainingPending } from "../utils/appTourEvents";
 
@@ -118,7 +118,8 @@ export default function PreWorkoutRemindersScreen() {
     }, [navigation]);
 
     return (
-        <Animated.View style={[styles.container, { paddingTop: insets.top + spacing.lg }, animStyle]}>
+        <KeyboardSafeView style={styles.container} keyboardVerticalOffset={0}>
+            <Animated.View style={[styles.screen, { paddingTop: insets.top + spacing.lg }, animStyle]}>
             <View style={styles.header}>
                 <TouchableOpacity onPress={() => navigation.goBack()} style={styles.iconBtn}>
                     <Ionicons name="chevron-back" size={24} color={colors.text} />
@@ -137,7 +138,7 @@ export default function PreWorkoutRemindersScreen() {
                     <Text style={styles.emptyText}>Gun bazli hatirlatici kurmak icin once bir programi aktif takip et.</Text>
                 </View>
             ) : (
-                <KeyboardAwareScrollView contentContainerStyle={styles.content} extraBottomPadding={150}>
+                <KeyboardAwareScrollView style={styles.scroll} contentContainerStyle={styles.content} extraBottomPadding={insets.bottom + 190}>
                     {isTrainingMode ? (
                         <View style={styles.trainingCard}>
                             <View style={styles.trainingHeader}>
@@ -197,12 +198,15 @@ export default function PreWorkoutRemindersScreen() {
                 message={notice?.message || ""}
                 onClose={() => setNotice(null)}
             />
-        </Animated.View>
+            </Animated.View>
+        </KeyboardSafeView>
     );
 }
 
 const createStyles = (colors: ReturnType<typeof import("../hooks/ThemeContext").generateColors>) => StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
+    screen: { flex: 1, backgroundColor: colors.background },
+    scroll: { flex: 1 },
     header: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, marginBottom: spacing.lg },
     iconBtn: { width: 40, height: 40, alignItems: "center", justifyContent: "center", borderRadius: borderRadius.md, backgroundColor: colors.surface },
     headerTitle: { flex: 1, color: colors.text, fontSize: fontSize.lg, fontWeight: fontWeight.bold },
