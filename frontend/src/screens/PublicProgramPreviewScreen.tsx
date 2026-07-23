@@ -2,6 +2,7 @@ import React from "react";
 import {
     ActivityIndicator,
     Linking,
+    Modal,
     Platform,
     ScrollView,
     StyleSheet,
@@ -36,6 +37,8 @@ export default function PublicProgramPreviewScreen() {
     const [program, setProgram] = React.useState<any | null>(null);
     const [loading, setLoading] = React.useState(true);
     const [error, setError] = React.useState<string | null>(null);
+    const [installPromptVisible, setInstallPromptVisible] = React.useState(false);
+    const attemptedAutoOpenRef = React.useRef(false);
 
     React.useEffect(() => {
         let mounted = true;
@@ -64,8 +67,24 @@ export default function PublicProgramPreviewScreen() {
     };
 
     const openApp = () => {
-        Linking.openURL(`smartprogress://programs/${route.params.programId}`).catch(openStore);
+        Linking.openURL(`smartprogress://programs/${route.params.programId}`).catch(() => {
+            if (Platform.OS === "web") {
+                setInstallPromptVisible(true);
+                return;
+            }
+            openStore();
+        });
     };
+
+    React.useEffect(() => {
+        if (loading || error || !program || attemptedAutoOpenRef.current || Platform.OS !== "web") return;
+        attemptedAutoOpenRef.current = true;
+        const timer = setTimeout(() => setInstallPromptVisible(true), 1200);
+        Linking.openURL(`smartprogress://programs/${route.params.programId}`).catch(() => {
+            setInstallPromptVisible(true);
+        });
+        return () => clearTimeout(timer);
+    }, [error, loading, program, route.params.programId]);
 
     const days = Array.isArray(program?.data?.days) ? program.data.days : [];
     const exerciseCount = Number(program?.data?.exerciseCount || 0);
@@ -135,6 +154,37 @@ export default function PublicProgramPreviewScreen() {
                     Gun detaylarini, hareketleri ve loglama akislarini uygulamada hesap olusturduktan sonra gorebilirsin.
                 </Text>
             </View>
+
+            <Modal
+                visible={installPromptVisible}
+                transparent
+                animationType="fade"
+                onRequestClose={() => setInstallPromptVisible(false)}
+            >
+                <View style={styles.promptOverlay}>
+                    <View style={styles.promptCard}>
+                        <TouchableOpacity style={styles.promptClose} onPress={() => setInstallPromptVisible(false)} activeOpacity={0.8}>
+                            <Ionicons name="close" size={18} color={colors.textMuted} />
+                        </TouchableOpacity>
+                        <View style={styles.promptIcon}>
+                            <Ionicons name="phone-portrait-outline" size={22} color={colors.accent} />
+                        </View>
+                        <Text style={styles.promptTitle}>Programi uygulamada ac</Text>
+                        <Text style={styles.promptText}>
+                            SmartProgress yüklüyse program direkt uygulamada açılır. Yüklü değilse mağazadan kurup programı hesabına kaydedebilirsin.
+                        </Text>
+                        <TouchableOpacity style={styles.primaryBtn} onPress={openApp}>
+                            <Text style={styles.primaryText}>Uygulamada ac</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.secondaryBtn} onPress={openStore}>
+                            <Text style={styles.secondaryText}>Magazadan indir</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity style={styles.linkBtn} onPress={() => setInstallPromptVisible(false)}>
+                            <Text style={styles.linkText}>Webde devam et</Text>
+                        </TouchableOpacity>
+                    </View>
+                </View>
+            </Modal>
 
             {days.length > 0 && (
                 <View style={styles.section}>
@@ -281,5 +331,54 @@ function createStyles(colors: any) {
         secondaryText: { color: colors.text, fontSize: fontSize.md, fontWeight: fontWeight.semibold },
         linkBtn: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: spacing.xs, padding: spacing.sm },
         linkText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
+        promptOverlay: {
+            flex: 1,
+            backgroundColor: "rgba(0,0,0,0.45)",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: spacing.lg,
+        },
+        promptCard: {
+            width: "100%",
+            maxWidth: 420,
+            borderRadius: borderRadius.lg,
+            borderWidth: 1,
+            borderColor: colors.border,
+            backgroundColor: colors.surface,
+            padding: spacing.lg,
+            gap: spacing.sm,
+        },
+        promptClose: {
+            position: "absolute",
+            top: spacing.sm,
+            right: spacing.sm,
+            width: 32,
+            height: 32,
+            borderRadius: 16,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: colors.background,
+            zIndex: 2,
+        },
+        promptIcon: {
+            width: 48,
+            height: 48,
+            borderRadius: 24,
+            alignItems: "center",
+            justifyContent: "center",
+            backgroundColor: colors.accentMuted,
+            borderWidth: 1,
+            borderColor: colors.accentBorder,
+        },
+        promptTitle: {
+            color: colors.text,
+            fontSize: fontSize.xl,
+            fontWeight: fontWeight.bold,
+        },
+        promptText: {
+            color: colors.textSecondary,
+            fontSize: fontSize.sm,
+            lineHeight: 20,
+        },
     });
 }
