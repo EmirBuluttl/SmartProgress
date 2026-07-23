@@ -30,7 +30,7 @@
       }
     },
     "android": {
-      "versionCode": 43,
+      "versionCode": 44,
       "softwareKeyboardLayoutMode": "resize",
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
