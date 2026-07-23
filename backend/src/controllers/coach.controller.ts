@@ -13,6 +13,7 @@ const askCoachSchema = z.object({
 
 const recommendationDecisionSchema = z.object({
     decision: z.enum(["accepted", "rejected", "follow"]),
+    programPatch: z.any().optional(),
 });
 
 function formatBestSet(set?: any) {
@@ -161,7 +162,7 @@ export class CoachController {
             const userId = req.user!.userId;
             const insightId = String(req.params.insightId || "");
             const parsed = recommendationDecisionSchema.parse(req.body);
-            const insight = await coachInsightService.updateRecommendationDecision(userId, insightId, parsed.decision);
+            const insight = await coachInsightService.updateRecommendationDecision(userId, insightId, parsed.decision, parsed.programPatch);
             if (!insight) {
                 res.status(404).json({ error: "Coach insight not found" });
                 return;

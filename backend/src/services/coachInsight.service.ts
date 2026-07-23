@@ -113,17 +113,25 @@ export class CoachInsightService {
         });
     }
 
-    async updateRecommendationDecision(userId: string, insightId: string, decision: CoachRecommendationDecision) {
+    async updateRecommendationDecision(
+        userId: string,
+        insightId: string,
+        decision: CoachRecommendationDecision,
+        programPatch?: Prisma.InputJsonValue | null,
+    ) {
         const insight = await prisma.coachInsight.findFirst({
             where: { id: insightId, userId },
         });
         if (!insight) return null;
 
-        const metadata = isRecord(insight.metadata) ? { ...insight.metadata } : {};
+        const metadata: Record<string, unknown> = isRecord(insight.metadata) ? { ...insight.metadata } : {};
         metadata.recommendationDecision = {
             decision,
             decidedAt: new Date().toISOString(),
         };
+        if (programPatch !== undefined) {
+            metadata.programPatch = programPatch;
+        }
 
         return prisma.coachInsight.update({
             where: { id: insight.id },

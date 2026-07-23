@@ -4,8 +4,11 @@ import { Ionicons } from "@expo/vector-icons";
 import { useNavigation } from "@react-navigation/native";
 import { borderRadius, fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
-import { coachApi } from "../services/api";
+import ActionConfirmModal from "../components/ActionConfirmModal";
+import NoticeModal from "../components/NoticeModal";
+import { coachApi, parseApiError, programApi } from "../services/api";
 import { useScreenEnter } from "../hooks/useScreenEnter";
+import { getActiveProgramId } from "../utils/workoutNavigation";
 
 const PROGRESS_GREEN = "#22C55E";
 
@@ -50,6 +53,7 @@ const FILTERS = [
 
 type InsightFilter = typeof FILTERS[number]["key"];
 type RecommendationDecision = "accepted" | "rejected" | "follow";
+type RecommendationType = "relax_rir" | "reduce_volume" | "increase_weight" | "increase_volume";
 
 const DECISION_LABELS: Record<RecommendationDecision, { label: string; icon: keyof typeof Ionicons.glyphMap }> = {
     accepted: { label: "Uygulanacak", icon: "checkmark-circle-outline" },
@@ -71,6 +75,134 @@ function matchesFilter(insight: any, filter: InsightFilter) {
     return true;
 }
 
+function normalizeExerciseName(value: unknown) {
+    return String(value || "").trim().toLocaleLowerCase("tr-TR");
+}
+
+function cloneData<T>(value: T): T {
+    return JSON.parse(JSON.stringify(value || {}));
+}
+
+function shiftRange(value: unknown, delta: number) {
+    const text = String(value || "").trim();
+    if (!text) return text;
+    const numbers = text.match(/\d+(?:[.,]\d+)?/g);
+    if (!numbers?.length) return text;
+    const shifted = numbers.map((part) => {
+        const next = Math.max(0, Number(part.replace(",", ".")) + delta);
+        return Number.isInteger(next) ? String(next) : String(Number(next.toFixed(1)));
+    });
+    if (shifted.length >= 2) return `${shifted[0]}-${shifted[1]}`;
+    return shifted[0];
+}
+
+function getRecommendationType(insight: any): RecommendationType | null {
+    const type = insight?.metadata?.recommendation?.type;
+    return type === "relax_rir" || type === "reduce_volume" || type === "increase_weight" || type === "increase_volume"
+        ? type
+        : null;
+}
+
+function getPatchPreviewText(insight: any) {
+    const recommendationType = getRecommendationType(insight);
+    const exerciseName = String(insight?.exerciseName || "ilgili hareket");
+    if (recommendationType === "reduce_volume") {
+        return `${exerciseName} icin son calisma seti kaldirilacak. Isinma setlerine dokunulmaz ve hareket 1 calisma setinin altina dusmez.`;
+    }
+    if (recommendationType === "increase_volume") {
+        return `${exerciseName} icin son calisma seti kopyalanarak 1 calisma seti eklenecek. Isinma setlerine dokunulmaz.`;
+    }
+    if (recommendationType === "relax_rir") {
+        return `${exerciseName} icin hedef RIR 1 kademe rahatlatilacak; RPE hedefi varsa 1 puan dusurulecek.`;
+    }
+    if (recommendationType === "increase_weight") {
+        return `${exerciseName} icin program setleri degismeyecek. Sonraki logda minimum agirlik artisi dene notu programa kaydedilecek.`;
+    }
+    return "Bu sinyal icin uygulanabilir program degisikligi bulunamadi. Yine de karar kaydi tutulabilir.";
+}
+
+function applyCoachProgramPatch(programData: any, insight: any) {
+    const recommendationType = getRecommendationType(insight);
+    const exerciseName = String(insight?.exerciseName || "");
+    const normalizedName = normalizeExerciseName(exerciseName.replace(/\s+\((Sol|Sag|Sağ|Left|Right)\)$/i, ""));
+    const data = cloneData(programData);
+    const days = Array.isArray(data.days) ? data.days : [];
+    let changed = false;
+
+    if (recommendationType === "increase_weight") {
+        const notes = Array.isArray(data.coachActionNotes) ? data.coachActionNotes : [];
+        data.coachActionNotes = [
+            ...notes,
+            {
+                id: `coach_note_${Date.now()}`,
+                type: recommendationType,
+                exerciseName,
+                message: insight?.metadata?.recommendation?.message || "Sonraki benzer sessionda form bozulmadan minimum agirlik artisi dene.",
+                createdAt: new Date().toISOString(),
+                sourceInsightId: insight?.id,
+            },
+        ];
+        return { data, changed: true, summary: "Minimum agirlik artisi notu programa kaydedildi." };
+    }
+
+    for (const day of days) {
+        const exercises = Array.isArray(day?.exercises) ? day.exercises : [];
+        for (const exercise of exercises) {
+            if (normalizeExerciseName(exercise?.name) !== normalizedName) continue;
+            const targetSets = Array.isArray(exercise.targetSets) ? exercise.targetSets : [];
+            const workingIndexes = targetSets
+                .map((set: any, index: number) => ({ set, index }))
+                .filter((item: any) => !item.set?.isWarmup)
+                .map((item: any) => item.index);
+
+            if (recommendationType === "reduce_volume") {
+                if (workingIndexes.length <= 1) {
+                    return { data, changed: false, summary: "Bu hareket zaten minimum calisma setinde; set azaltimi uygulanmadi." };
+                }
+                const removeIndex = workingIndexes[workingIndexes.length - 1];
+                exercise.targetSets = targetSets.filter((_: any, index: number) => index !== removeIndex);
+                changed = true;
+            } else if (recommendationType === "increase_volume") {
+                const sourceIndex = workingIndexes[workingIndexes.length - 1];
+                if (sourceIndex === undefined) {
+                    return { data, changed: false, summary: "Kopyalanacak calisma seti bulunamadi." };
+                }
+                const clonedSet = {
+                    ...targetSets[sourceIndex],
+                    id: `coach_set_${Date.now()}`,
+                    isWarmup: false,
+                };
+                exercise.targetSets = [
+                    ...targetSets.slice(0, sourceIndex + 1),
+                    clonedSet,
+                    ...targetSets.slice(sourceIndex + 1),
+                ];
+                changed = true;
+            } else if (recommendationType === "relax_rir") {
+                exercise.targetSets = targetSets.map((set: any) => {
+                    if (set?.isWarmup) return set;
+                    const next = { ...set };
+                    if (next.targetRIR) {
+                        next.targetRIR = shiftRange(next.targetRIR, 1);
+                        changed = true;
+                    }
+                    if (next.targetRPE) {
+                        next.targetRPE = shiftRange(next.targetRPE, -1);
+                        changed = true;
+                    }
+                    return next;
+                });
+            }
+
+            if (changed) {
+                return { data, changed: true, summary: `${exerciseName} icin program guncellendi.` };
+            }
+        }
+    }
+
+    return { data, changed: false, summary: `${exerciseName || "Hareket"} aktif programda bulunamadi.` };
+}
+
 export default function CoachInsightHistoryScreen() {
     const navigation = useNavigation<any>();
     const { colors } = useTheme();
@@ -80,6 +212,8 @@ export default function CoachInsightHistoryScreen() {
     const [insights, setInsights] = React.useState<any[]>([]);
     const [activeFilter, setActiveFilter] = React.useState<InsightFilter>("all");
     const [updatingInsightId, setUpdatingInsightId] = React.useState<string | null>(null);
+    const [pendingApplyInsight, setPendingApplyInsight] = React.useState<any | null>(null);
+    const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
 
     React.useEffect(() => {
         let mounted = true;
@@ -102,22 +236,73 @@ export default function CoachInsightHistoryScreen() {
     const actionCount = insights.filter((insight) => matchesFilter(insight, "action")).length;
     const progressCount = insights.filter((insight) => matchesFilter(insight, "progress")).length;
 
-    const updateRecommendationDecision = React.useCallback(async (insightId: string, decision: RecommendationDecision) => {
+    const updateRecommendationDecision = React.useCallback(async (insightId: string, decision: RecommendationDecision, programPatch?: any) => {
         setUpdatingInsightId(insightId);
         try {
-            const response = await coachApi.updateInsightRecommendation(insightId, { decision });
+            const response = await coachApi.updateInsightRecommendation(insightId, { decision, programPatch });
             const updatedInsight = response.data?.data;
             if (updatedInsight) {
                 setInsights((prev) => prev.map((item) => item.id === insightId ? updatedInsight : item));
             }
         } catch (error) {
             console.warn("[CoachInsightHistory] Could not update recommendation decision", error);
+            const apiError = parseApiError(error);
+            setNotice({ title: "Karar kaydedilemedi", message: apiError.message });
         } finally {
             setUpdatingInsightId(null);
         }
     }, []);
 
+    const applyRecommendationPatch = React.useCallback(async () => {
+        const insight = pendingApplyInsight;
+        if (!insight) return;
+        setUpdatingInsightId(insight.id);
+        setPendingApplyInsight(null);
+        try {
+            const activeProgramId = await getActiveProgramId();
+            if (!activeProgramId) {
+                setNotice({
+                    title: "Aktif program yok",
+                    message: "Koç önerisini uygulamak için önce kendi programlarından birini ana sayfada takipte yapmalısın.",
+                });
+                return;
+            }
+
+            const programResponse = await programApi.getById(activeProgramId);
+            const program = programResponse.data;
+            if (!program?.id || program?.isMine === false) {
+                setNotice({
+                    title: "Program uygulanamaz",
+                    message: "Bu öneri yalnızca kendi aktif programında uygulanabilir. Public veya başkasına ait programı önce kütüphanene kopyala.",
+                });
+                return;
+            }
+
+            const patch = applyCoachProgramPatch(program.data || {}, insight);
+            if (patch.changed) {
+                await programApi.update(program.id, { data: patch.data });
+            }
+            await updateRecommendationDecision(insight.id, "accepted", {
+                programId: program.id,
+                recommendationType: getRecommendationType(insight),
+                changed: patch.changed,
+                summary: patch.summary,
+            });
+            setPendingApplyInsight(null);
+            setNotice({
+                title: patch.changed ? "Öneri uygulandı" : "Öneri kaydedildi",
+                message: patch.summary,
+            });
+        } catch (error) {
+            const apiError = parseApiError(error);
+            setNotice({ title: "Öneri uygulanamadı", message: apiError.message });
+        } finally {
+            setUpdatingInsightId(null);
+        }
+    }, [pendingApplyInsight, updateRecommendationDecision]);
+
     return (
+        <>
         <Animated.ScrollView style={[styles.container, animStyle]} contentContainerStyle={styles.content}>
             <View style={styles.header}>
                 <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
@@ -231,7 +416,7 @@ export default function CoachInsightHistoryScreen() {
                                             <View style={styles.recommendationActions}>
                                                 <TouchableOpacity
                                                     style={[styles.recommendationBtn, styles.recommendationBtnPrimary]}
-                                                    onPress={() => updateRecommendationDecision(insight.id, "accepted")}
+                                                    onPress={() => setPendingApplyInsight(insight)}
                                                     disabled={isUpdating}
                                                     activeOpacity={0.82}
                                                 >
@@ -265,6 +450,23 @@ export default function CoachInsightHistoryScreen() {
                 </View>
             )}
         </Animated.ScrollView>
+        <ActionConfirmModal
+            visible={!!pendingApplyInsight}
+            title="Koç önerisini uygula?"
+            message={pendingApplyInsight ? getPatchPreviewText(pendingApplyInsight) : ""}
+            primaryLabel="Onayla"
+            secondaryLabel="Vazgeç"
+            onPrimary={applyRecommendationPatch}
+            onSecondary={() => setPendingApplyInsight(null)}
+            onDismiss={() => setPendingApplyInsight(null)}
+        />
+        <NoticeModal
+            visible={!!notice}
+            title={notice?.title || ""}
+            message={notice?.message || ""}
+            onClose={() => setNotice(null)}
+        />
+        </>
     );
 }
 

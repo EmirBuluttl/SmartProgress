@@ -287,7 +287,7 @@ export const coachApi = {
     weeklyReport: (params?: { date?: string }) => api.get("/coach/weekly-report", { params }),
     signalRatios: (params?: { range?: CoachSignalRatioRange }) => api.get("/coach/signal-ratios", { params }),
     insights: (params?: { limit?: number }) => api.get("/coach/insights", { params }),
-    updateInsightRecommendation: (insightId: string, payload: { decision: "accepted" | "rejected" | "follow" }) =>
+    updateInsightRecommendation: (insightId: string, payload: { decision: "accepted" | "rejected" | "follow"; programPatch?: any }) =>
         api.patch(`/coach/insights/${insightId}/recommendation`, payload),
     aiStatus: () => api.get("/coach/ai-status"),
     aiMessages: (params?: { limit?: number }) => api.get("/coach/ai-messages", { params }),
