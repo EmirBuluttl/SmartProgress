@@ -46,15 +46,33 @@ interface WorkoutItem {
 
 type DateFilter = "all" | "7d" | "30d" | "90d";
 type TypeFilter = "all" | "program" | "free" | "cardio";
+type FavoriteFilter = "all" | "favorites";
 
 function normalizeProgramKey(value: unknown): string {
     return String(value || "").trim().toLocaleLowerCase("tr-TR");
 }
 
 function getWorkoutProgramTrace(workout: WorkoutItem) {
-    const programId = workout.programId || workout.data?.programId || "";
-    const programName = workout.programName || workout.data?.programName || "";
-    const dayLabel = workout.dayLabel || workout.data?.dayLabel || "";
+    const programId =
+        workout.programId ||
+        workout.data?.programId ||
+        workout.data?.sourceProgramId ||
+        workout.data?.program?.id ||
+        "";
+    const programName =
+        workout.programName ||
+        workout.data?.programName ||
+        workout.data?.sourceProgramName ||
+        workout.data?.programTitle ||
+        workout.data?.program?.name ||
+        workout.data?.program?.title ||
+        "";
+    const dayLabel =
+        workout.dayLabel ||
+        workout.data?.dayLabel ||
+        workout.data?.dayName ||
+        workout.data?.dayTitle ||
+        "";
     const dataProgramTitle = workout.data?.programTitle || workout.data?.sourceProgramName || "";
     const programNameFallback = programName || dataProgramTitle;
     const programKey = programId
@@ -94,6 +112,7 @@ export default function WorkoutHistoryScreen() {
     const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
     const [dateFilter, setDateFilter] = useState<DateFilter>("all");
     const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
+    const [favoriteFilter, setFavoriteFilter] = useState<FavoriteFilter>("all");
     const [programFilter, setProgramFilter] = useState("all");
     const [scopeFilter, setScopeFilter] = useState("all");
     const [filterModalVisible, setFilterModalVisible] = useState(false);
@@ -243,6 +262,7 @@ export default function WorkoutHistoryScreen() {
         return workouts.filter((workout) => {
             const time = new Date(workout.logDate).getTime();
             if (dateWindow && Number.isFinite(time) && now - time > dateWindow * 24 * 60 * 60 * 1000) return false;
+            if (favoriteFilter === "favorites" && !favorites.has(workout.id)) return false;
 
             const programTrace = getWorkoutProgramTrace(workout);
             const cardioBlocks = Array.isArray(workout.data?.cardioBlocks) ? workout.data.cardioBlocks : [];
@@ -269,16 +289,17 @@ export default function WorkoutHistoryScreen() {
             }
             return true;
         });
-    }, [dateFilter, programFilter, scopeFilter, typeFilter, workouts]);
+    }, [dateFilter, favoriteFilter, favorites, programFilter, scopeFilter, typeFilter, workouts]);
 
     const clearFilters = () => {
         setDateFilter("all");
         setTypeFilter("all");
+        setFavoriteFilter("all");
         setProgramFilter("all");
         setScopeFilter("all");
     };
 
-    const activeFilterCount = [dateFilter !== "all", typeFilter !== "all", programFilter !== "all", scopeFilter !== "all"].filter(Boolean).length;
+    const activeFilterCount = [dateFilter !== "all", typeFilter !== "all", favoriteFilter !== "all", programFilter !== "all", scopeFilter !== "all"].filter(Boolean).length;
 
     const filterSummaryText = activeFilterCount > 0 ? `${activeFilterCount} filtre aktif` : "Tüm antrenmanlar";
 
@@ -308,6 +329,12 @@ export default function WorkoutHistoryScreen() {
                 {renderFilterChip("Programlı", typeFilter === "program", () => setTypeFilter("program"))}
                 {renderFilterChip("Serbest", typeFilter === "free", () => setTypeFilter("free"))}
                 {renderFilterChip("Kardiyo", typeFilter === "cardio", () => setTypeFilter("cardio"))}
+            </ScrollView>
+
+            <Text style={styles.filterSectionLabel}>Kayit</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.filterRow}>
+                {renderFilterChip("Tumu", favoriteFilter === "all", () => setFavoriteFilter("all"))}
+                {renderFilterChip("Yildizlilar", favoriteFilter === "favorites", () => setFavoriteFilter("favorites"))}
             </ScrollView>
 
             {programOptions.length > 1 ? (
@@ -462,11 +489,6 @@ export default function WorkoutHistoryScreen() {
                     ) : null}
                 </Pressable>
                 <Text style={styles.filterSummary} numberOfLines={1}>{filterSummaryText}</Text>
-                {activeFilterCount > 0 ? (
-                    <Pressable onPress={clearFilters} style={styles.inlineClearBtn}>
-                        <Text style={styles.clearFilterText}>Temizle</Text>
-                    </Pressable>
-                ) : null}
             </View>
 
             {false && (

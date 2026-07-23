@@ -85,6 +85,30 @@ const assistedProgress = engine.analyzeProgress({
 });
 assertEqual(assistedProgress.decision, "continue_same_weight", "Assisted load decrease counts as progress");
 
+const mixedLoadWatch = engine.analyzeProgress({
+    exerciseName: "Adductor Machine",
+    repRange: { min: 8, max: 12 },
+    workingSetCount: 1,
+    loadType: "external_load",
+    logs: [
+        { weight: 56, reps: 6, rir: 2 },
+        { weight: 49, reps: 12, rir: 2 },
+    ],
+});
+assertEqual(mixedLoadWatch.decision, "increase_weight", "Load drop with upper rep target should not be forced regression");
+
+const mixedLoadRegression = engine.analyzeProgress({
+    exerciseName: "Adductor Machine",
+    repRange: { min: 8, max: 12 },
+    workingSetCount: 1,
+    loadType: "external_load",
+    logs: [
+        { weight: 56, reps: 10, rir: 2 },
+        { weight: 49, reps: 11, rir: 2 },
+    ],
+});
+assertEqual(mixedLoadRegression.decision, "watch", "Meaningful mixed regression remains a watch signal");
+
 const inconsistent = engine.analyzeProgress({
     exerciseName: "Leg Press",
     repRange: { min: 8, max: 12 },

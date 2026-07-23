@@ -8,6 +8,8 @@ export type CoachBestSet = {
     externalWeight?: number | null;
 };
 
+const PERFORMANCE_SCORE_THRESHOLD = 0.03;
+
 function toNumber(value: unknown): number {
     if (value === null || value === undefined || value === "") return 0;
     const parsed = Number(String(value).replace(",", "."));
@@ -22,11 +24,12 @@ export function resolveCoachSetLoad(set: any): Pick<CoachBestSet, "weight" | "we
 
     if (weightMode === "bodyweight") {
         const resolvedBodyWeight = bodyWeight > 0 ? bodyWeight : loggedWeight;
+        const hasExternalLoad = externalWeight > 0;
         return {
-            weight: Math.max(0, resolvedBodyWeight + externalWeight),
+            weight: hasExternalLoad ? Math.max(0, externalWeight) : 0,
             weightMode,
             bodyWeight: resolvedBodyWeight > 0 ? resolvedBodyWeight : null,
-            externalWeight: externalWeight > 0 ? externalWeight : null,
+            externalWeight: hasExternalLoad ? externalWeight : null,
         };
     }
 
@@ -45,6 +48,13 @@ export type CoachExerciseHistoryEntry = {
     best: CoachBestSet;
 };
 
+export type CoachRecommendation = {
+    type: "relax_rir" | "reduce_volume" | "increase_weight" | "increase_volume";
+    label: string;
+    message: string;
+    requiresUserApproval: boolean;
+};
+
 export type CoachExerciseSignal = {
     decision: string;
     reason: string;
@@ -53,13 +63,6 @@ export type CoachExerciseSignal = {
     recommendation: CoachRecommendation | null;
     currentBest: CoachBestSet | null;
     previousBest: CoachBestSet | null;
-};
-
-export type CoachRecommendation = {
-    type: "relax_rir" | "reduce_volume" | "increase_weight" | "increase_volume";
-    label: string;
-    message: string;
-    requiresUserApproval: boolean;
 };
 
 export function normalizeRirValue(value: unknown): number | null {
@@ -96,13 +99,45 @@ export function parseRepRange(value: unknown): { min: number; max: number } | nu
     return { min: reps, max: reps };
 }
 
+function loadStreamFor(set: CoachBestSet | null): string {
+    if (!set) return "missing";
+    if (set.weightMode === "bodyweight") {
+        return set.externalWeight && set.externalWeight > 0 ? "bodyweight_weighted" : "bodyweight_only";
+    }
+    return "external_load";
+}
+
+function performanceScore(set: CoachBestSet): number {
+    return Math.max(0, set.weight) * (1 + Math.max(0, set.reps) / 30);
+}
+
+function comparePerformanceScore(previous: CoachBestSet, current: CoachBestSet) {
+    const previousScore = performanceScore(previous);
+    const currentScore = performanceScore(current);
+    if (previousScore <= 0 || currentScore <= 0) return null;
+    const delta = (currentScore - previousScore) / previousScore;
+    if (delta > PERFORMANCE_SCORE_THRESHOLD) {
+        return { decision: "progress", reason: "Tahmini performans skoru belirgin artti.", delta };
+    }
+    if (delta < -PERFORMANCE_SCORE_THRESHOLD) {
+        return { decision: "watch", reason: "Tahmini performans skoru belirgin dustu.", delta };
+    }
+    return { decision: "watch", reason: "Agirlik/tekrar degisimi takip araliginda.", delta };
+}
+
 export function compareBestSets(previous: CoachBestSet | null, current: CoachBestSet | null) {
-    if (!current) return { decision: "inconsistent_data", reason: "Bu hafta geçerli set verisi yok." };
-    if (!previous) return { decision: "baseline", reason: "Bu hareket için kıyaslanacak önceki log yok." };
-    if (current.weight > previous.weight) return { decision: "progress", reason: "Önceki loga göre ağırlık arttı." };
-    if (current.weight === previous.weight && current.reps > previous.reps) return { decision: "progress", reason: "Aynı ağırlıkla tekrar arttı." };
-    if (current.weight === previous.weight && current.reps === previous.reps) return { decision: "watch", reason: "Önceki logla aynı seviyede." };
-    return { decision: "watch", reason: "Son log önceki logun gerisinde veya karma sinyal var." };
+    if (!current) return { decision: "inconsistent_data", reason: "Bu hafta gecerli set verisi yok." };
+    if (!previous) return { decision: "baseline", reason: "Bu hareket icin kiyaslanacak onceki log yok." };
+    if (loadStreamFor(previous) !== loadStreamFor(current)) {
+        return { decision: "watch", reason: "Bodyweight ve ek agirlikli loglar ayri takip edilir." };
+    }
+    if (current.weight < previous.weight && current.reps > previous.reps) {
+        return comparePerformanceScore(previous, current) || { decision: "watch", reason: "Agirlik dustu ama tekrar artti; takip edilmeli." };
+    }
+    if (current.weight > previous.weight) return { decision: "progress", reason: "Onceki loga gore agirlik artti." };
+    if (current.weight === previous.weight && current.reps > previous.reps) return { decision: "progress", reason: "Ayni agirlikla tekrar artti." };
+    if (current.weight === previous.weight && current.reps === previous.reps) return { decision: "watch", reason: "Onceki logla ayni seviyede." };
+    return { decision: "watch", reason: "Son log onceki logun gerisinde veya karma sinyal var." };
 }
 
 export function buildCoachRecommendation(flags: string[]): CoachRecommendation | null {
@@ -110,31 +145,31 @@ export function buildCoachRecommendation(flags: string[]): CoachRecommendation |
         return {
             type: "relax_rir",
             label: "RIR hedefini rahatlat",
-            message: "Önce RIR hedefini biraz rahatlatmayı düşün; hacim azaltımı ikinci adım olsun.",
+            message: "Once RIR hedefini biraz rahatlatmayi dusun; hacim azaltimi ikinci adim olsun.",
             requiresUserApproval: true,
         };
     }
     if (flags.includes("volume_reduce_candidate")) {
         return {
             type: "reduce_volume",
-            label: "Hacmi azaltmayı değerlendir",
-            message: "RIR zaten düşük görünmüyorsa bu hareket için 1 çalışma seti azaltımı aday olabilir.",
+            label: "Hacmi azaltmayi degerlendir",
+            message: "RIR zaten dusuk gorunmuyorsa bu hareket icin 1 calisma seti azaltimi aday olabilir.",
             requiresUserApproval: true,
         };
     }
     if (flags.includes("weight_increase_candidate")) {
         return {
             type: "increase_weight",
-            label: "Minimum ağırlık artışı dene",
-            message: "Program tekrar aralığının üst sınırına ulaşıldı. Sonraki sessionda form bozulmadan minimum ağırlık artışı denenebilir.",
+            label: "Minimum agirlik artisi dene",
+            message: "Program tekrar araliginin ust sinirina ulasildi. Sonraki sessionda form bozulmadan minimum agirlik artisi denenebilir.",
             requiresUserApproval: true,
         };
     }
     if (flags.includes("volume_increase_candidate")) {
         return {
             type: "increase_volume",
-            label: "Set artırmayı değerlendir",
-            message: "Üst üste güçlü progress var; aynı kalite sürerse kullanıcı onayıyla 1 set artırımı düşünülebilir.",
+            label: "Set artirmayi degerlendir",
+            message: "Ust uste guclu progress var; ayni kalite surerse kullanici onayiyla 1 set artirimi dusunulebilir.",
             requiresUserApproval: true,
         };
     }
@@ -172,13 +207,22 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
         };
     }
 
-    const isSameAsPrevious = latest.best.weight === previous.best.weight && latest.best.reps === previous.best.reps;
-    const isRegression = latest.best.weight < previous.best.weight ||
-        (latest.best.weight === previous.best.weight && latest.best.reps < previous.best.reps);
-    const isStrongProgress = latest.best.weight > previous.best.weight ||
-        (latest.best.weight === previous.best.weight && latest.best.reps >= previous.best.reps + 2);
+    const sameLoadStream = loadStreamFor(latest.best) === loadStreamFor(previous.best);
+    const scoreComparison = sameLoadStream && latest.best.weight < previous.best.weight && latest.best.reps > previous.best.reps
+        ? comparePerformanceScore(previous.best, latest.best)
+        : null;
+    const isSameAsPrevious = sameLoadStream && latest.best.weight === previous.best.weight && latest.best.reps === previous.best.reps;
+    const isRegression = sameLoadStream && (
+        (latest.best.weight < previous.best.weight && scoreComparison?.decision !== "progress" && (scoreComparison?.delta ?? -1) < -PERFORMANCE_SCORE_THRESHOLD) ||
+        (latest.best.weight === previous.best.weight && latest.best.reps < previous.best.reps)
+    );
+    const isStrongProgress = sameLoadStream && (
+        latest.best.weight > previous.best.weight ||
+        (latest.best.weight === previous.best.weight && latest.best.reps >= previous.best.reps + 2) ||
+        scoreComparison?.decision === "progress"
+    );
     const repRange = parseRepRange(latest.best.targetReps || previous.best.targetReps);
-    const reachedUpperRepTarget = !!repRange && latest.best.reps >= repRange.max && latest.best.weight >= previous.best.weight;
+    const reachedUpperRepTarget = sameLoadStream && !!repRange && latest.best.reps >= repRange.max && latest.best.weight >= previous.best.weight;
     if (isRegression) flags.push("single_session_regression");
     if (isSameAsPrevious) flags.push("same_as_previous");
     if (reachedUpperRepTarget && latest.best.weight > 0) {
@@ -187,10 +231,16 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
     }
 
     if (beforePrevious) {
-        const previousWasStalledOrDown = previous.best.weight < beforePrevious.best.weight ||
-            (previous.best.weight === beforePrevious.best.weight && previous.best.reps <= beforePrevious.best.reps);
-        const latestStalledOrDown = latest.best.weight < previous.best.weight ||
-            (latest.best.weight === previous.best.weight && latest.best.reps <= previous.best.reps);
+        const previousSameStream = loadStreamFor(previous.best) === loadStreamFor(beforePrevious.best);
+        const latestSameStream = loadStreamFor(latest.best) === loadStreamFor(previous.best);
+        const previousWasStalledOrDown = previousSameStream && (
+            previous.best.weight < beforePrevious.best.weight ||
+            (previous.best.weight === beforePrevious.best.weight && previous.best.reps <= beforePrevious.best.reps)
+        );
+        const latestStalledOrDown = latestSameStream && (
+            (latest.best.weight < previous.best.weight && scoreComparison?.decision !== "progress") ||
+            (latest.best.weight === previous.best.weight && latest.best.reps <= previous.best.reps)
+        );
 
         if (previousWasStalledOrDown && latestStalledOrDown) {
             flags.push("plateau_candidate");
@@ -206,8 +256,10 @@ export function compareExerciseHistory(entries: CoachExerciseHistoryEntry[]): Co
             }
         }
 
-        const previousHadProgress = previous.best.weight > beforePrevious.best.weight ||
-            (previous.best.weight === beforePrevious.best.weight && previous.best.reps > beforePrevious.best.reps);
+        const previousHadProgress = previousSameStream && (
+            previous.best.weight > beforePrevious.best.weight ||
+            (previous.best.weight === beforePrevious.best.weight && previous.best.reps > beforePrevious.best.reps)
+        );
         if (comparison.decision === "progress" && previousHadProgress && isStrongProgress) {
             flags.push("progress_streak");
             flags.push("volume_increase_candidate");

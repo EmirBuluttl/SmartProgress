@@ -625,7 +625,6 @@ export default function CoachScreen() {
                     <PlanCard
                         title="Coach+"
                         subtitle="Yakinda"
-                        badge="Yakinda"
                         icon="sparkles-outline"
                         items={[]}
                         colors={colors}
@@ -760,7 +759,7 @@ function PlanCard({
 }: {
     title: string;
     subtitle: string;
-    badge: string;
+    badge?: string;
     icon: React.ComponentProps<typeof Ionicons>["name"];
     items: string[];
     colors: any;
@@ -781,9 +780,11 @@ function PlanCard({
                 </View>
             </View>
             <View style={styles.planBadgeRow}>
-                <View style={[styles.planBadge, highlighted && styles.planBadgeHighlighted]}>
-                    <Text style={[styles.planBadgeText, highlighted && styles.planBadgeTextHighlighted]}>{badge}</Text>
-                </View>
+                {badge ? (
+                    <View style={[styles.planBadge, highlighted && styles.planBadgeHighlighted]}>
+                        <Text style={[styles.planBadgeText, highlighted && styles.planBadgeTextHighlighted]}>{badge}</Text>
+                    </View>
+                ) : null}
                 {active && (
                     <View style={styles.activePlanBadge}>
                         <Text style={styles.activePlanText}>Aktif</Text>

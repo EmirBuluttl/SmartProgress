@@ -47,6 +47,7 @@ export type ProgressAnalysisResult = {
 };
 
 type Comparison = "progress_weight" | "progress_reps" | "same" | "regression" | "mixed";
+const PERFORMANCE_SCORE_THRESHOLD = 0.03;
 
 function isFiniteNumber(value: unknown): value is number {
     return typeof value === "number" && Number.isFinite(value);
@@ -83,6 +84,11 @@ function normalizeLog(entry: ProgressLogEntry, fallbackLoadType: ProgressLoadTyp
     };
 }
 
+function performanceScore(entry: ReturnType<typeof normalizeLog>): number | null {
+    if (entry.weight === null || entry.reps === null) return null;
+    return Math.max(0, entry.weight) * (1 + Math.max(0, entry.reps) / 30);
+}
+
 function compareLogs(previous: ReturnType<typeof normalizeLog>, current: ReturnType<typeof normalizeLog>, repRange: ProgressRepRange): Comparison {
     if (previous.weight === null || current.weight === null || previous.reps === null || current.reps === null) {
         return "mixed";
@@ -96,6 +102,16 @@ function compareLogs(previous: ReturnType<typeof normalizeLog>, current: ReturnT
         if (current.weight > previous.weight && current.reps <= previous.reps) return "regression";
     } else {
         if (current.weight > previous.weight && currentReachedMinimum) return "progress_weight";
+        if (current.weight < previous.weight && current.reps > previous.reps) {
+            const previousScore = performanceScore(previous);
+            const currentScore = performanceScore(current);
+            if (previousScore && currentScore) {
+                const delta = (currentScore - previousScore) / previousScore;
+                if (delta > PERFORMANCE_SCORE_THRESHOLD) return "progress_reps";
+                if (delta < -PERFORMANCE_SCORE_THRESHOLD) return "regression";
+                return "mixed";
+            }
+        }
         if (current.weight < previous.weight && current.reps <= previous.reps) return "regression";
     }
 

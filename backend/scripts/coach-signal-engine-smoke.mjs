@@ -78,17 +78,17 @@ expectJsonEqual(resolveCoachSetLoad({ weight: 100, weightMode: "kg" }), {
     externalWeight: null,
 }, "KG sets should keep logged load");
 expectJsonEqual(resolveCoachSetLoad({ weight: 82, weightMode: "bodyweight" }), {
-    weight: 82,
+    weight: 0,
     weightMode: "bodyweight",
     bodyWeight: 82,
     externalWeight: null,
-}, "Bodyweight sets should use bodyweight from weight fallback");
+}, "Bodyweight-only sets should compare as their own zero-load stream");
 expectJsonEqual(resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 12.5 }), {
-    weight: 94.5,
+    weight: 12.5,
     weightMode: "bodyweight",
     bodyWeight: 82,
     externalWeight: 12.5,
-}, "Weighted bodyweight sets should compare BW plus external load");
+}, "Weighted bodyweight sets should compare by external load only");
 
 runScenarioMatrix([
     {
@@ -125,6 +125,22 @@ runScenarioMatrix([
         bestSets: [
             { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 0 }), reps: 6, rir: "1-2" },
             { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 5 }), reps: 6, rir: "1-2" },
+        ],
+        expected: { decision: "watch", absentFlags: ["single_session_regression"] },
+    },
+    {
+        name: "weighted bodyweight compares weighted stream",
+        bestSets: [
+            { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 5 }), reps: 6, rir: "1-2" },
+            { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 82, externalWeight: 7.5 }), reps: 6, rir: "1-2" },
+        ],
+        expected: { decision: "progress" },
+    },
+    {
+        name: "bodyweight-only rep progress stays separate",
+        bestSets: [
+            { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 75 }), reps: 18, rir: "1-2" },
+            { ...resolveCoachSetLoad({ weightMode: "bodyweight", bodyWeight: 75 }), reps: 20, rir: "1-2" },
         ],
         expected: { decision: "progress" },
     },
@@ -169,6 +185,30 @@ runScenarioMatrix([
         bestSets: [
             { weight: 80, reps: 8, rir: 2 },
             { weight: 77.5, reps: 10, rir: 2 },
+        ],
+        expected: { decision: "watch", absentFlags: ["single_session_regression"] },
+    },
+    {
+        name: "protective performance score prevents false regression",
+        bestSets: [
+            { weight: 56, reps: 6, rir: 2, targetReps: "8-12" },
+            { weight: 49, reps: 12, rir: 2, targetReps: "8-12" },
+        ],
+        expected: { decision: "watch", absentFlags: ["single_session_regression"] },
+    },
+    {
+        name: "performance score catches meaningful mixed progress",
+        bestSets: [
+            { weight: 56, reps: 6, rir: 2 },
+            { weight: 54, reps: 12, rir: 2 },
+        ],
+        expected: { decision: "progress", absentFlags: ["single_session_regression"] },
+    },
+    {
+        name: "performance score catches meaningful mixed regression",
+        bestSets: [
+            { weight: 56, reps: 10, rir: 2 },
+            { weight: 49, reps: 11, rir: 2 },
         ],
         expected: { decision: "watch", flags: ["single_session_regression"] },
     },

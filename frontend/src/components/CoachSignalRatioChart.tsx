@@ -17,6 +17,10 @@ function getVisiblePoints(data: CoachSignalRatioPoint[]) {
     return data.filter((point) => point.workoutCount > 0 || point.analyzedCount > 0);
 }
 
+function formatPercent(value: number) {
+    return `${clampPercent(value).toFixed(1)}%`;
+}
+
 export default function CoachSignalRatioChart({ data, colors }: Props) {
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const visiblePoints = React.useMemo(() => getVisiblePoints(data), [data]);
@@ -53,7 +57,7 @@ export default function CoachSignalRatioChart({ data, colors }: Props) {
                                 {regression > 0 && <View style={[styles.barSegment, { width: `${regression}%`, backgroundColor: colors.error || "#EF4444" }]} />}
                             </View>
                             <View style={styles.metaRow}>
-                                <Text style={styles.metaText}>Takip/notr %{neutral.toFixed(1)}</Text>
+                                <Text style={styles.metaText}>Takip/nötr {formatPercent(neutral)}</Text>
                                 <Text style={styles.metaText}>{point.workoutCount} antrenman</Text>
                             </View>
                         </View>

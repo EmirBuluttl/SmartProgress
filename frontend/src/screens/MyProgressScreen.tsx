@@ -54,7 +54,7 @@ import { coachApi, type CoachSignalRatioPoint, type CoachSignalRatioRange } from
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
 const RECORD_LINKS_KEY = "personal_record_video_links";
-const SIGNAL_RATIO_CACHE_KEY = "coach_signal_ratio_snapshot_v2";
+const SIGNAL_RATIO_CACHE_KEY_PREFIX = "coach_signal_ratio_snapshot_v2";
 
 type TimeFilter = "1H" | "1A" | "1Y" | "Tümü";
 const FILTERS: TimeFilter[] = ["1H", "1A", "1Y", "Tümü"];
@@ -71,6 +71,10 @@ type SignalRatioSnapshot = {
     savedAt: string;
     points: CoachSignalRatioPoint[];
 };
+
+function signalRatioCacheKey(range: CoachSignalRatioRange) {
+    return `${SIGNAL_RATIO_CACHE_KEY_PREFIX}:${range}`;
+}
 type ChartMetric =
     | `exercise:${string}`
     | `muscle:${string}`
@@ -426,11 +430,15 @@ export default function MyProgressScreen() {
         setSignalRatioError("");
 
         try {
-            const rawSnapshot = await AsyncStorage.getItem(SIGNAL_RATIO_CACHE_KEY);
+            const cacheKey = signalRatioCacheKey(range);
+            const rawSnapshot = await AsyncStorage.getItem(cacheKey);
             const cached = rawSnapshot ? JSON.parse(rawSnapshot) as SignalRatioSnapshot : null;
             if (cached?.range === range && Array.isArray(cached.points)) {
                 setSignalRatioPoints(cached.points);
                 setSignalRatioUpdatedAt(cached.generatedAt || cached.savedAt);
+            } else {
+                setSignalRatioPoints([]);
+                setSignalRatioUpdatedAt(null);
             }
 
             const savedAtMs = cached?.savedAt ? new Date(cached.savedAt).getTime() : 0;
@@ -446,7 +454,7 @@ export default function MyProgressScreen() {
             const generatedAt = response.data?.generatedAt || new Date().toISOString();
             setSignalRatioPoints(points);
             setSignalRatioUpdatedAt(generatedAt);
-            await AsyncStorage.setItem(SIGNAL_RATIO_CACHE_KEY, JSON.stringify({
+            await AsyncStorage.setItem(cacheKey, JSON.stringify({
                 range,
                 generatedAt,
                 savedAt: new Date().toISOString(),
@@ -514,7 +522,7 @@ export default function MyProgressScreen() {
     const loadAnalytics = async () => {
         let staleAnalytics = false;
         let needsAnalyticsRefresh = false;
-        loadSignalRatios(filter).catch(() => undefined);
+        loadSignalRatios(filter, { force: true }).catch(() => undefined);
         const persistedAnalytics = await getPersistedWorkoutAnalyticsSnapshot().catch(() => null);
         if (persistedAnalytics) {
             setAnalyticsSnapshot(persistedAnalytics);
@@ -582,7 +590,10 @@ export default function MyProgressScreen() {
     // ── Re-build on filter change ─────────────────────────────────────────────
 
     React.useEffect(() => {
-        loadSignalRatios(filter).catch(() => undefined);
+        loadSignalRatios(filter, { force: true }).catch(() => undefined);
+    }, [filter, loadSignalRatios]);
+
+    React.useEffect(() => {
         if (allWorkouts.length > 0 || bodyMeasurements.length > 0 || nutritionLogs.length > 0) {
             scheduleChartData(allWorkouts, bodyMeasurements, nutritionLogs, filter, chartMetric);
         }
