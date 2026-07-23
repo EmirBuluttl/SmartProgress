@@ -104,6 +104,7 @@ export type RootStackParamList = {
         setCount: number;
         notes?: string;
         cardioBlocks?: any[];
+        sourceWorkout?: any;
     };
     ProgramCreate: {
         editProgramId?: string;

@@ -21,6 +21,7 @@ import AccentButton from "../components/AccentButton";
 import NoticeModal from "../components/NoticeModal";
 import AnimatedPressable from "../components/AnimatedPressable";
 import { CARDIO_TYPE_LABELS, summarizeCardioBlock, summarizeCardioBlocks } from "../utils/cardio";
+import { parseApiError, programApi } from "../services/api";
 
 type SummaryRoute = RouteProp<RootStackParamList, "WorkoutSummary">;
 
@@ -46,12 +47,16 @@ export default function WorkoutSummaryScreen() {
         setCount,
         notes,
         cardioBlocks,
+        sourceWorkout,
     } = route.params;
 
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const [notesVisible, setNotesVisible] = useState(false);
+    const [savingProgram, setSavingProgram] = useState(false);
+    const [notice, setNotice] = useState<{ title: string; message: string } | null>(null);
     const trimmedNotes = notes?.trim();
+    const canSaveAsProgram = !programName && Array.isArray(sourceWorkout?.exercises) && sourceWorkout.exercises.length > 0;
 
     const entryAnim = useRef(new Animated.Value(0)).current;
     const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -105,6 +110,81 @@ export default function WorkoutSummaryScreen() {
 
     const handleGoHome = () => {
         navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
+    };
+
+    const buildTargetSetFromLoggedSet = (set: any) => {
+        const effortMode = set.effortMode === "duration" || set.durationSeconds ? "duration" : "reps";
+        const sideMode = set.sideMode === "left_right" ? "left_right" : "both";
+        const left = sideMode === "left_right" ? set.left : undefined;
+        const right = sideMode === "left_right" ? set.right : undefined;
+        const reps = effortMode === "duration"
+            ? String(set.durationSeconds || left?.durationSeconds || right?.durationSeconds || "")
+            : String(set.reps ?? left?.reps ?? right?.reps ?? "");
+        const weight = set.weight ?? set.externalWeight ?? left?.weight ?? right?.weight;
+        return {
+            targetReps: reps,
+            ...(weight !== undefined && weight !== null && weight !== "" ? { targetWeight: String(weight) } : {}),
+            ...(set.weightMode ? { weightMode: set.weightMode } : {}),
+            effortMode,
+            sideMode,
+            isWarmup: !!set.isWarmup,
+        };
+    };
+
+    const saveFreeWorkoutAsProgram = async () => {
+        if (!canSaveAsProgram || savingProgram) return;
+        setSavingProgram(true);
+        try {
+            const exercises = (sourceWorkout.exercises || [])
+                .map((exercise: any) => ({
+                    id: exercise.id || Math.random().toString(36).slice(2),
+                    exerciseId: exercise.exerciseId,
+                    name: exercise.name,
+                    targetSets: (exercise.sets || [])
+                        .filter((set: any) => set.completed !== false)
+                        .map(buildTargetSetFromLoggedSet)
+                        .filter((set: any) => set.targetReps !== ""),
+                }))
+                .filter((exercise: any) => exercise.name && exercise.targetSets.length > 0);
+
+            if (exercises.length === 0) {
+                setNotice({ title: "Program olusturulamadi", message: "Kaydedilecek hareket veya set bulunamadi." });
+                return;
+            }
+
+            const name = sourceWorkout.title || "Serbest antrenman programi";
+            const res = await programApi.create({
+                name,
+                description: "Serbest antrenmandan program olarak kaydedildi.",
+                isPublic: false,
+                frequency: 1,
+                data: {
+                    frequency: 1,
+                    splitType: "OTHER",
+                    days: [
+                        {
+                            label: "1. Gun",
+                            exercises,
+                        },
+                    ],
+                },
+            });
+            const created = res.data?.program || res.data;
+            setNotice({
+                title: "Program kaydedildi",
+                message: "Bu antrenman private program olarak kutuphanene eklendi.",
+            });
+            if (created?.id) {
+                setTimeout(() => {
+                    navigation.navigate("ProgramDetail", { programId: created.id });
+                }, 350);
+            }
+        } catch (err) {
+            const apiError = parseApiError(err);
+            setNotice({ title: "Program kaydedilemedi", message: apiError.message || "Lutfen tekrar dene." });
+        } finally {
+            setSavingProgram(false);
+        }
     };
 
     const sparkleDots = [
@@ -311,6 +391,32 @@ export default function WorkoutSummaryScreen() {
                 </Animated.View>
             ) : null}
 
+            {canSaveAsProgram ? (
+                <Animated.View style={[styles.saveProgramWrap, { opacity: fadeAnim }]}>
+                    <GymCard elevated style={styles.saveProgramCard}>
+                        <View style={styles.saveProgramHeader}>
+                            <Ionicons name="library-outline" size={20} color={colors.accent} />
+                            <Text style={styles.saveProgramTitle}>Tekrar yapmak ister misin?</Text>
+                        </View>
+                        <Text style={styles.saveProgramText}>
+                            Bu serbest antrenmani program olarak kutuphanene ekleyip sonraki sefer ayni akisi baslatabilirsin.
+                        </Text>
+                        <AnimatedPressable
+                            style={styles.saveProgramPressable}
+                            onPress={saveFreeWorkoutAsProgram}
+                            disabled={savingProgram}
+                            pressedScale={0.985}
+                        >
+                            <View style={[styles.saveProgramBtn, savingProgram && { opacity: 0.65 }]}>
+                                <Text style={styles.saveProgramBtnText}>
+                                    {savingProgram ? "Kaydediliyor..." : "Program olarak kaydet"}
+                                </Text>
+                            </View>
+                        </AnimatedPressable>
+                    </GymCard>
+                </Animated.View>
+            ) : null}
+
             {/* ─── Actions ─── */}
             <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
                 <AccentButton
@@ -324,6 +430,12 @@ export default function WorkoutSummaryScreen() {
                 title="Antrenman Notu"
                 message={trimmedNotes ?? ""}
                 onClose={() => setNotesVisible(false)}
+            />
+            <NoticeModal
+                visible={!!notice}
+                title={notice?.title ?? ""}
+                message={notice?.message ?? ""}
+                onClose={() => setNotice(null)}
             />
         </ScrollView>
     );
@@ -478,6 +590,46 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     actions: {
         width: "100%",
+    },
+    saveProgramWrap: {
+        width: "100%",
+        marginBottom: spacing.lg,
+    },
+    saveProgramCard: {
+        width: "100%",
+        gap: spacing.sm,
+    },
+    saveProgramHeader: {
+        flexDirection: "row",
+        alignItems: "center",
+        gap: spacing.xs,
+    },
+    saveProgramTitle: {
+        color: colors.text,
+        fontSize: fontSize.md,
+        fontWeight: fontWeight.bold,
+    },
+    saveProgramText: {
+        color: colors.textSecondary,
+        fontSize: fontSize.sm,
+        lineHeight: 20,
+    },
+    saveProgramPressable: {
+        width: "100%",
+    },
+    saveProgramBtn: {
+        minHeight: 48,
+        borderRadius: borderRadius.md,
+        backgroundColor: colors.accentMuted,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        alignItems: "center",
+        justifyContent: "center",
+    },
+    saveProgramBtnText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     cardioWrap: {
         width: "100%",

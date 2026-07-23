@@ -1984,6 +1984,12 @@ export default function WorkoutSessionScreen() {
                 setCount,
                 notes: completedSession.notes,
                 cardioBlocks: completedSession.cardioBlocks,
+                sourceWorkout: route.params?.mode === "free"
+                    ? {
+                        title: completedSession.title,
+                        exercises: completedSession.exercises,
+                    }
+                    : undefined,
             };
 
             if (syncNotice) {
