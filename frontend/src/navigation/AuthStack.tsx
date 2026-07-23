@@ -10,6 +10,7 @@ import LoginScreen from "../screens/LoginScreen";
 import RegisterScreen from "../screens/RegisterScreen";
 import ForgotPasswordScreen from "../screens/ForgotPasswordScreen";
 import LegalInfoScreen from "../screens/LegalInfoScreen";
+import PublicProgramPreviewScreen from "../screens/PublicProgramPreviewScreen";
 
 export type AuthStackParamList = {
     Login: undefined;
@@ -19,6 +20,7 @@ export type AuthStackParamList = {
     Support: undefined;
     AccountDeletion: undefined;
     TermsOfService: undefined;
+    ProgramDetail: { programId: string };
 };
 
 const Stack = createNativeStackNavigator<AuthStackParamList>();
@@ -64,6 +66,11 @@ export default function AuthStack() {
             <Stack.Screen
                 name="TermsOfService"
                 component={LegalInfoScreen}
+                options={{ animation: "slide_from_right" }}
+            />
+            <Stack.Screen
+                name="ProgramDetail"
+                component={PublicProgramPreviewScreen}
                 options={{ animation: "slide_from_right" }}
             />
         </Stack.Navigator>

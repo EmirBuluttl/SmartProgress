@@ -154,6 +154,43 @@ export class ProgramService {
         return programs.map((program) => this.decorateProgram(program, userId));
     }
 
+    async getPublicProgramPreview(programId: string) {
+        const program = await programRepository.findByIdWithSocial(programId);
+        if (!program || !program.isPublic) {
+            throw new NotFoundError("Program not found");
+        }
+
+        const decorated: any = this.decorateProgram(program);
+        const dataObj = (decorated.data || {}) as any;
+        const days = Array.isArray(dataObj.days) ? dataObj.days : [];
+        const exercises = Array.isArray(dataObj.exercises) ? dataObj.exercises : [];
+        const summaryDays = days.map((day: any, index: number) => ({
+            label: typeof day?.label === "string" ? day.label : `${index + 1}. gun`,
+            isRestDay: !!day?.isRestDay,
+            exerciseCount: Array.isArray(day?.exercises) ? day.exercises.length : 0,
+        }));
+
+        return {
+            id: decorated.id,
+            name: decorated.name,
+            description: decorated.description,
+            frequency: decorated.frequency,
+            isPublic: decorated.isPublic,
+            starCount: decorated.starCount || 0,
+            createdAt: decorated.createdAt,
+            updatedAt: decorated.updatedAt,
+            user: decorated.user,
+            data: {
+                splitType: dataObj.splitType,
+                frequency: dataObj.frequency || decorated.frequency,
+                days: summaryDays,
+                exerciseCount: summaryDays.length > 0
+                    ? summaryDays.reduce((sum: number, day: any) => sum + (day.exerciseCount || 0), 0)
+                    : exercises.length,
+            },
+        };
+    }
+
     /**
      * Get a specific program by ID, ensuring user has access.
      */

@@ -9,6 +9,7 @@ const router = Router();
 
 // Public routes
 router.get("/public", (req, res, next) => programController.listPublic(req, res, next));
+router.get("/public/:id", (req, res, next) => programController.getPublicPreview(req, res, next));
 
 // Protected routes (require authentication)
 router.use(authenticate);

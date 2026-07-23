@@ -113,6 +113,16 @@ export class ProgramController {
         }
     }
 
+    async getPublicPreview(req: Request, res: Response, next: NextFunction): Promise<void> {
+        try {
+            const programId = req.params.id as string;
+            const program = await programService.getPublicProgramPreview(programId);
+            res.status(200).json(program);
+        } catch (error) {
+            next(error);
+        }
+    }
+
     /**
      * GET /mine
      * List user's own programs.

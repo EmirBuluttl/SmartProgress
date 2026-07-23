@@ -231,6 +231,8 @@ export const programApi = {
     listPublic: (params?: { limit?: number; offset?: number; split?: string; sort?: string }) =>
         api.get("/programs/public", { params }),
 
+    getPublicPreview: (id: string) => api.get(`/programs/public/${id}`),
+
     listCommunity: (params?: { limit?: number; offset?: number; split?: string; sort?: string }) =>
         api.get("/programs/community", { params }),
 
