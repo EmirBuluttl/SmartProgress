@@ -9,6 +9,7 @@ import {
     StyleSheet,
     ScrollView,
     Animated,
+    Share,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useNavigation, useRoute, type RouteProp } from "@react-navigation/native";
@@ -110,6 +111,24 @@ export default function WorkoutSummaryScreen() {
 
     const handleGoHome = () => {
         navigation.reset({ index: 0, routes: [{ name: "MainTabs" }] });
+    };
+
+    const shareWorkoutSummary = async () => {
+        const title = programName ? `${programName} tamamlandi` : "SmartProgress antrenman ozeti";
+        const lines = [
+            title,
+            dayLabel ? `Gun: ${dayLabel}` : undefined,
+            `Sure: ${formatDuration(duration)}`,
+            `Egzersiz: ${exerciseCount}`,
+            `Set: ${setCount}`,
+            `Yuk skoru: ${Number(totalVolume || 0).toFixed(1)}`,
+            "SmartProgress ile loglandi.",
+        ].filter(Boolean);
+        try {
+            await Share.share({ title, message: lines.join("\n") });
+        } catch {
+            setNotice({ title: "Paylasilamadi", message: "Antrenman ozeti paylasilamadi. Lutfen tekrar dene." });
+        }
     };
 
     const buildTargetSetFromLoggedSet = (set: any) => {
@@ -419,6 +438,16 @@ export default function WorkoutSummaryScreen() {
 
             {/* ─── Actions ─── */}
             <Animated.View style={[styles.actions, { opacity: fadeAnim }]}>
+                <AnimatedPressable
+                    style={styles.shareSummaryPressable}
+                    onPress={shareWorkoutSummary}
+                    pressedScale={0.985}
+                >
+                    <View style={styles.shareSummaryBtn}>
+                        <Ionicons name="share-social-outline" size={18} color={colors.accent} />
+                        <Text style={styles.shareSummaryText}>Ozeti paylas</Text>
+                    </View>
+                </AnimatedPressable>
                 <AccentButton
                     title="Ana Sayfaya Dön"
                     onPress={handleGoHome}
@@ -590,6 +619,26 @@ const createStyles = (colors: any) => StyleSheet.create({
     },
     actions: {
         width: "100%",
+        gap: spacing.sm,
+    },
+    shareSummaryPressable: {
+        width: "100%",
+    },
+    shareSummaryBtn: {
+        minHeight: 50,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.border,
+        backgroundColor: colors.surface,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.xs,
+    },
+    shareSummaryText: {
+        color: colors.accent,
+        fontSize: fontSize.sm,
+        fontWeight: fontWeight.bold,
     },
     saveProgramWrap: {
         width: "100%",
