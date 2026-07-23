@@ -2,6 +2,12 @@ name: Build Android AAB
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "frontend/app.json"
+      - ".github/workflows/build-android-aab.yml"
 
 jobs:
   build:
@@ -21,8 +27,38 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check Android versionCode change
+        id: android_version
+        working-directory: ${{ github.workspace }}
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          BEFORE="${{ github.event.before }}"
+          if git cat-file -e "$BEFORE:frontend/app.json" 2>/dev/null; then
+            OLD_VERSION_CODE="$(git show "$BEFORE:frontend/app.json" | node -e "let input=''; process.stdin.on('data', c => input += c); process.stdin.on('end', () => console.log(JSON.parse(input).expo.android.versionCode));")"
+          else
+            OLD_VERSION_CODE=""
+          fi
+          NEW_VERSION_CODE="$(node -e "const app=require('./frontend/app.json'); console.log(app.expo.android.versionCode);")"
+
+          echo "Previous Android versionCode: ${OLD_VERSION_CODE:-none}"
+          echo "Current Android versionCode: $NEW_VERSION_CODE"
+
+          if [ "$OLD_VERSION_CODE" = "$NEW_VERSION_CODE" ]; then
+            echo "Android versionCode did not change; skipping Android AAB build."
+            echo "should_build=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_build=true" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Validate required secrets
+        if: steps.android_version.outputs.should_build == 'true'
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -39,6 +75,7 @@ jobs:
           test -n "${GOOGLE_PLAY_SERVICE_ACCOUNT_JSON:-}" || (echo "Missing GOOGLE_PLAY_SERVICE_ACCOUNT_JSON" && exit 1)
 
       - name: Setup Node
+        if: steps.android_version.outputs.should_build == 'true'
         uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -46,24 +83,30 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Setup Java
+        if: steps.android_version.outputs.should_build == 'true'
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: 17
 
       - name: Setup Android SDK
+        if: steps.android_version.outputs.should_build == 'true'
         uses: android-actions/setup-android@v3
 
       - name: Install dependencies
+        if: steps.android_version.outputs.should_build == 'true'
         run: npm ci --include=dev --production=false
 
       - name: Verify TypeScript install
+        if: steps.android_version.outputs.should_build == 'true'
         run: npm ls typescript
 
       - name: Typecheck
+        if: steps.android_version.outputs.should_build == 'true'
         run: ./node_modules/.bin/tsc --noEmit
 
       - name: Write Expo public env
+        if: steps.android_version.outputs.should_build == 'true'
         run: |
           printf '%s\n' \
             'EXPO_PUBLIC_API_URL=https://api.smartprogress.online' \
@@ -76,11 +119,13 @@ jobs:
           node -e "const fs=require('fs'); const env=fs.readFileSync('.env','utf8'); const match=env.match(/^EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY=(.+)$/m); const key=match?.[1] || ''; console.log('RevenueCat Android key length:', key.length); console.log('RevenueCat Android key prefix:', key.slice(0,5)); if (!key || !key.startsWith('goog_')) { console.error('Invalid EXPO_PUBLIC_REVENUECAT_ANDROID_API_KEY. Android RevenueCat public SDK key must start with goog_.'); process.exit(1); }"
 
       - name: Generate Android project
+        if: steps.android_version.outputs.should_build == 'true'
         env:
           NODE_ENV: production
         run: npx expo prebuild --platform android --clean --non-interactive
 
       - name: Configure release signing
+        if: steps.android_version.outputs.should_build == 'true'
         run: |
           echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/smartprogress-upload.jks
           printf '%s\n' \
@@ -92,12 +137,14 @@ jobs:
           node scripts/configure-android-signing.mjs
 
       - name: Build release AAB
+        if: steps.android_version.outputs.should_build == 'true'
         working-directory: frontend/android
         env:
           NODE_ENV: production
         run: ./gradlew bundleRelease
 
       - name: Upload AAB artifact
+        if: steps.android_version.outputs.should_build == 'true'
         uses: actions/upload-artifact@v4
         with:
           name: smartprogress-android-aab
@@ -105,9 +152,10 @@ jobs:
           if-no-files-found: error
 
       - name: Upload AAB to Google Play internal testing
+        if: steps.android_version.outputs.should_build == 'true'
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.smartprogress.app
           releaseFiles: frontend/android/app/build/outputs/bundle/release/app-release.aab
-          track: internal
+          tracks: internal
