@@ -112,14 +112,8 @@ export default function PublicProgramPreviewScreen() {
         ) return;
         attemptedAutoOpenRef.current = true;
         const promptTimer = setTimeout(() => setInstallPromptVisible(true), 4200);
-        const appTimer = isMobileWebUserAgent()
-            ? setTimeout(() => {
-                openProgramDeepLink(route.params.programId).catch(() => undefined);
-            }, 800)
-            : undefined;
         return () => {
             clearTimeout(promptTimer);
-            if (appTimer) clearTimeout(appTimer);
         };
     }, [error, loading, program, route.params.programId]);
 
