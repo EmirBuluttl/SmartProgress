@@ -509,13 +509,17 @@ export default function ProgramDetailScreen() {
         }
     };
 
+    const resolveProgramShareId = (programToShare?: ProgramData | null) =>
+        programToShare?.id || programId;
+
     const sharePublicProgram = async (programToShare: ProgramData) => {
-        if (!programToShare.id) {
+        const shareId = resolveProgramShareId(programToShare);
+        if (!shareId) {
             setNotice({ title: "Paylasilamadi", message: "Program linki icin program kimligi bulunamadi." });
             return;
         }
-        const shareUrl = `${PROGRAM_SHARE_BASE_URL}/${programToShare.id}`;
-        const appUrl = `${PROGRAM_APP_LINK_BASE_URL}/${programToShare.id}`;
+        const shareUrl = `${PROGRAM_SHARE_BASE_URL}/${shareId}`;
+        const appUrl = `${PROGRAM_APP_LINK_BASE_URL}/${shareId}`;
         const title = programToShare.name || "SmartProgress programi";
         const message = Platform.OS === "web"
             ? `${title}\n${shareUrl}`
@@ -539,7 +543,7 @@ export default function ProgramDetailScreen() {
         await Share.share({
             title,
             message,
-            url: appUrl,
+            url: shareUrl,
         });
     };
 
@@ -568,7 +572,7 @@ export default function ProgramDetailScreen() {
             const nextProgram = {
                 ...program,
                 ...unwrapProgramResponse(res.data, program),
-                id: unwrapProgramResponse(res.data, program).id || program.id,
+                id: unwrapProgramResponse(res.data, program).id || resolveProgramShareId(program),
                 isPublic: true,
             };
             invalidateProgramCache(program.id);
