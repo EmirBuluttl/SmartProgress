@@ -91,7 +91,7 @@ const DEFAULT_USER_SETTINGS = {
     onboarding_completed: false,
 };
 
-const FREE_WIZARD_USES = 2;
+const FREE_WIZARD_USES = 1;
 const MANUAL_PREMIUM_TRIAL_DAYS = 60;
 const PASSWORD_RESET_EXPIRES_MINUTES = env.PASSWORD_RESET_EXPIRES_MINUTES;
 const PASSWORD_RESET_COOLDOWN_MINUTES = env.PASSWORD_RESET_COOLDOWN_MINUTES;
@@ -160,17 +160,10 @@ function buildPasswordResetSettings(settings: unknown) {
 }
 
 function buildDefaultUserSettings() {
-    const trialStartedAt = new Date();
-    const trialExpiresAt = new Date(trialStartedAt);
-    trialExpiresAt.setDate(trialExpiresAt.getDate() + MANUAL_PREMIUM_TRIAL_DAYS);
-
     return {
         ...DEFAULT_USER_SETTINGS,
         free_wizard_uses_remaining: FREE_WIZARD_USES,
         coach_plus_beta: false,
-        pro_trial_started_at: trialStartedAt.toISOString(),
-        pro_trial_expires_at: trialExpiresAt.toISOString(),
-        pro_trial_source: "manual_signup_promo",
     };
 }
 
@@ -340,8 +333,8 @@ export class AuthService {
             firstName: dto.firstName,
             lastName: dto.lastName,
             settings: buildDefaultUserSettings(),
-            subscriptionTier: "PRO",
-            subscriptionStatus: "TRIAL",
+            subscriptionTier: "FREE",
+            subscriptionStatus: "INACTIVE",
         });
         const subscription = effectiveSubscription(user);
 
@@ -505,6 +498,75 @@ export class AuthService {
             subscriptionTier: revenueCatStatus.active || preserveManualTrial ? "PRO" : "FREE",
             subscriptionStatus: revenueCatStatus.active ? "ACTIVE" : preserveManualTrial ? "TRIAL" : "INACTIVE",
             settings,
+        });
+
+        const subscription = effectiveSubscription(updated);
+        return {
+            id: updated.id,
+            email: updated.email,
+            firstName: updated.firstName,
+            lastName: updated.lastName,
+            nickname: updated.nickname,
+            avatarUrl: updated.avatarUrl,
+            role: updated.role,
+            settings: updated.settings,
+            subscriptionTier: subscription.subscriptionTier,
+            subscriptionStatus: subscription.subscriptionStatus,
+        };
+    }
+
+    async startPremiumTrial(userId: string): Promise<AuthResponse["user"]> {
+        const user = await userRepository.findById(userId);
+        if (!user) {
+            throw new NotFoundError("User not found");
+        }
+
+        const settings = (user.settings as Record<string, any> | null) || {};
+        const existingExpiresAt = settings.pro_trial_expires_at ? new Date(settings.pro_trial_expires_at) : null;
+        const hasActiveTrial = user.subscriptionTier === "PRO" &&
+            user.subscriptionStatus === "TRIAL" &&
+            !!existingExpiresAt &&
+            Number.isFinite(existingExpiresAt.getTime()) &&
+            existingExpiresAt.getTime() > Date.now();
+
+        if (hasActiveTrial) {
+            const subscription = effectiveSubscription(user);
+            return {
+                id: user.id,
+                email: user.email,
+                firstName: user.firstName,
+                lastName: user.lastName,
+                nickname: user.nickname,
+                avatarUrl: user.avatarUrl,
+                role: user.role,
+                settings: user.settings,
+                subscriptionTier: subscription.subscriptionTier,
+                subscriptionStatus: subscription.subscriptionStatus,
+            };
+        }
+
+        if (user.subscriptionStatus === "ACTIVE" && (user.subscriptionTier === "PRO" || user.subscriptionTier === "COACH_PLUS")) {
+            return this.getProfile(userId);
+        }
+
+        if (settings.pro_trial_started_at || settings.pro_trial_claimed_at || settings.pro_trial_expires_at) {
+            throw new ConflictError("Premium trial has already been used.");
+        }
+
+        const trialStartedAt = new Date();
+        const trialExpiresAt = new Date(trialStartedAt);
+        trialExpiresAt.setDate(trialExpiresAt.getDate() + MANUAL_PREMIUM_TRIAL_DAYS);
+
+        const updated = await userRepository.updateById(userId, {
+            subscriptionTier: "PRO",
+            subscriptionStatus: "TRIAL",
+            settings: {
+                ...settings,
+                pro_trial_started_at: trialStartedAt.toISOString(),
+                pro_trial_claimed_at: trialStartedAt.toISOString(),
+                pro_trial_expires_at: trialExpiresAt.toISOString(),
+                pro_trial_source: "user_claimed_60_day_trial",
+            },
         });
 
         const subscription = effectiveSubscription(updated);
@@ -713,8 +775,8 @@ export class AuthService {
                     firstName: names.firstName,
                     lastName: names.lastName,
                     settings: buildDefaultUserSettings(),
-                    subscriptionTier: "PRO",
-                    subscriptionStatus: "TRIAL",
+                    subscriptionTier: "FREE",
+                    subscriptionStatus: "INACTIVE",
                     authProviders: {
                         create: {
                             provider: identity.provider,

@@ -9,7 +9,7 @@ import { useTheme } from "../hooks/ThemeContext";
 import type { RootStackParamList } from "../navigation/RootNavigator";
 import { useAuth } from "../store/AuthContext";
 import NoticeModal from "../components/NoticeModal";
-import { authApi, parseApiError } from "../services/api";
+import { authApi, parseApiError, subscriptionApi } from "../services/api";
 
 function formatPurchaseError(error: any) {
     const rawMessage = `${error?.message || ""} ${error?.underlyingErrorMessage || ""}`.toLowerCase();
@@ -59,6 +59,7 @@ export default function PremiumDetailScreen() {
     const [purchaseProduct, setPurchaseProduct] = React.useState<any | null>(null);
     const [loadingOffer, setLoadingOffer] = React.useState(false);
     const [busy, setBusy] = React.useState(false);
+    const [trialBusy, setTrialBusy] = React.useState(false);
     const [notice, setNotice] = React.useState<{ title: string; message: string } | null>(null);
     const trialDaysLeft = React.useMemo(() => {
         const expiresAt = user?.settings?.pro_trial_expires_at;
@@ -67,6 +68,9 @@ export default function PremiumDetailScreen() {
         if (!Number.isFinite(expiresTime)) return null;
         return Math.max(0, Math.ceil((expiresTime - Date.now()) / (1000 * 60 * 60 * 24)));
     }, [user?.settings?.pro_trial_expires_at]);
+    const hasTrialRecord = !!(user?.settings?.pro_trial_started_at || user?.settings?.pro_trial_claimed_at || user?.settings?.pro_trial_expires_at);
+    const hasActiveTrial = trialDaysLeft !== null && trialDaysLeft > 0 && String(user?.subscriptionStatus || "").toLowerCase() === "trial";
+    const canStartTrial = !hasTrialRecord && String(user?.subscriptionStatus || "").toLowerCase() !== "active";
 
     const syncBackendEntitlement = React.useCallback(async () => {
         const response = await authApi.syncEntitlements({ appUserId: user?.id });
@@ -158,6 +162,27 @@ export default function PremiumDetailScreen() {
         }
     };
 
+    const handleStartTrial = async () => {
+        if (!user?.id || trialBusy) return;
+        setTrialBusy(true);
+        try {
+            const response = await subscriptionApi.startPremiumTrial();
+            await updateUser(response.data);
+            setNotice({
+                title: "60 gun Premium deneme basladi",
+                message: "Akilli program wizard, haftalik rapor ve koc sinyalleri deneme boyunca acik.",
+            });
+        } catch (error) {
+            const apiError = parseApiError(error);
+            setNotice({
+                title: "Deneme baslatilamadi",
+                message: apiError.message || "Bu hesapta deneme daha once kullanilmis olabilir.",
+            });
+        } finally {
+            setTrialBusy(false);
+        }
+    };
+
     const handleRestore = async () => {
         if (!user?.id) return;
         setBusy(true);
@@ -216,13 +241,28 @@ export default function PremiumDetailScreen() {
                     <Ionicons name="hourglass-outline" size={18} color={colors.accent} />
                     <View style={styles.trialInfoCopy}>
                         <Text style={styles.trialInfoTitle}>
-                            {trialDaysLeft !== null && trialDaysLeft > 0 ? `${trialDaysLeft} gun Premium deneme` : "Yeni hesaplara 60 gun Premium deneme"}
+                            {hasActiveTrial ? `${trialDaysLeft} gun Premium deneme` : canStartTrial ? "60 gun Premium denemeni baslat" : "Premium deneme hakki"}
                         </Text>
                         <Text style={styles.trialInfoText}>
-                            Deneme suresinde akilli program wizard, haftalik rapor ve koc sinyalleri acik gelir. Magaza aboneligi deneme bittikten sonra Premium'u surdurmek icindir.
+                            {hasActiveTrial
+                                ? "Deneme suresinde akilli program wizard, haftalik rapor ve koc sinyalleri acik. Magaza aboneligi deneme bittikten sonra Premium'u surdurmek icindir."
+                                : canStartTrial
+                                    ? "Kredi karti istemeden Premium deneyimini acabilirsin. Istersen magaza aboneligini de asagidan baslatabilirsin."
+                                    : "Bu hesapta deneme baslatilmis veya kullanilmis gorunuyor. Premium'u magazadan baslatabilirsin."}
                         </Text>
                     </View>
                 </View>
+                {canStartTrial && (
+                    <TouchableOpacity
+                        style={[styles.trialButton, trialBusy && styles.disabledButton]}
+                        onPress={handleStartTrial}
+                        disabled={trialBusy}
+                        activeOpacity={0.82}
+                    >
+                        <Ionicons name="hourglass-outline" size={18} color={colors.accent} />
+                        <Text style={styles.trialButtonText}>{trialBusy ? "Deneme baslatiliyor..." : "60 gun denemeyi baslat"}</Text>
+                    </TouchableOpacity>
+                )}
                 <View style={styles.subscriptionInfoBox}>
                     <Text style={styles.subscriptionInfoTitle}>Abonelik bilgisi</Text>
                     <InfoRow label="Urun" value="SmartProgress Premium Monthly" colors={colors} />
@@ -367,6 +407,19 @@ const createStyles = (colors: any) => StyleSheet.create({
     trialInfoCopy: { flex: 1, minWidth: 0, gap: 2 },
     trialInfoTitle: { color: colors.text, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     trialInfoText: { color: colors.textSecondary, fontSize: fontSize.sm, lineHeight: 19 },
+    trialButton: {
+        minHeight: 44,
+        borderRadius: borderRadius.md,
+        borderWidth: 1,
+        borderColor: colors.accentBorder,
+        backgroundColor: colors.accentMuted,
+        paddingHorizontal: spacing.md,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: spacing.sm,
+    },
+    trialButtonText: { color: colors.accent, fontSize: fontSize.sm, fontWeight: fontWeight.bold },
     subscriptionInfoBox: {
         borderRadius: borderRadius.md,
         borderWidth: 1,

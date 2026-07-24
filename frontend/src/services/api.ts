@@ -145,6 +145,10 @@ export const authApi = {
     deleteAccount: () => api.delete("/auth/me"),
 };
 
+export const subscriptionApi = {
+    startPremiumTrial: () => api.post("/subscriptions/trial/start"),
+};
+
 // ─── Workout Endpoints ───────────────────────
 
 export const workoutApi = {

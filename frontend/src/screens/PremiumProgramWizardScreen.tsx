@@ -129,7 +129,7 @@ export default function PremiumProgramWizardScreen() {
     const [exerciseInfo, setExerciseInfo] = React.useState<{ pattern: PatternKey; item: ExerciseLibraryItem; rank: number } | null>(null);
     const [profileApplied, setProfileApplied] = React.useState(false);
     const hasProAccess = hasActiveProAccess(user);
-    const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 2));
+    const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 1));
     const proWizardUsesRemaining = Math.max(0, Number(user?.settings?.pro_wizard_uses_remaining ?? PRO_WIZARD_USES));
     const wizardUsesRemaining = hasProAccess ? proWizardUsesRemaining : freeWizardUsesRemaining;
 

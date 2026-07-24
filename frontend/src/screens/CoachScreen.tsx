@@ -125,7 +125,7 @@ export default function CoachScreen() {
     const trialDaysLeft = trialExpiresAt && Number.isFinite(trialExpiresAt.getTime())
         ? Math.max(0, Math.ceil((trialExpiresAt.getTime() - Date.now()) / 86400000))
         : null;
-    const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 2));
+    const freeWizardUsesRemaining = Math.max(0, Number(user?.settings?.free_wizard_uses_remaining ?? 1));
     const proWizardUsesRemaining = Math.max(0, Number(user?.settings?.pro_wizard_uses_remaining ?? PRO_WIZARD_USES));
     const wizardUsesRemaining = isFree ? freeWizardUsesRemaining : proWizardUsesRemaining;
     const exerciseAnalyses = React.useMemo(

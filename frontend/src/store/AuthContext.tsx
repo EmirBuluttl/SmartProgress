@@ -38,6 +38,7 @@ interface User {
         coach_profile?: Record<string, any>;
         coachProfile?: Record<string, any>;
         pro_trial_started_at?: string;
+        pro_trial_claimed_at?: string;
         pro_trial_expires_at?: string;
         free_wizard_uses_remaining?: number;
         pro_wizard_uses_remaining?: number;
