@@ -42,8 +42,7 @@ export default function InlineTourCard({ stepKey, scrollRef, scrollOffset = 96 }
             translateY.setValue(8);
             return;
         }
-        const firstScrollTimer = window.setTimeout(scrollToCard, 80);
-        const settleScrollTimer = window.setTimeout(scrollToCard, 320);
+        const scrollTimers = [80, 320, 680, 1080].map((delay) => window.setTimeout(scrollToCard, delay));
         Animated.parallel([
             Animated.timing(opacity, {
                 toValue: 1,
@@ -57,8 +56,7 @@ export default function InlineTourCard({ stepKey, scrollRef, scrollOffset = 96 }
             }),
         ]).start();
         return () => {
-            window.clearTimeout(firstScrollTimer);
-            window.clearTimeout(settleScrollTimer);
+            scrollTimers.forEach((timer) => window.clearTimeout(timer));
         };
     }, [active, opacity, scrollToCard, translateY]);
 
