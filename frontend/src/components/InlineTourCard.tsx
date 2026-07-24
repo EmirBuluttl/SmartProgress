@@ -16,16 +16,39 @@ export default function InlineTourCard({ stepKey, scrollRef, scrollOffset = 96 }
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const opacity = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(8)).current;
+    const cardRef = useRef<View | null>(null);
     const cardYRef = useRef<number | null>(null);
     const { currentIndex, currentStep, isActiveStep, next, previous, skip, total } = useInlineAppTour();
     const active = isActiveStep(stepKey);
 
     const scrollToCard = useCallback(() => {
         if (!active || !scrollRef?.current || cardYRef.current === null) return;
-        scrollRef.current.scrollTo({
-            y: Math.max(0, cardYRef.current - scrollOffset),
-            animated: true,
-        });
+        const scrollToY = (y: number) => {
+            scrollRef.current?.scrollTo({
+                y: Math.max(0, y - scrollOffset),
+                animated: true,
+            });
+        };
+
+        const scrollNode = scrollRef.current as any;
+        const targetNode = cardRef.current as any;
+        const measureRelativeTo =
+            typeof scrollNode?.getScrollableNode === "function" ? scrollNode.getScrollableNode() : scrollNode;
+
+        if (targetNode && measureRelativeTo && typeof targetNode.measureLayout === "function") {
+            try {
+                targetNode.measureLayout(
+                    measureRelativeTo,
+                    (_x: number, y: number) => scrollToY(y),
+                    () => scrollToY(cardYRef.current ?? 0),
+                );
+                return;
+            } catch {
+                // Fall through to the layout value captured by onLayout.
+            }
+        }
+
+        scrollToY(cardYRef.current);
     }, [active, scrollOffset, scrollRef]);
 
     const handleLayout = useCallback(
@@ -65,7 +88,12 @@ export default function InlineTourCard({ stepKey, scrollRef, scrollOffset = 96 }
     const isLast = currentIndex >= total - 1;
 
     return (
-        <Animated.View onLayout={handleLayout} style={[styles.card, { opacity, transform: [{ translateY }] }]}>
+        <Animated.View
+            ref={cardRef}
+            collapsable={false}
+            onLayout={handleLayout}
+            style={[styles.card, { opacity, transform: [{ translateY }] }]}
+        >
             <View style={styles.header}>
                 <View style={styles.badge}>
                     <Ionicons name="sparkles-outline" size={15} color={colors.accent} />
