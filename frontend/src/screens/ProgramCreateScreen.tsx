@@ -1265,6 +1265,9 @@ export default function ProgramCreateScreen() {
                                                     </Text>
 
                                                     <View style={styles.setInputGroup}>
+                                                        <Text style={styles.setSettingsSummary} numberOfLines={1}>
+                                                            {getSetSettingsSummary(set)}
+                                                        </Text>
                                                         {set.weightMode ? (
                                                         <View style={styles.setCol}>
                                                             <Text style={styles.setColLabel}>{set.weightMode === "bodyweight" ? "Ek kg" : set.weightMode === "kg" ? "Kg" : "Ağırlık"}</Text>
@@ -1320,9 +1323,9 @@ export default function ProgramCreateScreen() {
                                                         style={styles.setSettingsBtn}
                                                         onPress={() => openSetSettings(exercise.id, setIndex, set)}
                                                         activeOpacity={0.8}
+                                                        accessibilityLabel={`${label} set ayarlarını düzenle`}
                                                     >
-                                                        <Ionicons name="options-outline" size={14} color={colors.accent} />
-                                                        <Text style={styles.setSettingsBtnText}>{getSetSettingsSummary(set)}</Text>
+                                                        <Ionicons name="options-outline" size={18} color={colors.accent} />
                                                     </TouchableOpacity>
                                                     {false && (
                                                     <View style={styles.setModeRow}>
@@ -2248,9 +2251,16 @@ const createStyles = (colors: any) => StyleSheet.create({
     setInputGroup: {
         flex: 1,
         flexDirection: "row",
-        flexWrap: "nowrap",
+        flexWrap: "wrap",
         gap: spacing.xs,
         minWidth: 0,
+    },
+    setSettingsSummary: {
+        width: "100%",
+        color: colors.textMuted,
+        fontSize: 10,
+        fontWeight: fontWeight.semibold,
+        textTransform: "uppercase",
     },
     setCol: {
         flexGrow: 1,
@@ -2281,21 +2291,14 @@ const createStyles = (colors: any) => StyleSheet.create({
         padding: spacing.xs,
     },
     setSettingsBtn: {
-        flexDirection: "row",
         alignItems: "center",
-        gap: spacing.xs,
-        minHeight: 32,
-        paddingHorizontal: spacing.sm,
-        borderRadius: borderRadius.full,
+        justifyContent: "center",
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         borderWidth: 1,
-        borderColor: colors.border,
+        borderColor: colors.accentBorder,
         backgroundColor: colors.surfaceElevated,
-        maxWidth: 132,
-    },
-    setSettingsBtnText: {
-        color: colors.textSecondary,
-        fontSize: 11,
-        fontWeight: fontWeight.semibold,
     },
     setSettingsModal: {
         width: "92%",
