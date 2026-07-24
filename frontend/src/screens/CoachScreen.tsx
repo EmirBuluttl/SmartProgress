@@ -295,7 +295,7 @@ export default function CoachScreen() {
                     </View>
                 </Animated.View>
             )}
-            <InlineTourCard stepKey="coach.hero" />
+            <InlineTourCard stepKey="coach.hero" scrollRef={scrollRef} />
 
             {!isFree && (
                 <Animated.View style={[styles.section, dashboardAnimStyle]}>
@@ -596,7 +596,7 @@ export default function CoachScreen() {
                         <Text style={styles.sectionTitle}>Paket bilgisi</Text>
                     </View>
                 </View>
-                <InlineTourCard stepKey="coach.package" />
+                <InlineTourCard stepKey="coach.package" scrollRef={scrollRef} />
                 <View style={styles.planGrid}>
                     <PlanCard
                         title="Premium"

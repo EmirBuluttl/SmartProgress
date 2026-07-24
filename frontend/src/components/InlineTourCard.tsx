@@ -1,17 +1,40 @@
-import React, { useEffect, useRef } from "react";
-import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import React, { useCallback, useEffect, useRef } from "react";
+import { Animated, LayoutChangeEvent, ScrollView, StyleSheet, Text, TouchableOpacity, View } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { fontSize, fontWeight, spacing } from "../constants/theme";
 import { useTheme } from "../hooks/ThemeContext";
 import { AppTourStepKey, useInlineAppTour } from "../contexts/AppTourController";
 
-export default function InlineTourCard({ stepKey }: { stepKey: AppTourStepKey }) {
+type InlineTourCardProps = {
+    stepKey: AppTourStepKey;
+    scrollRef?: React.RefObject<ScrollView | null>;
+    scrollOffset?: number;
+};
+
+export default function InlineTourCard({ stepKey, scrollRef, scrollOffset = 96 }: InlineTourCardProps) {
     const { colors } = useTheme();
     const styles = React.useMemo(() => createStyles(colors), [colors]);
     const opacity = useRef(new Animated.Value(0)).current;
     const translateY = useRef(new Animated.Value(8)).current;
+    const cardYRef = useRef<number | null>(null);
     const { currentIndex, currentStep, isActiveStep, next, previous, skip, total } = useInlineAppTour();
     const active = isActiveStep(stepKey);
+
+    const scrollToCard = useCallback(() => {
+        if (!active || !scrollRef?.current || cardYRef.current === null) return;
+        scrollRef.current.scrollTo({
+            y: Math.max(0, cardYRef.current - scrollOffset),
+            animated: true,
+        });
+    }, [active, scrollOffset, scrollRef]);
+
+    const handleLayout = useCallback(
+        (event: LayoutChangeEvent) => {
+            cardYRef.current = event.nativeEvent.layout.y;
+            window.setTimeout(scrollToCard, 40);
+        },
+        [scrollToCard],
+    );
 
     useEffect(() => {
         if (!active) {
@@ -19,6 +42,8 @@ export default function InlineTourCard({ stepKey }: { stepKey: AppTourStepKey })
             translateY.setValue(8);
             return;
         }
+        const firstScrollTimer = window.setTimeout(scrollToCard, 80);
+        const settleScrollTimer = window.setTimeout(scrollToCard, 320);
         Animated.parallel([
             Animated.timing(opacity, {
                 toValue: 1,
@@ -31,14 +56,18 @@ export default function InlineTourCard({ stepKey }: { stepKey: AppTourStepKey })
                 useNativeDriver: true,
             }),
         ]).start();
-    }, [active, opacity, translateY]);
+        return () => {
+            window.clearTimeout(firstScrollTimer);
+            window.clearTimeout(settleScrollTimer);
+        };
+    }, [active, opacity, scrollToCard, translateY]);
 
     if (!active || !currentStep) return null;
 
     const isLast = currentIndex >= total - 1;
 
     return (
-        <Animated.View style={[styles.card, { opacity, transform: [{ translateY }] }]}>
+        <Animated.View onLayout={handleLayout} style={[styles.card, { opacity, transform: [{ translateY }] }]}>
             <View style={styles.header}>
                 <View style={styles.badge}>
                     <Ionicons name="sparkles-outline" size={15} color={colors.accent} />

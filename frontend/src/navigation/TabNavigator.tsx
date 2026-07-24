@@ -95,22 +95,35 @@ export default function TabNavigator(props: any) {
 
 function TabNavigatorShell(props: any) {
     const navigation = useNavigation<any>();
+    const [tourCompleteNoticeVisible, setTourCompleteNoticeVisible] = React.useState(false);
+    const shouldContinueAfterTourRef = React.useRef(false);
+
     const handleTourFinish = React.useCallback(async () => {
         await markAppTourCompleted();
-        const shouldContinueOnboarding = await hasPendingPostOnboardingFlow().catch(() => false);
-        if (shouldContinueOnboarding) {
+        shouldContinueAfterTourRef.current = await hasPendingPostOnboardingFlow().catch(() => false);
+        setTourCompleteNoticeVisible(true);
+    }, []);
+
+    const handleCloseTourCompleteNotice = React.useCallback(() => {
+        setTourCompleteNoticeVisible(false);
+        if (shouldContinueAfterTourRef.current) {
+            shouldContinueAfterTourRef.current = false;
             navigation.navigate("PostTourNextStep");
         }
     }, [navigation]);
 
     return (
         <AppTourControllerProvider onFinish={handleTourFinish}>
-            <TabNavigatorInner {...props} />
+            <TabNavigatorInner
+                {...props}
+                tourCompleteNoticeVisible={tourCompleteNoticeVisible}
+                onCloseTourCompleteNotice={handleCloseTourCompleteNotice}
+            />
         </AppTourControllerProvider>
     );
 }
 
-function TabNavigatorInner({ route }: any) {
+function TabNavigatorInner({ route, tourCompleteNoticeVisible, onCloseTourCompleteNotice }: any) {
     const { colors } = useTheme();
     const navigation = useNavigation<any>();
     const { activeTabIndex, startTour, visible: tourVisible } = useInlineAppTour();
@@ -378,6 +391,13 @@ function TabNavigatorInner({ route }: any) {
                 title="Kurulum tamamlandi"
                 message="Ilk rehberlik akisin tamamlandi. Programina ana sayfadan devam edebilir, hatirlaticilarini profilden tekrar duzenleyebilirsin."
                 onClose={() => setSetupCompleteNoticeVisible(false)}
+            />
+
+            <NoticeModal
+                visible={tourCompleteNoticeVisible}
+                title="Tebrikler, artik hazirsin"
+                message="Uygulamanin ana akislarini ogrendin. Simdi hedeflerine gore programini kurup ilk loglama egitimine gecebilirsin."
+                onClose={onCloseTourCompleteNotice}
             />
 
             {/* Custom Bottom Tab Bar */}

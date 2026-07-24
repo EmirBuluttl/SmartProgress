@@ -792,7 +792,7 @@ export default function MyProgressScreen() {
                         </View>
                     </GymCard>
                     </View>
-                    <InlineTourCard stepKey="progress.chart" />
+                    <InlineTourCard stepKey="progress.chart" scrollRef={scrollRef} />
                 </Animated.View>
 
                 <Animated.View style={chartAnimStyle}>
@@ -885,7 +885,7 @@ export default function MyProgressScreen() {
                         onAction={handleOpenRecords}
                     />
                     </View>
-                    <InlineTourCard stepKey="progress.records" />
+                    <InlineTourCard stepKey="progress.records" scrollRef={scrollRef} />
                     {prs.length > 0 ? (
                         prs.slice(0, 5).map((pr, index) => (
                             <AnimatedPressable

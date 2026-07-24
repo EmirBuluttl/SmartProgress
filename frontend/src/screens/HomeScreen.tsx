@@ -579,7 +579,7 @@ export default function HomeScreen() {
                     </AnimatedPressable>
                 </View>
             </Animated.View>
-            <InlineTourCard stepKey="home.streak" />
+            <InlineTourCard stepKey="home.streak" scrollRef={scrollRef} />
 
             {/* ─── Active Workout Banner ─── */}
             <ActiveWorkoutBanner refreshKey={bannerRefresh} />
@@ -604,7 +604,7 @@ export default function HomeScreen() {
                 </View>
             </AnimatedPressable>
             </Animated.View>
-            <InlineTourCard stepKey="home.quickWorkout" />
+            <InlineTourCard stepKey="home.quickWorkout" scrollRef={scrollRef} />
 
             {/* ─── Stats Row ─── */}
             <Animated.View style={[styles.statsRow, statsAnimStyle]}>
@@ -627,7 +627,7 @@ export default function HomeScreen() {
                     icon={<Ionicons name="trending-up-outline" size={18} color={colors.accent} />}
                 />
             </Animated.View>
-            <InlineTourCard stepKey="home.stats" />
+            <InlineTourCard stepKey="home.stats" scrollRef={scrollRef} />
 
             {/* ─── Sıradaki Antrenman (Cycle-Based) ─── */}
             <View>
@@ -829,7 +829,7 @@ export default function HomeScreen() {
 
             {/* ─── Recent Workouts ─── */}
             </View>
-            <InlineTourCard stepKey="home.activeProgram" />
+            <InlineTourCard stepKey="home.activeProgram" scrollRef={scrollRef} />
 
             <View>
             <View>
@@ -902,7 +902,7 @@ export default function HomeScreen() {
                 />
             </View>
             </View>
-            <InlineTourCard stepKey="home.programs" />
+            <InlineTourCard stepKey="home.programs" scrollRef={scrollRef} />
 
             <View>
             {programs.length > 3 && (
@@ -975,7 +975,7 @@ export default function HomeScreen() {
                 />
             </View>
             </View>
-            <InlineTourCard stepKey="home.community" />
+            <InlineTourCard stepKey="home.community" scrollRef={scrollRef} />
 
             <View>
             {communityPrograms.length > 0 ? (

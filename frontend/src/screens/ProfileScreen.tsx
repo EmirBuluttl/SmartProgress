@@ -405,7 +405,7 @@ export default function ProfileScreen() {
                     <Text style={styles.editProfileBtnText}>Profili Düzenle</Text>
                 </AnimatedPressable>
             </View>
-            <InlineTourCard stepKey="profile.header" />
+            <InlineTourCard stepKey="profile.header" scrollRef={scrollRef} />
 
             {/* ─── Quick Stats ─── */}
             <View style={styles.quickStats}>
@@ -493,7 +493,7 @@ export default function ProfileScreen() {
                         thumbColor={notificationsEnabled ? colors.accent : colors.textMuted}
                     />
                 </View>
-                <InlineTourCard stepKey="profile.notifications" />
+                <InlineTourCard stepKey="profile.notifications" scrollRef={scrollRef} />
 
                 <View style={styles.settingDivider} />
 
@@ -626,7 +626,7 @@ export default function ProfileScreen() {
                         thumbColor={showRpeRirInfo ? colors.accent : colors.textMuted}
                     />
                 </View>
-                <InlineTourCard stepKey="profile.rpeRir" />
+                <InlineTourCard stepKey="profile.rpeRir" scrollRef={scrollRef} />
 
                 <View style={styles.settingDivider} />
 
