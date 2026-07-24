@@ -1,0 +1,163 @@
+import React, { useEffect, useRef } from "react";
+import { Animated, StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { fontSize, fontWeight, spacing } from "../constants/theme";
+import { useTheme } from "../hooks/ThemeContext";
+import { AppTourStepKey, useInlineAppTour } from "../contexts/AppTourController";
+
+export default function InlineTourCard({ stepKey }: { stepKey: AppTourStepKey }) {
+    const { colors } = useTheme();
+    const styles = React.useMemo(() => createStyles(colors), [colors]);
+    const opacity = useRef(new Animated.Value(0)).current;
+    const translateY = useRef(new Animated.Value(8)).current;
+    const { currentIndex, currentStep, isActiveStep, next, previous, skip, total } = useInlineAppTour();
+    const active = isActiveStep(stepKey);
+
+    useEffect(() => {
+        if (!active) {
+            opacity.setValue(0);
+            translateY.setValue(8);
+            return;
+        }
+        Animated.parallel([
+            Animated.timing(opacity, {
+                toValue: 1,
+                duration: 180,
+                useNativeDriver: true,
+            }),
+            Animated.timing(translateY, {
+                toValue: 0,
+                duration: 180,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, [active, opacity, translateY]);
+
+    if (!active || !currentStep) return null;
+
+    const isLast = currentIndex >= total - 1;
+
+    return (
+        <Animated.View style={[styles.card, { opacity, transform: [{ translateY }] }]}>
+            <View style={styles.header}>
+                <View style={styles.badge}>
+                    <Ionicons name="sparkles-outline" size={15} color={colors.accent} />
+                    <Text style={styles.badgeText}>Uygulama turu</Text>
+                </View>
+                <Text style={styles.counter}>{currentIndex + 1}/{total}</Text>
+            </View>
+            <Text style={styles.title}>{currentStep.title}</Text>
+            <Text style={styles.body}>{currentStep.body}</Text>
+            <View style={styles.actions}>
+                <TouchableOpacity activeOpacity={0.82} onPress={skip} style={styles.secondaryButton}>
+                    <Text style={styles.secondaryText}>Geç</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                    activeOpacity={0.82}
+                    disabled={currentIndex === 0}
+                    onPress={previous}
+                    style={[styles.secondaryButton, currentIndex === 0 && styles.disabledButton]}
+                >
+                    <Text style={[styles.secondaryText, currentIndex === 0 && styles.disabledText]}>Geri</Text>
+                </TouchableOpacity>
+                <TouchableOpacity activeOpacity={0.88} onPress={next} style={styles.primaryButton}>
+                    <Text style={styles.primaryText}>{isLast ? "Turu tamamla" : "Sonraki"}</Text>
+                    <Ionicons name={isLast ? "checkmark" : "arrow-forward"} size={16} color="#050505" />
+                </TouchableOpacity>
+            </View>
+        </Animated.View>
+    );
+}
+
+const createStyles = (colors: any) =>
+    StyleSheet.create({
+        card: {
+            marginTop: spacing.sm,
+            marginBottom: spacing.md,
+            borderWidth: 1,
+            borderColor: colors.accent,
+            borderRadius: 12,
+            backgroundColor: colors.surface,
+            padding: spacing.md,
+            shadowColor: colors.accent,
+            shadowOpacity: 0.16,
+            shadowRadius: 14,
+            shadowOffset: { width: 0, height: 8 },
+            elevation: 4,
+        },
+        header: {
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: spacing.sm,
+        },
+        badge: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.xs,
+        },
+        badgeText: {
+            color: colors.accent,
+            fontSize: fontSize.xs,
+            fontWeight: fontWeight.bold,
+            textTransform: "uppercase",
+        },
+        counter: {
+            color: colors.textMuted,
+            fontSize: fontSize.sm,
+            fontWeight: fontWeight.semibold,
+        },
+        title: {
+            color: colors.text,
+            fontSize: fontSize.lg,
+            fontWeight: fontWeight.bold,
+            marginBottom: spacing.xs,
+        },
+        body: {
+            color: colors.textSecondary,
+            fontSize: fontSize.sm,
+            lineHeight: 20,
+        },
+        actions: {
+            flexDirection: "row",
+            alignItems: "center",
+            gap: spacing.sm,
+            marginTop: spacing.md,
+        },
+        secondaryButton: {
+            minHeight: 42,
+            borderRadius: 10,
+            borderWidth: 1,
+            borderColor: colors.border,
+            paddingHorizontal: spacing.md,
+            alignItems: "center",
+            justifyContent: "center",
+        },
+        disabledButton: {
+            opacity: 0.42,
+        },
+        secondaryText: {
+            color: colors.textSecondary,
+            fontSize: fontSize.sm,
+            fontWeight: fontWeight.semibold,
+        },
+        disabledText: {
+            color: colors.textMuted,
+        },
+        primaryButton: {
+            minHeight: 42,
+            flex: 1,
+            borderRadius: 10,
+            backgroundColor: colors.accent,
+            paddingHorizontal: spacing.md,
+            flexDirection: "row",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: spacing.xs,
+        },
+        primaryText: {
+            color: "#050505",
+            fontSize: fontSize.sm,
+            fontWeight: fontWeight.bold,
+        },
+    });

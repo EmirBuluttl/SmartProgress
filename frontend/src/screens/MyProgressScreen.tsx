@@ -49,7 +49,7 @@ import PremiumModalSurface from "../components/PremiumModalSurface";
 import { KeyboardAwareScrollView } from "../components/KeyboardSafeScreen";
 import WeeklyStrengthChart from "../components/WeeklyStrengthChart";
 import CoachSignalRatioChart from "../components/CoachSignalRatioChart";
-import { useAppTourTarget } from "../contexts/AppTourContext";
+import InlineTourCard from "../components/InlineTourCard";
 import { coachApi, type CoachSignalRatioPoint, type CoachSignalRatioRange } from "../services/api";
 
 const SCREEN_WIDTH = Dimensions.get("window").width;
@@ -226,17 +226,6 @@ export default function MyProgressScreen() {
     const signalRatioRequestIdRef = React.useRef(0);
     const isNavigatingToRecordsRef = React.useRef(false);
     const hasSetDefaultMetric = React.useRef(false);
-    const tourOffsetsRef = React.useRef<Record<string, number>>({});
-    const rememberTourOffset = React.useCallback((id: string) => (event: any) => {
-        tourOffsetsRef.current[id] = event.nativeEvent.layout.y;
-    }, []);
-    const scrollToTourTarget = React.useCallback((id: string) => {
-        const y = tourOffsetsRef.current[id] ?? 0;
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
-    }, []);
-    const chartTourRef = useAppTourTarget("progress.chart", { scrollTo: () => scrollToTourTarget("progress.chart"), maxHeight: 220, padding: 6 });
-    const filterTourRef = useAppTourTarget("progress.filter", { scrollTo: () => scrollToTourTarget("progress.filter"), maxHeight: 74, padding: 4 });
-    const recordsTourRef = useAppTourTarget("progress.records", { scrollTo: () => scrollToTourTarget("progress.records"), maxHeight: 56, padding: 4 });
 
     // 3 dakika TTL: stack ekrandan dönüşte sadece bayatlamış veri yeniden yüklenir
     const { shouldReload: shouldReloadAnalytics, markLoaded: markAnalyticsLoaded } = useStaleDataGuard(3 * 60 * 1000);
@@ -722,7 +711,7 @@ export default function MyProgressScreen() {
                 )}
 
                 {/* ── Filtre özeti ── */}
-                <Animated.View ref={filterTourRef} collapsable={false} onLayout={rememberTourOffset("progress.filter")} style={[styles.filterSummaryCard, filtersAnimStyle]}>
+                <Animated.View style={[styles.filterSummaryCard, filtersAnimStyle]}>
                     <View style={{ flex: 1, minWidth: 0 }}>
                         <Text style={styles.filterSummaryLabel}>Görünüm</Text>
                         <Text style={styles.filterSummaryValue} numberOfLines={1}>
@@ -745,7 +734,7 @@ export default function MyProgressScreen() {
                 {/* ── Progress Chart ── */}
                 <Animated.View style={chartAnimStyle}>
                     <SectionHeader title="Koc sinyalleri" />
-                    <View ref={chartTourRef} collapsable={false} onLayout={rememberTourOffset("progress.chart")}>
+                    <View>
                     <GymCard elevated style={styles.chartCard}>
                         <View style={styles.scoreSummaryRow}>
                             <View style={styles.scoreSummaryLeft}>
@@ -803,6 +792,7 @@ export default function MyProgressScreen() {
                         </View>
                     </GymCard>
                     </View>
+                    <InlineTourCard stepKey="progress.chart" />
                 </Animated.View>
 
                 <Animated.View style={chartAnimStyle}>
@@ -888,13 +878,14 @@ export default function MyProgressScreen() {
 
                 {/* ── Personal Records ── */}
                 <Animated.View style={prsAnimStyle}>
-                    <View ref={recordsTourRef} collapsable={false} onLayout={rememberTourOffset("progress.records")}>
+                    <View>
                     <SectionHeader
                         title="En İyi Setlerim"
                         actionLabel="Tümünü Gör"
                         onAction={handleOpenRecords}
                     />
                     </View>
+                    <InlineTourCard stepKey="progress.records" />
                     {prs.length > 0 ? (
                         prs.slice(0, 5).map((pr, index) => (
                             <AnimatedPressable

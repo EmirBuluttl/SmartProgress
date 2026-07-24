@@ -34,7 +34,7 @@ import SectionHeader from "../components/SectionHeader";
 import AccentButton from "../components/AccentButton";
 import AnimatedPressable from "../components/AnimatedPressable";
 import NoticeModal from "../components/NoticeModal";
-import { requestAppTourReplay, requestDetailedAppTourReplay } from "../utils/appTourEvents";
+import { requestAppTourReplay } from "../utils/appTourEvents";
 import { navigateWithFeedback, NavigationFeedbackVariant } from "../utils/navigationFeedback";
 import ActionConfirmModal from "../components/ActionConfirmModal";
 import { calculateWorkoutLoadScore } from "../utils/workoutMetrics";
@@ -46,7 +46,7 @@ import { getPersistedWorkoutAnalyticsSnapshot } from "../services/workoutAnalyti
 import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { getCachedProfile } from "../services/authCacheService";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
-import { useAppTourTarget } from "../contexts/AppTourContext";
+import InlineTourCard from "../components/InlineTourCard";
 
 const ACTIVE_PROGRAM_KEY = "active_program_id";
 const AVAILABLE_COLORS = [
@@ -83,25 +83,6 @@ export default function ProfileScreen() {
     const heatmapStyles = React.useMemo(() => createHeatmapStyles(colors), [colors]);
     const { animStyle } = useScreenEnter();
     const scrollRef = React.useRef<ScrollView | null>(null);
-    const tourOffsetsRef = React.useRef<Record<string, number>>({});
-    const rememberTourOffset = React.useCallback((id: string) => (event: any) => {
-        tourOffsetsRef.current[id] = event.nativeEvent.layout.y;
-    }, []);
-    const scrollToTourTarget = React.useCallback((id: string) => {
-        const y = tourOffsetsRef.current[id] ?? 0;
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
-    }, []);
-    const profileHeaderTourRef = useAppTourTarget("profile.header", { scrollTo: () => scrollToTourTarget("profile.header"), maxHeight: 150, padding: 6 });
-    const heatmapTourRef = useAppTourTarget("profile.heatmap", { scrollTo: () => scrollToTourTarget("profile.heatmap"), maxHeight: 190, padding: 6 });
-    const trackingTourRef = useAppTourTarget("profile.tracking", { scrollTo: () => scrollToTourTarget("profile.tracking"), maxHeight: 142, padding: 6 });
-    const notificationsTourRef = useAppTourTarget("profile.notifications", { scrollTo: () => scrollToTourTarget("profile.notifications"), maxHeight: 124, padding: 6 });
-    const levelTourRef = useAppTourTarget("profile.level", { scrollTo: () => scrollToTourTarget("profile.level"), maxHeight: 78, padding: 4 });
-    const rpeRirTourRef = useAppTourTarget("profile.rpeRir", { scrollTo: () => scrollToTourTarget("profile.rpeRir"), maxHeight: 78, padding: 4 });
-    const exerciseLibraryTourRef = useAppTourTarget("profile.exerciseLibrary", { scrollTo: () => scrollToTourTarget("profile.exerciseLibrary"), maxHeight: 78, padding: 4 });
-    const rememberRepsTourRef = useAppTourTarget("profile.rememberReps", { scrollTo: () => scrollToTourTarget("profile.rememberReps"), maxHeight: 78, padding: 4 });
-    const visibilityTourRef = useAppTourTarget("profile.visibility", { scrollTo: () => scrollToTourTarget("profile.visibility"), maxHeight: 78, padding: 4 });
-    const themeColorTourRef = useAppTourTarget("profile.themeColor", { scrollTo: () => scrollToTourTarget("profile.themeColor"), maxHeight: 78, padding: 4 });
-    const themeModeTourRef = useAppTourTarget("profile.themeMode", { scrollTo: () => scrollToTourTarget("profile.themeMode"), maxHeight: 78, padding: 4 });
     const navigateStatic = React.useCallback(
         (screen: keyof RootStackParamList, variant: NavigationFeedbackVariant = "detail") =>
             navigateWithFeedback(() => navigation.navigate(screen as any), { variant }),
@@ -396,7 +377,7 @@ export default function ProfileScreen() {
             showsVerticalScrollIndicator={false}
         >
             {/* ─── Profile Header ─── */}
-            <View ref={profileHeaderTourRef} collapsable={false} onLayout={rememberTourOffset("profile.header")} style={styles.profileHeader}>
+            <View style={styles.profileHeader}>
                 <AnimatedPressable style={styles.avatarPressable} onPress={pickProfileImage} pressedScale={0.96}>
                     <View style={styles.avatarLarge}>
                         {user?.avatarUrl || user?.profileImage ? (
@@ -424,6 +405,7 @@ export default function ProfileScreen() {
                     <Text style={styles.editProfileBtnText}>Profili Düzenle</Text>
                 </AnimatedPressable>
             </View>
+            <InlineTourCard stepKey="profile.header" />
 
             {/* ─── Quick Stats ─── */}
             <View style={styles.quickStats}>
@@ -444,12 +426,12 @@ export default function ProfileScreen() {
             </View>
 
             {/* ─── Activity Heatmap ─── */}
-            <View ref={heatmapTourRef} collapsable={false} onLayout={rememberTourOffset("profile.heatmap")}>
+            <View>
                 <HeatmapCalendar workouts={workouts} colors={colors} heatmapStyles={heatmapStyles} />
             </View>
 
             <SectionHeader title="Takip" />
-            <View ref={trackingTourRef} collapsable={false} onLayout={rememberTourOffset("profile.tracking")}>
+            <View>
             <GymCard style={styles.settingsCard}>
                 <TouchableOpacity
                     style={styles.settingRow}
@@ -490,7 +472,7 @@ export default function ProfileScreen() {
             {/* ─── Settings ─── */}
             <SectionHeader title="Ayarlar" />
             <GymCard style={styles.settingsCard}>
-                <View ref={notificationsTourRef} collapsable={false} onLayout={rememberTourOffset("profile.notifications")}>
+                <View>
                 <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
@@ -511,6 +493,7 @@ export default function ProfileScreen() {
                         thumbColor={notificationsEnabled ? colors.accent : colors.textMuted}
                     />
                 </View>
+                <InlineTourCard stepKey="profile.notifications" />
 
                 <View style={styles.settingDivider} />
 
@@ -537,8 +520,6 @@ export default function ProfileScreen() {
                 <View style={styles.settingDivider} />
 
                 <TouchableOpacity
-                    ref={levelTourRef}
-                    onLayout={rememberTourOffset("profile.level")}
                     style={styles.settingRow}
                     onPress={() => navigateStatic("TrainingLevel")}
                     activeOpacity={0.78}
@@ -584,7 +565,7 @@ export default function ProfileScreen() {
                 <TouchableOpacity
                     style={styles.settingRow}
                     onPress={() => {
-                        requestDetailedAppTourReplay();
+                        requestAppTourReplay();
                         navigateWithFeedback(() => (navigation as any).navigate("MainTabs", { screen: "Home", switchKey: Date.now() }));
                     }}
                     activeOpacity={0.78}
@@ -622,7 +603,7 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
-                <View ref={rpeRirTourRef} collapsable={false} onLayout={rememberTourOffset("profile.rpeRir")} style={styles.settingRow}>
+                <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name="information-circle-outline" size={20} color={colors.accent} />
@@ -645,12 +626,11 @@ export default function ProfileScreen() {
                         thumbColor={showRpeRirInfo ? colors.accent : colors.textMuted}
                     />
                 </View>
+                <InlineTourCard stepKey="profile.rpeRir" />
 
                 <View style={styles.settingDivider} />
 
                 <TouchableOpacity
-                    ref={exerciseLibraryTourRef}
-                    onLayout={rememberTourOffset("profile.exerciseLibrary")}
                     style={styles.settingRow}
                     activeOpacity={0.75}
                     onPress={() => navigateStatic("ExerciseLibrary")}
@@ -669,7 +649,7 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
-                <View ref={rememberRepsTourRef} collapsable={false} onLayout={rememberTourOffset("profile.rememberReps")} style={styles.settingRow}>
+                <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name="repeat-outline" size={20} color={colors.accent} />
@@ -700,7 +680,7 @@ export default function ProfileScreen() {
 
                 <View style={styles.settingDivider} />
 
-                <View ref={visibilityTourRef} collapsable={false} onLayout={rememberTourOffset("profile.visibility")} style={styles.settingRow}>
+                <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name={profilePublic ? "globe-outline" : "lock-closed-outline"} size={20} color={colors.accent} />
@@ -748,8 +728,6 @@ export default function ProfileScreen() {
                 <View style={styles.settingDivider} />
 
                 <TouchableOpacity
-                    ref={themeColorTourRef}
-                    onLayout={rememberTourOffset("profile.themeColor")}
                     style={styles.settingRow}
                     activeOpacity={0.7}
                     onPress={() => setThemePickerVisible(true)}
@@ -766,7 +744,7 @@ export default function ProfileScreen() {
                     <View style={[styles.currentColorDot, { backgroundColor: colors.accent }]} />
                 </TouchableOpacity>
 
-                <View ref={themeModeTourRef} collapsable={false} onLayout={rememberTourOffset("profile.themeMode")} style={styles.settingRow}>
+                <View style={styles.settingRow}>
                     <View style={styles.settingInfo}>
                         <View style={styles.settingIconWrap}>
                             <Ionicons name={themeMode === "dark" ? "moon-outline" : "sunny-outline"} size={20} color={colors.textSecondary} />

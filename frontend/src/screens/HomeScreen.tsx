@@ -56,7 +56,7 @@ import { useMyProgramsQuery } from "../hooks/usePrograms";
 import { logPerf, markPerf } from "../utils/perfLogger";
 import { useStaleDataGuard } from "../hooks/useStaleDataGuard";
 import { applyProgramDayIndex } from "../services/programDayProgressService";
-import { useAppTourTarget } from "../contexts/AppTourContext";
+import InlineTourCard from "../components/InlineTourCard";
 import { hasPendingOnboardingTraining } from "../utils/appTourEvents";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
@@ -113,22 +113,6 @@ export default function HomeScreen() {
     const activeCardPulse = useRef(new Animated.Value(0)).current;
     const streakCelebrationAnim = useRef(new Animated.Value(0)).current;
     const [activatedProgramId, setActivatedProgramId] = useState<string | null>(null);
-    const tourOffsetsRef = React.useRef<Record<string, number>>({});
-    const rememberTourOffset = React.useCallback((id: string) => (event: any) => {
-        tourOffsetsRef.current[id] = event.nativeEvent.layout.y;
-    }, []);
-    const scrollToTourTarget = React.useCallback((id: string) => {
-        const y = tourOffsetsRef.current[id] ?? 0;
-        scrollRef.current?.scrollTo({ y: Math.max(0, y - 110), animated: true });
-    }, []);
-    const streakTourRef = useAppTourTarget("home.streak", { scrollTo: () => scrollToTourTarget("home.streak"), maxHeight: 72, maxWidthRatio: 0.62 });
-    const headerActionsTourRef = useAppTourTarget("home.headerActions", { scrollTo: () => scrollToTourTarget("home.headerActions"), maxHeight: 64, maxWidthRatio: 0.42 });
-    const quickWorkoutTourRef = useAppTourTarget("home.quickWorkout", { scrollTo: () => scrollToTourTarget("home.quickWorkout"), maxHeight: 68, padding: 4 });
-    const statsTourRef = useAppTourTarget("home.stats", { scrollTo: () => scrollToTourTarget("home.stats"), maxHeight: 92, padding: 4 });
-    const activeProgramTourRef = useAppTourTarget("home.activeProgram", { scrollTo: () => scrollToTourTarget("home.activeProgram"), maxHeight: 210, padding: 6 });
-    const recentWorkoutsTourRef = useAppTourTarget("home.recentWorkouts", { scrollTo: () => scrollToTourTarget("home.recentWorkouts"), maxHeight: 48, padding: 4 });
-    const programsTourRef = useAppTourTarget("home.programs", { scrollTo: () => scrollToTourTarget("home.programs"), maxHeight: 126, padding: 4 });
-    const communityTourRef = useAppTourTarget("home.community", { scrollTo: () => scrollToTourTarget("home.community"), maxHeight: 126, padding: 4 });
 
     // 2 dakika TTL: stack ekrandan dönüşte sadece verisi bayatlamış HomeScreen yeniden yükler
     const { shouldReload: shouldReloadDashboard, markLoaded: markDashboardLoaded } = useStaleDataGuard(2 * 60 * 1000);
@@ -554,7 +538,7 @@ export default function HomeScreen() {
         >
             {/* ─── Header ─── */}
             <Animated.View style={[styles.header, headerAnimStyle]}>
-                <View ref={streakTourRef} collapsable={false} onLayout={rememberTourOffset("home.streak")}>
+                <View>
                     <View style={styles.streakRow}>
                         <Ionicons name="flame" size={22} color={colors.accent} />
                         <Text style={[styles.streakValue, { marginLeft: spacing.xs }]}>
@@ -563,7 +547,7 @@ export default function HomeScreen() {
                     </View>
                     <Text style={styles.streakText}>Antrenman Kaçırmadın</Text>
                 </View>
-                <View ref={headerActionsTourRef} collapsable={false} onLayout={rememberTourOffset("home.headerActions")} style={styles.headerActions}>
+                <View style={styles.headerActions}>
                     <AnimatedPressable
                         style={styles.notificationBtn}
                         onPress={() => setNotificationsVisible(true)}
@@ -595,11 +579,12 @@ export default function HomeScreen() {
                     </AnimatedPressable>
                 </View>
             </Animated.View>
+            <InlineTourCard stepKey="home.streak" />
 
             {/* ─── Active Workout Banner ─── */}
             <ActiveWorkoutBanner refreshKey={bannerRefresh} />
 
-            <Animated.View ref={quickWorkoutTourRef} collapsable={false} onLayout={rememberTourOffset("home.quickWorkout")} style={quickAnimStyle}>
+            <Animated.View style={quickAnimStyle}>
             <AnimatedPressable
                 style={styles.quickWorkoutCard}
                 onPress={() => setQuickWorkoutConfirmVisible(true)}
@@ -619,9 +604,10 @@ export default function HomeScreen() {
                 </View>
             </AnimatedPressable>
             </Animated.View>
+            <InlineTourCard stepKey="home.quickWorkout" />
 
             {/* ─── Stats Row ─── */}
-            <Animated.View ref={statsTourRef} collapsable={false} onLayout={rememberTourOffset("home.stats")} style={[styles.statsRow, statsAnimStyle]}>
+            <Animated.View style={[styles.statsRow, statsAnimStyle]}>
                 <StatBadge
                     value={totalWorkouts}
                     label="Antrenman"
@@ -641,6 +627,7 @@ export default function HomeScreen() {
                     icon={<Ionicons name="trending-up-outline" size={18} color={colors.accent} />}
                 />
             </Animated.View>
+            <InlineTourCard stepKey="home.stats" />
 
             {/* ─── Sıradaki Antrenman (Cycle-Based) ─── */}
             <View>
@@ -667,7 +654,7 @@ export default function HomeScreen() {
             ) : null}
 
             {favoriteProgram && isCurrentProgramCycle && currentDay && (
-                <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
+                <Animated.View style={mainCardAnimStyle}>
                 <Animated.View style={activeCardPulseStyle}>
                 <TouchableOpacity activeOpacity={0.94} onPress={openCurrentProgramDayDetail}>
                 <GymCard elevated style={styles.todayCard}>
@@ -787,7 +774,7 @@ export default function HomeScreen() {
 
             {/* ─── Aktif Program (Non-Cycle) ─── */}
             {favoriteProgram && !isCurrentProgramCycle && (
-                <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
+                <Animated.View style={mainCardAnimStyle}>
                 <Animated.View style={activeCardPulseStyle}>
                 <GymCard elevated style={styles.todayCard}>
                     <View style={styles.todayHeader}>
@@ -822,7 +809,7 @@ export default function HomeScreen() {
 
             {/* ─── No Favorite Hint ─── */}
             {!favoriteProgram && programs.length > 0 && (
-                <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
+                <Animated.View style={mainCardAnimStyle}>
                 <GymCard style={styles.todayCard}>
                     <Text style={styles.todayHint}>
                         Bir programı uzun basarak aktif takibe al; buraya "Sıradaki Antrenman" olarak sabitlensin.
@@ -831,7 +818,7 @@ export default function HomeScreen() {
                 </Animated.View>
             )}
             {!favoriteProgram && programs.length === 0 && (
-                <Animated.View ref={activeProgramTourRef} collapsable={false} onLayout={rememberTourOffset("home.activeProgram")} style={mainCardAnimStyle}>
+                <Animated.View style={mainCardAnimStyle}>
                 <GymCard style={styles.todayCard}>
                     <Text style={styles.todayHint}>
                         Programını oluşturduktan sonra sıradaki antrenman ve aktif gün bilgisi burada görünecek.
@@ -842,9 +829,10 @@ export default function HomeScreen() {
 
             {/* ─── Recent Workouts ─── */}
             </View>
+            <InlineTourCard stepKey="home.activeProgram" />
 
             <View>
-            <View ref={recentWorkoutsTourRef} collapsable={false} onLayout={rememberTourOffset("home.recentWorkouts")}>
+            <View>
             <SectionHeader
                 title="Son Antrenmanlar"
                 actionLabel="Tümü"
@@ -906,7 +894,7 @@ export default function HomeScreen() {
             )}
 
             {/* ─── My Programs ─── */}
-            <View ref={programsTourRef} collapsable={false} onLayout={rememberTourOffset("home.programs")}>
+            <View>
                 <SectionHeader
                     title="Programlarım"
                     actionLabel={programs.length > 3 ? "Tümü" : "Yeni Oluştur"}
@@ -914,6 +902,7 @@ export default function HomeScreen() {
                 />
             </View>
             </View>
+            <InlineTourCard stepKey="home.programs" />
 
             <View>
             {programs.length > 3 && (
@@ -978,7 +967,7 @@ export default function HomeScreen() {
                 <Text style={styles.emptyStateText}>Henüz bir program oluşturmadınız.</Text>
             )}
 
-            <View ref={communityTourRef} collapsable={false} onLayout={rememberTourOffset("home.community")}>
+            <View>
                 <SectionHeader
                     title="Topluluk Programları"
                     actionLabel="Keşfet"
@@ -986,6 +975,7 @@ export default function HomeScreen() {
                 />
             </View>
             </View>
+            <InlineTourCard stepKey="home.community" />
 
             <View>
             {communityPrograms.length > 0 ? (
